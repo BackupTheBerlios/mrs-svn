@@ -193,7 +193,23 @@ void CIdTable::Create(HStreamBase& inFile, CIteratorBase& inData,
 			if (v >= inDocCount)
 				THROW(("Error creating ID table: v(%d) >= inDocCount(%d)", v, inDocCount));
 			
-			idMap[v] = data.Store(id);
+			uint32 nId = data.Store(id);
+			
+			if (nId != n)
+			{
+				// avoid duplicates
+				// this code is not completely correct, it assumes
+				// an id with id#nr does not exist yet.
+				
+				stringstream s;
+				s << id << '#' << n;
+
+				cerr << "Warning: replacing id '" << id << "' with '" << id << '#' << n << "'" << endl;
+				
+				nId = data.Store(s.str());
+			}
+			
+			idMap[v] = nId;
 			++n;
 		}
 
