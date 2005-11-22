@@ -47,6 +47,7 @@
 #include "HStream.h"
 #include "CIndexPage.h"
 #include "HStlIOStream.h"
+#include "HStlSStream.h"
 #include "HUtils.h"
 #include "HError.h"
 #include "HByteSwap.h"
@@ -183,6 +184,8 @@ void CIdTable::Create(HStreamBase& inFile, CIteratorBase& inData,
 		CLexicon data;
 		HAutoBuf<uint32> idMap(new uint32[inDocCount]);
 		
+		memset(idMap.get(), ~0, sizeof(uint32) * inDocCount);
+		
 		string id;
 		uint32 v, n = 0, i;
 		
@@ -193,23 +196,7 @@ void CIdTable::Create(HStreamBase& inFile, CIteratorBase& inData,
 			if (v >= inDocCount)
 				THROW(("Error creating ID table: v(%d) >= inDocCount(%d)", v, inDocCount));
 			
-			uint32 nId = data.Store(id);
-			
-			if (nId != n)
-			{
-				// avoid duplicates
-				// this code is not completely correct, it assumes
-				// an id with id#nr does not exist yet.
-				
-				stringstream s;
-				s << id << '#' << n;
-
-				cerr << "Warning: replacing id '" << id << "' with '" << id << '#' << n << "'" << endl;
-				
-				nId = data.Store(s.str());
-			}
-			
-			idMap[v] = nId;
+			idMap[v] = data.Store(id);
 			++n;
 		}
 
@@ -220,8 +207,23 @@ void CIdTable::Create(HStreamBase& inFile, CIteratorBase& inData,
 		}
 
 		if (n != inDocCount)
-			THROW(("Number of entries in the id index (%d) does not equal the number of documents (%d), this is an error",
-				n, inDocCount));
+		{
+			cerr << "Number of entries in the id index (" << n
+				 << ") does not equal the number of documents (" << inDocCount
+				 << "), this is an error" << endl;
+			
+			for (i = 0; i < inDocCount; ++i)
+			{
+				if (idMap[i] == ~0UL)
+				{
+					stringstream s;
+					s << '#' << i;
+					idMap[i] = data.Store(s.str());
+					
+					cerr << "Adding id: " << s.str() << endl;
+				}
+			}
+		}
 		
 		CIdTablePage p;
 		p.first = 0;
