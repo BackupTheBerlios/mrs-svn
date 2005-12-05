@@ -214,7 +214,7 @@ void CIdTable::Create(HStreamBase& inFile, CIteratorBase& inData,
 			
 			for (i = 0; i < inDocCount; ++i)
 			{
-				if (idMap[i] == ~0UL)
+				if (static_cast<int32>(idMap[i]) == -1)
 				{
 					stringstream s;
 					s << '#' << i;
