@@ -104,6 +104,9 @@ ifeq ($(UNAME_CPU),i686)
 	OPT			+= -march=pentium3
 endif
 
+	JAVA_INC	= -I/opt/SUNWappserver/jdk/include/
+	JAVA_INC	+= -I/opt/SUNWappserver/jdk/include/linux/
+
 endif
 
 ifeq ($(CPU),mips)
@@ -219,7 +222,11 @@ VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(S
 
 # add the list of source paths to INLCUDES if not already present
 INCLUDES = $(foreach path, $(INCPATHS) $(SRC_PATHS), $(addprefix -I, $(path)))
+ifneq ($(IQUOTE),0)
 INCLUDES += -iquote
+else
+INCLUDES += -I-
+endif
 INCLUDES += $(foreach path, $(SYSINCPATHS), $(addprefix -I, $(path)))
 
 ifeq ($(TARGET),perl5)
@@ -304,6 +311,7 @@ Sources/MRS_swig_perl5_wrap.cxx: Sources/MRS_swig.h Sources/MRS_swig.i
 	$(SWIG) -c++ -perl5 -o Sources/MRS_swig_perl5_wrap.cxx -outdir ./ Sources/MRS_swig.i
 
 MRS_swig_java_wrap.cxx: Sources/MRS_swig.h Sources/MRS_swig_java.i
+	mkdir -p Java/nl/ru/cmbi/MRSPlugin
 	$(SWIG) -c++ -java -o Sources/MRS_swig_java_wrap.cxx -outdir Java/nl/ru/cmbi/MRSPlugin -package nl.ru.cmbi.MRSPlugin Sources/MRS_swig_java.i
 
 $(OBJDIR)/%.d:%.cpp
