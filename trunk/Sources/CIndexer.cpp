@@ -423,7 +423,7 @@ void CValueIndex::FlushDoc(uint32 inDocNr)
 		cerr << "Warning, document nr " << inDocNr + 1 << " does not have an ID value" << endl;
 		
 		stringstream s;
-		s << '#' << inDocNr;
+		s << inDocNr;
 		fWord = s.str();
 	}
 
@@ -434,7 +434,7 @@ void CValueIndex::FlushDoc(uint32 inDocNr)
 			string w = fWord;
 			
 			stringstream s;
-			s << w << "_#" << inDocNr;
+			s << w << "_" << inDocNr;
 			fWord = s.str();
 			
 			cerr << "Attempt to enter duplicate value '" << w << "' in value index " << fName << endl;

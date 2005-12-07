@@ -60,6 +60,7 @@ extern int THREADS;
 extern const char* COMPRESSION;
 extern int COMPRESSION_LEVEL;
 extern const char* COMPRESSION_DICTIONARY;
+extern std::string gErrStr;
 
 class MBlastHits;
 class MBlastHsps;
