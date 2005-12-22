@@ -37,6 +37,7 @@
 
 use strict;
 use English;
+use Sys::Proctitle;
 #use MRS;
 
 BEGIN {
@@ -282,8 +283,14 @@ print "Setting version: $vers\n";
 
 	die "No files to process!\n" unless scalar(@raw_files);
 	
+	my $n = 1;
+	my $m = scalar @raw_files;
+	
 	foreach my $r (@raw_files)
 	{
+		Sys::Proctitle::setproctitle(
+			sprintf("[%d/%d] MRS: '%s'", $n++, $m, $r));
+		
 		print "$r\n" if $verbose;
 		open IN, $r;
 		$p->parse(*IN, $verbose, $db, $r);

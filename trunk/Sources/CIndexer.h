@@ -118,6 +118,10 @@ class CIndexer
 	HStreamBase*					fFile;
 	struct SIndexHeader*			fHeader;
 	struct SIndexPart*				fParts;
+	
+	// for statistics
+	int64							fOffset;
+	int64							fSize;
 };
 
 #endif // CINDEXER_H

@@ -1120,6 +1120,8 @@ CIndexer::CIndexer(const HUrl& inDb)
 	, fFile(nil)
 	, fHeader(new SIndexHeader)
 	, fParts(nil)
+	, fOffset(0)
+	, fSize(0)
 {
 	fHeader->sig = kIndexSig;
 	fHeader->count = 0;
@@ -1133,6 +1135,8 @@ CIndexer::CIndexer(HStreamBase& inFile, int64 inOffset, int64 inSize)
 	: fFullTextIndex(nil)
 	, fNextTextIndexID(0)
 	, fFile(&inFile)
+	, fOffset(inOffset)
+	, fSize(inSize)
 {
 	HStreamView view(inFile, inOffset, inSize);
 
@@ -1955,28 +1959,52 @@ void CIndexer::PrintInfo()
 {
 	const char* sig = reinterpret_cast<const char*>(&fHeader->sig);
 	
-	cout << "Index Header: " << endl;
-	cout << "  signature:    " << sig[0] << sig[1] << sig[2] << sig[3] << endl;
-	cout << "  size:         " << fHeader->size << endl;
+	cout << "Index Header ("
+		 << sig[0] << sig[1] << sig[2] << sig[3] << ") " << fHeader->size << " bytes" << endl;
 	cout << "  entries:      " << fHeader->entries << endl;
 	cout << "  count:        " << fHeader->count << endl;
 	cout << endl;
-
+	
 	for (uint32 ix = 0; ix < fHeader->count; ++ix)
 	{
 		SIndexPart& p = fParts[ix];
 		
 		sig = reinterpret_cast<const char*>(&p.sig);
 		
-		cout << "Index Part " << ix << ":" << endl;
-		cout << "  signature:    " << sig[0] << sig[1] << sig[2] << sig[3] << endl;
-		cout << "  size:         " << p.size << endl;
+		cout << "Index Part " << ix << " ("
+			 << sig[0] << sig[1] << sig[2] << sig[3] << ") " << fHeader->size << " bytes" << endl;
+
 		cout << "  name:         " << p.name << endl;
+		
+		int64 nextOffset = fOffset + fSize;
+		uint32 treeSize, bitsSize;
+		
+		if (ix < fHeader->count - 1)
+		{
+			if (fParts[ix + 1].bits_offset == 0)
+				nextOffset = fParts[ix + 1].tree_offset;
+			else
+				nextOffset = min(fParts[ix + 1].tree_offset, fParts[ix + 1].bits_offset);
+		}
+		
+		if (p.bits_offset > p.tree_offset)
+		{
+			treeSize = p.bits_offset - p.tree_offset;
+			bitsSize = nextOffset - p.bits_offset;
+		}
+		else
+		{
+			bitsSize = p.tree_offset - p.bits_offset;
+			treeSize = nextOffset - p.tree_offset;
+		}
 		
 		sig = reinterpret_cast<const char*>(&p.kind);
 		cout << "  kind:         " << sig[0] << sig[1] << sig[2] << sig[3] << endl;
 		cout << "  bits offset:  " << p.bits_offset << endl;
+		if (p.kind != kValueIndex)
+			cout << "  bits size:    " << bitsSize << endl;
 		cout << "  tree offset:  " << p.tree_offset << endl;
+		cout << "  tree size:    " << treeSize << endl;
 		cout << "  root:         " << p.root << endl;
 		cout << "  entries:      " << p.entries << endl;
 		cout << endl;
