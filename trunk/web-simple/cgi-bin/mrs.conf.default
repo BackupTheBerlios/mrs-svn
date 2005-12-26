@@ -1,0 +1,202 @@
+# Directory containing MRS data files:
+#
+# $Id: mrs.conf.default,v 1.2 2005/02/28 11:51:16 maarten Exp $
+#
+# Copyright 2005, M.L. Hekkelman. CMBI, Radboud Universiteit Nijmegen
+#
+
+$mrs_data = '__DATA_DIR__';
+
+# databases presented to the user:
+
+@dbs = (
+	{
+		id => 'all',
+		name => 'All Databanks',
+		filter => 'default',
+		url => undef,
+		parser => undef
+	},
+	{
+		id => 'uniprot',
+		name => 'Protein (UniProt)',
+		filter => 'embl',
+		url => 'http://www.ebi.ac.uk/uniprot/index.html',
+		parser => 'embl.pm'
+	},
+	{
+		id => 'embl_release|embl_updates',
+		name => 'Nucleotide (EMBL)',
+		filter => 'embl',
+		url => 'http://www.ebi.ac.uk/embl/index.html',
+		parser => 'embl.pm'
+	},
+	{
+		id => 'dbest',
+		name => 'dbEST',
+		filter => 'dbest',
+		url => 'http://www.ncbi.nlm.nih.gov/dbEST/',
+		parser => 'dbest.pm'
+	},
+	{
+		id => 'pdb',
+		name => 'PDB',
+		filter => 'default',
+		url => 'http://www.rcsb.org/pdb/',
+		parser => 'pdb.pm'
+	},
+	{
+		id => 'pdbfinder2',
+		name => 'PDB Finder 2',
+		filter => 'default',
+		url => undef,
+		parser => 'pdbfinder2.pm'
+	},
+	{
+		id => 'omim',
+		name => 'OMIM',
+		filter => 'omim',
+		url => 'http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=OMIM',
+		parser => 'omim.pm'
+	},
+	{
+		id => 'locuslink',
+		name => 'LocusLink',
+		filter => 'default',
+		url => 'http://www.ncbi.nlm.nih.gov/projects/LocusLink/',
+		parser => 'locuslink.pm'
+	},
+	{
+		id => 'refseq_release|refseq_updates',
+		name => 'REFSEQ',
+		filter => 'genbank',
+		url => 'http://www.ncbi.nlm.nih.gov/RefSeq/',
+		parser => 'genbank.pm'
+	},
+	{
+		id => 'genbank_release',
+		name => 'Genbank',
+		filter => 'genbank',
+		url => 'http://www.ncbi.nlm.nih.gov/Genbank/GenbankOverview.html',
+		parser => 'genbank.pm'
+	},
+	{
+		id => 'dssp',
+		name => 'DSSP',
+		filter => 'default',
+		url => 'http://www.cmbi.kun.nl/gv/dssp/',
+		parser => 'dssp.pm'
+	},
+	{
+		id => 'hssp',
+		name => 'HSSP',
+		filter => 'hssp',
+		url => 'http://www.cmbi.kun.nl/gv/hssp/',
+		parser => 'hssp.pm'
+	},
+	{
+		id => 'unigene',
+		name => 'Unigene',
+		filter => 'default',
+		url => 'http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=unigene',
+		parser => 'unigene.pm'
+	},
+	{
+		id => 'uniseq',
+		name => 'UniSeq',
+		filter => 'default',
+		url => 'http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=unigene',
+		parser => 'uniseq.pm'
+	},
+	{
+		id => 'uniuniq',
+		name => 'UniUnique',
+		filter => 'default',
+		url => 'http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=unigene',
+		parser => 'uniuniq.pm'
+	},
+	{
+		id => 'ligand-compound',
+		name => 'KEGG Ligand Compound',
+		filter => 'default',
+		url => 'http://www.genome.jp/kegg/ligand.html',
+		parser => 'ligand.pm'
+	},
+	{
+		id => 'ligand-enzyme',
+		name => 'KEGG Ligand Enzyme',
+		filter => 'default',
+		url => 'http://www.genome.jp/kegg/ligand.html',
+		parser => 'ligand.pm'
+	},
+	{
+		id => 'ligand-glycan',
+		name => 'KEGG Ligand Glycan',
+		filter => 'default',
+		url => 'http://www.genome.jp/kegg/ligand.html',
+		parser => 'ligand.pm'
+	},
+	{
+		id => 'ligand-reaction',
+		name => 'KEGG Ligand Reaction',
+		filter => 'default',
+		url => 'http://www.genome.jp/kegg/ligand.html',
+		parser => 'ligand.pm'
+	},
+	{
+		id => 'taxonomy',
+		name => 'Taxonomy',
+		filter => 'taxonomy',
+		url => 'http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=Taxonomy',
+		parser => 'taxonomy.pm'
+	},
+	{
+		id => 'go',
+		name => 'GO',
+		filter => 'go',
+		url => 'http://www.geneontology.org/',
+		parser => 'go.pm'
+	},
+	{
+		id => 'goa',
+		name => 'GOA',
+		filter => 'goa',
+		url => 'http://www.ebi.ac.uk/GOA/',
+		parser => 'goa.pm'
+	},
+	{
+		id => 'enzyme',
+		name => 'Enzyme',
+		filter => 'enzyme',
+		url => 'http://ca.expasy.org/enzyme/',
+		parser => 'enzyme.pm'
+	},
+	{
+		id => 'pfama',
+		name => 'Pfam-A',
+		filter => 'pfam',
+		url => 'http://www.sanger.ac.uk/Software/Pfam/',
+		parser => 'pfam.pm'
+	},
+	{
+		id => 'pfamb',
+		name => 'Pfam-B',
+		filter => 'pfam',
+		url => 'http://www.sanger.ac.uk/Software/Pfam/',
+		parser => 'pfam.pm'
+	},
+	{
+		id => 'pfamseed',
+		name => 'Pfam-Seed',
+		filter => 'pfam',
+		url => 'http://www.sanger.ac.uk/Software/Pfam/',
+		parser => 'pfam.pm'
+	},
+	{
+		id => 'interpro',
+		name => 'Interpro',
+		filter => 'interpro',
+		url => 'http://www.ebi.ac.uk/interpro/',
+		parser => 'interpro.pm'
+	},
+);
