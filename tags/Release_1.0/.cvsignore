@@ -1,0 +1,6 @@
+Obj.*
+*Data
+*.bundle
+*.so
+.gdb_history
+MRS.pm

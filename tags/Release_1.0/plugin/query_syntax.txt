@@ -1,0 +1,27 @@
+query	:	query '|' test
+		|	query 'OR' test
+		|	query '&' test
+		|	query 'AND' test
+		|	query test
+		|	test
+		;
+
+test	:	ix ':' term
+		|	ix '=' term
+		|	term
+		|	'(' query ')'
+		|	'-' test
+		|	'not' test
+		;
+
+term	:	'"' words '"'
+		|	word
+		|	pattern
+		;
+
+words	:	words word
+		|
+		;
+
+word	: [a-z][a-z0-9]*
+		;
