@@ -218,7 +218,7 @@ void CDocDeltaIterator::PrintHierarchy(int inLevel) const
 
 CDbDocIterator::CDbDocIterator(HStreamBase& inData,
 		int64 inOffset, int64 inMax)
-	: fBits(new ibit_stream(inData, inOffset))
+	: fBits(new CIBitStream(inData, inOffset))
 	, fValue(-1)
 	, fRead(0)
 {
@@ -779,7 +779,7 @@ bool CDbStringMatchIterator::Next(uint32& ioDoc, bool inSkip)
 
 uint32 CDbStringMatchIterator::Count() const
 {
-	uint result = 0;
+	uint32 result = 0;
 	if (fIter != 0)
 		result = fIter->Count();
 	return result;
@@ -787,7 +787,7 @@ uint32 CDbStringMatchIterator::Count() const
 
 uint32 CDbStringMatchIterator::Read() const
 {
-	uint result = 0;
+	uint32 result = 0;
 	if (fIter != 0)
 		result = fIter->Read();
 	return result;

@@ -44,6 +44,8 @@
 #include "HStlList.h"
 #include "HStlSet.h"
 #include "HStlIOStream.h"
+#include "HStlLimits.h"
+#include "HStdCTime.h"
 #include "HFile.h"
 #include "HUtils.h"
 #include "HError.h"
@@ -354,7 +356,6 @@ class CIndexBase
 	
 	virtual void	AddWord(const string& inWord) = 0;
 	virtual void	FlushDoc(uint32 inDocNr) = 0;
-	virtual void	ReleaseBuffer() = 0;
 	virtual void	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo) = 0;
 
 	virtual bool	Empty() const = 0;
@@ -392,7 +393,6 @@ class CValueIndex : public CIndexBase
 	
 	virtual void	AddWord(const string& inWord);
 	virtual void	FlushDoc(uint32 inDocNr);
-	virtual void	ReleaseBuffer();
 	virtual void	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
 	
 	virtual bool	Empty() const			{ return false; }
@@ -445,10 +445,6 @@ void CValueIndex::FlushDoc(uint32 inDocNr)
 
 		fWord.clear();
 	}
-}
-
-void CValueIndex::ReleaseBuffer()
-{
 }
 
 void CValueIndex::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPart& outInfo)
@@ -586,7 +582,7 @@ class CFullTextIndex
 					}
 
 		uint32		cnt;
-		ibit_stream	bits;
+		CIBitStream	bits;
 		uint32		term;
 		uint32		doc;
 		uint32		first_doc;
@@ -670,7 +666,7 @@ void CFullTextIndex::FlushRun()
 	ri.count = buffer_ix;
 	fRunInfo.push_back(ri);
 	
-	obit_stream bits(*fScratch);
+	COBitStream bits(*fScratch);
 
 	uint32 t = 0;
 	uint32 d = firstDoc;	// the first doc in this run
@@ -810,7 +806,6 @@ class CTextIndexBase : public CIndexBase
 	virtual void	AddDocTerm(uint32 inDoc);
 	virtual void	FlushTerm(uint32 inTerm, uint32 inDocCount);
 	
-	virtual void	ReleaseBuffer();
 	virtual void	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
 
 	virtual bool	Empty() const			{ return fEmpty; }
@@ -824,14 +819,14 @@ class CTextIndexBase : public CIndexBase
 	
 	// data for the second pass
 	uint32			fLastDoc;
-	obit_stream*	fBits;
+	COBitStream*	fBits;
 	uint32			fDocCount;
 	
 	HUrl			fBitUrl;
 	HStreamBase*	fBitFile;
 	HMemoryStream	fScratch;
 	
-	obit_stream*	fRawIndex;
+	COBitStream*	fRawIndex;
 	uint32			fRawIndexCnt;
 	uint32			fLastTermNr;
 	uint64			fLastOffset;
@@ -866,10 +861,6 @@ void CTextIndexBase::AddWord(const string& inWord)
 	fEmpty = false;
 }
 
-void CTextIndexBase::ReleaseBuffer()
-{
-}
-
 void CTextIndexBase::FlushDoc(uint32 /*inDocNr*/)
 {
 }
@@ -880,7 +871,7 @@ void CTextIndexBase::AddDocTerm(uint32 inDoc)
 
 	if (fBits == nil)
 	{
-		fBits = new obit_stream(fScratch);
+		fBits = new COBitStream(fScratch);
 		fDocCount = 0;
 		d = inDoc + 1;
 	}
@@ -908,7 +899,7 @@ void CTextIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 		
 		if (fRawIndex == nil)
 		{
-			fRawIndex = new obit_stream;
+			fRawIndex = new COBitStream;
 			fRawIndexCnt = 1;
 		
 			WriteGamma(*fRawIndex, inTerm + 1);
@@ -930,8 +921,8 @@ void CTextIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 			++fRawIndexCnt;
 		}
 		
-		obit_stream docBits(*fBitFile);
-		ibit_stream bits(fScratch, 0, fScratch.Size());
+		COBitStream docBits(*fBitFile);
+		CIBitStream bits(fScratch, 0, fScratch.Size());
 
 		CompressArray(docBits, bits, fDocCount, inDocCount);
 		docBits.sync();
@@ -1033,7 +1024,7 @@ void CTextIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SInde
 	lexicon.reserve(fRawIndexCnt);
 	
 	fRawIndex->sync();
-	ibit_stream bits(fRawIndex->peek(), fRawIndex->size());
+	CIBitStream bits(fRawIndex->peek(), fRawIndex->size());
 	
 	uint32 term, offset;
 	term = ReadGamma(bits) - 1;
@@ -1246,10 +1237,18 @@ void CIndexer::IndexDate(const string& inIndex, const string& inText)
 	tm.tm_mday = day;
 	tm.tm_mon = month - 1;
 	tm.tm_year = year - 1900;
+#if P_VISUAL_CPP
+#pragma message("fix me!")
+	time_t t = mktime(&tm);
+
+	if (localtime_r(&t, &tm) == nil)
+		THROW(("Invalid formatted date specified(5): '%s'", inText.c_str()));
+#else
 	time_t t = timegm(&tm);
-	
+
 	if (gmtime_r(&t, &tm) == nil)
 		THROW(("Invalid formatted date specified(5): '%s'", inText.c_str()));
+#endif
 	
 	if (tm.tm_mday != day or tm.tm_mon != month - 1 or tm.tm_year != year - 1900)
 		THROW(("Invalid formatted date specified(6): '%s'", inText.c_str()));
@@ -1338,7 +1337,6 @@ void CIndexer::CreateIndex(HStreamBase& inFile, int64& outOffset, int64& outSize
 	
 	for (indx = indexes.begin(); indx != indexes.end(); ++indx)
 	{
-		(*indx).second->ReleaseBuffer();
 		if ((*indx).second->Empty())
 		{
 			delete (*indx).second;
@@ -1366,19 +1364,9 @@ void CIndexer::CreateIndex(HStreamBase& inFile, int64& outOffset, int64& outSize
 
 	for (indx = indexes.begin(); indx != indexes.end(); ++indx)
 	{
-		if (dynamic_cast<CTextIndex*>((*indx).second) != nil)
+		if (dynamic_cast<CTextIndexBase*>((*indx).second) != nil)
 		{
-			CTextIndex* txtIx = static_cast<CTextIndex*>((*indx).second);
-			txtIndex[txtIx->GetIxNr()] = txtIx;
-		}
-		else if (dynamic_cast<CDateIndex*>((*indx).second) != nil)
-		{
-			CDateIndex* txtIx = static_cast<CDateIndex*>((*indx).second);
-			txtIndex[txtIx->GetIxNr()] = txtIx;
-		}
-		else if (dynamic_cast<CNumberIndex*>((*indx).second) != nil)
-		{
-			CNumberIndex* txtIx = static_cast<CNumberIndex*>((*indx).second);
+			CTextIndexBase* txtIx = static_cast<CTextIndexBase*>((*indx).second);
 			txtIndex[txtIx->GetIxNr()] = txtIx;
 		}
 	}
@@ -1776,7 +1764,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					if (offset > numeric_limits<uint32>::max())
 						THROW(("Index %s is too large", fParts[ix].name));
 
-					obit_stream bits(*bitFile.get());
+					COBitStream bits(*bitFile.get());
 					CompressArray(bits, docs, first);
 					
 					indx.push_back(make_pair(s, static_cast<uint32>(offset)));

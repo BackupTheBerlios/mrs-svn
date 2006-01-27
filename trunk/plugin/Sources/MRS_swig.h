@@ -56,7 +56,7 @@ std::string SEG(const std::string& inSequence);
 
 // some globals, settable from the outside
 extern int VERBOSE;
-extern int THREADS;
+extern unsigned int THREADS;
 extern const char* COMPRESSION;
 extern int COMPRESSION_LEVEL;
 extern const char* COMPRESSION_DICTIONARY;

@@ -59,14 +59,18 @@ class CIndexer;
 class CDbInfo;
 class CDatabankBase;
 class CIdTable;
+#ifndef NO_BLAST
 class CBlastIndex;
+#endif
 class CDictionary;
 
 struct SIndexPart;
 struct SHeader;
 struct SDataHeader;
 struct SDataPart;
+#ifndef NO_BLAST
 struct SBlastIndexHeader;
+#endif
 
 struct ProgressInfo
 {
@@ -87,6 +91,7 @@ class CDatabankBase
 	virtual std::string	GetDocumentID(uint32 inDocNr) const;
 	virtual uint32		GetDocumentNr(const std::string& inDocID, bool inThrowIfNotFound = true) const;
 
+#ifndef NO_BLAST
 	virtual uint32		GetBlastDbCount() const = 0;
 	virtual int64		GetBlastDbLength() const = 0;
 	virtual uint32		CountSequencesForDocument(uint32 inDocNr) = 0;
@@ -96,6 +101,7 @@ class CDatabankBase
 
 	virtual void		GetSequence(uint32 inDocNr, uint32 inIndex,
 							CSequence& outSequence) = 0;
+#endif
 	
 	virtual uint32		Count() const = 0;
 	virtual std::string	GetVersion() const = 0;
@@ -150,11 +156,13 @@ class CDatabank : public CDatabankBase
 	virtual std::string	GetDocumentID(uint32 inDocNr) const;
 	virtual uint32		GetDocumentNr(const std::string& inDocID, bool inThrowIfNotFound = true) const;
 	
+#ifndef NO_BLAST
 	virtual uint32		GetBlastDbCount() const;
 	virtual int64		GetBlastDbLength() const;
 	virtual uint32		CountSequencesForDocument(uint32 inDocNr);
 	virtual void		GetSequence(uint32 inDocNr, uint32 inIndex,
 							CSequence& outSequence);
+#endif
 	
 	// for the perl interface
 	void				Store(const std::string& inDocument);
@@ -164,7 +172,9 @@ class CDatabank : public CDatabankBase
 	void				IndexValue(const std::string& inIndex, const std::string& inText);
 	void				IndexDate(const std::string& inIndex, const std::string& inText);
 	void				IndexNumber(const std::string& inIndex, const std::string& inText);
+#ifndef NO_BLAST
 	void				AddSequence(const std::string& inSequence);
+#endif
 	void				FlushDocument();
 
 	void				SetVersion(const std::string& inVersion);
@@ -199,7 +209,9 @@ class CDatabank : public CDatabankBase
 	HStreamBase&	GetDataFile()			{ return *fDataFile; }
 	HUrl			GetDataUrl()			{ return fPath; }
 	CIndexer*		GetIndexer();
+#ifndef NO_BLAST
 	CBlastIndex*	GetBlastIndex() const	{ return fBlastIndex; }
+#endif
 
 	virtual std::string	GetDbName() const;
 	
@@ -227,14 +239,18 @@ class CDatabank : public CDatabankBase
 	std::string		fScript;
 	CDbInfo*		fInfoContainer;
 	CIdTable*		fIdTable;
+#ifndef NO_BLAST
 	CBlastIndex*	fBlastIndex;
+#endif
 	CDictionary*	fDictionary;
 
 	// on disk info
 	SHeader*		fHeader;
 	SDataHeader*	fDataHeader;
 	SDataPart*		fParts;
+#ifndef NO_BLAST
 	SBlastIndexHeader*	fBlast;
+#endif
 };
 
 class CJoinedDatabank : public CDatabankBase
@@ -248,11 +264,13 @@ class CJoinedDatabank : public CDatabankBase
 	virtual std::string	GetDocumentID(uint32 inDocNr) const;
 	virtual uint32		GetDocumentNr(const std::string& inDocID, bool inThrowIfNotFound = true) const;
 
+#ifndef NO_BLAST
 	virtual uint32		GetBlastDbCount() const;
 	virtual int64		GetBlastDbLength() const;
 	virtual uint32		CountSequencesForDocument(uint32 inDocNr);
 	virtual void		GetSequence(uint32 inDocNr, uint32 inIndex,
 							CSequence& outSequence);
+#endif
 
 	virtual uint32		Count() const;
 	virtual std::string	GetVersion() const;
@@ -308,11 +326,13 @@ class CUpdatedDatabank : public CDatabank
 	virtual std::string	GetDocumentID(uint32 inDocNr) const;
 	virtual uint32		GetDocumentNr(const std::string& inDocID, bool inThrowIfNotFound = true) const;
 
+#ifndef NO_BLAST
 	virtual uint32		GetBlastDbCount() const;
 	virtual int64		GetBlastDbLength() const;
 	virtual uint32		CountSequencesForDocument(uint32 inDocNr);
 	virtual void		GetSequence(uint32 inDocNr, uint32 inIndex,
 							CSequence& outSequence);
+#endif
 
 	virtual uint32		CountDocumentsContainingKey(const std::string& inIndex,
 							const std::string& inKey);

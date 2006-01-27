@@ -46,6 +46,7 @@
 #include "HStlIOManip.h"
 #include "HStlLimits.h"
 #include "HStlSStream.h"
+#include "HStlAlgorithm.h"
 
 #include "HUtils.h"
 #include "HError.h"
@@ -1203,7 +1204,7 @@ string CBlastQueryBase::ReportInXML(const CDatabankBase& inDb, bool inFilter, co
 		{
 			int32 score = (*hsp).mScore;
 			double bitScore = (mMatrix.gapped.lambda * score - mMatrix.gapped.logK) / kLn2;
-			double eValue = mSearchSpace / pow(2, bitScore);
+			double eValue = mSearchSpace / pow(2., bitScore);
 			
 			string midLine;
 			uint32 identity, positives, gaps;
@@ -1788,7 +1789,7 @@ double CBlastHspIterator::BitScore()
 
 double CBlastHspIterator::Expect()
 {
-	return mBlastQuery->mSearchSpace / pow(2, BitScore());
+	return mBlastQuery->mSearchSpace / pow(2., BitScore());
 }
 
 CBlastHitIterator::CBlastHitIterator(const CBlastHitIterator& inOther)

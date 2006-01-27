@@ -57,7 +57,7 @@ CCArray<T>::CCArray(const std::vector<T>& inData, int64 inMax)
 	std::vector<char> buf;
 	CreatePage(inData, 0, (cnt - 1) / kPageSize, buf);
 	
-	obit_stream bits;
+	COBitStream bits;
 	WriteGamma(bits, cnt);
 	bits.sync();
 	
@@ -81,7 +81,7 @@ CCArray<T>::CCArray(HStreamBase& inData, int64 inMax)
 	std::vector<char> buf;
 	CreatePage(inData, 0, (cnt - 1) / kPageSize, buf);
 	
-	obit_stream bits;
+	COBitStream bits;
 	WriteGamma(bits, cnt);
 	bits.sync();
 	
@@ -102,7 +102,7 @@ CCArray<T>::CCArray(HStreamBase& inFile, int64 inOffset, uint32 inSize, int64 in
 {
 	inFile.PRead(data, size, inOffset);
 	
-	ibit_stream bits(data, size);
+	CIBitStream bits(data, size);
 	cnt = ReadGamma(bits);
 	data_offset = bits.bytes_read();
 
@@ -154,7 +154,7 @@ void CCArray<T>::CreatePage(const T* inData, uint32 inDataSize,
 	
 	T v = inData[e];
 
-	obit_stream bits;
+	COBitStream bits;
 	
 	for (int i = kb - 1; i >= 0; --i)
 		bits << (((1ULL << i) & v) != 0);
@@ -308,7 +308,7 @@ T CCArray<T>::operator[](uint32 inIndex) const
 	
 	while (L <= R)
 	{
-		ibit_stream bits(data + offset, 0);
+		CIBitStream bits(data + offset, 0);
 		
 		result = 0;
 		for (int i = kb - 1; i >= 0; --i)
@@ -372,7 +372,7 @@ T CCArray<T>::operator[](uint32 inIndex) const
 template<class T>
 void CCArray<T>::ExpandPage(uint32 inL, uint32 inR, uint32 inPage, uint32 inOffset)
 {
-	ibit_stream bits(data + inOffset, 0);
+	CIBitStream bits(data + inOffset, 0);
 
 	T base = 0;
 	for (int i = kb - 1; i >= 0; --i)

@@ -42,6 +42,8 @@
 #ifndef CBLASTINDEX_H
 #define CBLASTINDEX_H
 
+#ifndef NO_BLAST
+
 #include "CSequence.h"
 #include "CArray.h"
 
@@ -96,5 +98,7 @@ CBlastIndex::AddSequence(const std::string& inSequence)
 {
 	AddSequence(Encode(inSequence));
 }
+
+#endif
 
 #endif // CBLASTINDEX_H

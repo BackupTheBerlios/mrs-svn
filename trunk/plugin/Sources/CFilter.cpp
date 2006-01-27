@@ -41,14 +41,15 @@
  
 #include "MRS.h"
 
-#include <cmath>
-#include <algorithm>
-#include <string>
-#include <vector>
-#include <cctype>
-#include <iostream>
-#include <fstream>
-#include <map>
+#include "HStlLimits.h"
+#include "HStdCMath.h"
+#include "HStlAlgorithm.h"
+#include "HStlString.h"
+#include "HStlVector.h"
+#include "HStdCCtype.h"
+#include "HStlIOStream.h"
+//#include "HStlFStream.h"
+#include "HStlMap.h"
 
 #include "CFilter.h"
 
@@ -318,7 +319,7 @@ static double lnass(vector<long>& inState, CAlphabet inAlphabet)
 
 static double lnprob(vector<long>& inState, long inTotal, const CAlphabet& inAlphabet)
 {
-	double ans1, ans2 = 0, totseq;
+	double ans1, ans2, totseq;
 
 	totseq = inTotal * inAlphabet.GetLnSize();
 	ans1 = lnass(inState, inAlphabet);

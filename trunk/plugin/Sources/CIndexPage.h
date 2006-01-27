@@ -45,6 +45,7 @@
 #include "HStlString.h"
 #include "HStlVector.h"
 #include "HStlStack.h"
+#include "HStlAlgorithm.h"
 
 #include <boost/iterator/iterator_facade.hpp>
 #include <boost/mpl/if.hpp>

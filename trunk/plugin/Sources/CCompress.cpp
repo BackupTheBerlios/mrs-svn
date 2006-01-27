@@ -440,7 +440,7 @@ class CCmpLexicon
 	void				Reduce(HStreamBase& inFile);
 	
 	void				AddToken(const char* inText);
-	void				WriteToken(const char* inText, obit_stream& ioBits);
+	void				WriteToken(const char* inText, COBitStream& ioBits);
 	
   private:
 
@@ -516,13 +516,13 @@ void CCmpLexicon::AddToken(const char* inText)
 }
 
 inline
-void Push(obit_stream& inBits, uint32 inCode, uint32 inLen)
+void Push(COBitStream& inBits, uint32 inCode, uint32 inLen)
 {
 	for (int i = static_cast<int>(inLen) - 1; i >= 0; --i)
 		inBits << ((inCode & (1 << i)) != 0);
 }
 
-void CCmpLexicon::WriteToken(const char* inText, obit_stream& ioBits)
+void CCmpLexicon::WriteToken(const char* inText, COBitStream& ioBits)
 {
 	Lexicon::iterator i = lower_bound(lexicon.begin() + 1, lexicon.end(), LexEntry(inText, 0));
 	if (i != lexicon.end() && strcmp(inText, (*i).text) == 0)
@@ -873,7 +873,7 @@ void CHuffWordCompressorImp::CompressDocument(const char* inText, uint32 inSize)
 	bool word = true, isWord, isNumber;
 	CTokenizer<15> tok(inText, inSize);
 	CTokenizer<15>::EntryText text;
-	obit_stream bits;
+	COBitStream bits;
 	
 	while (tok.GetToken(text, isWord, isNumber))
 	{

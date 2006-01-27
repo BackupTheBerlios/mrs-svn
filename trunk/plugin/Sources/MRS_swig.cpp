@@ -66,12 +66,12 @@ using namespace std;
 
 #pragma export on
 
-int			VERBOSE = 0;
-int			THREADS = 1;
-const char*	COMPRESSION = "zlib";
-int			COMPRESSION_LEVEL = 6;
-const char*	COMPRESSION_DICTIONARY = "";
-string		gErrStr;
+int				VERBOSE = 0;
+unsigned int	THREADS = 1;
+const char*		COMPRESSION = "zlib";
+int				COMPRESSION_LEVEL = 6;
+const char*		COMPRESSION_DICTIONARY = "";
+string			gErrStr;
 
 string errstr()
 {

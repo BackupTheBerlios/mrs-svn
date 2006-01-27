@@ -81,6 +81,15 @@ elsif ($action eq 'query')
 	
 	&Query($db, $opts{v}, $q);
 }
+elsif ($action eq 'entry')
+{
+	getopts('d:e:v', \%opts);
+
+	my $db = $opts{d} or &Usage();
+	my $e = $opts{'e'};
+	
+	&Entry($db, $e, $opts{v});
+}
 elsif ($action eq 'blast')
 {
 	getopts('d:q:vi:', \%opts);
@@ -185,6 +194,12 @@ Usage:
         -D      no leading digit in key name
         -l      minimal word length
 
+    mrs entry -d databank -e entry
+	
+        -d      databank name
+        -e      entry ID
+        -v      verbose
+    
 END
 		print $usage;
 		exit(1);
@@ -350,6 +365,18 @@ sub Query()
 	{
 		print "No hits found for '$q' in $db\n";
 	}
+}
+
+sub Entry()
+{
+	my ($db, $entry, $verbose) = @_;
+	
+	$verbose = 0 unless defined $verbose;
+	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
+	
+	my $d = new MRS::MDatabank($db);
+	
+	print $d->Get($entry);
 }
 
 sub Blast()

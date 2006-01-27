@@ -49,14 +49,14 @@
 
 class HStreamBase;
 
-class obit_stream
+class COBitStream
 {
   public:
-					obit_stream();
-					obit_stream(HStreamBase& inFile);
-					~obit_stream();
+					COBitStream();
+					COBitStream(HStreamBase& inFile);
+					~COBitStream();
 	
-	obit_stream&	operator<<(int inBit);
+	COBitStream&	operator<<(int inBit);
 	
 	void			sync();
 	
@@ -66,8 +66,8 @@ class obit_stream
 	uint32			bit_size() const;
 
   private:
-					obit_stream(const obit_stream&);
-	obit_stream&	operator=(const obit_stream&);
+					COBitStream(const COBitStream&);
+	COBitStream&	operator=(const COBitStream&);
 
 	void			overflow();
 
@@ -78,21 +78,21 @@ class obit_stream
 	HStreamBase*	file;
 };
 
-class ibit_stream
+class CIBitStream
 {
   public:
-					ibit_stream(HStreamBase& inData, int64 inOffset);
-					ibit_stream(HStreamBase& inData, int64 inOffset, uint32 inSize);
-					ibit_stream(const char* inData, uint32 inSize);
-					ibit_stream(const ibit_stream& inOther);
-					~ibit_stream();
+					CIBitStream(HStreamBase& inData, int64 inOffset);
+					CIBitStream(HStreamBase& inData, int64 inOffset, uint32 inSize);
+					CIBitStream(const char* inData, uint32 inSize);
+					CIBitStream(const CIBitStream& inOther);
+					~CIBitStream();
 
-	ibit_stream&	operator=(const ibit_stream& inOther);
+	CIBitStream&	operator=(const CIBitStream& inOther);
 
-	bool			operator==(const ibit_stream& inOther) const;
-	bool			operator!=(const ibit_stream& inOther) const;
+	bool			operator==(const CIBitStream& inOther) const;
+	bool			operator!=(const CIBitStream& inOther) const;
 	
-	ibit_stream&	operator>>(int& outBit);
+	CIBitStream&	operator>>(int& outBit);
 	int				next_bit();
 	
 //	void			skip(uint32 inBits);
@@ -104,20 +104,20 @@ class ibit_stream
 
   private:
 
-	struct ibit_stream_imp*	impl;
+	struct CIBitStream_imp*	impl;
 
 	int8			byte;
 	int8			bit_offset;
 };
 
-uint32 ReadGamma(ibit_stream& inBits);
-void WriteGamma(obit_stream& inBits, uint32 inValue);
+uint32 ReadGamma(CIBitStream& inBits);
+void WriteGamma(COBitStream& inBits, uint32 inValue);
 
-uint32 ReadUnary(ibit_stream& inBits);
-void WriteUnary(obit_stream& inBits, uint32 inValue);
+uint32 ReadUnary(CIBitStream& inBits);
+void WriteUnary(COBitStream& inBits, uint32 inValue);
 
 template<class T>
-T ReadBinary(ibit_stream& inBits, int inBitCount)
+T ReadBinary(CIBitStream& inBits, int inBitCount)
 {
 	assert(inBitCount < sizeof(T) * 8);
 	T result = 0;
@@ -132,7 +132,7 @@ T ReadBinary(ibit_stream& inBits, int inBitCount)
 }
 
 template<class T>
-void WriteBinary(obit_stream& inBits, T inValue, int inBitCount)
+void WriteBinary(COBitStream& inBits, T inValue, int inBitCount)
 {
 	assert(inBitCount < sizeof(T) * 8);
 	for (int32 i = inBitCount - 1; i >= 0; --i)
@@ -143,7 +143,7 @@ template<int bit_size>
 class CBinaryOutStream
 {
   public:
-						CBinaryOutStream(obit_stream& inStream)
+						CBinaryOutStream(COBitStream& inStream)
 							: fBits(inStream)
 						{
 						}
@@ -156,14 +156,14 @@ class CBinaryOutStream
 	}
 
   private:
-	obit_stream&		fBits;
+	COBitStream&		fBits;
 };
 
 template<int bit_size>
 class CBinaryInStream
 {
   public:
-						CBinaryInStream(ibit_stream& inStream)
+						CBinaryInStream(CIBitStream& inStream)
 							: fBits(inStream)
 						{
 						}
@@ -181,20 +181,20 @@ class CBinaryInStream
 	}
 
   private:
-	ibit_stream&		fBits;
+	CIBitStream&		fBits;
 };
 
 
 template<class T>
-void CompressArray(obit_stream& inBits, const T& inArray, int64 inMax);
+void CompressArray(COBitStream& inBits, const T& inArray, int64 inMax);
 
 template<class T>
-void DecompressArray(ibit_stream& inBits, T& outArray, int64 inMax);
+void DecompressArray(CIBitStream& inBits, T& outArray, int64 inMax);
 
 // inline implementations
 
 inline
-obit_stream& obit_stream::operator<<(int inBit)
+COBitStream& COBitStream::operator<<(int inBit)
 {
 	if (data == NULL)
 		overflow();
@@ -216,7 +216,7 @@ obit_stream& obit_stream::operator<<(int inBit)
 }
 
 inline
-ibit_stream& ibit_stream::operator>>(int& outBit)
+CIBitStream& CIBitStream::operator>>(int& outBit)
 {
 	outBit = (byte & (1 << bit_offset)) != 0;
 	--bit_offset;
@@ -228,7 +228,7 @@ ibit_stream& ibit_stream::operator>>(int& outBit)
 }
 
 inline
-int ibit_stream::next_bit()
+int CIBitStream::next_bit()
 {
 	int result = (byte & (1 << bit_offset)) != 0;
 	--bit_offset;
@@ -264,7 +264,7 @@ int32 CalculateB(int64 inMax, uint32 inCnt)
 }
 
 template<class T>
-void CompressArray(obit_stream& inBits, const T& inArray, int64 inMax)
+void CompressArray(COBitStream& inBits, const T& inArray, int64 inMax)
 {
 	typedef typename T::const_iterator	iterator;
 	
@@ -314,11 +314,11 @@ void CompressArray(obit_stream& inBits, const T& inArray, int64 inMax)
 	}
 }
 
-void CompressArray(obit_stream& inDstBits, ibit_stream& inSrcBits,
+void CompressArray(COBitStream& inDstBits, CIBitStream& inSrcBits,
 	uint32 inCount, int64 inMax);
 
 template <class T>
-void DecompressArray(ibit_stream& inBits, T& outArray, int64 inMax)
+void DecompressArray(CIBitStream& inBits, T& outArray, int64 inMax)
 {
 	uint32 cnt = ReadGamma(inBits);
 	int32 b = CalculateB(inMax, cnt);

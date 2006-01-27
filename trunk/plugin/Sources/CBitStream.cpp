@@ -56,7 +56,7 @@ const uint32
 	kBitBufferSize = 64,
 	kBitBufferExtend = 1024;
 
-obit_stream::obit_stream()
+COBitStream::COBitStream()
 	: data(new char[kBitBufferSize])
 	, byte_offset(0)
 	, physical_size(kBitBufferSize)
@@ -66,7 +66,7 @@ obit_stream::obit_stream()
 	data[byte_offset] = 0;
 }
 
-obit_stream::obit_stream(HStreamBase& inFile)
+COBitStream::COBitStream(HStreamBase& inFile)
 	: data(new char[kBitBufferSize])
 	, byte_offset(0)
 	, physical_size(kBitBufferSize)
@@ -76,13 +76,13 @@ obit_stream::obit_stream(HStreamBase& inFile)
 	data[byte_offset] = 0;
 }
 
-obit_stream::~obit_stream()
+COBitStream::~COBitStream()
 {
 	sync();
 	delete[] data;
 }
 
-void obit_stream::overflow()
+void COBitStream::overflow()
 {
 	if (file != nil)
 	{
@@ -109,7 +109,7 @@ void obit_stream::overflow()
 	}
 }
 
-void obit_stream::sync()
+void COBitStream::sync()
 {
 	(*this) << 0;
 	
@@ -123,20 +123,20 @@ void obit_stream::sync()
 	}
 }
 
-const char* obit_stream::peek() const
+const char* COBitStream::peek() const
 {
 	assert(bit_offset == 7);
 	assert(file == nil);
 	return data;
 }
 
-uint32 obit_stream::size() const
+uint32 COBitStream::size() const
 {
 //	assert(bit_offset == 7);
 	return byte_offset;
 }
 
-uint32 obit_stream::bit_size() const
+uint32 COBitStream::bit_size() const
 {
 //	assert(bit_offset == 7);
 	return (byte_offset + 1) * 8 - bit_offset - 1;
@@ -144,24 +144,24 @@ uint32 obit_stream::bit_size() const
 
 // ibit
 
-struct ibit_stream_imp
+struct CIBitStream_imp
 {
-					ibit_stream_imp(int32 inSize)
+					CIBitStream_imp(int32 inSize)
 						: size(inSize), byte_offset(0) {}
 	
-	virtual			~ibit_stream_imp() {}
+	virtual			~CIBitStream_imp() {}
 	
 	virtual void	get(int8& outByte) = 0;
-	virtual ibit_stream_imp*
+	virtual CIBitStream_imp*
 					clone() const = 0;
 
 	int32			size;
 	uint32			byte_offset;
 };
 
-struct const_ibit_stream_imp : public ibit_stream_imp
+struct const_CIBitStream_imp : public CIBitStream_imp
 {
-					const_ibit_stream_imp(const char* inData, int32 inSize);
+					const_CIBitStream_imp(const char* inData, int32 inSize);
 	
 	virtual void	get(int8& outByte)
 					{
@@ -170,10 +170,10 @@ struct const_ibit_stream_imp : public ibit_stream_imp
 						++byte_offset;
 					}
 
-	virtual ibit_stream_imp*
+	virtual CIBitStream_imp*
 					clone() const
 					{
-						const_ibit_stream_imp* result = new const_ibit_stream_imp(data, 0);
+						const_CIBitStream_imp* result = new const_CIBitStream_imp(data, 0);
 						result->offset = offset;
 						result->size = size;
 						return result;
@@ -183,8 +183,8 @@ struct const_ibit_stream_imp : public ibit_stream_imp
 	uint32			offset;
 };
 
-const_ibit_stream_imp::const_ibit_stream_imp(const char* inData, int32 inSize)
-	: ibit_stream_imp(inSize)
+const_CIBitStream_imp::const_CIBitStream_imp(const char* inData, int32 inSize)
+	: CIBitStream_imp(inSize)
 	, data(inData)
 	, offset(0)
 {
@@ -205,9 +205,9 @@ const_ibit_stream_imp::const_ibit_stream_imp(const char* inData, int32 inSize)
 		size = numeric_limits<int32>::max();
 }
 
-struct file_ibit_stream_imp : public ibit_stream_imp
+struct file_CIBitStream_imp : public CIBitStream_imp
 {
-					file_ibit_stream_imp(HStreamBase& inData,
+					file_CIBitStream_imp(HStreamBase& inData,
 						int64 inOffset, int32 inSize);
 	
 	virtual void	get(int8& outByte)
@@ -224,10 +224,10 @@ struct file_ibit_stream_imp : public ibit_stream_imp
 						++byte_offset;
 					}
 
-	virtual ibit_stream_imp*
+	virtual CIBitStream_imp*
 					clone() const
 					{
-						file_ibit_stream_imp* result = new file_ibit_stream_imp(data, offset, 0);
+						file_CIBitStream_imp* result = new file_CIBitStream_imp(data, offset, 0);
 						result->size = size;
 						return result;
 					}
@@ -241,9 +241,9 @@ struct file_ibit_stream_imp : public ibit_stream_imp
 	char*			buffer_ptr;
 };
 
-file_ibit_stream_imp::file_ibit_stream_imp(HStreamBase& inData,
+file_CIBitStream_imp::file_CIBitStream_imp(HStreamBase& inData,
 			int64 inOffset, int32 inSize)
-	: ibit_stream_imp(inSize)
+	: CIBitStream_imp(inSize)
 	, data(inData)
 	, offset(inOffset)
 	, buffer_size(0)
@@ -265,7 +265,7 @@ file_ibit_stream_imp::file_ibit_stream_imp(HStreamBase& inData,
 	}
 }
 
-void file_ibit_stream_imp::read()
+void file_CIBitStream_imp::read()
 {
 	buffer_size = kBitBufferSize;
 	if (buffer_size > size)
@@ -278,45 +278,45 @@ void file_ibit_stream_imp::read()
 	buffer_ptr = buffer;
 }
 
-ibit_stream::ibit_stream(HStreamBase& inData, int64 inOffset)
-	: impl(new file_ibit_stream_imp(inData, inOffset, numeric_limits<int32>::max()))
+CIBitStream::CIBitStream(HStreamBase& inData, int64 inOffset)
+	: impl(new file_CIBitStream_imp(inData, inOffset, numeric_limits<int32>::max()))
 	, bit_offset(7)
 {
 	impl->get(byte);
 }
 
-ibit_stream::ibit_stream(HStreamBase& inData, int64 inOffset, uint32 inSize)
-	: impl(new file_ibit_stream_imp(inData, inOffset, static_cast<int32>(inSize)))
+CIBitStream::CIBitStream(HStreamBase& inData, int64 inOffset, uint32 inSize)
+	: impl(new file_CIBitStream_imp(inData, inOffset, static_cast<int32>(inSize)))
 	, bit_offset(7)
 {
 	impl->get(byte);
 }
 
-ibit_stream::ibit_stream(const char* inData, uint32 inSize)
-	: impl(new const_ibit_stream_imp(inData, static_cast<int32>(inSize)))
+CIBitStream::CIBitStream(const char* inData, uint32 inSize)
+	: impl(new const_CIBitStream_imp(inData, static_cast<int32>(inSize)))
 	, bit_offset(7)
 {
 	impl->get(byte);
 }
 
-ibit_stream::ibit_stream(const ibit_stream& inOther)
+CIBitStream::CIBitStream(const CIBitStream& inOther)
 	: impl(inOther.impl->clone())
 	, byte(inOther.byte)
 	, bit_offset(inOther.bit_offset)
 {
 }
 
-ibit_stream::~ibit_stream()
+CIBitStream::~CIBitStream()
 {
 	delete impl;
 }
 
-bool ibit_stream::eof() const
+bool CIBitStream::eof() const
 {
 	return (7 - bit_offset) >= (8 + impl->size);
 }
 
-void ibit_stream::underflow()
+void CIBitStream::underflow()
 {
 	if (not eof())
 	{
@@ -325,14 +325,14 @@ void ibit_stream::underflow()
 	}
 }
 
-uint32 ibit_stream::bytes_read() const
+uint32 CIBitStream::bytes_read() const
 {
 	return impl->byte_offset;
 }
 
 // routines
 
-uint32 ReadUnary(ibit_stream& ioBits)
+uint32 ReadUnary(CIBitStream& ioBits)
 {
 	uint32 v = 1;
 	
@@ -342,7 +342,7 @@ uint32 ReadUnary(ibit_stream& ioBits)
 	return v;
 }
 
-void WriteUnary(obit_stream& inBits, uint32 inValue)
+void WriteUnary(COBitStream& inBits, uint32 inValue)
 {
 	assert(inValue > 0);
 	
@@ -355,7 +355,7 @@ void WriteUnary(obit_stream& inBits, uint32 inValue)
 	inBits << 0;
 }
 
-uint32 ReadGamma(ibit_stream& ioBits)
+uint32 ReadGamma(CIBitStream& ioBits)
 {
 	uint32 v1 = 1;
 	int32 e = 0;
@@ -373,7 +373,7 @@ uint32 ReadGamma(ibit_stream& ioBits)
 	return v1 + v2;
 }
 
-void WriteGamma(obit_stream& inBits, uint32 inValue)
+void WriteGamma(COBitStream& inBits, uint32 inValue)
 {
 	assert(inValue > 0);
 	
@@ -394,7 +394,7 @@ void WriteGamma(obit_stream& inBits, uint32 inValue)
 		inBits << ((v & (1 << e)) != 0);
 }
 
-void CompressArray(obit_stream& inDstBits, ibit_stream& inSrcBits,
+void CompressArray(COBitStream& inDstBits, CIBitStream& inSrcBits,
 	uint32 inCount, int64 inMax)
 {
 	int32 b = CalculateB(inMax, inCount);

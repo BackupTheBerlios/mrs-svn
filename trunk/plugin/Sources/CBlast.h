@@ -42,6 +42,8 @@
 #ifndef CBLAST_H
 #define CBLAST_H
 
+#ifndef NO_BLAST
+
 class CQuery;
 class CBlastQueryBase;
 
@@ -114,5 +116,7 @@ class CBlast
 	struct CBlastImp*	mImpl;
 };
 
+
+#endif // NO_BLAST
 
 #endif // CBLAST_H

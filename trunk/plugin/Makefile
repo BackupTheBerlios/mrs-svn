@@ -299,7 +299,7 @@ $(OBJDIR):
 
 $(OBJDIR)/%_$(TARGET)_wrap.o: Sources/%_$(TARGET)_wrap.cxx
 	@ echo "=> "$(@F)
-	@ $(CC) -c $< -o $@ $(INCLUDES) $(CFLAGS) -O 0
+	@ $(CC) -c $< -o $@ $(INCLUDES) $(CFLAGS) -O0
 
 $(OBJDIR)/%.o: %.cpp
 	@ echo "=> "$(@F)

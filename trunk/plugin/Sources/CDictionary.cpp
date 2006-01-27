@@ -211,11 +211,11 @@ void CDictionary::Create(CDatabank& inDatabank,
 	// now create the iterator for the indexes
 
 	vector<CIteratorBase*> iters;
-	for (vector<string>::const_iterator i = inIndexNames.begin(); i != inIndexNames.end(); ++i)
+	for (vector<string>::const_iterator ix = inIndexNames.begin(); ix != inIndexNames.end(); ++ix)
 	{
 		if (VERBOSE >= 1)
-			cout << "Adding index " << *i << " to dictionary" << endl;
-		iters.push_back(inDatabank.GetIteratorForIndex(*i));
+			cout << "Adding index " << *ix << " to dictionary" << endl;
+		iters.push_back(inDatabank.GetIteratorForIndex(*ix));
 	}
 	
 	auto_ptr<CIteratorBase> iter(new CStrUnionIterator(iters));

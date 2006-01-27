@@ -48,6 +48,7 @@
 #include "CIndexPage.h"
 #include "HStream.h"
 #include "CUtils.h"
+#include "HUtils.h"
 #include "HError.h"
 
 using namespace std;

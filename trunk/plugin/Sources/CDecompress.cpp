@@ -382,7 +382,7 @@ string CHuffWordDecompressorImp::GetDocument(int64 inOffset, uint32 inSize)
 {
 	string result;
 
-	ibit_stream bits(fFile, inOffset, inSize);
+	CIBitStream bits(fFile, inOffset, inSize);
 	
 	bool word = true;
 	uint32 v;

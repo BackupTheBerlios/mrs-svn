@@ -46,7 +46,7 @@
 #include "HStlVector.h"
 
 class HStreamBase;
-class ibit_stream;
+class CIBitStream;
 class CDatabankBase;
 
 class CIteratorBase
@@ -129,9 +129,6 @@ bool CIteratorWrapper<T>::Prev(std::string& outKey, uint32& outValue)
 	return result;
 }
 
-
-
-
 class CStrUnionIterator : public CIteratorBase
 {
   public:
@@ -200,7 +197,7 @@ class CDbDocIterator : public CDocIterator
 	virtual uint32	Read() const;
 
   private:	
-	ibit_stream*	fBits;
+	CIBitStream*	fBits;
 	int64			fValue;
 	uint32			fCount;
 	uint32			fRead;

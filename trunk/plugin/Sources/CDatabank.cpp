@@ -64,7 +64,9 @@
 #include "CDbInfo.h"
 #include "CArray.h"
 #include "CIdTable.h"
+#ifndef NO_BLAST
 #include "CBlastIndex.h"
+#endif
 #include "CDictionary.h"
 
 using namespace std;
@@ -190,6 +192,7 @@ uint32 CDatabankBase::GetDocumentNr(const string& inDocID, bool inThrowIfNotFoun
 	return result;
 }
 
+#ifndef NO_BLAST
 string CDatabankBase::GetSequence(uint32 inDocNr, uint32 inIndex)
 {
 	CSequence seq;
@@ -203,6 +206,7 @@ string CDatabankBase::GetSequence(const string& inDocID, uint32 inIndex)
 	GetSequence(GetDocumentNr(inDocID), inIndex, seq);
 	return Decode(seq);
 }
+#endif
 
 vector<string> CDatabankBase::SuggestCorrection(const string& inKey)
 {
@@ -244,12 +248,16 @@ CDatabank::CDatabank(const HUrl& inUrl, bool inNew)
 	, fReadOnly(not inNew)
 	, fInfoContainer(nil)
 	, fIdTable(nil)
+#ifndef NO_BLAST
 	, fBlastIndex(nil)
+#endif
 	, fDictionary(nil)
 	, fHeader(new SHeader)
 	, fDataHeader(new SDataHeader)
 	, fParts(nil)
+#ifndef NO_BLAST
 	, fBlast(nil)
+#endif
 {
 	memset(fHeader, 0, sizeof(SHeader));
 	memset(fDataHeader, 0, sizeof(SDataHeader));
@@ -319,6 +327,7 @@ CDatabank::CDatabank(const HUrl& inUrl, bool inNew)
 			fDataParts.push_back(cpi);
 		}
 		
+#ifndef NO_BLAST
 		if (fHeader->blast_ix_size > 0)
 		{
 			fBlast = new SBlastIndexHeader;
@@ -333,6 +342,7 @@ CDatabank::CDatabank(const HUrl& inUrl, bool inNew)
 				fBlast->data_offset, fBlast->data_size,
 				fBlast->table_offset, fBlast->table_size);
 		}
+#endif
 	}
 }
 
@@ -350,8 +360,10 @@ CDatabank::~CDatabank()
 	delete fIndexer;
 	delete fInfoContainer;
 	delete fIdTable;
+#ifndef NO_BLAST
 	delete fBlast;
 	delete fBlastIndex;
+#endif
 	delete fDictionary;
 }
 
@@ -425,6 +437,7 @@ void CDatabank::Finish()
 		fHeader->info_size = fDataFile->Tell() - fHeader->info_offset;
 	}
 	
+#ifndef NO_BLAST
 	if (fBlastIndex != nil)
 	{
 		fDataFile->Seek(0, SEEK_END);
@@ -434,14 +447,14 @@ void CDatabank::Finish()
 		SBlastIndexHeader bh = { kBlastIndexSignature, 0 };
 		
 		(*fDataFile) << bh;
-		
+
 		fBlastIndex->Finish(*fDataFile, bh.data_offset, bh.data_size,
 			bh.table_offset, bh.table_size, bh.kind, bh.count,
 			bh.db_length, bh.seq_count);
 		
 		delete fBlastIndex;
 		fBlastIndex = nil;
-		
+
 		fHeader->blast_ix_size = fDataFile->Tell() - fHeader->blast_ix_offset;
 		
 		fDataFile->Seek(fHeader->blast_ix_offset, SEEK_SET);
@@ -449,9 +462,16 @@ void CDatabank::Finish()
 		
 		fDataFile->Seek(0, SEEK_END);
 	}
+#endif
 	
 	fDataFile->Seek(0, SEEK_SET);
 	*fDataFile << *fHeader;
+
+	delete fDataFile;
+	fDataFile = nil;
+
+	if (VERBOSE >= 1)
+		cout << "Datafile closed" << endl;
 }
 
 void CDatabank::Merge(vector<CDatabank*>& inParts)
@@ -496,7 +516,9 @@ void CDatabank::Merge(vector<CDatabank*>& inParts)
 
 	for (d = inParts.begin(); d != inParts.end(); ++d)
 	{
+#ifndef NO_BLAST
 		hasBlastIndices = hasBlastIndices or ((*d)->GetBlastIndex() != nil);
+#endif
 		
 		if (VERBOSE >= 1)
 		{
@@ -570,6 +592,7 @@ void CDatabank::Merge(vector<CDatabank*>& inParts)
 	else if (VERBOSE >= 1)
 		cout << "No ID table created since there is no id index" << endl;
 
+#ifndef NO_BLAST
 	// Merge blast index
 
 	if (hasBlastIndices)
@@ -595,6 +618,7 @@ void CDatabank::Merge(vector<CDatabank*>& inParts)
 		
 		fDataFile->Seek(0, SEEK_END);
 	}		
+#endif
 
 	// Merge info
 	
@@ -662,6 +686,7 @@ uint32 CDatabank::GetDocumentNr(const string& inDocID, bool inThrowIfNotFound) c
 	return fIndexer->GetDocumentNr(inDocID, inThrowIfNotFound);
 }
 
+#ifndef NO_BLAST
 void CDatabank::GetSequence(uint32 inDocNr, uint32 inIndex,
 	CSequence& outSequence)
 {
@@ -694,6 +719,7 @@ int64 CDatabank::GetBlastDbLength() const
 	
 	return fBlast->db_length;
 }
+#endif
 
 CDecompressor* CDatabank::GetDecompressor(uint32 inPartNr)
 {
@@ -832,8 +858,10 @@ void CDatabank::PrintInfo()
 	cout << "  info size:    " << fHeader->info_size << endl;
 	cout << "  id offset:    " << fHeader->id_offset << endl;
 	cout << "  id size:      " << fHeader->id_size << endl;
+#ifndef NO_BLAST
 	cout << "  blast offset: " << fHeader->blast_ix_offset << endl;
 	cout << "  blast size:   " << fHeader->blast_ix_size << endl;
+#endif
 	cout << endl;
 	
 	sig = reinterpret_cast<const char*>(&fDataHeader->sig);
@@ -873,11 +901,13 @@ void CDatabank::PrintInfo()
 	if (fIdTable != nil)
 		fIdTable->PrintInfo();
 	
+#ifndef NO_BLAST
 	if (fBlast != nil)
 	{
 		
 		
 	}
+#endif
 }
 
 void CDatabank::Store(const string& inDocument)
@@ -916,6 +946,7 @@ void CDatabank::IndexValue(const string& inIndex, const string& inText)
 	fIndexer->IndexValue(inIndex, inText);
 }
 
+#ifndef NO_BLAST
 void CDatabank::AddSequence(const string& inSequence)
 {
 	if (fBlastIndex == nil)
@@ -927,12 +958,15 @@ void CDatabank::AddSequence(const string& inSequence)
 		
 	fBlastIndex->AddSequence(inSequence);
 }
+#endif
 
 void CDatabank::FlushDocument()
 {
 	fIndexer->FlushDoc();
+#ifndef NO_BLAST
 	if (fBlastIndex)
 		fBlastIndex->FlushDoc();
+#endif
 
 	if (VERBOSE >= 1 and (fIndexer->Count() % 1000) == 0)
 	{
@@ -1239,6 +1273,7 @@ uint32 CJoinedDatabank::GetDocumentNr(const string& inDocID, bool inThrowIfNotFo
 	return result;
 }
 
+#ifndef NO_BLAST
 uint32 CJoinedDatabank::GetBlastDbCount() const
 {
 	uint32 result = 0;
@@ -1273,6 +1308,7 @@ void CJoinedDatabank::GetSequence(uint32 inDocNr, uint32 inIndex,
 	
 	db->GetSequence(inDocNr, inIndex, outSequence);
 }
+#endif
 
 uint32 CJoinedDatabank::Count() const
 {
@@ -1394,6 +1430,7 @@ string CUpdatedDatabank::GetDocument(uint32 inDocNr)
 		return CDatabank::GetDocument(inDocNr);
 }
 
+#ifndef NO_BLAST
 void CUpdatedDatabank::GetSequence(uint32 inDocNr, uint32 inIndex,
 	CSequence& outSequence)
 {
@@ -1420,6 +1457,7 @@ int64 CUpdatedDatabank::GetBlastDbLength() const
 {
 	return fOriginal->GetBlastDbLength() + CDatabank::GetBlastDbLength();
 }
+#endif
 
 uint32 CUpdatedDatabank::GetDocumentNr(const string& inDocumentID, bool inThrowIfNotFound) const
 {
