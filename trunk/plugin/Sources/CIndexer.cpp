@@ -65,7 +65,7 @@ using namespace std;
 
 const uint32
 	kIndexSig = FOUR_CHAR_INLINE('indx'),
-	kIndexPartSig = FOUR_CHAR_INLINE('indp');
+	kIndexPartSig = FOUR_CHAR_INLINE('indP');
 
 struct SIndexHeader
 {

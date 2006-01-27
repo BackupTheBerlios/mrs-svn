@@ -67,9 +67,11 @@ class MBlastHsps;
 class MStringIterator;
 class MIndices;
 class MIndex;
+class MQueryObject;
 class MQueryResults;
 
 struct MDatabankImp;
+struct MQueryObjectImp;
 struct MQueryResultsImp;
 struct MKeysImp;
 struct MIndexImp;
@@ -186,6 +188,21 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
   private:
 						MDatabank(const std::string& inName, bool);
 };
+
+//class MQueryObject : public MRSObject<MQueryObject, struct MQueryObjectImp>
+//{
+//  public:
+//	
+//	static const std::string	kWildCardString;
+//	
+//	static MQueryObject*	Match(const std::string& inValue, const std::string& inIndex = kWildCardString);
+//	static MQueryObject*	MatchRel(const std::string& inValue, const std::string& inRelOp, const std::string& inIndex = kWildCardString);
+//	static MQueryObject*	Not(MQueryObject* inQuery);
+//	static MQueryObject*	Union(MQueryObject* inQueryA, MQueryObject* inQueryB);
+//	static MQueryObject*	Intersection(MQueryObject* inQueryA, MQueryObject* inQueryB);
+//	
+//	MQueryResults*			Find();
+//};
 
 class MQueryResults : public MRSObject<MQueryResults, struct MQueryResultsImp>
 {

@@ -179,7 +179,7 @@ int CompareKeyNumber(const char* inA, uint32 inLengthA, const char* inB, uint32 
 const uint32
 	kPageSize = 2048,
 	kEntrySize = 2 * sizeof(uint32),
-	kKeySpace = kPageSize - kEntrySize - 2 * sizeof(uint32),
+	kKeySpace = kPageSize - kEntrySize - 3 * sizeof(uint32),
 	kMaxKeySize = (kKeySpace / 4 > 255 ? 255 : kKeySpace / 4);
 
 struct COnDiskData
@@ -191,6 +191,7 @@ struct COnDiskData
 		uint32		p;
 	} e[1];
 	uint32			p0;
+	uint32			pp;
 	int32			n;
 };
 
@@ -223,8 +224,11 @@ class CIndexPage
 	void					GetData(uint32 inIndex, string& outKey, uint32& outValue, uint32& outP) const;
 	
 	uint32					GetP0() const		{ return fData.p0; }
+	uint32					GetParent() const	{ return fData.pp; }
 	uint32					GetN() const		{ return fData.n; }
 	uint32					GetP(uint32 inIndex) const;
+	
+	uint32					GetIndexForP(uint32 inP) const;
 	
 	void					SetValue(uint32 inIndex, uint32 inValue);
 
@@ -240,7 +244,9 @@ class CIndexPage
 
 	void					Read();
 	void					Write();
-	
+
+	void					SetParent(uint32 inParent);
+
   private:
 
 	void					SwapBytesHtoN();
@@ -311,6 +317,7 @@ void CIndexPage::Allocate()
 		char c = 0xff;
 		fFile->Write(&c, 1);
 		fOffset = static_cast<uint32>(fFile->Tell() - fBaseOffset);
+		assert(fOffset == 1);
 	}
 
 	// allocate on disk	
@@ -362,6 +369,20 @@ uint32 CIndexPage::GetP(uint32 inIndex) const
 	return fData.e[-static_cast<int32>(inIndex)].p;
 }
 
+uint32 CIndexPage::GetIndexForP(uint32 inP) const
+{
+	uint32 ix = 0;
+
+	while (ix < fData.n)
+	{
+		if (fData.e[-static_cast<int32>(ix)].p == inP)
+			break;
+		++ix;
+	}
+
+	return ix;
+}
+
 void CIndexPage::SetValue(uint32 inIndex, uint32 inValue)
 {
 	assert(inIndex < fData.n);
@@ -370,6 +391,30 @@ void CIndexPage::SetValue(uint32 inIndex, uint32 inValue)
 	
 	fData.e[-static_cast<int32>(inIndex)].value = inValue;
 	fDirty = true;
+}
+
+void CIndexPage::SetParent(uint32 inParent)
+{
+	if (fData.pp != inParent)
+	{
+		fData.pp = inParent;
+		fDirty = true;
+	}
+	
+	if (fData.p0 != 0)
+	{
+		CIndexPage p0(*fFile, fBaseOffset, fData.p0);
+		p0.SetParent(fOffset);
+	}
+	
+	for (int32 i = 0; i < fData.n; ++i)
+	{
+		if (fData.e[-i].p != 0)
+		{
+			CIndexPage p(*fFile, fBaseOffset, fData.e[-i].p);
+			p.SetParent(fOffset);
+		}
+	}
 }
 
 inline
@@ -515,12 +560,14 @@ void CIndexPage::SwapBytesHtoN()
 		fData.e[-i].value = net_swapper::swap(fData.e[-i].value);
 	}
 	fData.p0 = net_swapper::swap(fData.p0);
+	fData.pp = net_swapper::swap(fData.pp);
 	fData.n = net_swapper::swap(fData.n);
 }
 
 void CIndexPage::SwapBytesNtoH()
 {
 	fData.p0 = net_swapper::swap(fData.p0);
+	fData.pp = net_swapper::swap(fData.pp);
 	fData.n = net_swapper::swap(fData.n);
 	for (int32 i = 0; i < fData.n; ++i)
 	{
@@ -542,12 +589,12 @@ struct CIndexImp
 	uint32			GetRoot() const					{ return fRoot; }
 	uint32			GetKind() const					{ return fKind; }
 
-	bool			GetValue(const string& inKey, uint32& outValue, CIndex::Path* outPath) const;
+	CIndex::iterator	Begin();		// Begin is defined as the first entry on the left most leaf page
+	CIndex::iterator	End();			// End is defined as N on the right most leaf page
+	CIndex::iterator	LowerBound(const string& inKey);
+
+	bool			GetValue(const string& inKey, uint32& outValue) const;
 	void			GetValuesForPattern(const string& inKey, vector<uint32>& outValues) const;
-	void			SetValue(const std::string& inKey, uint32 inValue);
-	void			SetValue(uint32 inPage, const std::string& inKey, uint32 inValue,
-						std::string& outKey, uint32& outValue, uint32& outP,
-						bool& outHeightIncrease);
 
 	uint32			GetCount(uint32 inPage) const;
 	void			Visit(uint32 inPage, CIndex::VisitorBase& inVisitor);
@@ -561,10 +608,13 @@ struct CIndexImp
 						{ return Compare(inA.c_str(), inA.length(), inB.c_str(), inB.length()); }
 
 #if P_DEBUG
+	void			Test(CIndex& inIndex);
 	void			Dump(uint32 inPage, uint32 inLevel);
 #endif
 
   private:
+
+	void			LowerBoundImp(const string& inKey, uint32 inPage, uint32& outPage, uint32& outIndex);
 
 	HStreamBase&	fFile;
 	int64			fBaseOffset;
@@ -590,7 +640,97 @@ int CIndexImp::Compare(const char* inA, uint32 inLengthA,
 	return CompareKeyString(inA, inLengthA, inB, inLengthB);
 }
 
-bool CIndexImp::GetValue(const string& inKey, uint32& outValue, CIndex::Path* outPath) const
+CIndex::iterator CIndexImp::Begin()
+{
+	uint32 page = fRoot;
+	CIndex::iterator result;
+	
+	while (page != 0)
+	{
+		CIndexPage p(fFile, fBaseOffset, page);
+		
+		result = CIndex::iterator(fFile, fBaseOffset, page, 0);
+		
+		page = p.GetP0();
+	}
+	
+	return result;
+}
+
+CIndex::iterator CIndexImp::End()
+{
+	CIndexPage p(fFile, fBaseOffset, fRoot);
+	return CIndex::iterator(fFile, fBaseOffset, fRoot, p.GetN());
+}
+
+void CIndexImp::LowerBoundImp(const string& inKey, uint32 inPage, uint32& outPage, uint32& outIndex)
+{
+	const CIndexPage p(fFile, fBaseOffset, inPage);
+	const COnDiskData& data = p.GetData();
+	bool found = false;
+	
+	int32 L = 0;
+	int32 R = static_cast<int32>(data.n) - 1;
+	while (L <= R)
+	{
+		int32 i = (L + R) / 2;
+		const unsigned char* key = p.GetKey(i);
+		
+		int d = Compare(inKey.c_str(), inKey.length(),
+			reinterpret_cast<const char*>(key + 1), key[0]);
+		
+		if (d == 0)
+		{
+			found = true;
+			outPage = inPage;
+			outIndex = i;
+			break;
+		}
+		else if (d < 0)
+			R = i - 1;
+		else
+			L = i + 1;
+	}
+	
+	if (not found)
+	{
+		// init the outPage and inIndex to End() if needed
+		
+		if (inPage == fRoot)
+		{
+			outPage = inPage;
+			outIndex = data.n;
+		}
+		
+		// suppose we're looking for a key that's larger than the last entry.
+		// In that case we need to return the same value as End(). This means
+		// we have to be careful, the outPage and outIndex have been inited to
+		// the values for End() so we override them only if the key is actually
+		// smaller than our largest value, i.e. R < N;
+		
+		if (R < static_cast<int32>(data.n))
+		{
+			outPage = inPage;
+			outIndex = static_cast<uint32>(R + 1);
+		}
+		
+		if (R >= 0)
+			LowerBoundImp(inKey, data.e[-R].p, outPage, outIndex);
+		else
+			LowerBoundImp(inKey, data.p0, outPage, outIndex);
+	}
+}
+
+CIndex::iterator CIndexImp::LowerBound(const string& inKey)
+{
+	uint32 page = 0, index = 0;
+
+	LowerBoundImp(inKey, fRoot, page, index);
+	
+	return CIndex::iterator(fFile, fBaseOffset, page, index);
+}
+
+bool CIndexImp::GetValue(const string& inKey, uint32& outValue) const
 {
 	bool found = false;
 
@@ -610,12 +750,10 @@ bool CIndexImp::GetValue(const string& inKey, uint32& outValue, CIndex::Path* ou
 			
 			int d = Compare(inKey.c_str(), inKey.length(),
 				reinterpret_cast<const char*>(key + 1), key[0]);
-			
+
 			if (d == 0)
 			{
 				found = true;
-				if (outPath != nil)
-					outPath->push(make_pair(page, static_cast<uint32>(i)));
 				outValue = data.e[-i].value;
 				break;
 			}
@@ -625,36 +763,13 @@ bool CIndexImp::GetValue(const string& inKey, uint32& outValue, CIndex::Path* ou
 				L = i + 1;
 		}
 		
-		if (outPath != nil)
-		{
-			if (found)
-				outPath->push(make_pair(page, static_cast<uint32>((L + R) / 2)));
-			else
-				outPath->push(make_pair(page, static_cast<uint32>(R + 1)));
-		}
-		
 		if (R >= 0)
 			page = data.e[-R].p;
 		else
 			page = data.p0;
 	}
 	while (not found and page != 0);
-	
-	// special case, avoid returning a path that points after the last element
-	// end() in our case means an empty path...
-	if (not found and outPath != nil)
-	{
-		while (not outPath->empty())
-		{
-			const CIndexPage p(fFile, fBaseOffset, outPath->top().first);
-			
-			if (outPath->top().second >= p.GetN())
-				outPath->pop();
-			else
-				break;
-		}
-	}
-	
+
 	return found;
 }
 
@@ -741,121 +856,6 @@ void CIndexImp::GetValuesForPattern(const string& inKey, vector<uint32>& outValu
 	}
 }
 
-void CIndexImp::SetValue(const std::string& inKey, uint32 inValue)
-{
-	string key;
-	uint32 value;
-	uint32 p;
-	bool h;
-	
-	assert(inKey.length() < kMaxKeySize);
-
-	SetValue(fRoot, inKey, inValue, key, value, p, h);
-	
-	if (h)
-	{
-		CIndexPage page(fFile, fBaseOffset);
-		COnDiskData& data = page.GetData();
-		
-		data.p0 = fRoot;
-		page.Insert(0, key, value, p);
-		
-		fRoot = page.GetOffset();
-	}
-}
-
-void CIndexImp::SetValue(uint32 inPage, const std::string& inKey, uint32 inValue,
-	std::string& outKey, uint32& outValue, uint32& outP, bool& outHeightIncrease)
-{
-	// shortcut
-	if (inPage == 0)
-	{
-		outHeightIncrease = true;
-		outKey = inKey;
-		outValue = inValue;
-		outP = 0;
-		return;
-	}
-	
-	CIndexPage p(fFile, fBaseOffset, inPage);
-	COnDiskData& data = p.GetData();
-	
-	int32 L = 0;
-	int32 R = static_cast<int32>(data.n) - 1;
-	while (L <= R)
-	{
-		int32 i = (L + R) / 2;
-		const unsigned char* key = p.GetKey(i);
-		
-		int l = inKey.length();
-		if (l > key[0])
-			l = key[0];
-
-		int d = Compare(inKey.c_str(), inKey.length(),
-			reinterpret_cast<const char*>(key + 1), key[0]);
-
-		if (d == 0)
-		{
-			data.e[-i].value = inValue;
-			outHeightIncrease = false;
-
-			return;		// ooh, I hate that...
-		}
-
-		if (d < 0)
-			R = i - 1;
-		else
-			L = i + 1;
-	}
-	
-	uint32 child;
-	if (R >= 0)
-		child = data.e[-R].p;
-	else
-		child = data.p0;
-	
-	string uKey;
-	uint32 uValue, uP;
-
-	if (child)
-		SetValue(child, inKey, inValue, uKey, uValue, uP, outHeightIncrease);
-	else
-	{
-		outHeightIncrease = true;
-		uKey = inKey;
-		uValue = inValue;
-		uP = 0;
-	}
-	
-	if (outHeightIncrease)
-	{
-		if (p.CanStore(uKey))
-		{
-			outHeightIncrease = false;
-			p.Insert(R + 1, uKey, uValue, uP);
-		}
-		else	// split
-		{
-			CIndexPage q(fFile, fBaseOffset);
-			
-			int32 h = data.n / 2;
-			
-			p.GetData(h, outKey, outValue, outP);
-			
-			q.GetData().p0 = outP;
-			q.Copy(p, h + 1, 0, data.n - h - 1);
-			data.n = h;
-			
-			if (R >= h)
-				q.Insert(R - data.n, uKey, uValue, uP);
-			else
-				p.Insert(R + 1, uKey, uValue, uP);
-			
-			outP = q.GetOffset();
-		}
-	}
-}
-
 uint32 CIndexImp::GetCount(uint32 inPage) const
 {
 	uint32 result = 0;
@@ -924,7 +924,7 @@ void CIndexImp::CreateFromIterator(CIteratorBase& inData)
 	CTempValueList up;
 
 	fRoot = p.GetOffset();
-	
+
 	while (inData.Next(k, v))
 	{
 		if (not p.CanStore(k))
@@ -990,16 +990,54 @@ void CIndexImp::CreateFromIterator(CIteratorBase& inData)
 		
 		up = nextUp;
 	}
+	
+	// yeah well, unfortunately we have to traverse the entire tree
+	// again to store parent pointers...
+	
+	assert(p.GetOffset() == fRoot);
+	p.SetParent(0);
 }
 
 #if P_DEBUG
+void CIndexImp::Test(CIndex& inIndex)
+{
+	vector<string> keys;
+	
+	for (CIndex::iterator i = Begin(); i != End(); ++i)
+		keys.push_back(i->first);
+	
+	for (vector<string>::iterator k = keys.begin(); k != keys.end(); ++k)
+	{
+		CIndex::iterator i = inIndex.find(*k);
+		
+		assert(i != inIndex.end());
+		
+		uint32 n = 0;
+		while (i != inIndex.end())
+			++i, ++n;
+		
+		assert(n == (keys.end() - k));
+
+		i = inIndex.find(*k);
+		
+		assert(i != inIndex.end());
+		
+		n = 0;
+		while (i != inIndex.begin())
+			--i, ++n;
+		
+		assert(n == (k - keys.begin()));
+	}
+}
+
 void CIndexImp::Dump(uint32 inPage, uint32 inLevel)
 {
 	const CIndexPage p(fFile, fBaseOffset, inPage);
 
-//	if (p.GetP0())
-//		Dump(p.GetP0(), inLevel + 1);
-	
+	for (uint32 j = 0; j < inLevel; ++j)
+		cout << "\t";
+	cout << "dumping page " << inPage << ", parent = " << p.GetParent() << endl;
+
 	for (uint32 i = 0; i < p.GetN(); ++i)
 	{
 		for (uint32 j = 0; j < inLevel; ++j)
@@ -1011,10 +1049,7 @@ void CIndexImp::Dump(uint32 inPage, uint32 inLevel)
 		
 		p.GetData(i, k, v, c);
 		
-		cout << k << endl;
-		
-//		if (c != 0)
-//			Dump(c, inLevel + 1);
+		cout << "ix: " << i << ", p: " << c << ", key: " << k << endl;
 	}
 
 	if (p.GetP0())
@@ -1022,21 +1057,15 @@ void CIndexImp::Dump(uint32 inPage, uint32 inLevel)
 	
 	for (uint32 i = 0; i < p.GetN(); ++i)
 	{
-//		for (uint32 j = 0; j < inLevel; ++j)
-//			cout << "\t";
-		
 		string k;
 		uint32 v;
 		uint32 c;
 		
 		p.GetData(i, k, v, c);
 		
-//		cout << k << endl;
-		
 		if (c != 0)
 			Dump(c, inLevel + 1);
 	}
-
 
 	cout << endl;
 }
@@ -1092,12 +1121,7 @@ CIndex::~CIndex()
 CIndex* CIndex::Create(uint inIndexKind, HStreamBase& inFile)
 {
 	int64 offset = inFile.Seek(0, SEEK_END);
-
-	CIndexPage page(inFile, offset);
-
-	inFile.Seek(0, SEEK_END);
-	
-	return new CIndex(inIndexKind, inFile, offset, page.GetOffset());
+	return new CIndex(inIndexKind, inFile, offset, 0);
 }
 
 // copy creates a compacted copy
@@ -1108,21 +1132,17 @@ CIndex* CIndex::CreateFromIterator(uint32 inIndexKind, CIteratorBase& inData, HS
 	
 	inFile.Seek(0, SEEK_END);
 	
+//#if P_DEBUG
+//	result->fImpl->Test(*result);
+//#endif
+	
 	return result.release();
 }
 
 // access data
 bool CIndex::GetValue(const string& inKey, uint32& outValue) const
 {
-	return fImpl->GetValue(inKey, outValue, nil);
-}
-
-void CIndex::SetValue(const string& inKey, uint32 inValue)
-{
-	if (inKey.length() == 0)
-		THROW(("Cannot insert empty strings into an index"));
-	
-	fImpl->SetValue(inKey, inValue);
+	return fImpl->GetValue(inKey, outValue);
 }
 
 void CIndex::GetValuesForPattern(const string& inKey, std::vector<uint32>& outValues)
@@ -1211,35 +1231,25 @@ void CIndex::Visit(VisitorBase& inVisitor)
 
 CIndex::iterator CIndex::begin()
 {
-	return iterator(fImpl->GetFile(), fImpl->GetBaseOffset(), fImpl->GetRoot());
+	return fImpl->Begin();
 }
 
 CIndex::iterator CIndex::end()
 {
-	return iterator(fImpl->GetFile(), fImpl->GetBaseOffset(), fImpl->GetRoot(), Path());
+	return fImpl->End();
 }
 
 CIndex::iterator CIndex::find(const string& inKey)
 {
-	Path path;
-	iterator result;
-	uint32 v;
-	
-	if (fImpl->GetValue(inKey, v, &path))
-		result = iterator(fImpl->GetFile(), fImpl->GetBaseOffset(), fImpl->GetRoot(), path);
-	else
-		result = iterator(fImpl->GetFile(), fImpl->GetBaseOffset(), fImpl->GetRoot(), Path());
-	
+	iterator result = fImpl->LowerBound(inKey);
+	if (result->first != inKey)
+		result = end();
 	return result;
 }
 
 CIndex::iterator CIndex::lower_bound(const string& inKey)
 {
-	Path path;
-	uint32 v;
-	
-	(void)fImpl->GetValue(inKey, v, &path);
-	return iterator(fImpl->GetFile(), fImpl->GetBaseOffset(), fImpl->GetRoot(), path);
+	return fImpl->LowerBound(inKey);
 }
 
 CIndex::iterator CIndex::upper_bound(const string& inKey)
@@ -1268,49 +1278,30 @@ void CIndex::Dump() const
 CIndex::iterator::iterator()
 	: fFile(nil)
 	, fBaseOffset(0)
-	, fRoot(0)
+	, fPage(0)
+	, fPageIndex(0)
 {
 }
 
-CIndex::iterator::iterator(HStreamBase& inFile, int64 inOffset, uint32 inRoot)
+CIndex::iterator::iterator(HStreamBase& inFile, int64 inOffset,
+		uint32 inPage, uint32 inPageIndex)
 	: fFile(&inFile)
 	, fBaseOffset(inOffset)
-	, fRoot(inRoot)
+	, fPage(inPage)
+	, fPageIndex(inPageIndex)
 {
-	uint32 page = inRoot;	
+	CIndexPage p(*fFile, fBaseOffset, fPage);
+	uint32 c;
 
-	while (page != 0)
-	{
-		fStack.push(make_pair(page, 0));
-
-		const CIndexPage p(*fFile, fBaseOffset, page);
-		page = p.GetP0();
-
-		uint32 c;
-		p.GetData(0, fCurrent.first, fCurrent.second, c);
-	}
-}
-
-CIndex::iterator::iterator(HStreamBase& inFile, int64 inOffset, uint32 inRoot, const Path& inPath)
-	: fFile(&inFile)
-	, fBaseOffset(inOffset)
-	, fRoot(inRoot)
-	, fStack(inPath)
-{
-	if (not fStack.empty())
-	{
-		const CIndexPage p(*fFile, fBaseOffset, fStack.top().first);
-		uint32 c;
-
-		p.GetData(fStack.top().second, fCurrent.first, fCurrent.second, c);
-	}
+	if (fPageIndex < p.GetN())
+		p.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
 }
 
 CIndex::iterator::iterator(const iterator& inOther)
 	: fFile(inOther.fFile)
 	, fBaseOffset(inOther.fBaseOffset)
-	, fRoot(inOther.fRoot)
-	, fStack(inOther.fStack)
+	, fPage(inOther.fPage)
+	, fPageIndex(inOther.fPageIndex)
 	, fCurrent(inOther.fCurrent)
 {
 }
@@ -1321,8 +1312,8 @@ CIndex::iterator& CIndex::iterator::operator=(const iterator& inOther)
 	{
 		fFile = inOther.fFile;
 		fBaseOffset = inOther.fBaseOffset;
-		fRoot = inOther.fRoot;
-		fStack = inOther.fStack;
+		fPage = inOther.fPage;
+		fPageIndex = inOther.fPageIndex;
 		fCurrent = inOther.fCurrent;
 	}
 
@@ -1331,148 +1322,99 @@ CIndex::iterator& CIndex::iterator::operator=(const iterator& inOther)
 
 void CIndex::iterator::increment()
 {
-	// four steps:
-	// 1. the stack is empty, that's easy, don't do anything
-	// 2. if the current item on the current page has a p, descent down this path
-	//    to the lowest page to the first leaf item and stop here.
-	// 3. if the item is not the last on this page, go to the item right of the current
-	//    and stop here.
-	// 4. Pop the stack once. The item on top is our current item if the page we
-	//    just popped is the p0 of the current top page. Otherwise continue with step 3.
-	
-		
-	if (not fStack.empty())								// 1.
+	CIndexPage p(*fFile, fBaseOffset, fPage);
+	bool valid = true;
+
+	if (p.GetP(fPageIndex)) // current entry has a p, decent
 	{
-		pair<uint32,uint32> v = fStack.top();
-		CIndexPage p(*fFile, fBaseOffset, v.first);
+		fPage = p.GetP(fPageIndex);
+		fPageIndex = 0;
+
+		p.Load(*fFile, fBaseOffset, fPage);
 		
-		uint32 c = p.GetP(fStack.top().second);
-		
-		if (c != 0)										// 2.
+		while (p.GetP0())
 		{
-			do
-			{
-				fStack.push(make_pair(c, 0));
-				
-				p.Load(*fFile, fBaseOffset, c);
-				c = p.GetP0();
-			}
-			while (c != 0);
+			fPage = p.GetP0();
+			p.Load(*fFile, fBaseOffset, fPage);
 		}
-		else
+	}
+	else
+	{
+		++fPageIndex;
+
+		while (fPageIndex >= p.GetN() and p.GetParent())	// do we have a parent?
 		{
-			while (not fStack.empty())
-			{
-				++fStack.top().second;
-				
-				if (fStack.top().second < p.GetN())		// 3.
-					break;
-										
-				c = fStack.top().first;					// 4.
-				fStack.pop();
-				
-				if (not fStack.empty())
-				{
-					p.Load(*fFile, fBaseOffset, fStack.top().first);
-					if (c == p.GetP0())
-						break;
-				}
-			}
+			p.Load(*fFile, fBaseOffset, p.GetParent());
+
+			if (p.GetP0() == fPage)
+				fPageIndex = 0;
+			else
+				fPageIndex = p.GetIndexForP(fPage) + 1;
+
+			fPage = p.GetOffset();
 		}
 		
-		if (not fStack.empty())
-		{
-			p.Load(*fFile, fBaseOffset, fStack.top().first);
-			p.GetData(fStack.top().second, fCurrent.first, fCurrent.second, c);
-		}
+		valid = (fPageIndex < p.GetN());
+	}
+	
+	if (valid)
+	{
+		uint32 c;
+		p.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
 	}
 }
 
 void CIndex::iterator::decrement()
 {
-	// four steps:
-	// 1. the stack is empty, descent down the right most p's starting with root
-	//    and stop here.
-	// 2. if the item on top is the first on this page and the page has a p0, descent
-	//    down the right most p's of the pages starting with p0 and stop;
-	// 3. if the item on top is the first on this page but does not have a p0, pop the
-	//    stack and stop if the page we're comming from is not the p0 of the new top.
-	//    Otherwise, continue this step.
-	// 4. go to the item left and if it has a p, descent down the right most p's of this p
+	CIndexPage p(*fFile, fBaseOffset, fPage);
 
-	CIndexPage p;
-	
-	if (fStack.empty())										// 1.
+	uint32 dp = 0;
+
+	if (fPageIndex == 0)		// beginning of page
 	{
-		uint32 page = fRoot;
-		
-		while (page != 0)
+		if (p.GetP0())			// see if we need to decent down p0 first
+			dp = p.GetP0();
+		else
 		{
-			p.Load(*fFile, fBaseOffset, page);
+			uint32 np = fPage;		// tricky, see if we can find a page upwards
+			uint32 nx = fPageIndex;	// where we hit an index > 0. If not we're at
+									// the far left and thus Begin()
 			
-			fStack.push(make_pair(page, p.GetN() - 1));
-			page = p.GetP(p.GetN() - 1);
+			while (p.GetParent())
+			{
+				p.Load(*fFile, fBaseOffset, p.GetParent());
+				
+				if (np == p.GetP0())
+				{
+					np = p.GetOffset();
+					nx = 0;
+				}
+				else
+				{
+					fPageIndex = p.GetIndexForP(np);
+					fPage = p.GetOffset();
+					break;
+				}
+			}
 		}
 	}
 	else
 	{
-		CIndexPage p(*fFile, fBaseOffset, fStack.top().first);
-		
-		if (fStack.top().second == 0 and p.GetP0() != 0)	// 2.
-		{
-			uint32 page = p.GetP0();
-
-			while (page != 0)
-			{
-				p.Load(*fFile, fBaseOffset, page);
-				
-				fStack.push(make_pair(page, p.GetN() - 1));
-				page = p.GetP(p.GetN() - 1);
-			}
-		}
-		else
-		{
-			if (fStack.top().second == 0)					// 3.
-			{
-				while (not fStack.empty() and fStack.top().second == 0)
-				{
-					uint32 c = fStack.top().first;
-					
-					fStack.pop();
-					
-					if (not fStack.empty())
-					{
-						p.Load(*fFile, fBaseOffset, fStack.top().first);
-						if (c != p.GetP0())
-							break;
-					}
-				}
-			}
-			else											// 4.
-			{
-				--fStack.top().second;
-				
-				uint32 page = p.GetP(fStack.top().second);
+		--fPageIndex;
+		dp = p.GetP(fPageIndex);
+	}
 	
-				while (page != 0)
-				{
-					p.Load(*fFile, fBaseOffset, page);
-					
-					fStack.push(make_pair(page, p.GetN() - 1));
-					page = p.GetP(p.GetN() - 1);
-				}
-			}
-		}
-	}
-
-	// update fCurrent
-	if (not fStack.empty())
+	while (dp)
 	{
-		p.Load(*fFile, fBaseOffset, fStack.top().first);
-		
-		uint32 c;
-		p.GetData(fStack.top().second, fCurrent.first, fCurrent.second, c);
+		p.Load(*fFile, fBaseOffset, dp);
+		fPage = dp;
+		fPageIndex = p.GetN() - 1;
+		dp = p.GetP(fPageIndex);
 	}
+	
+	p.Load(*fFile, fBaseOffset, fPage);
+	uint32 c;
+	p.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
 }
 
 bool CIndex::iterator::equal(const iterator& inOther) const
@@ -1480,19 +1422,9 @@ bool CIndex::iterator::equal(const iterator& inOther) const
 	assert(fFile == inOther.fFile);
 	assert(fBaseOffset == inOther.fBaseOffset);
 
-	bool result;
-
-	// end()
-	if (fStack.empty() and inOther.fStack.empty())
-		result = true;
-	// one empty stack
-	else if (fStack.empty() != inOther.fStack.empty())
-		result = false;
-	// the top of the stack should be the same
-	else
-		result = fStack.top().first == inOther.fStack.top().first and
-			fStack.top().second == inOther.fStack.top().second;
-	return result;
+	return
+		fFile == inOther.fFile and fBaseOffset == inOther.fBaseOffset and
+		fPage == inOther.fPage and fPageIndex == inOther.fPageIndex;
 }
 
 const pair<string,uint32>& CIndex::iterator::dereference() const

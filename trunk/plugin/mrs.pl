@@ -448,6 +448,8 @@ sub Dump()
 	my ($db, $ix, $min_occurrence, $no_leading_digit, $min_wordlength) = @_;
 	my $m = new MRS::MDatabank($db);
 
+	$m->DumpIndex($ix);
+
 	$min_occurrence = 1 unless defined $min_occurrence;
 	$no_leading_digit = 0 unless defined $no_leading_digit;
 	$min_wordlength = 1 unless defined $min_wordlength;

@@ -110,9 +110,6 @@ class CIndex
 {
   public:
 
-	typedef std::stack<std::pair<uint32,uint32> >	Path;
-
-
 						// normal constructor for an exisiting index on disk
 						CIndex(uint32 inIndexKind, HStreamBase& inFile, int64 inOffset, uint32 inRoot);
 						~CIndex();
@@ -125,7 +122,7 @@ class CIndex
 
 						// access data
 	bool				GetValue(const std::string& inKey, uint32& outValue) const;
-	void				SetValue(const std::string& inKey, uint32 inValue);
+//	void				SetValue(const std::string& inKey, uint32 inValue);
 
 	void				GetValuesForPattern(const std::string& inKey, std::vector<uint32>& outValues);
 
@@ -156,10 +153,10 @@ class CIndex
 	  private:
 		friend class boost::iterator_core_access;
 		friend class CIndex;
+		friend class CIndexImp;
 
-						iterator(HStreamBase& inFile, int64 inOffset, uint32 inRoot);
-						iterator(HStreamBase& inFile, int64 inOffset, uint32 inRoot,
-							const Path& inPath);
+						iterator(HStreamBase& inFile, int64 inOffset,
+							uint32 inPage, uint32 inPageIndex);
 	
 		void			increment();
 		void			decrement();
@@ -168,8 +165,8 @@ class CIndex
 		
 		HStreamBase*	fFile;
 		int64			fBaseOffset;
-		uint32			fRoot;
-		Path			fStack;
+		uint32			fPage;
+		uint32			fPageIndex;
 		std::pair<std::string,uint32>
 						fCurrent;
 	};

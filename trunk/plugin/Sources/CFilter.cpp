@@ -318,7 +318,7 @@ static double lnass(vector<long>& inState, CAlphabet inAlphabet)
 
 static double lnprob(vector<long>& inState, long inTotal, const CAlphabet& inAlphabet)
 {
-	double ans1, ans2, totseq;
+	double ans1, ans2 = 0, totseq;
 
 	totseq = inTotal * inAlphabet.GetLnSize();
 	ans1 = lnass(inState, inAlphabet);

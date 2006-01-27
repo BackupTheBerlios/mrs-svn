@@ -299,7 +299,7 @@ $(OBJDIR):
 
 $(OBJDIR)/%_$(TARGET)_wrap.o: Sources/%_$(TARGET)_wrap.cxx
 	@ echo "=> "$(@F)
-	@ $(CC) -c $< -o $@ $(INCLUDES) $(CFLAGS) -O0
+	@ $(CC) -c $< -o $@ $(INCLUDES) $(CFLAGS) -O 0
 
 $(OBJDIR)/%.o: %.cpp
 	@ echo "=> "$(@F)
@@ -308,11 +308,11 @@ $(OBJDIR)/%.o: %.cpp
 include $(OBJS:%.o=%.d)
 
 MRS_swig_perl5_wrap.cxx: Sources/MRS_swig.h Sources/MRS_swig.i
-	$(SWIG) -c++ -perl5 -o Sources/MRS_swig_perl5_wrap.cxx -outdir ./ Sources/MRS_swig.i
+	$(SWIG) $(DEFS) -c++ -perl5 -o Sources/MRS_swig_perl5_wrap.cxx -outdir ./ Sources/MRS_swig.i
 
 MRS_swig_java_wrap.cxx: Sources/MRS_swig.h Sources/MRS_swig_java.i
 	mkdir -p Java/nl/ru/cmbi/MRSPlugin
-	$(SWIG) -c++ -java -o Sources/MRS_swig_java_wrap.cxx -outdir Java/nl/ru/cmbi/MRSPlugin -package nl.ru.cmbi.MRSPlugin Sources/MRS_swig_java.i
+	$(SWIG) $(DEFS) -c++ -java -o Sources/MRS_swig_java_wrap.cxx -outdir Java/nl/ru/cmbi/MRSPlugin -package nl.ru.cmbi.MRSPlugin Sources/MRS_swig_java.i
 
 $(OBJDIR)/%.d:%.cpp
 	@ test -d $(OBJDIR) || mkdir $(OBJDIR)
