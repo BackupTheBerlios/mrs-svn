@@ -1,4 +1,4 @@
-/*	$Id: CIndexer.h,v 1.46 2005/09/15 10:12:08 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Sunday January 05 2003 18:35:51
 */
@@ -56,6 +56,18 @@ class CIndexCache;
 class CIndex;
 class CIteratorBase;
 
+class CDocWeightArray
+{
+  public:
+					CDocWeightArray(HStreamBase& inFile, int64 inOffset, uint32 inCount);
+	virtual			~CDocWeightArray();
+
+	float			operator[](uint32 inDocNr) const;
+
+  private:
+	struct CDocWeightArrayImp*	fImpl;
+};
+
 class CIndexer
 {
   public:
@@ -88,6 +100,12 @@ class CIndexer
 	CIteratorBase*	GetIteratorForIndex(const std::string& inIndex);
 	CIteratorBase*	GetIteratorForIndexAndKey(const std::string& inIndex, const std::string& inKey);
 	CIndex*			GetIndex(const std::string& inIndex) const;
+	CDbDocIteratorBase*
+					GetDocWeightIterator(const std::string& inIndex, const std::string& inKey);
+	
+	// returns an array of floats
+	CDocWeightArray*
+					GetDocWeights(const std::string& inIndex) const;
 
 	void			PrintInfo();
 	void			DumpIndex(const std::string& inIndex) const;
@@ -98,6 +116,8 @@ class CIndexer
 	void			IndexDate(const std::string& inIndex, const std::string& inText);
 	void			IndexNumber(const std::string& inIndex, const std::string& inText);
 	void			IndexValue(const std::string& inIndex, const std::string& inText);
+	void			IndexWordWithWeight(const std::string& inIndex,	
+						const std::string& inText, float inWeight);
 
 	uint32			GetDocumentNr(const std::string& inDocumentID,
 						bool inThrowIfNotFound = true);

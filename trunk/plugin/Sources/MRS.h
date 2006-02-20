@@ -1,4 +1,4 @@
-/*	$Id: MRS.h,v 1.37 2005/09/08 14:21:33 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Saturday December 07 2002 12:51:07
 */
@@ -65,6 +65,7 @@
 enum CIndexKind
 {
 	kTextIndex		= FOUR_CHAR_INLINE('text'),
+	kWeightedIndex	= FOUR_CHAR_INLINE('wtxt'),
 
 			// unique id, each key points to only one doc
 	kValueIndex		= FOUR_CHAR_INLINE('valu'),
@@ -73,6 +74,10 @@ enum CIndexKind
 			// index containing ascii representation of an integer
 	kNumberIndex	= FOUR_CHAR_INLINE('nmbr')
 };
+
+const uint32
+	kWeightBitCount = 6,
+	kMaxWeight = ((1 << 6) - 1);
 
 enum CQueryOperator
 {
@@ -90,5 +95,6 @@ extern unsigned int THREADS;
 extern const char* COMPRESSION;
 extern int COMPRESSION_LEVEL;
 extern const char* COMPRESSION_DICTIONARY;
+extern const char* kFileExtension;
 
 #endif // MRS_H

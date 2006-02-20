@@ -1,5 +1,5 @@
 /*
- * $Id: MRS_swig.cpp,v 1.49 2005/10/11 13:17:31 maarten Exp $
+ * $Id$
  */
 
 /*-
@@ -58,9 +58,14 @@
 
 #include "CDatabank.h"
 #include "CQuery.h"
+#ifndef NO_BLAST
 #include "CBlast.h"
+#endif
+#include "CRankedQuery.h"
 
 #include "CIndexPage.h"		// for CIndexIterator
+
+const char kAppName[] = "MRS";
 
 using namespace std;
 
@@ -72,6 +77,7 @@ const char*		COMPRESSION = "zlib";
 int				COMPRESSION_LEVEL = 6;
 const char*		COMPRESSION_DICTIONARY = "";
 string			gErrStr;
+const char*		kFileExtension = ".clx";
 
 string errstr()
 {
@@ -99,6 +105,11 @@ struct MDatabankImp
 						if (result == nil) THROW(("Not a valid databank for this operation"));
 						return result;
 					}
+	
+	void			Close()
+					{
+						fDatabank.reset(nil);
+					}
 
 	auto_ptr<CDatabankBase>		fDatabank;
 	auto_ptr<HFile::SafeSaver>	fSafe;
@@ -112,14 +123,57 @@ struct MDatabankImp
 
 struct MQueryResultsImp
 {
-								MQueryResultsImp(CDatabankBase& inDb,
-										const string& inQuery, bool inAutoWildcard)
-									: fDatabank(&inDb)
-									, fQuery(inQuery, inDb, inAutoWildcard) {}
-	
+								MQueryResultsImp(CDatabankBase& inDb)
+									: fDatabank(&inDb) {}
+	virtual						~MQueryResultsImp() {}
+
+	virtual bool				Next(uint32& outDoc) = 0;
+	virtual uint32				Count(bool inExact) = 0;
+
 	CDatabankBase*				fDatabank;
-	CQuery						fQuery;
 	string						fScratch;
+};
+
+struct MQueryResultsImpCQuery : public MQueryResultsImp
+{
+								MQueryResultsImpCQuery(CDatabankBase& inDb,
+										const string& inQuery, bool inAutoWildcard)
+									: MQueryResultsImp(inDb)
+									, fQuery(inQuery, inDb, inAutoWildcard) {}
+
+	virtual bool				Next(uint32& outDoc)
+								{
+									return fQuery.Next(outDoc);
+								}
+
+	virtual uint32				Count(bool inExact)
+								{
+									return fQuery.Count(inExact);
+								}
+
+  private:
+	CQuery						fQuery;
+};
+
+struct MQueryResultsImpCDocIterator : public MQueryResultsImp
+{
+								MQueryResultsImpCDocIterator(CDatabankBase& inDb,
+										CDocIterator* inDocIterator)
+									: MQueryResultsImp(inDb)
+									, fIter(inDocIterator) {}
+
+	virtual bool				Next(uint32& outDoc)
+								{
+									return fIter->Next(outDoc, false);
+								}
+
+	virtual uint32				Count(bool inExact)
+								{
+									return fIter->Count();
+								}
+
+  private:
+	auto_ptr<CDocIterator>		fIter;
 };
 
 // ---------------------------------------------------------------------------
@@ -162,6 +216,7 @@ struct MIndicesImp
 	CDatabankBase*				fDatabank;
 };
 
+#ifndef NO_BLAST
 // ---------------------------------------------------------------------------
 //
 //  struct MBlastHitImp
@@ -219,6 +274,19 @@ struct MBlastHspsImp
 {
 	auto_ptr<CBlastHspIterator>	fHsps;
 	bool						fEOF;
+};
+#endif
+
+// ---------------------------------------------------------------------------
+//
+//  struct MRankedQueryImp
+//
+
+struct MRankedQueryImp
+{
+	CDatabankBase*				fDatabank;
+	string						fIndex;
+	auto_ptr<CRankedQuery>		fQuery;
 };
 
 // ---------------------------------------------------------------------------
@@ -307,11 +375,11 @@ MDatabankImp::MDatabankImp(const string& inDatabank, bool inNew)
 					
 					url.SetNativePath(part);
 					if (not HFile::Exists(url))
-						url.SetNativePath(part + ".cmp");
+						url.SetNativePath(part + kFileExtension);
 					if (not HFile::Exists(url) and data_dir != nil)
 						url.SetNativePath(string(data_dir) + '/' + part);
 					if (not HFile::Exists(url) and data_dir != nil)
-						url.SetNativePath(string(data_dir) + '/' + part + ".cmp");
+						url.SetNativePath(string(data_dir) + '/' + part + kFileExtension);
 			
 					if (not HFile::Exists(url))
 						THROW(("Databank not found: '%s'", part.c_str()));
@@ -337,11 +405,11 @@ MDatabankImp::MDatabankImp(const string& inDatabank, bool inNew)
 				
 				url.SetNativePath(db);
 				if (not HFile::Exists(url))
-					url.SetNativePath(db + ".cmp");
+					url.SetNativePath(db + kFileExtension);
 				if (not HFile::Exists(url) and data_dir != nil)
 					url.SetNativePath(string(data_dir) + '/' + db);
 				if (not HFile::Exists(url) and data_dir != nil)
-					url.SetNativePath(string(data_dir) + '/' + db + ".cmp");
+					url.SetNativePath(string(data_dir) + '/' + db + ".clx");
 		
 				if (not HFile::Exists(url))
 					THROW(("Databank not found: '%s'", db.c_str()));
@@ -413,10 +481,10 @@ long MDatabank::CountForKey(const string& inIndex, const string& inKey) const
 
 MQueryResults* MDatabank::Find(const string& inQuery, bool inAutoWildcard)
 {
-	auto_ptr<MQueryResultsImp> imp(new MQueryResultsImp(*fImpl->fDatabank, inQuery, inAutoWildcard));
+	auto_ptr<MQueryResultsImp> imp(new MQueryResultsImpCQuery(*fImpl->fDatabank, inQuery, inAutoWildcard));
 	MQueryResults* result = NULL;
 
-	if (imp->fQuery.Count(false) > 0)
+	if (imp->Count(false) > 0)
 		result = MQueryResults::Create(imp.release());
 
 	return result;
@@ -439,6 +507,7 @@ const char* MDatabank::Get(const string& inEntryID)
 	return result;
 }
 
+#ifndef NO_BLAST
 const char* MDatabank::Sequence(const string& inEntryID, unsigned long inIndex)
 {
 	const char* result = nil;
@@ -474,6 +543,7 @@ MBlastHits* MDatabank::Blast(const string& inQuery, const std::string& inMatrix,
 			
 	return result;
 }
+#endif
 
 MIndex* MDatabank::Index(const std::string& inIndex)
 {
@@ -549,6 +619,12 @@ void MDatabank::IndexValue(const string& inIndex, const string& inText)
 	fImpl->GetDB()->IndexValue(inIndex, inText);
 }
 
+void MDatabank::IndexWordWithWeight(const string& inIndex,
+	const string& inText, float inWeight)
+{
+	fImpl->GetDB()->IndexWordWithWeight(inIndex, inText, inWeight);
+}
+
 void MDatabank::IndexDate(const string& inIndex, const string& inText)
 {
 	fImpl->GetDB()->IndexDate(inIndex, inText);
@@ -559,10 +635,12 @@ void MDatabank::IndexNumber(const string& inIndex, const string& inText)
 	fImpl->GetDB()->IndexNumber(inIndex, inText);
 }
 
+#ifndef NO_BLAST
 void MDatabank::AddSequence(const string& inSequence)
 {
 	fImpl->GetDB()->AddSequence(inSequence);
 }
+#endif
 
 void MDatabank::FlushDocument()
 {
@@ -579,6 +657,8 @@ void MDatabank::Finish()
 	fImpl->GetDB()->Finish();
 	
 	HFileCache::Flush();
+	
+	fImpl->Close();
 	
 	if (fImpl->fSafe.get())
 		fImpl->fSafe->Commit();
@@ -601,6 +681,15 @@ void MDatabank::CreateDictionary(std::string inIndices, long inMinOccurrence, lo
 	fImpl->GetDB()->CreateDictionaryForIndexes(indices, inMinOccurrence, inMinWordLength);
 }
 
+MRankedQuery* MDatabank::RankedQuery(const string& inIndex)
+{
+	auto_ptr<MRankedQueryImp> imp(new MRankedQueryImp);
+	imp->fDatabank = fImpl->fDatabank.get();
+	imp->fIndex = inIndex;
+	imp->fQuery.reset(new CRankedQuery);
+	return MRankedQuery::Create(imp.release());
+}
+
 // ---------------------------------------------------------------------------
 //
 //  class MQueryResults
@@ -611,7 +700,7 @@ const char* MQueryResults::Next()
 	const char* result = nil;
 	uint32 docNr;
 	
-	if (fImpl->fQuery.Next(docNr))
+	if (fImpl->Next(docNr))
 	{
 		fImpl->fScratch = fImpl->fDatabank->GetDocumentID(docNr);
 		result = fImpl->fScratch.c_str();
@@ -627,14 +716,15 @@ void MQueryResults::Skip(long inCount)
 	
 	uint32 docNr;
 	while (inCount-- > 0)
-		fImpl->fQuery.Next(docNr);
+		fImpl->Next(docNr);
 }
 
 unsigned long MQueryResults::Count(bool inExact) const
 {
-	return fImpl->fQuery.Count(inExact);
+	return fImpl->Count(inExact);
 }
 
+#ifndef NO_BLAST
 MBlastHits* MQueryResults::Blast(const string& inQuery, const std::string& inMatrix,
 	unsigned long inWordSize, double inExpect, bool inFilter,
 	bool inGapped, unsigned long inGapOpen, unsigned long inGapExtend)
@@ -652,6 +742,7 @@ MBlastHits* MQueryResults::Blast(const string& inQuery, const std::string& inMat
 			
 	return result;
 }
+#endif
 
 
 // ---------------------------------------------------------------------------
@@ -751,6 +842,7 @@ MIndex* MIndices::Next()
 }
 
 
+#ifndef NO_BLAST
 // ---------------------------------------------------------------------------
 //
 //  class MBlastHit
@@ -865,6 +957,34 @@ MBlastHsp* MBlastHsps::Next()
 	}
 	
 	return result;
+}
+#endif
+
+
+// ---------------------------------------------------------------------------
+//
+//  class MRankedQuery
+//
+
+void MRankedQuery::AddTerm(const std::string& inTerm, float inWeight)
+{
+	fImpl->fQuery->AddTerm(inTerm, inWeight);
+}
+
+MQueryResults* MRankedQuery::Perform()
+{
+	auto_ptr<MQueryResultsImp> imp(
+		new MQueryResultsImpCDocIterator(
+			*fImpl->fDatabank,
+			fImpl->fQuery->PerformSearch(*fImpl->fDatabank, fImpl->fIndex)));
+
+	MQueryResults* result = NULL;
+
+	if (imp->Count(false) > 0)
+		result = MQueryResults::Create(imp.release());
+
+	return result;
+	
 }
 
 #pragma export off

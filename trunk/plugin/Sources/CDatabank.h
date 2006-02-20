@@ -1,4 +1,4 @@
-/*	$Id: CDatabank.h,v 1.68 2005/10/11 13:17:31 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Sunday January 05 2003 11:41:32
 */
@@ -63,6 +63,7 @@ class CIdTable;
 class CBlastIndex;
 #endif
 class CDictionary;
+class CDocWeightArray;
 
 struct SIndexPart;
 struct SHeader;
@@ -112,6 +113,11 @@ class CDatabankBase
 	virtual CIteratorBase*
 						GetIteratorForIndexAndKey(const std::string& inIndex,
 							const std::string& inKey);
+	virtual CDbDocIteratorBase*
+						GetDocWeightIterator(const std::string& inIndex,
+							const std::string& inKey);
+	virtual CDocWeightArray*
+						GetDocWeights(const std::string& inIndex);
 
 	virtual long		GetIndexCount() = 0;
 	virtual	void		GetIndexInfo(uint32 inIndexNr, std::string& outCode,
@@ -149,6 +155,12 @@ class CDatabank : public CDatabankBase
 	virtual CIteratorBase*
 						GetIteratorForIndexAndKey(const std::string& inIndex,
 							const std::string& inKey);
+	virtual CDbDocIteratorBase*
+						GetDocWeightIterator(const std::string& inIndex,
+							const std::string& inConceptID);
+	virtual CDocWeightArray*
+						GetDocWeights(const std::string& inIndex);
+
 	virtual void		PrintInfo();
 
 	virtual std::string	GetDocument(uint32 inDocNr);
@@ -166,12 +178,18 @@ class CDatabank : public CDatabankBase
 	
 	// for the perl interface
 	void				Store(const std::string& inDocument);
+	void				StoreFingerPrint(const std::string& inFingerPrint,
+							const std::string& inThesaurus);
 	void				IndexText(const std::string& inIndex, const std::string& inText);
 	void				IndexTextAndNumbers(const std::string& inIndex, const std::string& inText);
 	void				IndexWord(const std::string& inIndex, const std::string& inText);
 	void				IndexValue(const std::string& inIndex, const std::string& inText);
 	void				IndexDate(const std::string& inIndex, const std::string& inText);
 	void				IndexNumber(const std::string& inIndex, const std::string& inText);
+	
+							// Weight should be a float between 0 and 1
+	void				IndexWordWithWeight(const std::string& inIndex,	
+							const std::string& inText, float inWeight);
 #ifndef NO_BLAST
 	void				AddSequence(const std::string& inSequence);
 #endif

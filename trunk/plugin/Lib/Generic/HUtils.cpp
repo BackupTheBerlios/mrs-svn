@@ -1,4 +1,4 @@
-/*	$Id: HUtils.cpp,v 1.61 2005/08/22 12:38:04 maarten Exp $
+/*	$Id$
 	
 	Copyright Hekkelman Programmatuur b.v.
 	M.L. Hekkelman
@@ -417,4 +417,73 @@ void FormatHex(HUnicode inUnicode, char* outString, int inBufferSize)
 	}
 }
 
+#if P_VISUAL_CPP
 
+namespace std {
+
+int strcasecmp(const char* a, const char* b)
+{
+	while (*a && *b)
+	{
+		int d = std::tolower(*a++) - std::tolower(*b++);
+		if (d < 0)
+			return -1;
+		else if (d > 0)
+			return 1;
+	}
+
+	if (*a)
+		return 1;
+	else if (*b)
+		return -1;
+	else
+		return 0;
+}
+
+int strncasecmp(const char* a, const char* b, unsigned int l)
+{
+	int d = 0;
+	while (l-- > 0 && d == 0)
+		d = std::tolower(*a++) - std::tolower(*b++);
+	return d;
+}
+
+int strcasecmp(const unsigned char* a, const unsigned char* b)
+{
+	int i;
+	
+	for (i = 1; i <= a[0] && i <= b[0]; ++i)
+	{
+		int d = std::tolower(a[i]) - std::tolower(b[i]);
+		if (d)
+			return d;
+	}
+
+	return a[0] - b[0];
+}
+
+int strncasecmp(const unsigned char* a, const unsigned char* b,
+	unsigned long l)
+{
+	unsigned long i;
+	
+	for (i = 1; i <= a[0] && i <= b[0] && i <= l; ++i)
+	{
+		int d = std::tolower(a[i]) - std::tolower(b[i]);
+		if (d)
+			return d;
+	}
+
+	if (a[0] <= l && b[0] <= l)
+		return a[0] - b[0];
+	else if (a[0] <= l)
+		return -1;
+	else if (b[0] <= l)
+		return 1;
+	else
+		return 0;
+}
+
+}
+
+#endif

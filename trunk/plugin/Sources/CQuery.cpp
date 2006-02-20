@@ -1,4 +1,4 @@
-/*	$Id: CQuery.cpp,v 1.64 2005/10/13 14:13:34 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Tuesday January 07 2003 20:13:07
 */
@@ -146,6 +146,7 @@ CQueryImp::CQueryImp(const string& inQuery, CDatabankBase& inDatabank,
 	, fDatabank(inDatabank)
 	, fOffset(0)
 	, fTokenOffset(0)
+	, fCurrent(0)
 	, fIterator(nil)
 	, fAutoWildcard(inAutoWildcard)
 	, fDocsContainsAll(false)
@@ -167,6 +168,8 @@ CQueryImp::~CQueryImp()
 
 bool CQueryImp::Parse()
 {
+	fCurrent = 0;
+
 	// shortcut
 	if (fQuery == "*")
 	{
@@ -204,7 +207,6 @@ bool CQueryImp::Parse()
 			}
 		}
 		
-		fCurrent = 0;
 		result = true;
 	}
 	catch (exception& e)

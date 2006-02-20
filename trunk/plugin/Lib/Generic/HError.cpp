@@ -1,4 +1,4 @@
-/*	$Id: HError.cpp,v 1.58 2005/08/22 12:38:04 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created Thursday September 06 2001 12:24:15
 */
@@ -44,6 +44,7 @@
 #include <typeinfo>
 
 #include "HError.h"
+#include "HGlobals.h"
 #include "HUtils.h"
 #include "HStdCStdio.h"
 #include "HStdCString.h"
@@ -233,6 +234,7 @@ void ASSERTION_FAILED(char const *inErr, char const *inFile, int inLine)
 
 #endif
 
+#if P_DEBUG
 StOKToThrow::StOKToThrow()
 	: fWasOK(true)
 {
@@ -243,5 +245,7 @@ StOKToThrow::~StOKToThrow()
 {
 	swap(fWasOK, gOKToThrow);
 }
+
+#endif
 
 #endif

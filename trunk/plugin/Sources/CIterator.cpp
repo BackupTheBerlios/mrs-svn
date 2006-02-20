@@ -1,4 +1,4 @@
-/*	$Id: CIterator.cpp,v 1.23 2005/09/15 10:12:08 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Sunday March 14 2004 13:57:17
 */
@@ -214,83 +214,6 @@ void CDocDeltaIterator::PrintHierarchy(int inLevel) const
 	
 	if (fOriginal != nil)
 		fOriginal->PrintHierarchy(inLevel + 1);
-}
-
-CDbDocIterator::CDbDocIterator(HStreamBase& inData,
-		int64 inOffset, int64 inMax)
-	: fBits(new CIBitStream(inData, inOffset))
-	, fValue(-1)
-	, fRead(0)
-{
-	fCount = ReadGamma(*fBits);
-	b = CalculateB(inMax, fCount);
-	n = 0;
-	g = 1;
-	
-	while (g < b)
-	{
-		++n;
-		g <<= 1;
-	}
-	g -= b;
-}
-
-CDbDocIterator::~CDbDocIterator()
-{
-	delete fBits;
-}
-
-bool CDbDocIterator::Next(uint32& ioDoc, bool inSkip)
-{
-	bool result = false;
-
-	while (fRead < fCount and not result)
-	{
-		int32 q = 0;
-		int32 r = 0;
-		
-		if (fBits->next_bit())
-		{
-			q = 1;
-			while (fBits->next_bit())
-				++q;
-		}
-		
-		if (b > 1)
-		{
-			for (int e = 0; e < n - 1; ++e)
-				r = (r << 1) | fBits->next_bit();
-			
-			if (r >= g)
-			{
-				r = (r << 1) | fBits->next_bit();
-				r -= g;
-			}
-		}
-		
-		int32 d = r + q * b + 1;
-		
-		fValue += d;
-		++fRead;
-		
-		if (fValue > ioDoc or fValue == 0 or not inSkip)
-		{
-			ioDoc = static_cast<uint32>(fValue);
-			result = true;
-		}
-	}
-
-	return result;
-}
-
-uint32 CDbDocIterator::Read() const
-{
-	return fRead;
-}
-
-uint32 CDbDocIterator::Count() const
-{
-	return fCount;
 }
 
 CDocNrIterator::CDocNrIterator(uint32 inValue)
@@ -695,6 +618,29 @@ uint32 CDbAllDocIterator::Read() const
 	return fDocNr;
 }
 
+CDocVectorIterator::CDocVectorIterator(const vector<uint32>& inDocs)
+	: fDocs(new vector<uint32>(inDocs))
+{
+}
+
+bool CDocVectorIterator::Next(uint32& ioValue, bool inSkip)
+{
+	bool result = false;
+	while (fCur < fDocs->size())
+	{
+		if (fDocs->at(fCur) <= ioValue and inSkip)
+		{
+			++fCur;
+			continue;
+		}
+		
+		result = true;
+		ioValue = fDocs->at(fCur);
+		++fCur;
+	}
+	return result;
+}
+
 // ---------------------------------------------------------------------------
 
 CDbStringMatchIterator::CDbStringMatchIterator(CDatabankBase& inDb, const std::vector<std::string>& inStringWords,
@@ -792,6 +738,3 @@ uint32 CDbStringMatchIterator::Read() const
 		result = fIter->Read();
 	return result;
 }
-
-
-

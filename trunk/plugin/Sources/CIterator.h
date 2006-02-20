@@ -1,4 +1,4 @@
-/*	$Id: CIterator.h,v 1.15 2005/09/15 10:12:08 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Sunday March 14 2004 13:51:23
 */
@@ -44,6 +44,8 @@
 
 #include "HStlString.h"
 #include "HStlVector.h"
+
+#include "CValuePairArray.h"
 
 class HStreamBase;
 class CIBitStream;
@@ -185,24 +187,42 @@ class CDocDeltaIterator : public CDocIterator
 
 // the iterator for a simple one file databank
 
-class CDbDocIterator : public CDocIterator
+class CDbDocIteratorBase : public CDocIterator
 {
   public:
-					CDbDocIterator(HStreamBase& inData,
+	virtual bool	Next(uint32& ioDoc, uint8& ioRank, bool inSkip) = 0;
+
+	virtual float	GetIDFCorrectionFactor() const			{ return fIDFCorrectionFactor; }
+
+  protected:
+	float			fIDFCorrectionFactor;
+};
+
+
+template<typename T>
+class CDbDocIteratorBaseT : public CDbDocIteratorBase
+{
+	typedef typename	CValuePairCompression::ValuePairTraitsTypeFactory<T>::type		traits;
+	typedef typename	CValuePairCompression::ValuePairTraitsTypeFactory<T>::iterator	IterType;
+	typedef typename	traits::rank_type												rank_type;
+	
+  public:
+					CDbDocIteratorBaseT(HStreamBase& inData,
 						int64 inOffset, int64 inMax);
-	virtual			~CDbDocIterator();
 
 	virtual bool	Next(uint32& ioDoc, bool inSkip);
+	virtual bool	Next(uint32& ioDoc, uint8& ioRank, bool inSkip);
+
 	virtual uint32	Count() const;
 	virtual uint32	Read() const;
 
-  private:	
-	CIBitStream*	fBits;
-	int64			fValue;
-	uint32			fCount;
-	uint32			fRead;
-	int32			b, n, g;
+  protected:
+	CIBitStream		fBits;
+	IterType		fIter;
 };
+
+typedef CDbDocIteratorBaseT<uint32>						CDbDocIterator;
+typedef CDbDocIteratorBaseT<std::pair<uint32,uint8> >	CDbDocWeightIterator;
 
 class CDocNrIterator : public CDocIterator
 {
@@ -288,6 +308,25 @@ class CDocNotIterator : public CDocIterator
 	uint32			fCur, fNext, fMax, fRead;
 };
 
+class CDocVectorIterator : public CDocIterator
+{
+  public:
+					CDocVectorIterator(std::vector<uint32>* inDocs)
+						: fDocs(inDocs)
+						, fCur(0)
+						, fRead(0) {}
+					CDocVectorIterator(const std::vector<uint32>& inDocs);
+	
+	virtual bool	Next(uint32& ioValue, bool inSkip);
+	virtual uint32	Count() const						{ return fDocs->size(); }
+	virtual uint32	Read() const						{ return fRead; }
+	virtual uint32	Complexity() const					{ return 0; }
+
+  private:
+	std::auto_ptr<std::vector<uint32> >	fDocs;
+	uint32			fCur, fRead;
+};
+
 class CDbAllDocIterator : public CDocIterator
 {
   public:
@@ -320,5 +359,7 @@ class CDbStringMatchIterator : public CDocIterator
 					fStringWords;
 	CDocIterator*	fIter;
 };
+
+#include "CIterator.inl"
 
 #endif // CITERATOR_H

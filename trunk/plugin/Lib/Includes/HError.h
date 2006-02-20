@@ -1,4 +1,4 @@
-/*	$Id: HError.h,v 1.51 2005/08/22 12:38:04 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created Wednesday August 22 2001 15:01:20
 */
@@ -165,6 +165,10 @@ class StOKToThrow
 #ifdef MINI_H_LIB
 #	define ThrowIfNil(p)			do { const void* __p = (p); if (__p == nil) THROW(("Nil pointer")); } while (false)
 #	define ThrowIfPOSIXErr(e)		do { if ((e) < 0) THROW(("Posix error: %s", std::strerror(static_cast<unsigned long>(HFile::HErrno)), true, true)); } while (false)
+#if P_WIN
+#	define ThrowIfOSErr(e)			do { unsigned long __e = static_cast<unsigned long>(e); if (__e != 0) THROW((__e, true, true)); } while (false)
+#	define ThrowIfFalse(b)			do { if (not (b)) THROW((::GetLastError(), true, true)); } while (false)
+#endif
 #	define ThrowIf(b)				do { if ((b)) THROW(("Logic error")); } while (false)
 #else
 #	define ThrowIfNil(p)			do { const void* __p = (p); if (__p == nil) THROW((pErrNilPointer)); } while (false)

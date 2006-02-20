@@ -1,4 +1,4 @@
-/*	$Id: HGlobals.cpp,v 1.7 2005/08/22 12:38:04 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created by Bas Vodde Saturday January 26 2002 10:53:55
 */
@@ -55,9 +55,11 @@ unsigned short		gGid;
 
 HUrl				gTempURL, gPrefsURL, gAppURL, gUserURL;
 
+#ifndef MINI_H_LIB
 bool				gAntiAliasedText;
 
 HColor				gColor[kLastColor];
+#endif
 
 const std::string	kEmptyString("");
 const char 			kHexChars[] = "0123456789ABCDEF";

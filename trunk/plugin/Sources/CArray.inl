@@ -260,7 +260,7 @@ void CCArray<T>::CreatePage(HStreamBase& inData,
 	uint32 e = ix * kPageSize;
 	uint32 m = (ix + 1) * kPageSize;
 	if (m > inData.Size() / sizeof(T))
-		m = inData.Size() / sizeof(T);
+		m = static_cast<uint32>(inData.Size() / sizeof(T));
 	
 	HAutoBuf<T> d(new T[m - e]);
 	int64 offset = e * sizeof(T);

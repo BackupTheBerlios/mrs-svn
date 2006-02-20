@@ -1,4 +1,4 @@
-/*	$Id: CIdTable.cpp,v 1.20 2005/09/10 07:10:44 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Friday April 02 2004 15:46:10
 */
@@ -43,6 +43,7 @@
 
 #include "CIdTable.h"
 #include "CLexicon.h"
+#include "CBitStream.h"
 
 #include "HStream.h"
 #include "CIndexPage.h"

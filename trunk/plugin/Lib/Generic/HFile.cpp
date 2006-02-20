@@ -1,4 +1,4 @@
-/*	$Id: HFile.cpp,v 1.18 2005/08/22 12:38:04 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created Tuesday September 12 2000 09:03:00
 */
@@ -275,6 +275,7 @@ void ClearTextFileNameExtensionMapping()
 	HExtensionSet::Instance().Init();
 }
 
+#ifndef MINI_H_LIB
 struct GlobImp
 {
 							GlobImp(FileIterator* inIter, string inPattern)
@@ -335,5 +336,6 @@ bool GlobIterator::Next(HUrl& outUrl)
 	
 	return result;
 }
+#endif
 
 }

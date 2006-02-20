@@ -37,7 +37,8 @@
 
 use strict;
 use English;
-use Sys::Proctitle;
+use Time::HiRes qw(usleep ualarm gettimeofday tv_interval);
+#use Sys::Proctitle;
 #use MRS;
 
 BEGIN {
@@ -102,11 +103,11 @@ elsif ($action eq 'blast')
 }
 elsif ($action eq 'info')
 {
-	getopts('d:', \%opts);
+	getopts('d:v', \%opts);
 
 	my $db = $opts{d} or &Usage();
 
-	&Info($db);
+	&Info($db, $opts{v});
 }
 elsif ($action eq 'dict')
 {
@@ -245,14 +246,14 @@ sub Create()
 	my $cmp_name = $db;
 	$cmp_name .= $partNr if defined $partNr;
 
-	my $fileName = "$data_dir/$cmp_name.cmp";
+	my $fileName = "$data_dir/$cmp_name.clx";
 	my $exists = -f $fileName;
 	
 	my $mrs = MRS::MDatabank::Create($fileName)
 		or die "Could not create new databank $db: " . MRS::errstr;
 
 	# protect the new born file
-	chmod 0400, "$data_dir/$cmp_name.cmp" if not $exists;
+#	chmod 0400, "$data_dir/$cmp_name.clx" if not $exists;
 	
 	# Now we can create the parser object
 	
@@ -303,8 +304,8 @@ print "Setting version: $vers\n";
 	
 	foreach my $r (@raw_files)
 	{
-		Sys::Proctitle::setproctitle(
-			sprintf("[%d/%d] MRS: '%s'", $n++, $m, $r));
+#		Sys::Proctitle::setproctitle(
+#			sprintf("[%d/%d] MRS: '%s'", $n++, $m, $r));
 		
 		print "$r\n" if $verbose;
 		open IN, $r;
@@ -332,13 +333,13 @@ sub Merge()
 	my @parts;
 	foreach my $n (1 .. $cnt)
 	{
-		my $part = new MRS::MDatabank("$db$n")
+		my $part = new MRS::MDatabank("$db$n.clx")
 			or die "Could not find part $n: " . MRS::errstr . "\n";
 		
 		push @parts, $part;
 	}
 	
-	MRS::MDatabank::Merge("$data_dir/$db.cmp", \@parts);
+	MRS::MDatabank::Merge("$data_dir/$db.clx", \@parts);
 }
 
 sub Query()
@@ -376,7 +377,7 @@ sub Entry()
 	
 	my $d = new MRS::MDatabank($db);
 	
-	print $d->Get($entry);
+	print $d->Get($entry) . "\n\n";
 }
 
 sub Blast()
@@ -435,7 +436,10 @@ sub printNumber
 
 sub Info()
 {
-	my $db = shift;
+	my ($db, $verbose) = @_;
+	
+	$MRS::VERBOSE = $verbose;
+	
 	my $m = new MRS::MDatabank($db);
 
 	my %index_types = (
@@ -475,7 +479,7 @@ sub Dump()
 	my ($db, $ix, $min_occurrence, $no_leading_digit, $min_wordlength) = @_;
 	my $m = new MRS::MDatabank($db);
 
-	$m->DumpIndex($ix);
+#	$m->DumpIndex($ix);
 
 	$min_occurrence = 1 unless defined $min_occurrence;
 	$no_leading_digit = 0 unless defined $no_leading_digit;

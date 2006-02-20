@@ -1,4 +1,4 @@
-/*	$Id: CDictionary.cpp,v 1.4 2005/09/05 12:59:18 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Thursday August 25 2005 12:47:02
 */
@@ -155,7 +155,7 @@ HUrl CDictionary::CreateUrlForDictionaryFile(CDatabank& inDatabank)
 	
 	string name = url.GetFileName();
 	string::size_type e;
-	if ((e = name.rfind(".cmp")) != string::npos)
+	if ((e = name.rfind(kFileExtension)) != string::npos)
 		name.erase(e);
 	name.append(".dict");
 

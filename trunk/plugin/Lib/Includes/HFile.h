@@ -1,4 +1,4 @@
-/*	$Id: HFile.h,v 1.45 2005/09/08 14:21:32 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created Tuesday September 12 2000 08:53:39
 */
@@ -127,6 +127,7 @@ namespace HFile
 		struct IteratorImp*	fImpl;
 	};
 	
+#ifndef MINI_H_LIB
 	class GlobIterator
 	{
 	  public:
@@ -141,6 +142,7 @@ namespace HFile
 	  
 		struct GlobImp*	fImpl;
 	};
+#endif
 	
 	class Chooser
 	{

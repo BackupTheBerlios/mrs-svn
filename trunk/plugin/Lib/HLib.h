@@ -1,4 +1,4 @@
-/*	$Id: HLib.h,v 1.48 2005/09/11 09:56:44 maarten Exp $
+/*	$Id$
 	
 	Copyright Hekkelman Programmatuur b.v.
 	Bas Vodde
@@ -465,7 +465,7 @@ typedef short				int16;
 typedef unsigned short		uint16;
 
 typedef int					int32;
-typedef unsigned 			uint32;
+typedef unsigned int		uint32;
 
 #if P_BORLAND
 typedef __int64				int64;

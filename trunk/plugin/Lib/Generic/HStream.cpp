@@ -169,7 +169,15 @@ HStreamBase& HStreamBase::operator>> (int32& d)
 	Read(&d, sizeof(int32));
 	if (fSwap)
 		d = byte_swapper::swap(d);
-		return *this;
+	return *this;
+}
+
+HStreamBase& HStreamBase::operator>> (float& d)
+{
+	Read(&d, sizeof(float));
+	if (fSwap)
+		d = byte_swapper::swap(d);
+	return *this;
 }
 
 HStreamBase& HStreamBase::operator>> (int64& d)
@@ -210,6 +218,7 @@ HStreamBase& HStreamBase::operator>> (uint64& d)
 	return *this;
 }
 
+#ifndef MINI_H_LIB
 HStreamBase& HStreamBase::operator>>(HRect& rect)
 {
 	int16 l, t, r, b;
@@ -218,17 +227,18 @@ HStreamBase& HStreamBase::operator>>(HRect& rect)
 	rect.Set(l, t, r, b);
 	return *this;
 }
+#endif
 
-HStreamBase& HStreamBase::operator>> (char* s)
-{
-	string str;
-	ReadString(str);
-	if (str.length() > 255)
-		str.erase(255, str.length() - 255);
-	str.copy(s, str.length());
-	s[str.length()] = 0;
-	return *this;
-}
+//HStreamBase& HStreamBase::operator>> (char* s)
+//{
+//	string str;
+//	ReadString(str);
+//	if (str.length() > 255)
+//		str.erase(255, str.length() - 255);
+//	str.copy(s, str.length());
+//	s[str.length()] = 0;
+//	return *this;
+//}
 
 HStreamBase& HStreamBase::operator>> (string& s)
 {
@@ -285,6 +295,14 @@ HStreamBase& HStreamBase::operator<< (uint32 d)
 	if (fSwap)
 		d = byte_swapper::swap(d);
 	Write(&d, sizeof(uint32));
+	return *this;
+}
+
+HStreamBase& HStreamBase::operator<< (float d)
+{
+	if (fSwap)
+		d = byte_swapper::swap(d);
+	Write(&d, sizeof(float));
 	return *this;
 }
 
@@ -626,6 +644,7 @@ void HFileStream::Close()
 {
 	if (fFD >= 0)
 		HFile::Close(fFD);
+	fFD = -1;
 }
 
 //#if 0

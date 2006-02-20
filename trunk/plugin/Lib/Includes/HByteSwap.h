@@ -1,4 +1,4 @@
-/*	$Id: HByteSwap.h,v 1.25 2005/08/22 12:38:04 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created Sunday December 02 2001 11:36:08
 */
@@ -46,7 +46,7 @@
 struct no_swapper
 {
 	template<typename T>
-	static T	swap(const T inValue)		{ return inValue; }
+	static T	swap(T inValue)		{ return inValue; }
 };
 
 // a class that swaps
@@ -56,6 +56,7 @@ struct byte_swapper
 	static int8		swap(int8 inValue);
 	static int16	swap(int16 inValue);
 	static int32	swap(int32 inValue);
+	static float	swap(float inValue);
 	static int64	swap(int64 inValue);
 	static uint8	swap(uint8 inValue);
 	static uint16	swap(uint16 inValue);
@@ -92,7 +93,7 @@ uint64 byte_swapper::swap(uint64 inValue)
 }
 
 inline
-int32 byte_swapper::swap(const int32 inValue)
+int32 byte_swapper::swap(int32 inValue)
 {
 	return static_cast<int32>(
 			((((uint32)inValue)<<24) & 0xFF000000)  |
@@ -102,7 +103,7 @@ int32 byte_swapper::swap(const int32 inValue)
 }
 
 inline
-uint32 byte_swapper::swap(const uint32 inValue)
+uint32 byte_swapper::swap(uint32 inValue)
 {
 	return static_cast<uint32>(
 			((((uint32)inValue)<<24) & 0xFF000000)  |
@@ -112,7 +113,26 @@ uint32 byte_swapper::swap(const uint32 inValue)
 }
 
 inline
-int16 byte_swapper::swap(const int16 inValue)
+float byte_swapper::swap(float inValue)
+{
+	union {
+		float	a;
+		uint32	b;
+	} v;
+	
+	v.a = inValue;
+	
+	v.b = static_cast<float>(
+			((v.b<<24) & 0xFF000000)  |
+			((v.b<< 8) & 0x00FF0000)  |
+			((v.b>> 8) & 0x0000FF00)  |
+			((v.b>>24) & 0x000000FF));
+	
+	return v.a;
+}
+
+inline
+int16 byte_swapper::swap(int16 inValue)
 {
 	return static_cast<int16>(
 			((((uint16)inValue)<< 8) & 0xFF00)  |
@@ -120,7 +140,7 @@ int16 byte_swapper::swap(const int16 inValue)
 }
 
 inline
-uint16 byte_swapper::swap(const uint16 inValue)
+uint16 byte_swapper::swap(uint16 inValue)
 {
 	return static_cast<uint16>(
 			((((uint16)inValue)<< 8) & 0xFF00)  |
@@ -128,19 +148,19 @@ uint16 byte_swapper::swap(const uint16 inValue)
 }
 
 inline
-int8 byte_swapper::swap(const int8 inValue)
+int8 byte_swapper::swap(int8 inValue)
 {
 	return inValue;
 }
 
 inline
-uint8 byte_swapper::swap(const uint8 inValue)
+uint8 byte_swapper::swap(uint8 inValue)
 {
 	return inValue;
 }
 
 inline
-bool byte_swapper::swap(const bool inValue)
+bool byte_swapper::swap(bool inValue)
 {
 	return inValue;
 }
@@ -150,145 +170,5 @@ typedef no_swapper		net_swapper;
 #else
 typedef byte_swapper	net_swapper;
 #endif
-//
-//
-//template <class T>
-//inline
-//T bswap(T a);
-//
-//#if P_MAC
-//
-//#if P_GNU
-//
-//#include <Endian.h>
-//
-//#define	REVERSE_FETCH16(a)	Endian16_Swap(a)
-//#define	REVERSE_FETCH32(a)	Endian32_Swap(a)
-//#else
-//#include "fastbyteswap.h"
-//#endif
-//
-//template <>
-//inline
-//short bswap(short a)
-//{
-//	return static_cast<short>(REVERSE_FETCH16(&a));
-//}
-//
-//template <>
-//inline
-//unsigned short bswap(unsigned short a)
-//{
-//	return static_cast<unsigned short>(REVERSE_FETCH16(&a));
-//}
-//
-//template <>
-//inline
-//long bswap(long a)
-//{
-//	return static_cast<long>(REVERSE_FETCH32(&a));
-//}
-//
-//template <>
-//inline
-//unsigned long bswap(unsigned long a)
-//{
-//	return static_cast<unsigned long>(REVERSE_FETCH32(&a));
-//}
-//
-//#elif HAS_ENDIAN
-//
-//template <>
-//inline
-//short bswap(short a)
-//{
-//	return (short) ((((int)a & 0xFF00) >> 8) | (((int)a & 0x00FF) << 8));
-//}
-//
-//template <>
-//inline
-//unsigned short bswap(unsigned short a)
-//{
-//	return (unsigned short) bswap ((short) a);
-//}
-//
-//template <>
-//inline
-//long bswap(long a)
-//{
-//	return (long) ((((unsigned int)a & 0xFF000000UL) >> 24UL) | (((unsigned int)a & 0x00FF0000UL) >> 8UL)
-//				| (((unsigned int)a & 0x0000FF00UL) << 8UL) | (((unsigned int)a & 0x000000FFUL) << 24UL));
-//}
-//
-//template <>
-//inline
-//unsigned long bswap(unsigned long a)
-//{
-//	return (unsigned long) bswap ((long) a);
-//}
-//
-//#elif P_WIN
-//
-//template <>
-//inline
-//short bswap(short a)
-//{
-//	return (short) ((((int)a & 0xFF00) >> 8) | (((int)a & 0x00FF) << 8));
-//}
-//
-//template <>
-//inline
-//unsigned short bswap(unsigned short a)
-//{
-//	return (unsigned short) bswap ((short) a);
-//}
-//
-//template <>
-//inline
-//long bswap(long a)
-//{
-//	return (long) ((((unsigned int)a & 0xFF000000UL) >> 24UL) | (((unsigned int)a & 0x00FF0000UL) >> 8UL)
-//				| (((unsigned int)a & 0x0000FF00UL) << 8UL) | (((unsigned int)a & 0x000000FFUL) << 24UL));
-//}
-//
-//template <>
-//inline
-//unsigned long bswap(unsigned long a)
-//{
-//	return (unsigned long) bswap ((long) a);
-//}
-//
-//#else
-//#include <byteswap.h>
-//
-//template <>
-//inline
-//short bswap(short a)
-//{
-//	return __bswap_16(a);
-//}
-//
-//template <>
-//inline
-//unsigned short bswap(unsigned short a)
-//{
-//	return __bswap_16(a);
-//}
-//
-//template <>
-//inline
-//long bswap(long a)
-//{
-//	return __bswap_32(a);
-//}
-//
-//template <>
-//inline
-//unsigned long bswap(unsigned long a)
-//{
-//	return __bswap_32(a);
-//}
-//
-//#endif
 
 #endif // HBYTESWAP_H

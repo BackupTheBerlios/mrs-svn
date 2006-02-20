@@ -1,4 +1,4 @@
-/*	$Id: HStdCMath.h,v 1.12 2005/08/22 12:38:05 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created by Bas Vodde Wednesday January 16 2002 15:01:20
 */
@@ -60,7 +60,20 @@
 
 namespace std
 {
-	using ::abs;
+//	using ::abs;
+
+	template<typename T>
+	T trunc(T a)
+	{
+		T result;
+
+		if (a < 0)
+			result = ceil(a);
+		else
+			result = floor(a);
+
+		return result;
+	}
 }
 
 #endif

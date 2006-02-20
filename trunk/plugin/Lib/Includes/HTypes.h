@@ -1,4 +1,4 @@
-/*	$Id: HTypes.h,v 1.45 2005/08/22 12:38:05 maarten Exp $
+/*	$Id$
 	
 	Copyright Hekkelman Programmatuur b.v.
 	Maarten Hekkelman
@@ -50,6 +50,8 @@
 
 typedef unsigned long	HUnicode;
 typedef long			HErrorCode;
+
+#ifndef MINI_H_LIB
 
 // Encodings
 
@@ -387,6 +389,8 @@ typedef int socket_t;
 #endif
 extern const socket_t kInvalidSocket;
 }
+
+#endif
 
 #endif
 

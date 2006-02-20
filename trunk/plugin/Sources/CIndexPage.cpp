@@ -1,4 +1,4 @@
-/*	$Id: CIndexPage.cpp,v 1.74 2005/09/15 10:12:08 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Monday December 09 2002 08:32:33
 */
@@ -44,6 +44,7 @@
 #include "HStlIOStream.h"
 #include "HStlMap.h"
 #include "HStlList.h"
+#include "HStdCString.h"
 
 #include "CIndexPage.h"
 #include "HStream.h"
@@ -1100,6 +1101,7 @@ CIndex::CIndex(uint32 inKind, HStreamBase& inFile, int64 inOffset, uint32 inRoot
 		case kTextIndex:
 		case kDateIndex:
 		case kValueIndex:
+		case kWeightedIndex:
 			fImpl = new CIndexImp(inKind, inFile, inOffset, inRoot);
 			break;
 		
@@ -1119,7 +1121,7 @@ CIndex::~CIndex()
 }
 
 // static factories to create new indices on disk
-CIndex* CIndex::Create(uint inIndexKind, HStreamBase& inFile)
+CIndex* CIndex::Create(uint32 inIndexKind, HStreamBase& inFile)
 {
 	int64 offset = inFile.Seek(0, SEEK_END);
 	return new CIndex(inIndexKind, inFile, offset, 0);

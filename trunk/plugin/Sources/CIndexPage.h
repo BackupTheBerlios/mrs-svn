@@ -1,4 +1,4 @@
-/*	$Id: CIndexPage.h,v 1.41 2005/09/09 12:27:03 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Monday December 09 2002 08:24:49
 */
@@ -82,6 +82,15 @@ struct CIndexTraitsComp<kNumberIndex>
 		{ return CompareKeyNumber(inA, inLengthA, inB, inLengthB); }
 };
 
+template<>
+struct CIndexTraitsComp<kWeightedIndex>
+{
+	enum { uses_strcmp = 0 };
+
+	int Compare(const char* inA, uint32 inLengthA, const char* inB, uint32 inLengthB) const
+		{ return CompareKeyNumber(inA, inLengthA, inB, inLengthB); }
+};
+
 template<uint32 INDEX_TYPE>
 struct CIndexTraits
 {
@@ -104,6 +113,7 @@ typedef CIndexTraits<kTextIndex>::less		CTextLess;
 typedef CIndexTraits<kDateIndex>::less		CDateLess;
 typedef CIndexTraits<kValueIndex>::less		CValueLess;
 typedef CIndexTraits<kNumberIndex>::less	CNumberLess;
+typedef CIndexTraits<kWeightedIndex>::less	CWeightedLess;
 
 // ---------------------------------------------------------------------------
 
@@ -154,7 +164,7 @@ class CIndex
 	  private:
 		friend class boost::iterator_core_access;
 		friend class CIndex;
-		friend class CIndexImp;
+		friend struct CIndexImp;
 
 						iterator(HStreamBase& inFile, int64 inOffset,
 							uint32 inPage, uint32 inPageIndex);

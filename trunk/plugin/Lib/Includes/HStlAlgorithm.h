@@ -1,4 +1,4 @@
-/*	$Id: HStlAlgorithm.h,v 1.13 2005/08/22 12:38:05 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created by Bas Vodde Wednesday January 16 2002 15:01:20
 */
@@ -57,6 +57,7 @@
 #endif
 
 #include <algorithm>
+#include <functional>
 
 #if P_VISUAL_CPP
 	#pragma warning (pop)
@@ -66,17 +67,6 @@
 
 namespace std 
 {
-	template <class T>
-	T min (T val1, T val2)
-	{
-		return (val1 < val2) ? val1 : val2;
-	}
-	template <class T>
-	T max (T val1, T val2)
-	{
-		return (val2 < val1) ? val1 : val2;
-	}
-
 /* 
 	Visual C++ does something with abs in Release mode.
 	If the function is not called abs then there is no problem

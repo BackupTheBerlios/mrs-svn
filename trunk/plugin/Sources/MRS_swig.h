@@ -1,5 +1,5 @@
 /*
- * $Id: MRS_swig.h,v 1.39 2005/10/11 13:17:31 maarten Exp $
+ * $Id$
  */
 
 /*-
@@ -49,10 +49,12 @@ typedef std::vector<MDatabank*> MDatabankArray;
 
 std::string errstr();
 
+#ifndef NO_BLAST
 // a few BLAST helper functions
 
 std::string DUST(const std::string& inSequence);
 std::string SEG(const std::string& inSequence);
+#endif
 
 // some globals, settable from the outside
 extern int VERBOSE;
@@ -62,13 +64,16 @@ extern int COMPRESSION_LEVEL;
 extern const char* COMPRESSION_DICTIONARY;
 extern std::string gErrStr;
 
+#ifndef NO_BLAST
 class MBlastHits;
 class MBlastHsps;
+#endif
 class MStringIterator;
 class MIndices;
 class MIndex;
 class MQueryObject;
 class MQueryResults;
+class MRankedQuery;
 
 struct MDatabankImp;
 struct MQueryObjectImp;
@@ -76,10 +81,12 @@ struct MQueryResultsImp;
 struct MKeysImp;
 struct MIndexImp;
 struct MIndicesImp;
+#ifndef NO_BLAST
 struct MBlastHitImp;
 struct MBlastHitsImp;
 struct MBlastHspImp;
 struct MBlastHspsImp;
+#endif
 
 // base class for all our interface objects
 template<class Derived, class Impl>
@@ -154,12 +161,16 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	long				CountForKey(const std::string& inIndex, const std::string& inKey) const;
 
 	MQueryResults*		Find(const std::string& inQuery, bool inAutoWildcard = true);
+
+	MRankedQuery*		RankedQuery(const std::string& inIndex);
 	
 	const char*			Get(const std::string& inEntryID);
+#ifndef NO_BLAST
 	const char*			Sequence(const std::string& inEntryID, unsigned long inIndex = 0);
 	MBlastHits*			Blast(const std::string& inQuery, const std::string& inMatrix,
 							unsigned long inWordSize, double inExpect, bool inFilter,
 							bool inGapped, unsigned long inGapOpen, unsigned long inGapExtend);
+#endif
 	MIndex*				Index(const std::string& inIndex);
 	MIndices*			Indices();
 	MStringIterator*	SuggestCorrection(const std::string& inWord);
@@ -171,9 +182,13 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	void				IndexTextAndNumbers(const std::string& inIndex, const std::string& inText);
 	void				IndexWord(const std::string& inIndex, const std::string& inText);
 	void				IndexValue(const std::string& inIndex, const std::string& inText);
+	void				IndexWordWithWeight(const std::string& inIndex,
+							const std::string& inText, float inWeight);
 	void				IndexDate(const std::string& inIndex, const std::string& inText);
 	void				IndexNumber(const std::string& inIndex, const std::string& inText);
+#ifndef NO_BLAST
 	void				AddSequence(const std::string& inSequence);
+#endif
 	void				FlushDocument();
 
 	void				SetVersion(const std::string& inVersion);
@@ -212,9 +227,18 @@ class MQueryResults : public MRSObject<MQueryResults, struct MQueryResultsImp>
 	
 	unsigned long		Count(bool inExact) const;
 	
+#ifndef NO_BLAST
 	MBlastHits*			Blast(const std::string& inQuery, const std::string& inMatrix,
 							unsigned long inWordSize, double inExpect, bool inFilter,
 							bool inGapped, unsigned long inGapOpen, unsigned long inGapExtend);
+#endif
+};
+
+class MRankedQuery : public MRSObject<MRankedQuery, struct MRankedQueryImp>
+{
+  public:
+	void				AddTerm(const std::string& inTerm, float inWeight);
+	MQueryResults*		Perform();
 };
 
 class MKeys : public MRSObject<MKeys, struct MKeysImp>
@@ -242,6 +266,7 @@ class MIndices : public MRSObject<MIndices, struct MIndicesImp>
 	MIndex*				Next();
 };
 
+#ifndef NO_BLAST
 class MBlastHit : public MRSObject<MBlastHit, struct MBlastHitImp>
 {
   public:
@@ -277,5 +302,6 @@ class MBlastHsps : public MRSObject<MBlastHsps, struct MBlastHspsImp>
 	MBlastHsp*			Next();
 };
 
+#endif
 
 #endif

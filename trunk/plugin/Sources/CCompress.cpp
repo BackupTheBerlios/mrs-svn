@@ -1,4 +1,4 @@
-/*	$Id: CCompress.cpp,v 1.100 2005/09/11 09:56:44 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Monday December 02 2002 15:31:25
 */
@@ -49,6 +49,7 @@
 #include "HError.h"
 #include "HUtils.h"
 #include "HStream.h"
+#include "HStlLimits.h"
 
 #include "zlib.h"
 #include "bzlib.h"
@@ -281,16 +282,20 @@ CZLibCompressorImp::~CZLibCompressorImp()
 void CZLibCompressorImp::Init(HStreamBase& inText)
 {
 	CZLibDictionary lexicon;
-	bool isWord, isNumber;
-	CTokenizer<15>::EntryText text;
-	CTokenizer<15> tok(&inText, 0, inText.Tell());
-	
-	while (tok.GetToken(text, isWord, isNumber))
-	{
-		if (strlen(text) < 4)
-			continue;
 
-		lexicon.AddToken(text);
+	if (inText.Size() > 0)
+	{
+		bool isWord, isNumber;
+		CTokenizer<15>::EntryText text;
+		CTokenizer<15> tok(&inText, 0, inText.Tell());
+		
+		while (tok.GetToken(text, isWord, isNumber))
+		{
+			if (strlen(text) < 4)
+				continue;
+
+			lexicon.AddToken(text);
+		}
 	}
 
 	dictionary = lexicon.Finish();

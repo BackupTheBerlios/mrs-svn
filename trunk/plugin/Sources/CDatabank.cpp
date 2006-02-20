@@ -1,4 +1,4 @@
-/*	$Id: CDatabank.cpp,v 1.126 2005/11/02 09:07:10 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Sunday January 05 2003 11:44:10
 */
@@ -170,6 +170,17 @@ CIteratorBase* CDatabankBase::GetIteratorForIndexAndKey(
 	const string& inIndex, const string& inKey)
 {
     return nil;
+}
+
+CDbDocIteratorBase* CDatabankBase::GetDocWeightIterator(
+	const string& inIndex, const string& inKey)
+{
+	return nil;
+}
+
+CDocWeightArray* CDatabankBase::GetDocWeights(const string& inIndex)
+{
+	return nil;
 }
 
 string CDatabankBase::GetDocument(const string& inDocumentID)
@@ -429,6 +440,9 @@ void CDatabank::Finish()
 	delete fIndexer;
 	fIndexer = nil;
 	
+	if (VERBOSE >= 1)
+		cout << "Index finished" << endl;
+
 	if (fInfoContainer != nil)
 	{
 		fDataFile->Seek(0, SEEK_END);
@@ -807,6 +821,17 @@ CIteratorBase* CDatabank::GetIteratorForIndexAndKey(
 	return GetIndexer()->GetIteratorForIndexAndKey(inIndex, inKey);
 }
 
+CDbDocIteratorBase* CDatabank::GetDocWeightIterator(
+	const string& inIndex, const string& inKey)
+{
+	return GetIndexer()->GetDocWeightIterator(inIndex, inKey);
+}
+
+CDocWeightArray* CDatabank::GetDocWeights(const string& inIndex)
+{
+	return GetIndexer()->GetDocWeights(inIndex);
+}
+
 void CDatabank::CreateDictionaryForIndexes(const vector<string>& inIndexNames,
 	uint32 inMinOccurrence, uint32 inMinWordLength)
 {
@@ -944,6 +969,12 @@ void CDatabank::IndexWord(const string& inIndex, const string& inText)
 void CDatabank::IndexValue(const string& inIndex, const string& inText)
 {
 	fIndexer->IndexValue(inIndex, inText);
+}
+
+void CDatabank::IndexWordWithWeight(const string& inIndex,	
+	const string& inText, float inWeight)
+{
+	fIndexer->IndexWordWithWeight(inIndex, inText, inWeight);
 }
 
 #ifndef NO_BLAST

@@ -1,4 +1,4 @@
-/*	$Id: HStdCString.h,v 1.12 2005/08/22 12:38:05 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created by Bas Vodde Wednesday January 16 2002 15:01:20
 */
@@ -77,6 +77,10 @@ namespace std
 #if (P_WIN && P_VISUAL_CPP)
 	using ::wcslen;
 	using ::wcscmp;
+	
+	int strcasecmp(const char* s1, const char* s2);
+	int strncasecmp(const char* s1, const char* s2, size_t n);
+	
 #endif
 }
 

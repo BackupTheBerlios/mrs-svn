@@ -1,4 +1,4 @@
-/*	$Id: HGlobals.h,v 1.27 2005/08/22 12:38:04 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created Thursday September 06 2001 10:26:17
 */
@@ -98,7 +98,9 @@ enum {
 	kLastColor				// used for counting the colors
 };
 
+#ifndef MINI_H_LIB
 extern HColor gColor[kLastColor];
+#endif
 
 void InitHGlobals();
 

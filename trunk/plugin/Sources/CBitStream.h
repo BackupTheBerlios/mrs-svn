@@ -1,4 +1,4 @@
-/*	$Id: CBitStream.h,v 1.32 2005/08/22 12:38:06 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Sunday December 08 2002 11:36:45
 */
@@ -120,6 +120,7 @@ template<class T>
 T ReadBinary(CIBitStream& inBits, int inBitCount)
 {
 	assert(inBitCount < sizeof(T) * 8);
+	assert(inBitCount > 0);
 	T result = 0;
 
 	for (int32 i = inBitCount - 1; i >= 0; --i)
@@ -134,7 +135,8 @@ T ReadBinary(CIBitStream& inBits, int inBitCount)
 template<class T>
 void WriteBinary(COBitStream& inBits, T inValue, int inBitCount)
 {
-	assert(inBitCount < sizeof(T) * 8);
+	assert(inBitCount <= sizeof(T) * 8);
+	assert(inBitCount > 0);
 	for (int32 i = inBitCount - 1; i >= 0; --i)
 		inBits << ((inValue & (1 << i)) != 0);
 }
@@ -261,107 +263,6 @@ int32 CalculateB(int64 inMax, uint32 inCnt)
 		b = 1;
 	
 	return b;
-}
-
-template<class T>
-void CompressArray(COBitStream& inBits, const T& inArray, int64 inMax)
-{
-	typedef typename T::const_iterator	iterator;
-	
-	uint32 cnt = inArray.size();
-	int32 b = CalculateB(inMax, cnt);
-	
-	int32 n = 0, g = 1;
-	while (g < b)
-	{
-		++n;
-		g <<= 1;
-	}
-	g -= b;
-
-	WriteGamma(inBits, cnt);
-	
-	int64 l = -1;	// we store delta's and our arrays can start at zero...
-	
-	for (iterator i = inArray.begin(); i != inArray.end(); ++i)
-	{
-		int32 d = static_cast<int32>(*i - l);
-		assert(d > 0);
-		
-		int32 q = (d - 1) / b;
-		int32 r = d - q * b - 1;
-		
-		while (q-- > 0)
-			inBits << 1;
-		inBits << 0;
-		
-		if (b > 1)
-		{
-			if (r < g)
-			{
-				for (int t = 1 << (n - 2); t != 0; t >>= 1)
-					inBits << ((r & t) != 0);
-			}		
-			else
-			{
-				r += g;
-				for (int t = 1 << (n - 1); t != 0; t >>= 1)
-					inBits << ((r & t) != 0);
-			}
-		}
-		
-		l = *i;
-	}
-}
-
-void CompressArray(COBitStream& inDstBits, CIBitStream& inSrcBits,
-	uint32 inCount, int64 inMax);
-
-template <class T>
-void DecompressArray(CIBitStream& inBits, T& outArray, int64 inMax)
-{
-	uint32 cnt = ReadGamma(inBits);
-	int32 b = CalculateB(inMax, cnt);
-
-	int32 n = 0, g = 1;
-	while (g < b)
-	{
-		++n;
-		g <<= 1;
-	}
-	g -= b;
-
-	int64 l = -1;
-	
-	while (cnt-- > 0)
-	{
-		int32 q = 0;
-		int32 r = 0;
-		
-		if (inBits.next_bit())
-		{
-			q = 1;
-			while (inBits.next_bit())
-				++q;
-		}
-		
-		if (b > 1)
-		{
-			for (int e = 0; e < n - 1; ++e)
-				r = (r << 1) | inBits.next_bit();
-			
-			if (r >= g)
-			{
-				r = (r << 1) | inBits.next_bit();
-				r -= g;
-			}
-		}
-		
-		int32 d = r + q * b + 1;
-		
-		l += d;
-		outArray.push_back(l);
-	}
 }
 
 #endif // CBITSTREAM_H

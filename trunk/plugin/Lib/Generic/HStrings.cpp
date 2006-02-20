@@ -1,4 +1,4 @@
-/*	$Id: HStrings.cpp,v 1.21 2005/08/22 12:38:04 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created Wednesday October 10 2001 08:31:47
 */
@@ -51,7 +51,9 @@
 #include "HUtils.h"
 #include "HFile.h"
 
+#ifndef MINI_H_LIB
 #include "expat.h"
+#endif
 
 #if P_DEBUG
 #include <iostream>

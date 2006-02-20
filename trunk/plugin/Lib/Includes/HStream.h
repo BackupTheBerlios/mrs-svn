@@ -1,4 +1,4 @@
-/*	$Id: HStream.h,v 1.35 2005/09/11 10:30:45 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 */
 
@@ -78,9 +78,10 @@ class HStreamBase
 	HStreamBase&	operator>> (uint16& d);
 	HStreamBase&	operator>> (uint32& d);
 	HStreamBase&	operator>> (uint64& d);
+	HStreamBase&	operator>> (float& d);
 	HStreamBase&	operator>> (char* s);
 	HStreamBase&	operator>> (std::string& s);
-	HStreamBase&	operator>> (HRect& r);
+	//HStreamBase&	operator>> (HRect& r);
 
 	HStreamBase&	operator<< (int8 d);
 	HStreamBase&	operator<< (int16 d);
@@ -90,6 +91,7 @@ class HStreamBase
 	HStreamBase&	operator<< (uint16 d);
 	HStreamBase&	operator<< (uint32 d);
 	HStreamBase&	operator<< (uint64 d);
+	HStreamBase&	operator<< (float d);
 	HStreamBase&	operator<< (const char* s);
 	HStreamBase&	operator<< (std::string s);
 	
