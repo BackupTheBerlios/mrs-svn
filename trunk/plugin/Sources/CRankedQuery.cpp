@@ -70,24 +70,28 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank, const strin
 
 		auto_ptr<CDbDocIteratorBase> iter(inDatabank.GetDocWeightIterator(inIndex, t.first));
 
+		if (iter.get() == nil)
+			continue;
+
 		float idf = iter->GetIDFCorrectionFactor();
 		float wq = idf * t.second;
 
 		Wq += wq * wq;
-		
+
 		uint32 docNr;
 		uint8 rank;
 		
 		while (iter->Next(docNr, rank, false))
 		{
-			float r = static_cast<float>(rank) / kMaxWeight;
-			float wd = idf * r;
-			A[docNr] += wd * wq;
+			float wd = static_cast<float>(rank) / kMaxWeight;
+			A[docNr] += idf * wd * wq;
 		}
 	}
 	
+	Wq = sqrt(Wq);
+
 	vector<CDocScore> docs;
-	docs.reserve(30 + 1);		// << return the top 30 documents
+	docs.reserve(30);		// << return the top 30 documents
 	
 	for (uint32 d = 0; d < docCount; ++d)
 	{
@@ -116,19 +120,8 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank, const strin
 	auto_ptr<vector<uint32> > dv(new vector<uint32>());
 	dv->reserve(docs.size());
 
-#if P_DEBUG
-	cout << endl;
-#endif
-
 	for (vector<CDocScore>::iterator i = docs.begin(); i != docs.end(); ++i)
-	{
-#if P_DEBUG
-		cout << inDatabank.GetDocumentID(i->fDocNr) << ": " << i->fRank;
-
-		cout << "\t" << inDatabank.GetDocument(i->fDocNr) << endl;
-#endif
 		dv->push_back(i->fDocNr);
-	}
 
 	return new CDocVectorIterator(dv.release());
 }

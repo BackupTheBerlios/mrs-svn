@@ -103,6 +103,7 @@ sub new {
 *DumpInfo = *MRSc::MDatabank_DumpInfo;
 *CountForKey = *MRSc::MDatabank_CountForKey;
 *Find = *MRSc::MDatabank_Find;
+*RankedQuery = *MRSc::MDatabank_RankedQuery;
 *Get = *MRSc::MDatabank_Get;
 *Index = *MRSc::MDatabank_Index;
 *Indices = *MRSc::MDatabank_Indices;
@@ -118,6 +119,7 @@ sub new {
 *FlushDocument = *MRSc::MDatabank_FlushDocument;
 *SetVersion = *MRSc::MDatabank_SetVersion;
 *Finish = *MRSc::MDatabank_Finish;
+*RecalcDocWeights = *MRSc::MDatabank_RecalcDocWeights;
 *CreateDictionary = *MRSc::MDatabank_CreateDictionary;
 sub DESTROY {
     return unless $_[0]->isa('HASH');
@@ -165,6 +167,44 @@ sub DESTROY {
     delete $ITERATORS{$self};
     if (exists $OWNER{$self}) {
         MRSc::delete_MQueryResults($self);
+        delete $OWNER{$self};
+    }
+}
+
+sub DISOWN {
+    my $self = shift;
+    my $ptr = tied(%$self);
+    delete $OWNER{$ptr};
+}
+
+sub ACQUIRE {
+    my $self = shift;
+    my $ptr = tied(%$self);
+    $OWNER{$ptr} = 1;
+}
+
+
+############# Class : MRS::MRankedQuery ##############
+
+package MRS::MRankedQuery;
+@ISA = qw( MRS );
+%OWNER = ();
+%ITERATORS = ();
+*AddTerm = *MRSc::MRankedQuery_AddTerm;
+*Perform = *MRSc::MRankedQuery_Perform;
+sub new {
+    my $pkg = shift;
+    my $self = MRSc::new_MRankedQuery(@_);
+    bless $self, $pkg if defined($self);
+}
+
+sub DESTROY {
+    return unless $_[0]->isa('HASH');
+    my $self = tied(%{$_[0]});
+    return unless defined $self;
+    delete $ITERATORS{$self};
+    if (exists $OWNER{$self}) {
+        MRSc::delete_MRankedQuery($self);
         delete $OWNER{$self};
     }
 }
@@ -231,6 +271,7 @@ package MRS::MIndex;
 *Count = *MRSc::MIndex_Count;
 *Keys = *MRSc::MIndex_Keys;
 *FindKey = *MRSc::MIndex_FindKey;
+*GetIDF = *MRSc::MIndex_GetIDF;
 sub new {
     my $pkg = shift;
     my $self = MRSc::new_MIndex(@_);

@@ -402,7 +402,7 @@ class CIndexBase
 					CIndexBase(const string& inName, uint32 inKind);
 	virtual			~CIndexBase();
 	
-	virtual void	AddWord(const string& inWord, uint8 inWeight = kMaxWeight) = 0;
+	virtual void	AddWord(const string& inWord, float inWeight = 1.0f) = 0;
 	virtual void	FlushDoc(uint32 inDocNr) = 0;
 	virtual void	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo) = 0;
 
@@ -439,7 +439,7 @@ class CValueIndex : public CIndexBase
   public:
 					CValueIndex(const string& inName);
 	
-	virtual void	AddWord(const string& inWord, uint8 inWeight);
+	virtual void	AddWord(const string& inWord, float inWeight);
 	virtual void	FlushDoc(uint32 inDocNr);
 	virtual void	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
 	
@@ -457,7 +457,7 @@ CValueIndex::CValueIndex(const string& inName)
 {
 }
 	
-void CValueIndex::AddWord(const string& inWord, uint8 inWeight)
+void CValueIndex::AddWord(const string& inWord, float inWeight)
 {
 	fWord = inWord;
 }
@@ -850,7 +850,7 @@ string CFullTextIndex::Lookup(uint32 inTerm)
 {
 	return lexicon.GetString(inTerm);
 }
-	
+
 class CTextIndexBase : public CIndexBase
 {
   public:
@@ -859,7 +859,7 @@ class CTextIndexBase : public CIndexBase
 						const HUrl& inScratch, CIndexKind inKind);
 					~CTextIndexBase();
 	
-	virtual void	AddWord(const string& inWord, uint8 inWeight);
+	virtual void	AddWord(const string& inWord, float inWeight);
 	virtual void	FlushDoc(uint32 inDocNr);
 	
 	virtual void	AddDocTerm(uint32 inDoc, uint8 inWeight);
@@ -919,9 +919,9 @@ CTextIndexBase::~CTextIndexBase()
 	delete fBitFile;
 }
 
-void CTextIndexBase::AddWord(const string& inWord, uint8 inWeight)
+void CTextIndexBase::AddWord(const string& inWord, float inWeight)
 {
-	fFullTextIndex.AddWord(fIndexNr, inWord, inWeight);
+	fFullTextIndex.AddWord(fIndexNr, inWord, static_cast<uint8>(inWeight * kMaxWeight));
 	fEmpty = false;
 }
 
@@ -1183,7 +1183,7 @@ class CWeightedWordIndex : public CTextIndexBase
 						const string& inName, uint16 inIndexNr,
 						const HUrl& inScratch);
 
-	virtual void	AddWord(const string& inWord, uint8 inWeight);
+	virtual void	AddWord(const string& inWord, float inWeight);
 	virtual void	FlushDoc(uint32 inDocNr);
 
 	virtual void	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
@@ -1202,7 +1202,7 @@ CWeightedWordIndex::CWeightedWordIndex(CFullTextIndex& inFullTextIndex,
 {
 }
 
-void CWeightedWordIndex::AddWord(const string& inWord, uint8 inWeight)
+void CWeightedWordIndex::AddWord(const string& inWord, float inWeight)
 {
 	CTextIndexBase::AddWord(inWord, inWeight);
 	fSum += inWeight * inWeight;
@@ -1294,9 +1294,6 @@ CIndexer::CIndexer(const HUrl& inDb)
 	fHeader->sig = kIndexSig;
 	fHeader->count = 0;
 	fHeader->entries = 0;
-
-	HUrl url(fDb + ".fulltext_indx");
-	fFullTextIndex = new CFullTextIndex(url);
 }
 
 CIndexer::CIndexer(HStreamBase& inFile, int64 inOffset, int64 inSize)
@@ -1334,7 +1331,7 @@ void CIndexer::IndexText(const string& inIndex, const string& inText, bool inInd
 	{
 		HUrl url(fDb + '.' + inIndex + "_indx");
 		index = indexes[inIndex] =
-			new CTextIndex(*fFullTextIndex, inIndex, fNextTextIndexID++, url);
+			new CTextIndex(GetFullTextIndex(), inIndex, fNextTextIndexID++, url);
 	}
 	else if (dynamic_cast<CTextIndex*>(index) == NULL)
 		THROW(("Inconsistent use of indexes for index %s", inIndex.c_str()));
@@ -1379,7 +1376,7 @@ void CIndexer::IndexWord(const string& inIndex, const string& inText)
 		{
 			HUrl url(fDb + '.' + inIndex + "_indx");
 			index = indexes[inIndex] =
-				new CTextIndex(*fFullTextIndex, inIndex, fNextTextIndexID++, url);
+				new CTextIndex(GetFullTextIndex(), inIndex, fNextTextIndexID++, url);
 		}
 		else if (dynamic_cast<CTextIndex*>(index) == NULL)
 			THROW(("Inconsistent use of indexes for index %s", inIndex.c_str()));
@@ -1443,7 +1440,7 @@ void CIndexer::IndexDate(const string& inIndex, const string& inText)
 		{
 			HUrl url(fDb + '.' + inIndex + "_indx");
 			index = indexes[inIndex] =
-				new CDateIndex(*fFullTextIndex, inIndex, fNextTextIndexID++, url);
+				new CDateIndex(GetFullTextIndex(), inIndex, fNextTextIndexID++, url);
 		}
 		else if (dynamic_cast<CDateIndex*>(index) == NULL)
 			THROW(("Inconsistent use of indexes for index %s", inIndex.c_str()));
@@ -1469,7 +1466,7 @@ void CIndexer::IndexNumber(const string& inIndex, const string& inText)
 		{
 			HUrl url(fDb + '.' + inIndex + "_indx");
 			index = indexes[inIndex] =
-				new CNumberIndex(*fFullTextIndex, inIndex, fNextTextIndexID++, url);
+				new CNumberIndex(GetFullTextIndex(), inIndex, fNextTextIndexID++, url);
 		}
 		else if (dynamic_cast<CNumberIndex*>(index) == NULL)
 			THROW(("Inconsistent use of indexes for index %s", inIndex.c_str()));
@@ -1498,7 +1495,7 @@ void CIndexer::IndexWordWithWeight(const string& inIndex, const string& inText, 
 	if (index == NULL)
 	{
 		HUrl url(fDb + '.' + inIndex + "_indx");
-		index = indexes[inIndex] = new CWeightedWordIndex(*fFullTextIndex, inIndex, fNextTextIndexID++, url);
+		index = indexes[inIndex] = new CWeightedWordIndex(GetFullTextIndex(), inIndex, fNextTextIndexID++, url);
 	}
 	else if (dynamic_cast<CWeightedWordIndex*>(index) == NULL)
 		THROW(("Inconsistent use of indexes for index %s", inIndex.c_str()));
@@ -1509,13 +1506,13 @@ void CIndexer::IndexWordWithWeight(const string& inIndex, const string& inText, 
 	if (inWeight < 0 or inWeight > 1.0f)
 		THROW(("The value for weight is out of range (%g)", inWeight));
 
-	uint8 w = static_cast<uint8>(inWeight * kMaxWeight);
-	index->AddWord(inText, w);
+	index->AddWord(inText, inWeight);
 }
 
 void CIndexer::FlushDoc()
 {
-	fFullTextIndex->FlushDoc(fHeader->entries);
+	if (fFullTextIndex)
+		fFullTextIndex->FlushDoc(fHeader->entries);
 
 	map<string,CIndexBase*>::iterator indx;
 	for (indx = indexes.begin(); indx != indexes.end(); ++indx)
@@ -1548,7 +1545,8 @@ void CIndexer::CreateIndex(HStreamBase& inFile, int64& outOffset, int64& outSize
 			++fHeader->count;
 	}
 
-	fFullTextIndex->ReleaseBuffer();
+	if (fFullTextIndex)
+		fFullTextIndex->ReleaseBuffer();
 	
 	outOffset = inFile.Seek(0, SEEK_END);
 	inFile << *fHeader;
@@ -1573,54 +1571,51 @@ void CIndexer::CreateIndex(HStreamBase& inFile, int64& outOffset, int64& outSize
 		}
 	}
 	
-	if (VERBOSE > 0)
+	if (fFullTextIndex)
 	{
-		cout << endl << "Creating full text indexes... ";
-		cout.flush();
-	}
-	
-	uint32 iDoc, iTerm, iIx, lTerm, i;
-	uint8 iWeight;
-	lTerm = numeric_limits<uint32>::max();
-	CFullTextIndex::CRunEntryIterator iter(*fFullTextIndex);
-
-	// the next loop is very *hot*, make sure it is optimized as much as possible
-	if (iter.Next(iDoc, iTerm, iIx, iWeight))
-	{
-		lTerm = iTerm;
-
-		do
+		if (VERBOSE > 0)
 		{
-			if (lTerm != iTerm)
-			{
-				for (i = 0; i < textIndexCount; ++i)
-				{
-					if (txtIndex[i] != nil)
-						txtIndex[i]->FlushTerm(lTerm, fHeader->entries);
-				}
-				
-				lTerm = iTerm;
-			}
-	
-//			for (i = 0; i < textIndexCount; ++i)
-//			{
-//				if (iIxs & (1 << i))
-//					txtIndex[i]->AddDocTerm(iDoc, iWeight);
-//			}
-
-			txtIndex[iIx]->AddDocTerm(iDoc, iWeight);
+			cout << endl << "Creating full text indexes... ";
+			cout.flush();
 		}
-		while (iter.Next(iDoc, iTerm, iIx, iWeight));
-	}
 
-	for (i = 0; i < textIndexCount; ++i)
-	{
-		if (txtIndex[i] != nil)
-			txtIndex[i]->FlushTerm(lTerm, fHeader->entries);
-	}
+		uint32 iDoc, iTerm, iIx, lTerm, i;
+		uint8 iWeight;
+		lTerm = numeric_limits<uint32>::max();
+		CFullTextIndex::CRunEntryIterator iter(*fFullTextIndex);
 	
-	if (VERBOSE > 0)
-		cout << "done" << endl;
+		// the next loop is very *hot*, make sure it is optimized as much as possible
+		if (iter.Next(iDoc, iTerm, iIx, iWeight))
+		{
+			lTerm = iTerm;
+	
+			do
+			{
+				if (lTerm != iTerm)
+				{
+					for (i = 0; i < textIndexCount; ++i)
+					{
+						if (txtIndex[i] != nil)
+							txtIndex[i]->FlushTerm(lTerm, fHeader->entries);
+					}
+					
+					lTerm = iTerm;
+				}
+	
+				txtIndex[iIx]->AddDocTerm(iDoc, iWeight);
+			}
+			while (iter.Next(iDoc, iTerm, iIx, iWeight));
+		}
+	
+		for (i = 0; i < textIndexCount; ++i)
+		{
+			if (txtIndex[i] != nil)
+				txtIndex[i]->FlushTerm(lTerm, fHeader->entries);
+		}
+
+		if (VERBOSE > 0)
+			cout << "done" << endl;
+	}
 	
 	uint32 ix = 0;
 	for (indx = indexes.begin(); indx != indexes.end(); ++indx)
@@ -2036,6 +2031,14 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 			}
 		}
 		
+		// allocate disk space for the doc weight vector, if needed
+		if (fParts[ix].kind == kWeightedIndex)
+		{
+			HAutoBuf<float> dwb(new float[fHeader->entries]);
+			fParts[ix].weight_offset = outData.Seek(0, SEEK_END);
+			outData.Write(dwb.get(), sizeof(float) * fHeader->entries);
+		}
+		
 		for (i = 0; i < md.size(); ++i)
 		{
 			delete md[i].indx;
@@ -2053,6 +2056,9 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 	outData.Seek(offset, SEEK_SET);
 	for (ix = 0; ix < fHeader->count; ++ix)
 		outData << fParts[ix];
+
+	// and finally, write out the correct doc weight vectors
+	FixupDocWeights();
 }
 
 /*
@@ -2201,7 +2207,7 @@ void CIndexer::PrintInfo()
 		cout << "Index Part " << ix << " ("
 			 << sig[0] << sig[1] << sig[2] << sig[3] << ") " << fHeader->size << " bytes" << endl;
 
-		cout << "  name:         " << p.name << endl;
+		cout << "  name:          " << p.name << endl;
 		
 		int64 nextOffset = fOffset + fSize;
 		uint32 treeSize, bitsSize;
@@ -2351,6 +2357,17 @@ CIndex* CIndexer::GetIndex(const string& inIndex) const
 	return result;
 }
 
+CFullTextIndex&	CIndexer::GetFullTextIndex()
+{
+	if (fFullTextIndex == nil)
+	{
+		HUrl url(fDb + ".fulltext_indx");
+		fFullTextIndex = new CFullTextIndex(url);
+	}
+
+	return *fFullTextIndex;
+}
+
 void CIndexer::DumpIndex(const string& inIndex) const
 {
 	auto_ptr<CIndex> index(GetIndex(inIndex));
@@ -2452,3 +2469,76 @@ CDocWeightArray* CIndexer::GetDocWeights(const string& inIndex) const
 	
 	return result.release();
 }
+
+void CIndexer::RecalculateDocumentWeights(const std::string& inIndex)
+{
+	if (VERBOSE > 0)
+		cout << "Recalculating document weights for index " << inIndex << "... ";
+	
+	string index = tolower(inIndex);
+	auto_ptr<CIndex> indx;
+
+	uint32 ix;
+	for (ix = 0; ix < fHeader->count; ++ix)
+	{
+		if (index != fParts[ix].name)
+			continue;
+
+		indx.reset(new CIndex(fParts[ix].kind, *fFile, fParts[ix].tree_offset, fParts[ix].root));
+		break;
+	}
+
+	if (indx.get() == nil)
+		THROW(("Index %s not found!", inIndex.c_str()));
+	
+	uint32 docCount = fHeader->entries;
+	
+	HAutoBuf<float> dwb(new float[docCount]);
+	float* dw = dwb.get();
+	
+	memset(dw, 0, docCount * sizeof(float));
+	
+	int64 bitsOffset = fParts[ix].bits_offset;
+	
+	for (CIndex::iterator t = indx->begin(); t != indx->end(); ++t)
+	{
+		CDbDocWeightIterator iter(*fFile, bitsOffset + t->second, docCount);
+		
+		float idf = iter.GetIDFCorrectionFactor();
+		
+		uint32 doc;
+		uint8 rank;
+
+		while (iter.Next(doc, rank, false))
+		{
+			float wdt = rank * idf / kMaxWeight;
+			dw[doc] += wdt * wdt;
+		}
+	}
+	
+	for (uint32 d = 0; d < docCount; ++d)
+	{
+		if (dw[d] != 0)
+		{
+			dw[d] = sqrt(dw[d]);
+#if P_LITTLEENDIAN
+			dw[d] = byte_swapper::swap(dw[d]);
+#endif
+		}
+	}
+	
+	fFile->PWrite(dw, docCount * sizeof(float), fParts[ix].weight_offset);
+	
+	if (VERBOSE > 0)
+		cout << "done" << endl;
+}
+
+void CIndexer::FixupDocWeights()
+{
+	for (uint32 ix = 0; ix < fHeader->count; ++ix)
+	{
+		if (fParts[ix].kind == kWeightedIndex)
+			RecalculateDocumentWeights(fParts[ix].name);
+	}
+}
+

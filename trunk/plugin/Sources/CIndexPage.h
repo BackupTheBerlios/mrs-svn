@@ -133,8 +133,6 @@ class CIndex
 
 						// access data
 	bool				GetValue(const std::string& inKey, uint32& outValue) const;
-//	void				SetValue(const std::string& inKey, uint32 inValue);
-
 	void				GetValuesForPattern(const std::string& inKey, std::vector<uint32>& outValues);
 
 						// return the range [inLowerBound, inUpperBound)

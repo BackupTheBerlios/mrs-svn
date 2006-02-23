@@ -197,6 +197,7 @@ class CDatabank : public CDatabankBase
 
 	void				SetVersion(const std::string& inVersion);
 
+	void				RecalculateDocumentWeights(const std::string& inIndex);
 	void				Finish();
 	
 	virtual uint32		Count() const;

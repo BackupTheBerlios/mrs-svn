@@ -4,6 +4,7 @@
 	Version="7.10"
 	Name="PerlPlugin"
 	ProjectGUID="{4E50A8B1-0C7A-4774-BF53-BB662154CE5A}"
+	RootNamespace="PerlPlugin"
 	Keyword="Win32Proj">
 	<Platforms>
 		<Platform
@@ -61,7 +62,7 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory="$(SolutionDir)plugin"
+			OutputDirectory="Release"
 			IntermediateDirectory="Release"
 			ConfigurationType="2"
 			CharacterSet="2">

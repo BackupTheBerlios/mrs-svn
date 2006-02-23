@@ -383,6 +383,13 @@ string CDatabank::GetDbName() const
 	return basename(fPath.GetFileName());
 }
 
+void CDatabank::RecalculateDocumentWeights(const std::string& inIndex)
+{
+	if (fIndexer == nil)
+		THROW(("Logic error: called RecalculateDocumentWeights when there is no indexer object"));
+	fIndexer->RecalculateDocumentWeights(inIndex);
+}
+
 void CDatabank::Finish()
 {
 	assert(fCompressor->Count() == fHeader->entries);
@@ -436,6 +443,8 @@ void CDatabank::Finish()
 	}
 	else if (VERBOSE >= 1)
 		cout << "No ID table created since there is no id index" << endl;
+
+	fIndexer->FixupDocWeights();
 
 	delete fIndexer;
 	fIndexer = nil;
@@ -673,6 +682,9 @@ void CDatabank::Merge(vector<CDatabank*>& inParts)
 	
 	fDataFile->Seek(0, SEEK_SET);
 	*fDataFile << *fHeader;
+
+	// now fix up the weighted document weights...
+	fIndexer->FixupDocWeights();
 }
 
 string CDatabank::GetDocument(uint32 inDocNr)

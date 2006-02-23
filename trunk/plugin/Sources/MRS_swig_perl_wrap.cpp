@@ -1019,12 +1019,13 @@ SWIG_Perl_SetModule(swig_module_info *module) {
 #define SWIGTYPE_p_MIndices swig_types[2]
 #define SWIGTYPE_p_MKeys swig_types[3]
 #define SWIGTYPE_p_MQueryResults swig_types[4]
-#define SWIGTYPE_p_MStringIterator swig_types[5]
-#define SWIGTYPE_p_std__string swig_types[6]
-#define SWIGTYPE_p_std__vectorTMDatabank_p_t swig_types[7]
-#define SWIGTYPE_p_std__vectorTstd__string_t swig_types[8]
-static swig_type_info *swig_types[10];
-static swig_module_info swig_module = {swig_types, 9, 0, 0, 0, 0};
+#define SWIGTYPE_p_MRankedQuery swig_types[5]
+#define SWIGTYPE_p_MStringIterator swig_types[6]
+#define SWIGTYPE_p_std__string swig_types[7]
+#define SWIGTYPE_p_std__vectorTMDatabank_p_t swig_types[8]
+#define SWIGTYPE_p_std__vectorTstd__string_t swig_types[9]
+static swig_type_info *swig_types[11];
+static swig_module_info swig_module = {swig_types, 10, 0, 0, 0, 0};
 #define SWIG_TypeQuery(name) SWIG_TypeQueryModule(&swig_module, &swig_module, name)
 #define SWIG_MangledTypeQuery(name) SWIG_MangledTypeQueryModule(&swig_module, &swig_module, name)
 
@@ -1891,6 +1892,58 @@ XS(_wrap_MDatabank_Find) {
 }
 
 
+XS(_wrap_MDatabank_RankedQuery) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        std::string *arg2 = 0 ;
+        MRankedQuery *result;
+        std::string temp2 ;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 2) || (items > 2)) {
+            SWIG_croak("Usage: MDatabank_RankedQuery(self,inIndex);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_RankedQuery. Expected _p_MDatabank");
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(1), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 2 of MDatabank_RankedQuery.");
+            } else {
+                temp2.assign(ptr, len);
+                arg2 = &temp2;
+            }
+        }
+        {
+            try {
+                result = (MRankedQuery *)(arg1)->RankedQuery((std::string const &)*arg2);
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        ST(argvi) = sv_newmortal();
+        SWIG_MakePtr(ST(argvi++), (void *) result, SWIGTYPE_p_MRankedQuery, SWIG_SHADOW|0);
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
 XS(_wrap_MDatabank_Get) {
     {
         MDatabank *arg1 = (MDatabank *) 0 ;
@@ -2401,7 +2454,7 @@ XS(_wrap_MDatabank_IndexWordWithWeight) {
         dXSARGS;
         
         if ((items < 4) || (items > 4)) {
-            SWIG_croak("Usage: MDatabank_IndexWordWithWeight(self,inIndex,inText,inRank);");
+            SWIG_croak("Usage: MDatabank_IndexWordWithWeight(self,inIndex,inText,inWeight);");
         }
         {
             if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
@@ -2704,6 +2757,56 @@ XS(_wrap_MDatabank_Finish) {
 }
 
 
+XS(_wrap_MDatabank_RecalcDocWeights) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        std::string *arg2 = 0 ;
+        std::string temp2 ;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 2) || (items > 2)) {
+            SWIG_croak("Usage: MDatabank_RecalcDocWeights(self,inIndex);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_RecalcDocWeights. Expected _p_MDatabank");
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(1), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 2 of MDatabank_RecalcDocWeights.");
+            } else {
+                temp2.assign(ptr, len);
+                arg2 = &temp2;
+            }
+        }
+        {
+            try {
+                (arg1)->RecalcDocWeights((std::string const &)*arg2);
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
 XS(_wrap_MDatabank_CreateDictionary) {
     {
         MDatabank *arg1 = (MDatabank *) 0 ;
@@ -2966,6 +3069,171 @@ XS(_wrap_delete_MQueryResults) {
         {
             if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MQueryResults,0) < 0) {
                 SWIG_croak("Type error in argument 1 of delete_MQueryResults. Expected _p_MQueryResults");
+            }
+        }
+        {
+            try {
+                delete arg1;
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MRankedQuery_AddTerm) {
+    {
+        MRankedQuery *arg1 = (MRankedQuery *) 0 ;
+        std::string *arg2 = 0 ;
+        float arg3 ;
+        std::string temp2 ;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 3) || (items > 3)) {
+            SWIG_croak("Usage: MRankedQuery_AddTerm(self,inTerm,inWeight);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MRankedQuery,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MRankedQuery_AddTerm. Expected _p_MRankedQuery");
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(1), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 2 of MRankedQuery_AddTerm.");
+            } else {
+                temp2.assign(ptr, len);
+                arg2 = &temp2;
+            }
+        }
+        arg3 = (float) SvNV(ST(2));
+        
+        {
+            try {
+                (arg1)->AddTerm((std::string const &)*arg2,arg3);
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MRankedQuery_Perform) {
+    {
+        MRankedQuery *arg1 = (MRankedQuery *) 0 ;
+        MQueryResults *result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: MRankedQuery_Perform(self);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MRankedQuery,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MRankedQuery_Perform. Expected _p_MRankedQuery");
+            }
+        }
+        {
+            try {
+                result = (MQueryResults *)(arg1)->Perform();
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        ST(argvi) = sv_newmortal();
+        SWIG_MakePtr(ST(argvi++), (void *) result, SWIGTYPE_p_MQueryResults, SWIG_SHADOW|0);
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_new_MRankedQuery) {
+    {
+        MRankedQuery *result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 0) || (items > 0)) {
+            SWIG_croak("Usage: new_MRankedQuery();");
+        }
+        {
+            try {
+                result = (MRankedQuery *)new MRankedQuery();
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        ST(argvi) = sv_newmortal();
+        SWIG_MakePtr(ST(argvi++), (void *) result, SWIGTYPE_p_MRankedQuery, SWIG_SHADOW|SWIG_OWNER);
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_delete_MRankedQuery) {
+    {
+        MRankedQuery *arg1 = (MRankedQuery *) 0 ;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: delete_MRankedQuery(self);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MRankedQuery,0) < 0) {
+                SWIG_croak("Type error in argument 1 of delete_MRankedQuery. Expected _p_MRankedQuery");
             }
         }
         {
@@ -3368,6 +3636,58 @@ XS(_wrap_MIndex_FindKey) {
 }
 
 
+XS(_wrap_MIndex_GetIDF) {
+    {
+        MIndex *arg1 = (MIndex *) 0 ;
+        std::string *arg2 = 0 ;
+        float result;
+        std::string temp2 ;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 2) || (items > 2)) {
+            SWIG_croak("Usage: MIndex_GetIDF(self,inKey);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MIndex,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MIndex_GetIDF. Expected _p_MIndex");
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(1), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 2 of MIndex_GetIDF.");
+            } else {
+                temp2.assign(ptr, len);
+                arg2 = &temp2;
+            }
+        }
+        {
+            try {
+                result = (float)(arg1)->GetIDF((std::string const &)*arg2);
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        ST(argvi) = sv_newmortal();
+        sv_setnv(ST(argvi++), (double) result);
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
 XS(_wrap_new_MIndex) {
     {
         MIndex *result;
@@ -3560,6 +3880,7 @@ static swig_type_info _swigt__p_MIndex = {"MRS::MIndex", "MIndex *", 0, 0, 0};
 static swig_type_info _swigt__p_MIndices = {"MRS::MIndices", "MIndices *", 0, 0, 0};
 static swig_type_info _swigt__p_MKeys = {"MRS::MKeys", "MKeys *", 0, 0, 0};
 static swig_type_info _swigt__p_MQueryResults = {"MRS::MQueryResults", "MQueryResults *", 0, 0, 0};
+static swig_type_info _swigt__p_MRankedQuery = {"MRS::MRankedQuery", "MRankedQuery *", 0, 0, 0};
 static swig_type_info _swigt__p_MStringIterator = {"MRS::MStringIterator", "MStringIterator *", 0, 0, 0};
 static swig_type_info _swigt__p_std__string = {"_p_std__string", "std::string *", 0, 0, 0};
 static swig_type_info _swigt__p_std__vectorTMDatabank_p_t = {"_p_std__vectorTMDatabank_p_t", "std::vector<MDatabank * > *|MDatabankArray *", 0, 0, 0};
@@ -3571,6 +3892,7 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_MIndices,
   &_swigt__p_MKeys,
   &_swigt__p_MQueryResults,
+  &_swigt__p_MRankedQuery,
   &_swigt__p_MStringIterator,
   &_swigt__p_std__string,
   &_swigt__p_std__vectorTMDatabank_p_t,
@@ -3582,6 +3904,7 @@ static swig_cast_info _swigc__p_MIndex[] = {  {&_swigt__p_MIndex, 0, 0, 0},{0, 0
 static swig_cast_info _swigc__p_MIndices[] = {  {&_swigt__p_MIndices, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_MKeys[] = {  {&_swigt__p_MKeys, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_MQueryResults[] = {  {&_swigt__p_MQueryResults, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_MRankedQuery[] = {  {&_swigt__p_MRankedQuery, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_MStringIterator[] = {  {&_swigt__p_MStringIterator, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__string[] = {  {&_swigt__p_std__string, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__vectorTMDatabank_p_t[] = {  {&_swigt__p_std__vectorTMDatabank_p_t, 0, 0, 0},{0, 0, 0, 0}};
@@ -3593,6 +3916,7 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_MIndices,
   _swigc__p_MKeys,
   _swigc__p_MQueryResults,
+  _swigc__p_MRankedQuery,
   _swigc__p_MStringIterator,
   _swigc__p_std__string,
   _swigc__p_std__vectorTMDatabank_p_t,
@@ -3630,6 +3954,7 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MDatabank_DumpInfo", _wrap_MDatabank_DumpInfo},
 {"MRSc::MDatabank_CountForKey", _wrap_MDatabank_CountForKey},
 {"MRSc::MDatabank_Find", _wrap_MDatabank_Find},
+{"MRSc::MDatabank_RankedQuery", _wrap_MDatabank_RankedQuery},
 {"MRSc::MDatabank_Get", _wrap_MDatabank_Get},
 {"MRSc::MDatabank_Index", _wrap_MDatabank_Index},
 {"MRSc::MDatabank_Indices", _wrap_MDatabank_Indices},
@@ -3645,6 +3970,7 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MDatabank_FlushDocument", _wrap_MDatabank_FlushDocument},
 {"MRSc::MDatabank_SetVersion", _wrap_MDatabank_SetVersion},
 {"MRSc::MDatabank_Finish", _wrap_MDatabank_Finish},
+{"MRSc::MDatabank_RecalcDocWeights", _wrap_MDatabank_RecalcDocWeights},
 {"MRSc::MDatabank_CreateDictionary", _wrap_MDatabank_CreateDictionary},
 {"MRSc::delete_MDatabank", _wrap_delete_MDatabank},
 {"MRSc::MQueryResults_Next", _wrap_MQueryResults_Next},
@@ -3652,6 +3978,10 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MQueryResults_Count", _wrap_MQueryResults_Count},
 {"MRSc::new_MQueryResults", _wrap_new_MQueryResults},
 {"MRSc::delete_MQueryResults", _wrap_delete_MQueryResults},
+{"MRSc::MRankedQuery_AddTerm", _wrap_MRankedQuery_AddTerm},
+{"MRSc::MRankedQuery_Perform", _wrap_MRankedQuery_Perform},
+{"MRSc::new_MRankedQuery", _wrap_new_MRankedQuery},
+{"MRSc::delete_MRankedQuery", _wrap_delete_MRankedQuery},
 {"MRSc::MKeys_Next", _wrap_MKeys_Next},
 {"MRSc::MKeys_Skip", _wrap_MKeys_Skip},
 {"MRSc::new_MKeys", _wrap_new_MKeys},
@@ -3661,6 +3991,7 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MIndex_Count", _wrap_MIndex_Count},
 {"MRSc::MIndex_Keys", _wrap_MIndex_Keys},
 {"MRSc::MIndex_FindKey", _wrap_MIndex_FindKey},
+{"MRSc::MIndex_GetIDF", _wrap_MIndex_GetIDF},
 {"MRSc::new_MIndex", _wrap_new_MIndex},
 {"MRSc::delete_MIndex", _wrap_delete_MIndex},
 {"MRSc::MIndices_Next", _wrap_MIndices_Next},
@@ -3876,6 +4207,7 @@ XS(SWIG_init) {
     SWIG_TypeClientData(SWIGTYPE_p_MStringIterator, (void*) "MRS::MStringIterator");
     SWIG_TypeClientData(SWIGTYPE_p_MDatabank, (void*) "MRS::MDatabank");
     SWIG_TypeClientData(SWIGTYPE_p_MQueryResults, (void*) "MRS::MQueryResults");
+    SWIG_TypeClientData(SWIGTYPE_p_MRankedQuery, (void*) "MRS::MRankedQuery");
     SWIG_TypeClientData(SWIGTYPE_p_MKeys, (void*) "MRS::MKeys");
     SWIG_TypeClientData(SWIGTYPE_p_MIndex, (void*) "MRS::MIndex");
     SWIG_TypeClientData(SWIGTYPE_p_MIndices, (void*) "MRS::MIndices");

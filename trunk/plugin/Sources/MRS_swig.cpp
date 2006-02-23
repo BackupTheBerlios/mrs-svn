@@ -664,6 +664,11 @@ void MDatabank::Finish()
 		fImpl->fSafe->Commit();
 }
 
+void MDatabank::RecalcDocWeights(const std::string& inIndex)
+{
+	fImpl->GetDB()->RecalculateDocumentWeights(inIndex);
+}
+
 // stupid swig...
 // now we have to pass the indices contatenated as a string, separated by colon
 void MDatabank::CreateDictionary(std::string inIndices, long inMinOccurrence, long inMinWordLength)
@@ -814,6 +819,17 @@ MKeys* MIndex::FindKey(const string& inKey)
 	impl->fIter.reset(fImpl->fDatabank->GetIteratorForIndexAndKey(Code(), inKey));
 	
 	return MKeys::Create(impl.release());
+}
+
+float MIndex::GetIDF(const string& inKey)
+{
+	auto_ptr<CDbDocIteratorBase> iter(
+		fImpl->fDatabank->GetDocWeightIterator(Code(), inKey));
+	
+	if (iter.get() == nil)
+		THROW(("No key %s in index %s", inKey.c_str(), Code().c_str()));
+	
+	return iter->GetIDFCorrectionFactor();
 }
 
 // ---------------------------------------------------------------------------

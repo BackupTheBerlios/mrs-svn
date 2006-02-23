@@ -69,6 +69,7 @@
 			CharacterSet="2">
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="&quot;$(SolutionDir)plugin\Lib&quot;;&quot;$(SolutionDir)plugin\Lib\Includes&quot;;&quot;$(SolutionDir)plugin\Lib\Windows&quot;;&quot;$(SolutionDir)plugin\Lib\loki&quot;;&quot;C:\Development\bzip2-1.0.3&quot;;&quot;C:\Development\zlib-1.2.3&quot;;C:\Development\boost_1_33_1;&quot;C:\Development\Expat-2.0.0\Source\lib&quot;;C:\Perl\lib\CORE"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="4"
 				UsePrecompiledHeader="0"
@@ -79,8 +80,10 @@
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="libbz2.lib zlib1.lib libexpat.lib"
 				OutputFile="$(OutDir)/QueryTester.exe"
 				LinkIncremental="1"
+				AdditionalLibraryDirectories="C:\Development\mrs\plugin\Lib"
 				GenerateDebugInformation="TRUE"
 				SubSystem="1"
 				OptimizeReferences="2"

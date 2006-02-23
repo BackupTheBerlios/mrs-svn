@@ -124,9 +124,14 @@ class CIndexer
 
 	void			FlushDoc();
 
+	void			FixupDocWeights();
+	void			RecalculateDocumentWeights(const std::string& inIndex);
+
   private:
 
 	void			IndexText(const std::string& inIndex, const std::string& inText, bool inIndexNrs);
+	
+	CFullTextIndex&	GetFullTextIndex();
 	
 	std::string						fDb;
 	std::stringstream				doc_text;

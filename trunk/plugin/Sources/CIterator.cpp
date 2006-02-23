@@ -620,13 +620,15 @@ uint32 CDbAllDocIterator::Read() const
 
 CDocVectorIterator::CDocVectorIterator(const vector<uint32>& inDocs)
 	: fDocs(new vector<uint32>(inDocs))
+	, fCur(0)
+	, fRead(0)
 {
 }
 
 bool CDocVectorIterator::Next(uint32& ioValue, bool inSkip)
 {
 	bool result = false;
-	while (fCur < fDocs->size())
+	while (not result and fCur < fDocs->size())
 	{
 		if (fDocs->at(fCur) <= ioValue and inSkip)
 		{

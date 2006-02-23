@@ -194,6 +194,7 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	void				SetVersion(const std::string& inVersion);
 
 	void				Finish();
+	void				RecalcDocWeights(const std::string& inIndex);
 
 	// stupid swig...
 	// now we have to pass the indices contatenated as a string, separated by colon
@@ -258,6 +259,8 @@ class MIndex : public MRSObject<MIndex, struct MIndexImp>
 
 	MKeys*				Keys();
 	MKeys*				FindKey(const std::string& inKey);
+	
+	float				GetIDF(const std::string& inKey);
 };
 
 class MIndices : public MRSObject<MIndices, struct MIndicesImp>

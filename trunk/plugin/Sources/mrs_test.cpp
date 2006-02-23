@@ -161,9 +161,12 @@ int main(int argc, const char* argv[])
 	MDatabank mrsDb(db);
 	
 	stringstream path;
-	path << "C:/data/fp/omim/" << mrs_query << ".xml";
+	path << "C:/data/fp/" << db << '/' << mrs_query << ".xml";
 
 	ifstream fs(path.str().c_str());
+
+	if (not fs.is_open())
+		exit(1);
 
 	vector<pair<string,float> > fp;
 

@@ -189,7 +189,7 @@ class IteratorBase
 {
   public:
 					IteratorBase(CIBitStream& inData, int64 inMax);
-	virtual			~IteratorBase() {}
+	virtual			~IteratorBase();
 
 	virtual bool	Next();
 	
@@ -234,6 +234,15 @@ IteratorBase<T>::IteratorBase(CIBitStream& inData, int64 inMax, bool)
 	, fValue(-1)
 	, fMax(inMax)
 {
+}
+
+template<typename T>
+IteratorBase<T>::~IteratorBase()
+{
+#if P_DEBUG
+	if (fRead == 0)
+		cerr << endl << "<- P" << endl;
+#endif
 }
 
 template<typename T>
