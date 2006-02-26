@@ -9,14 +9,29 @@
 #include "HUtils.h"
 #include "HStlIOStream.h"
 
+#include <boost/ptr_container/ptr_vector.hpp>
+
 #include "CRankedQuery.h"
 #include "CDatabank.h"
 #include "CIndexer.h"
 
 using namespace std;
 
-typedef pair<string,float>	Term;
-typedef vector<Term>		TermVector;
+struct Term
+{
+	string							key;
+	float							weight;
+	auto_ptr<CDbDocIteratorBase>	iter;
+	float							w;
+	
+	bool operator<(const Term& inOther) const
+			{ return w < inOther.w; }
+
+	bool operator>(const Term& inOther) const
+			{ return w > inOther.w; }
+};
+
+typedef boost::ptr_vector<Term>	TermVector;
 
 struct CRankedQueryImp
 {
@@ -46,7 +61,12 @@ CRankedQuery::~CRankedQuery()
 
 void CRankedQuery::AddTerm(const string& inKey, float inWeight)
 {
-	fImpl->fTerms.push_back(make_pair(inKey, inWeight));
+	auto_ptr<Term> t(new Term);
+
+	t->key = inKey;
+	t->weight = inWeight;
+	
+	fImpl->fTerms.push_back(t.release());
 }
 
 CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank, const string& inIndex)
@@ -59,33 +79,82 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank, const strin
 	
 	memset(A, 0, sizeof(float) * docCount);
 	
-	auto_ptr<CDocWeightArray> docWeights(inDatabank.GetDocWeights(inIndex));
-	CDocWeightArray& Wd = *docWeights.get();
+	const CDocWeightArray& Wd = inDatabank.GetDocWeights(inIndex);
 	
-	float Wq = 0;
+	float Wq = 0, Smax = 0;
+
+	// first create the iterators and sort them by decreasing rank
+	for (uint32 tx = 0; tx < fImpl->fTerms.size(); ++tx)
+	{
+		Term& t = fImpl->fTerms[tx];
+		
+		t.iter.reset(inDatabank.GetDocWeightIterator(inIndex, t.key));
+		t.w = t.iter->GetIDFCorrectionFactor() * t.weight;
+	}
+	
+	sort(fImpl->fTerms.begin(), fImpl->fTerms.end(), greater<Term>());
 
 	for (uint32 tx = 0; tx < fImpl->fTerms.size(); ++tx)
 	{
-		Term t = fImpl->fTerms[tx];
+		Term& t = fImpl->fTerms[tx];
 
-		auto_ptr<CDbDocIteratorBase> iter(inDatabank.GetDocWeightIterator(inIndex, t.first));
-
-		if (iter.get() == nil)
+		if (t.iter.get() == 0)
 			continue;
 
-		float idf = iter->GetIDFCorrectionFactor();
-		float wq = idf * t.second;
+		float idf = t.iter->GetIDFCorrectionFactor();
+		float wq = idf * t.weight;
 
 		Wq += wq * wq;
 
 		uint32 docNr;
 		uint8 rank;
-		
-		while (iter->Next(docNr, rank, false))
+
+#if 0
+		// basic approach, no stopping		
+		while (t.iter->Next(docNr, rank, false))
 		{
 			float wd = static_cast<float>(rank) / kMaxWeight;
 			A[docNr] += idf * wd * wq;
 		}
+#else
+		// use two thresholds, one to limit adding accumulators
+		// and one to stop walking the iterator
+
+		const float c_add = 0.007;
+		const float c_ins = 0.12;
+
+		float s_add = c_add * Smax;
+		float s_ins = c_ins * Smax;
+
+		uint8 f_add = static_cast<uint8>((s_add * kMaxWeight) / (idf * wq * wq));
+		uint8 f_ins = static_cast<uint8>((s_ins * kMaxWeight) / (idf * wq * wq));
+
+		while (t.iter->Next(docNr, rank, false))
+		{
+			if (rank >= f_ins)
+			{
+				float wd = static_cast<float>(rank) / kMaxWeight;
+				float sd = idf * wd * wq;
+
+				A[docNr] += sd;
+			}
+			else if (rank >= f_add)
+			{
+				if (A[docNr] != 0)
+				{
+					float wd = static_cast<float>(rank) / kMaxWeight;
+					float sd = idf * wd * wq;
+
+					A[docNr] += sd;
+				}
+			}
+			else
+				break;
+			
+			Smax = max(Smax, A[docNr]);
+		}
+
+#endif
 	}
 	
 	Wq = sqrt(Wq);

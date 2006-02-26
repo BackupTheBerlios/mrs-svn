@@ -36,7 +36,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="libbz2.lib zlib1.lib libexpat.lib perl58.lib"
-				OutputFile="$(SolutionDir)plugin/MRS.dll"
+				OutputFile="$(OutDir)MRS.dll"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="&quot;$(SolutionDir)plugin\Lib\&quot;;C:\Perl\lib\CORE"/>
 			<Tool

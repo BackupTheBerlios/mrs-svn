@@ -104,7 +104,7 @@ class CIndexer
 					GetDocWeightIterator(const std::string& inIndex, const std::string& inKey);
 	
 	// returns an array of floats
-	CDocWeightArray*
+	const CDocWeightArray&
 					GetDocWeights(const std::string& inIndex) const;
 
 	void			PrintInfo();
@@ -143,6 +143,8 @@ class CIndexer
 	HStreamBase*					fFile;
 	struct SIndexHeader*			fHeader;
 	struct SIndexPart*				fParts;
+	
+	CDocWeightArray**				fDocWeights;
 	
 	// for statistics
 	int64							fOffset;

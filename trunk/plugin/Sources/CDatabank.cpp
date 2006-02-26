@@ -178,9 +178,12 @@ CDbDocIteratorBase* CDatabankBase::GetDocWeightIterator(
 	return nil;
 }
 
-CDocWeightArray* CDatabankBase::GetDocWeights(const string& inIndex)
+const CDocWeightArray& CDatabankBase::GetDocWeights(const string& inIndex)
 {
-	return nil;
+	THROW(("No doc weights array for index %s", inIndex.c_str()));
+
+	CDocWeightArray* result = nil;
+	return *result;
 }
 
 string CDatabankBase::GetDocument(const string& inDocumentID)
@@ -839,7 +842,7 @@ CDbDocIteratorBase* CDatabank::GetDocWeightIterator(
 	return GetIndexer()->GetDocWeightIterator(inIndex, inKey);
 }
 
-CDocWeightArray* CDatabank::GetDocWeights(const string& inIndex)
+const CDocWeightArray& CDatabank::GetDocWeights(const string& inIndex)
 {
 	return GetIndexer()->GetDocWeights(inIndex);
 }

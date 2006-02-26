@@ -116,7 +116,7 @@ class CDatabankBase
 	virtual CDbDocIteratorBase*
 						GetDocWeightIterator(const std::string& inIndex,
 							const std::string& inKey);
-	virtual CDocWeightArray*
+	virtual const CDocWeightArray&
 						GetDocWeights(const std::string& inIndex);
 
 	virtual long		GetIndexCount() = 0;
@@ -158,7 +158,7 @@ class CDatabank : public CDatabankBase
 	virtual CDbDocIteratorBase*
 						GetDocWeightIterator(const std::string& inIndex,
 							const std::string& inConceptID);
-	virtual CDocWeightArray*
+	virtual const CDocWeightArray&
 						GetDocWeights(const std::string& inIndex);
 
 	virtual void		PrintInfo();

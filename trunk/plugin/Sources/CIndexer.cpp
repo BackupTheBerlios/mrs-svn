@@ -1288,6 +1288,7 @@ CIndexer::CIndexer(const HUrl& inDb)
 	, fFile(nil)
 	, fHeader(new SIndexHeader)
 	, fParts(nil)
+	, fDocWeights(nil)
 	, fOffset(0)
 	, fSize(0)
 {
@@ -1300,6 +1301,7 @@ CIndexer::CIndexer(HStreamBase& inFile, int64 inOffset, int64 inSize)
 	: fFullTextIndex(nil)
 	, fNextTextIndexID(0)
 	, fFile(&inFile)
+	, fDocWeights(nil)
 	, fOffset(inOffset)
 	, fSize(inSize)
 {
@@ -1311,10 +1313,30 @@ CIndexer::CIndexer(HStreamBase& inFile, int64 inOffset, int64 inSize)
 	fParts = new SIndexPart[fHeader->count];
 	for (uint32 i = 0; i < fHeader->count; ++i)
 		view >> fParts[i];
+
+	// pre load the document weight arrays
+	fDocWeights = new CDocWeightArray*[fHeader->count];
+	memset(fDocWeights, 0, sizeof(CDocWeightArray*));
+	
+	for (uint32 ix = 0; ix < fHeader->count; ++ix)
+	{
+		if (fParts[ix].weight_offset != 0)
+		{
+			fDocWeights[ix] = 
+				new CDocWeightArray(*fFile, fParts[ix].weight_offset, fHeader->entries);
+		}
+	}
 }
 
 CIndexer::~CIndexer()
 {
+	if (fDocWeights)
+	{
+		for (uint32 ix = 0; ix < fHeader->count; ++ix)
+			delete fDocWeights[ix];
+		delete[] fDocWeights;
+	}
+
 	delete fHeader;
 	delete[] fParts;
 	
@@ -2449,25 +2471,28 @@ float CDocWeightArray::operator[](uint32 inDocNr) const
 	return fImpl->fData[inDocNr];
 }
 
-CDocWeightArray* CIndexer::GetDocWeights(const string& inIndex) const
+const CDocWeightArray& CIndexer::GetDocWeights(const string& inIndex) const
 {
-	auto_ptr<CDocWeightArray> result;
-	
 	string index = tolower(inIndex);
+
+	CDocWeightArray* result = nil;
 
 	for (uint32 ix = 0; ix < fHeader->count; ++ix)
 	{
 		if (index != fParts[ix].name)
 			continue;
 
-		if (fParts[ix].weight_offset == nil)
+		if (fParts[ix].weight_offset == 0 or fDocWeights[ix] == nil)
 			THROW(("There is no weights array for this index (%s)", inIndex.c_str()));
 
-		result.reset(new CDocWeightArray(*fFile, fParts[ix].weight_offset, fHeader->entries));
+		result = fDocWeights[ix];
 		break;
 	}
 	
-	return result.release();
+	if (result == nil)
+		THROW(("Doc weights for index %s not found", inIndex.c_str()));
+	
+	return *result;
 }
 
 void CIndexer::RecalculateDocumentWeights(const std::string& inIndex)

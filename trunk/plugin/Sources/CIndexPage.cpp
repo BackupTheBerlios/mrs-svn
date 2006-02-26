@@ -545,7 +545,7 @@ void CIndexPage::Write()
 	uint32 written = fFile->PWrite(&fData, kPageSize, fBaseOffset + fOffset);
 	assert(written == kPageSize);
 	if (written != kPageSize)
-		THROW(("IO Error, reading page for index"));
+		THROW(("IO Error, writing page for index"));
 	
 	fDirty = false;
 

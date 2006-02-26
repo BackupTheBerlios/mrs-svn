@@ -1,4 +1,4 @@
-/*	$Id: CBitStream.cpp,v 1.33 2005/09/06 14:32:27 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Sunday December 08 2002 14:06:24
 */

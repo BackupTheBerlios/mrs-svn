@@ -236,7 +236,8 @@ class HMMappedFileStream : public HMemoryStream
 					~HMMappedFileStream();
 
   private:
-	void*			fBasePtr;
+	struct HMMappedFileStreamImp*	fImpl;
+//	void*			fBasePtr;
 };
 
 //class HBufferedStream : public HStreamBase

@@ -1316,40 +1316,34 @@ SetExecutable(const HUrl& inUrl, bool inExecutable)
 
 // ------------------------------------------------------
 
-//#include <sys/mman.h>
-//#include <iostream>
-
+//#include <boost/iostreams/device/mapped_file.hpp>
 #include "HStream.h"
 
+//struct HMMappedFileStreamImp : public boost::iostreams::mapped_file
+//{
+//};
+
 HMMappedFileStream::HMMappedFileStream(HFileStream& inFile, int64 inOffset, int64 inLength)
+	: fImpl(nil)
 {
-	THROW(("To be implemented: HMMappedFileStream"));
-//	if (inOffset + inLength > inFile.fSize)
-//		THROW(("Error creating memmory mapped file stream"));
-//		
-//	int64 pageSize = ::getpagesize();
-//	int64 offset = pageSize * (inOffset / pageSize);
-//	uint32 before = inOffset - offset;
-//
-//	fBasePtr = ::mmap(0, inLength + before, PROT_READ, MAP_PRIVATE, inFile.fFD, offset);
-//
-//	if (reinterpret_cast<int64>(fBasePtr) == -1)
-//		THROW(("Memmory mapping failed: %s\n", strerror(errno)));
-//	
-//	delete[] fData;
-//	
-//	fData = static_cast<char*>(fBasePtr) + before;
-//	fLogicalSize = inLength;
-//	fPhysicalSize = inLength + before;
-//	fPointer = 0;
-//	fReadOnly = true;
-//	
-//	madvise(fBasePtr, inLength + before, MADV_SEQUENTIAL);
+	//if (inOffset + inLength > inFile.fSize)
+	//	THROW(("Error creating memmory mapped file stream"));
+	//
+	//int64 pageSize = boost::iostreams::mapped_file::alignment();
+	//int64 offset = pageSize * (inOffset / pageSize);
+	//uint32 before = inOffset - offset;
+
+	//fImpl = new boost::iostreams::mapped_file(
+	//	inFile.GetNativePath(), ios_base::in, inLength, offset);
+	//
+	//fData = const_cast<char*>(fImpl->const_data()) + before;
+	//fLogicalSize = inLength;
+	//fPhysicalSize = inLength + before;
+	//fPointer = 0;
+	//fReadOnly = true;
 }
 
 HMMappedFileStream::~HMMappedFileStream()
 {
-//	::munmap(fBasePtr, fLogicalSize);
+	delete fImpl;
 }
-
-
