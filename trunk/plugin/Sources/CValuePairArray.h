@@ -57,7 +57,9 @@ void CompressSimpleArray(COBitStream& inBits, std::vector<T>& inArray, int64 inM
 	
 	int64 lv = -1;	// we store delta's and our arrays can start at zero...
 	
-	for (std::vector<T>::iterator i = inArray.begin(); i != inArray.end(); ++i)
+	typedef typename std::vector<T>::iterator iterator;
+
+	for (iterator i = inArray.begin(); i != inArray.end(); ++i)
 	{
 		// write the value
 		
@@ -100,26 +102,7 @@ struct ValuePairTraitsPOD
 	typedef				T								value_type;
 	typedef				void							rank_type;
 	
-	T					value(iterator i)				{ return *i; }
-	const T				value(const_iterator i)			{ return *i; }
-
-	template<class I>
-	T					make_value(const I& iter)		{ return iter.Value(); }
-
 	static void			CompressArray(COBitStream& inBits, std::vector<T>& inArray, int64 inMax);
-	
-	struct				Iterator
-	{
-						Iterator();
-
-		CIBitStream*	fBits;
-		uint32			fCount;
-		uint32			fRead;
-		int32			b, n, g;
-	
-		int64			fValue;
-		uint32			fWeight;
-	};
 };
 
 template<typename T>
@@ -138,12 +121,6 @@ struct ValuePairTraitsPair
 	typedef typename	T::first_type					value_type;
 	typedef typename	T::second_type					rank_type;
 	
-	value_type			value(iterator i)				{ return i->first; }
-	const value_type	value(const_iterator i)			{ return i->first; }
-
-	template<class I>
-	T					make_value(const I& iter)		{ return make_pair(iter.Value(), iter.Weight()); }
-
 	static void			CompressArray(COBitStream& inBits, std::vector<T>& inArray, int64 inMax);
 };
 
@@ -157,9 +134,10 @@ void ValuePairTraitsPair<T>::CompressArray(COBitStream& inBits, std::vector<T>& 
 	std::vector<value_type> values;
 	values.reserve(inArray.size());
 	
-	std::vector<T>::const_iterator v = inArray.begin();
+	const_iterator v = inArray.begin();
 	
-	uint8 lastWeight = kMaxWeight + 1;
+	uint32 lastWeight = inArray.front().second;
+	WriteGamma(inBits, lastWeight);
 	
 	for (rank_type w = kMaxWeight; w > 0 and v != inArray.end(); --w)
 	{
@@ -172,7 +150,8 @@ void ValuePairTraitsPair<T>::CompressArray(COBitStream& inBits, std::vector<T>& 
 		if (values.size())
 		{
 			uint8 d = lastWeight - w;
-			WriteGamma(inBits, d);
+			if (d > 0)	// skip the first since it has been written already
+				WriteGamma(inBits, d);
 			CompressSimpleArray(inBits, values, inMax);
 			values.clear();
 			lastWeight = w;
@@ -194,7 +173,7 @@ class IteratorBase
 	virtual bool	Next();
 	
 	T				Value() const					{ return static_cast<T>(fValue); }
-	virtual uint32	Weight() const					{ return 0; }
+	virtual uint32	Weight() const					{ return 1; }
 	
 	virtual uint32	Count() const					{ return fCount; }
 	virtual uint32	Read() const					{ return fRead; }
@@ -224,7 +203,7 @@ IteratorBase<T>::IteratorBase(CIBitStream& inData, int64 inMax)
 	, fValue(-1)
 	, fMax(inMax)
 {
-	Reset();
+	base_type::Reset();
 }
 
 template<typename T>
@@ -239,17 +218,13 @@ IteratorBase<T>::IteratorBase(CIBitStream& inData, int64 inMax, bool)
 template<typename T>
 IteratorBase<T>::~IteratorBase()
 {
-#if P_DEBUG
-	if (fRead == 0)
-		cerr << endl << "<- P" << endl;
-#endif
 }
 
 template<typename T>
 void IteratorBase<T>::Reset()
 {
 	fValue = -1;
-	fCount = ReadGamma(*fBits);
+	fCount = ReadGamma(*base_type::fBits);
 	fRead = 0;
 	b = CalculateB(fMax, fCount);
 	n = 0;
@@ -315,11 +290,11 @@ class VRIterator : public IteratorBase<typename ValuePairTraitsPair<T>::value_ty
   public:
 					VRIterator(CIBitStream& inData, int64 inMax)
 						: base_type(inData, inMax, false)
-						, fWeight(kMaxWeight + 1)
 					{
 						fTotalCount = ReadGamma(inData);
+						fWeight = ReadGamma(inData);
 						fTotalRead = 0;
-						Restart();
+						Reset();
 					}
 
 	virtual bool	Next();

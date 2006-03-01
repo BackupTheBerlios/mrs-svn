@@ -183,7 +183,7 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	void				IndexWord(const std::string& inIndex, const std::string& inText);
 	void				IndexValue(const std::string& inIndex, const std::string& inText);
 	void				IndexWordWithWeight(const std::string& inIndex,
-							const std::string& inText, float inWeight);
+							const std::string& inText, unsigned long inFrequency);
 	void				IndexDate(const std::string& inIndex, const std::string& inText);
 	void				IndexNumber(const std::string& inIndex, const std::string& inText);
 #ifndef NO_BLAST
@@ -238,7 +238,7 @@ class MQueryResults : public MRSObject<MQueryResults, struct MQueryResultsImp>
 class MRankedQuery : public MRSObject<MRankedQuery, struct MRankedQueryImp>
 {
   public:
-	void				AddTerm(const std::string& inTerm, float inWeight);
+	void				AddTerm(const std::string& inTerm, unsigned long inFrequency);
 	MQueryResults*		Perform();
 };
 

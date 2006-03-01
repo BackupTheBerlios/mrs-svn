@@ -1,4 +1,4 @@
-/*	$Id: HWinApiWrappers.cpp,v 1.48 2003/12/19 10:49:00 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created by Bas Vodde on Thursday January 31 2002 14:40:51
 */

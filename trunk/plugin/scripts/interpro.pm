@@ -1,6 +1,6 @@
 # Perl module voor het parsen van pdb
 #
-# $Id: interpro.pm,v 1.6 2005/10/27 14:01:28 maarten Exp $
+# $Id$
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.

@@ -1,4 +1,4 @@
-/*	$Id: HWinNativeTypes.cpp,v 1.35 2004/01/11 15:36:12 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created by Bas Vodde Friday January 11 2002 09:35:51
 */

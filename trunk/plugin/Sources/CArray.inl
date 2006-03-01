@@ -1,4 +1,4 @@
-/*	$Id: CArray.inl,v 1.21 2005/08/22 12:38:06 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Monday January 27 2003 20:19:40
 */

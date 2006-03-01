@@ -1,6 +1,6 @@
 # Perl module voor het parsen van pdb
 #
-# $Id: oxford.pm,v 1.4 2005/09/20 11:08:29 maarten Exp $
+# $Id$
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.

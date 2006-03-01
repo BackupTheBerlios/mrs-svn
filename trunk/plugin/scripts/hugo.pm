@@ -1,6 +1,6 @@
 # Perl module voor het parsen van hugo
 #
-# $Id: hugo.pm,v 1.1 2005/09/10 07:19:22 maarten Exp $
+# $Id$
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.

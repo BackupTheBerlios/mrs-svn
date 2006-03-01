@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 #
-# $Id: taxonomy.pm,v 1.3 2005/08/22 12:38:08 maarten Exp $
+# $Id$
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.

@@ -1,4 +1,4 @@
-/*	$Id: HWinPOSIXInterface.cpp,v 1.3 2003/09/01 19:31:52 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created By Bas Vodde on Saturday January 12 2002 16:16:22
 */

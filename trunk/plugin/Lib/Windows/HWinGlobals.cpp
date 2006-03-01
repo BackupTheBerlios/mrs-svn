@@ -1,4 +1,4 @@
-/*	$Id: HWinGlobals.cpp,v 1.23 2004/01/10 14:10:11 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created by Bas Vodde Saturday January 26 2002 10:53:55
 */

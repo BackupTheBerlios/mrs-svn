@@ -192,8 +192,9 @@ int main(int argc, const char* argv[])
 	fs.close();
 	
 	auto_ptr<MRankedQuery> q(mrsDb.RankedQuery("mesh2002"));
+	float minF = fp.back().second;
 	for (vector<pair<string,float> >::iterator t = fp.begin(); t != fp.end(); ++t)
-		q->AddTerm(t->first, t->second);
+		q->AddTerm(t->first, static_cast<unsigned long>(t->second / minF));
 	
 	auto_ptr<MQueryResults> r(q->Perform());
 

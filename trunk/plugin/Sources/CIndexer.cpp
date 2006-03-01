@@ -402,7 +402,7 @@ class CIndexBase
 					CIndexBase(const string& inName, uint32 inKind);
 	virtual			~CIndexBase();
 	
-	virtual void	AddWord(const string& inWord, float inWeight = 1.0f) = 0;
+	virtual void	AddWord(const string& inWord, uint32 inFrequency = 1) = 0;
 	virtual void	FlushDoc(uint32 inDocNr) = 0;
 	virtual void	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo) = 0;
 
@@ -439,7 +439,7 @@ class CValueIndex : public CIndexBase
   public:
 					CValueIndex(const string& inName);
 	
-	virtual void	AddWord(const string& inWord, float inWeight);
+	virtual void	AddWord(const string& inWord, uint32 inFrequency);
 	virtual void	FlushDoc(uint32 inDocNr);
 	virtual void	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
 	
@@ -457,7 +457,7 @@ CValueIndex::CValueIndex(const string& inName)
 {
 }
 	
-void CValueIndex::AddWord(const string& inWord, float inWeight)
+void CValueIndex::AddWord(const string& inWord, uint32 inFrequency)
 {
 	fWord = inWord;
 }
@@ -545,7 +545,7 @@ class CFullTextIndex
 	virtual			~CFullTextIndex();
 	
 	void			ReleaseBuffer();
-	void			AddWord(uint8 inIndex, const string& inWord, uint8 inWeight);
+	void			AddWord(uint8 inIndex, const string& inWord, uint8 inFrequency);
 	void			FlushDoc(uint32 inDocNr);
 	
 	void			Merge();
@@ -669,7 +669,7 @@ CFullTextIndex::~CFullTextIndex()
 	delete fScratch;
 }
 
-void CFullTextIndex::AddWord(uint8 inIndex, const string& inWord, uint8 inWeight)
+void CFullTextIndex::AddWord(uint8 inIndex, const string& inWord, uint8 inFrequency)
 {
 	assert(inWord.length() > 0);
 	
@@ -679,19 +679,19 @@ void CFullTextIndex::AddWord(uint8 inIndex, const string& inWord, uint8 inWeight
 	if (fFTIndexCnt < inIndex + 1)
 		fFTIndexCnt = inIndex + 1;
 
-	if (inWeight > kMaxWeight)
-		inWeight = kMaxWeight;
+	if (inFrequency > kMaxWeight)
+		inFrequency = kMaxWeight;
 	
-	if (inWeight > 0)
+	if (inFrequency > 0)
 	{
 		DocWords::iterator i = fDocWords.find(inWord);
 		if (i != fDocWords.end())
 		{
-			if (inWeight > (*i).second.second)
-				(*i).second.second = inWeight;
+			if (inFrequency > (*i).second.second)
+				(*i).second.second = inFrequency;
 		}
 		else
-			fDocWords[inWord] = make_pair(inIndex, inWeight);
+			fDocWords[inWord] = make_pair(inIndex, inFrequency);
 	}
 }
 
@@ -859,10 +859,10 @@ class CTextIndexBase : public CIndexBase
 						const HUrl& inScratch, CIndexKind inKind);
 					~CTextIndexBase();
 	
-	virtual void	AddWord(const string& inWord, float inWeight);
+	virtual void	AddWord(const string& inWord, uint32 inFrequency);
 	virtual void	FlushDoc(uint32 inDocNr);
 	
-	virtual void	AddDocTerm(uint32 inDoc, uint8 inWeight);
+	virtual void	AddDocTerm(uint32 inDoc, uint8 inFrequency);
 	virtual void	FlushTerm(uint32 inTerm, uint32 inDocCount);
 	
 	virtual void	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
@@ -919,9 +919,9 @@ CTextIndexBase::~CTextIndexBase()
 	delete fBitFile;
 }
 
-void CTextIndexBase::AddWord(const string& inWord, float inWeight)
+void CTextIndexBase::AddWord(const string& inWord, uint32 inFrequency)
 {
-	fFullTextIndex.AddWord(fIndexNr, inWord, static_cast<uint8>(inWeight * kMaxWeight));
+	fFullTextIndex.AddWord(fIndexNr, inWord, inFrequency);
 	fEmpty = false;
 }
 
@@ -929,7 +929,7 @@ void CTextIndexBase::FlushDoc(uint32 /*inDocNr*/)
 {
 }
 
-void CTextIndexBase::AddDocTerm(uint32 inDoc, uint8 inWeight)
+void CTextIndexBase::AddDocTerm(uint32 inDoc, uint8 inFrequency)
 {
 	uint32 d;
 
@@ -947,7 +947,7 @@ void CTextIndexBase::AddDocTerm(uint32 inDoc, uint8 inWeight)
 	WriteGamma(*fBits, d);
 	
 	if (fWeighted)
-		WriteBinary(*fBits, inWeight, kWeightBitCount);
+		WriteBinary(*fBits, inFrequency, kWeightBitCount);
 	
 	fLastDoc = inDoc;
 	++fDocCount;
@@ -1183,7 +1183,7 @@ class CWeightedWordIndex : public CTextIndexBase
 						const string& inName, uint16 inIndexNr,
 						const HUrl& inScratch);
 
-	virtual void	AddWord(const string& inWord, float inWeight);
+	virtual void	AddWord(const string& inWord, uint32 inFrequency);
 	virtual void	FlushDoc(uint32 inDocNr);
 
 	virtual void	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
@@ -1202,10 +1202,10 @@ CWeightedWordIndex::CWeightedWordIndex(CFullTextIndex& inFullTextIndex,
 {
 }
 
-void CWeightedWordIndex::AddWord(const string& inWord, float inWeight)
+void CWeightedWordIndex::AddWord(const string& inWord, uint32 inFrequency)
 {
-	CTextIndexBase::AddWord(inWord, inWeight);
-	fSum += inWeight * inWeight;
+	CTextIndexBase::AddWord(inWord, inFrequency);
+	fSum += inFrequency * inFrequency;
 }
 
 void CWeightedWordIndex::FlushDoc(uint32 inDocNr)
@@ -1316,7 +1316,7 @@ CIndexer::CIndexer(HStreamBase& inFile, int64 inOffset, int64 inSize)
 
 	// pre load the document weight arrays
 	fDocWeights = new CDocWeightArray*[fHeader->count];
-	memset(fDocWeights, 0, sizeof(CDocWeightArray*));
+	memset(fDocWeights, 0, sizeof(CDocWeightArray*) * fHeader->count);
 	
 	for (uint32 ix = 0; ix < fHeader->count; ++ix)
 	{
@@ -1330,7 +1330,7 @@ CIndexer::CIndexer(HStreamBase& inFile, int64 inOffset, int64 inSize)
 
 CIndexer::~CIndexer()
 {
-	if (fDocWeights)
+	if (fDocWeights != nil)
 	{
 		for (uint32 ix = 0; ix < fHeader->count; ++ix)
 			delete fDocWeights[ix];
@@ -1511,7 +1511,7 @@ void CIndexer::IndexValue(const string& inIndex, const string& inText)
 	index->AddWord(inText);
 }
 
-void CIndexer::IndexWordWithWeight(const string& inIndex, const string& inText, float inWeight)
+void CIndexer::IndexWordWithWeight(const string& inIndex, const string& inText, uint32 inFrequency)
 {
 	CIndexBase* index = indexes[inIndex];
 	if (index == NULL)
@@ -1525,10 +1525,13 @@ void CIndexer::IndexWordWithWeight(const string& inIndex, const string& inText, 
 	if (inText.length() >= kMaxKeySize)
 		THROW(("Data error: length of unique key too long (%s)", inText.c_str()));
 
-	if (inWeight < 0 or inWeight > 1.0f)
-		THROW(("The value for weight is out of range (%g)", inWeight));
+	if (inFrequency > kMaxWeight)
+	{
+		cerr << "The value for weight " << inFrequency << " is out of range, max is " << kMaxWeight << endl;
+		inFrequency = kMaxWeight;
+	}
 
-	index->AddWord(inText, inWeight);
+	index->AddWord(inText, inFrequency);
 }
 
 void CIndexer::FlushDoc()
@@ -2536,7 +2539,7 @@ void CIndexer::RecalculateDocumentWeights(const std::string& inIndex)
 
 		while (iter.Next(doc, rank, false))
 		{
-			float wdt = rank * idf / kMaxWeight;
+			float wdt = rank * idf;
 			dw[doc] += wdt * wdt;
 		}
 	}

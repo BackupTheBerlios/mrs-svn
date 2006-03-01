@@ -1,4 +1,4 @@
-/*	$Id: HPOSIXInterface.h,v 1.5 2003/02/27 13:19:48 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created By Bas Vodde on Saturday January 12 2002 16:15:17
 */

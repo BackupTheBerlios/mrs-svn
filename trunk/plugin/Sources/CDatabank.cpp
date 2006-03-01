@@ -987,9 +987,9 @@ void CDatabank::IndexValue(const string& inIndex, const string& inText)
 }
 
 void CDatabank::IndexWordWithWeight(const string& inIndex,	
-	const string& inText, float inWeight)
+	const string& inText, uint32 inFrequency)
 {
-	fIndexer->IndexWordWithWeight(inIndex, inText, inWeight);
+	fIndexer->IndexWordWithWeight(inIndex, inText, inFrequency);
 }
 
 #ifndef NO_BLAST

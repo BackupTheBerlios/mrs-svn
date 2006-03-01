@@ -1,6 +1,6 @@
 # Perl module voor het parsen van pdb
 #
-# $Id: go.pm,v 1.4 2005/09/06 12:16:52 maarten Exp $
+# $Id$
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.

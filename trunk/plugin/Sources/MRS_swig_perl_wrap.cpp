@@ -2447,14 +2447,14 @@ XS(_wrap_MDatabank_IndexWordWithWeight) {
         MDatabank *arg1 = (MDatabank *) 0 ;
         std::string *arg2 = 0 ;
         std::string *arg3 = 0 ;
-        float arg4 ;
+        unsigned long arg4 ;
         std::string temp2 ;
         std::string temp3 ;
         int argvi = 0;
         dXSARGS;
         
         if ((items < 4) || (items > 4)) {
-            SWIG_croak("Usage: MDatabank_IndexWordWithWeight(self,inIndex,inText,inWeight);");
+            SWIG_croak("Usage: MDatabank_IndexWordWithWeight(self,inIndex,inText,inFrequency);");
         }
         {
             if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
@@ -2481,8 +2481,7 @@ XS(_wrap_MDatabank_IndexWordWithWeight) {
                 arg3 = &temp3;
             }
         }
-        arg4 = (float) SvNV(ST(3));
-        
+        arg4 = (unsigned long) SvUV(ST(3));
         {
             try {
                 (arg1)->IndexWordWithWeight((std::string const &)*arg2,(std::string const &)*arg3,arg4);
@@ -3099,13 +3098,13 @@ XS(_wrap_MRankedQuery_AddTerm) {
     {
         MRankedQuery *arg1 = (MRankedQuery *) 0 ;
         std::string *arg2 = 0 ;
-        float arg3 ;
+        unsigned long arg3 ;
         std::string temp2 ;
         int argvi = 0;
         dXSARGS;
         
         if ((items < 3) || (items > 3)) {
-            SWIG_croak("Usage: MRankedQuery_AddTerm(self,inTerm,inWeight);");
+            SWIG_croak("Usage: MRankedQuery_AddTerm(self,inTerm,inFrequency);");
         }
         {
             if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MRankedQuery,0) < 0) {
@@ -3122,8 +3121,7 @@ XS(_wrap_MRankedQuery_AddTerm) {
                 arg2 = &temp2;
             }
         }
-        arg3 = (float) SvNV(ST(2));
-        
+        arg3 = (unsigned long) SvUV(ST(2));
         {
             try {
                 (arg1)->AddTerm((std::string const &)*arg2,arg3);

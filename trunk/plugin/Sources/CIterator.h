@@ -194,6 +194,8 @@ class CDbDocIteratorBase : public CDocIterator
 
 	virtual float	GetIDFCorrectionFactor() const			{ return fIDFCorrectionFactor; }
 
+	virtual	uint32	Weight() const							{ return 1; }
+
   protected:
 	float			fIDFCorrectionFactor;
 };
@@ -204,7 +206,6 @@ class CDbDocIteratorBaseT : public CDbDocIteratorBase
 {
 	typedef typename	CValuePairCompression::ValuePairTraitsTypeFactory<T>::type		traits;
 	typedef typename	CValuePairCompression::ValuePairTraitsTypeFactory<T>::iterator	IterType;
-	typedef typename	traits::rank_type												rank_type;
 	
   public:
 					CDbDocIteratorBaseT(HStreamBase& inData,
@@ -212,6 +213,8 @@ class CDbDocIteratorBaseT : public CDbDocIteratorBase
 
 	virtual bool	Next(uint32& ioDoc, bool inSkip);
 	virtual bool	Next(uint32& ioDoc, uint8& ioRank, bool inSkip);
+
+	virtual	uint32	Weight() const;
 
 	virtual uint32	Count() const;
 	virtual uint32	Read() const;

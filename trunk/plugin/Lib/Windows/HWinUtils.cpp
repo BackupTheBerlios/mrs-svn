@@ -1,4 +1,4 @@
-/*	$Id: HWinUtils.cpp,v 1.59 2004/01/23 21:08:36 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created by Bas Vodde Friday January 25 2002 12:43:52
 */

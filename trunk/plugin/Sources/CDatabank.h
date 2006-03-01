@@ -189,7 +189,7 @@ class CDatabank : public CDatabankBase
 	
 							// Weight should be a float between 0 and 1
 	void				IndexWordWithWeight(const std::string& inIndex,	
-							const std::string& inText, float inWeight);
+							const std::string& inText, uint32 inFrequency);
 #ifndef NO_BLAST
 	void				AddSequence(const std::string& inSequence);
 #endif

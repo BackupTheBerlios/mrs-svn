@@ -620,9 +620,9 @@ void MDatabank::IndexValue(const string& inIndex, const string& inText)
 }
 
 void MDatabank::IndexWordWithWeight(const string& inIndex,
-	const string& inText, float inWeight)
+	const string& inText, unsigned long inFrequency)
 {
-	fImpl->GetDB()->IndexWordWithWeight(inIndex, inText, inWeight);
+	fImpl->GetDB()->IndexWordWithWeight(inIndex, inText, inFrequency);
 }
 
 void MDatabank::IndexDate(const string& inIndex, const string& inText)
@@ -982,9 +982,9 @@ MBlastHsp* MBlastHsps::Next()
 //  class MRankedQuery
 //
 
-void MRankedQuery::AddTerm(const std::string& inTerm, float inWeight)
+void MRankedQuery::AddTerm(const std::string& inTerm, unsigned long inFrequency)
 {
-	fImpl->fQuery->AddTerm(inTerm, inWeight);
+	fImpl->fQuery->AddTerm(inTerm, inFrequency);
 }
 
 MQueryResults* MRankedQuery::Perform()

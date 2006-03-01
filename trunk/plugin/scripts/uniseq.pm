@@ -1,6 +1,6 @@
 # MRS plugin for creating an EMBL db
 #
-# $Id: uniseq.pm,v 1.8 2005/10/04 14:09:46 maarten Exp $
+# $Id$
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.

@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 #
-# $Id: uniprot.pm,v 1.13 2005/11/02 09:02:26 maarten Exp $
+# $Id$
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.

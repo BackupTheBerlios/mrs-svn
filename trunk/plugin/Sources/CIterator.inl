@@ -75,4 +75,10 @@ uint32 CDbDocIteratorBaseT<T>::Count() const
 	return fIter.Count();
 }
 
+template<typename T>
+uint32 CDbDocIteratorBaseT<T>::Weight() const
+{
+	return fIter.Weight();
+}
+
 #endif // CITERATOR_INL

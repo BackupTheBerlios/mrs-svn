@@ -71,8 +71,6 @@ void CRankedQuery::AddTerm(const string& inKey, float inWeight)
 
 CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank, const string& inIndex)
 {
-	// eerste poging
-	
 	uint32 docCount = inDatabank.Count();
 	HAutoBuf<float> Abuffer(new float[docCount]);
 	float* A = Abuffer.get();		// the accumulators
@@ -89,7 +87,7 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank, const strin
 		Term& t = fImpl->fTerms[tx];
 		
 		t.iter.reset(inDatabank.GetDocWeightIterator(inIndex, t.key));
-		t.w = t.iter->GetIDFCorrectionFactor() * t.weight;
+		t.w = t.iter->Weight() * t.iter->GetIDFCorrectionFactor() * t.weight;
 	}
 	
 	sort(fImpl->fTerms.begin(), fImpl->fTerms.end(), greater<Term>());
@@ -109,14 +107,6 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank, const strin
 		uint32 docNr;
 		uint8 rank;
 
-#if 0
-		// basic approach, no stopping		
-		while (t.iter->Next(docNr, rank, false))
-		{
-			float wd = static_cast<float>(rank) / kMaxWeight;
-			A[docNr] += idf * wd * wq;
-		}
-#else
 		// use two thresholds, one to limit adding accumulators
 		// and one to stop walking the iterator
 
@@ -126,14 +116,14 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank, const strin
 		float s_add = c_add * Smax;
 		float s_ins = c_ins * Smax;
 
-		uint8 f_add = static_cast<uint8>((s_add * kMaxWeight) / (idf * wq * wq));
-		uint8 f_ins = static_cast<uint8>((s_ins * kMaxWeight) / (idf * wq * wq));
+		uint8 f_add = static_cast<uint8>(s_add / (idf * wq * wq));
+		uint8 f_ins = static_cast<uint8>(s_ins / (idf * wq * wq));
 
 		while (t.iter->Next(docNr, rank, false))
 		{
 			if (rank >= f_ins)
 			{
-				float wd = static_cast<float>(rank) / kMaxWeight;
+				float wd = rank;
 				float sd = idf * wd * wq;
 
 				A[docNr] += sd;
@@ -142,7 +132,7 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank, const strin
 			{
 				if (A[docNr] != 0)
 				{
-					float wd = static_cast<float>(rank) / kMaxWeight;
+					float wd = rank;
 					float sd = idf * wd * wq;
 
 					A[docNr] += sd;
@@ -153,8 +143,6 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank, const strin
 			
 			Smax = max(Smax, A[docNr]);
 		}
-
-#endif
 	}
 	
 	Wq = sqrt(Wq);
