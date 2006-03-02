@@ -122,7 +122,7 @@ float byte_swapper::swap(float inValue)
 	
 	v.a = inValue;
 	
-	v.b = static_cast<float>(
+	v.b = static_cast<uint32>(
 			((v.b<<24) & 0xFF000000)  |
 			((v.b<< 8) & 0x00FF0000)  |
 			((v.b>> 8) & 0x0000FF00)  |

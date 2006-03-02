@@ -56,7 +56,7 @@ LIBPATHS	=  ./Lib/ /usr/local/lib/ /usr/X11R6/lib/
 INCPATHS	= ./Lib/Includes/ ./Lib/X/ ./Lib/ ./Sources/X/
 SYSINCPATHS	= /usr/include ./Lib/loki $(BOOST)
 WARNINGS	=  -Wall -Wno-multichar -Wno-unknown-pragmas -Wno-long-long -Wno-sign-compare
-CFLAGS		= -fsigned-char -g -ffor-scope -ansi -pedantic -pthread
+CFLAGS		= -fsigned-char -g -ffor-scope -ansi -pedantic # -pthread
 LDFLAGS		= -ffunction-sections -fdata-sections
 CC			= c++
 OPT			+= -fstrict-aliasing
@@ -131,7 +131,7 @@ endif
 	DEFINES		+= DARWIN
 	LDFLAGS		+= -undefined suppress -flat_namespace
 	CFLAGS		+= -force_cpusubtype_ALL
-	OPT			+= -O3 -mcpu=G5 -falign-loops=32
+	OPT			+= -O3 -mcpu=G4 -falign-loops=32
 	WARNINGS	+= -Wno-long-double
 	CTAGS		= /sw/bin/ctags
 	STRIP		= strip -S
@@ -171,8 +171,6 @@ Sources = \
 	./Sources/MRS_swig.cpp \
 	./Sources/MRS_swig_$(TARGET)_wrap.cxx \
 	./Sources/CBitStream.cpp \
-	./Sources/CBlast.cpp \
-	./Sources/CBlastIndex.cpp \
 	./Sources/CCompress.cpp \
 	./Sources/CDatabank.cpp \
 	./Sources/CDbInfo.cpp \
@@ -184,9 +182,8 @@ Sources = \
 	./Sources/CIndexPage.cpp \
 	./Sources/CIterator.cpp \
 	./Sources/CLexicon.cpp \
-	./Sources/CMatrix.cpp \
-	./Sources/CNCBI.cpp \
 	./Sources/CQuery.cpp \
+	./Sources/CRankedQuery.cpp \
 	./Sources/CSemaphore.cpp \
 	./Sources/CSequence.cpp \
 	./Sources/CUtils.cpp \
@@ -202,6 +199,11 @@ Sources = \
 	./Lib/Posix/HUnixFile.cpp \
 	./Lib/Posix/HUnixUtils.cpp \
 	./Lib/loki/SmallObj.cpp
+
+#	./Sources/CBlast.cpp \
+#	./Sources/CBlastIndex.cpp \
+#	./Sources/CMatrix.cpp \
+#	./Sources/CNCBI.cpp \
 
 define SOURCES
 	$(Sources)
@@ -299,7 +301,7 @@ $(OBJDIR):
 
 $(OBJDIR)/%_$(TARGET)_wrap.o: Sources/%_$(TARGET)_wrap.cxx
 	@ echo "=> "$(@F)
-	@ $(CC) -c $< -o $@ $(INCLUDES) $(CFLAGS) -O0
+	$(CC) -c $< -o $@ $(INCLUDES) $(CFLAGS) -O0
 
 $(OBJDIR)/%.o: %.cpp
 	@ echo "=> "$(@F)

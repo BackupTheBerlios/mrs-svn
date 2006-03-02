@@ -58,7 +58,7 @@ void CompressSimpleArray(COBitStream& inBits, std::vector<T>& inArray, int64 inM
 	int64 lv = -1;	// we store delta's and our arrays can start at zero...
 	
 	typedef typename std::vector<T>::iterator iterator;
-
+	
 	for (iterator i = inArray.begin(); i != inArray.end(); ++i)
 	{
 		// write the value
@@ -98,10 +98,10 @@ struct ValuePairTraitsPOD
 	typedef				std::vector<T>					vector_type;
 	typedef typename	vector_type::iterator			iterator;
 	typedef typename	vector_type::const_iterator		const_iterator;
-	
-	typedef				T								value_type;
-	typedef				void							rank_type;
-	
+
+	typedef 			T								value_type;
+	typedef 			void							rank_type;
+
 	static void			CompressArray(COBitStream& inBits, std::vector<T>& inArray, int64 inMax);
 };
 
@@ -120,7 +120,7 @@ struct ValuePairTraitsPair
 
 	typedef typename	T::first_type					value_type;
 	typedef typename	T::second_type					rank_type;
-	
+
 	static void			CompressArray(COBitStream& inBits, std::vector<T>& inArray, int64 inMax);
 };
 
@@ -168,7 +168,7 @@ class IteratorBase
 {
   public:
 					IteratorBase(CIBitStream& inData, int64 inMax);
-	virtual			~IteratorBase();
+	virtual			~IteratorBase() {}
 
 	virtual bool	Next();
 	
@@ -179,7 +179,6 @@ class IteratorBase
 	virtual uint32	Read() const					{ return fRead; }
 
   protected:
-
 					IteratorBase(CIBitStream& inData, int64 inMax, bool);
 
 					IteratorBase(const IteratorBase& inOther);
@@ -203,7 +202,7 @@ IteratorBase<T>::IteratorBase(CIBitStream& inData, int64 inMax)
 	, fValue(-1)
 	, fMax(inMax)
 {
-	base_type::Reset();
+	Reset();
 }
 
 template<typename T>
@@ -216,15 +215,10 @@ IteratorBase<T>::IteratorBase(CIBitStream& inData, int64 inMax, bool)
 }
 
 template<typename T>
-IteratorBase<T>::~IteratorBase()
-{
-}
-
-template<typename T>
 void IteratorBase<T>::Reset()
 {
 	fValue = -1;
-	fCount = ReadGamma(*base_type::fBits);
+	fCount = ReadGamma(*fBits);
 	fRead = 0;
 	b = CalculateB(fMax, fCount);
 	n = 0;
@@ -294,7 +288,7 @@ class VRIterator : public IteratorBase<typename ValuePairTraitsPair<T>::value_ty
 						fTotalCount = ReadGamma(inData);
 						fWeight = ReadGamma(inData);
 						fTotalRead = 0;
-						Reset();
+						base_type::Reset();
 					}
 
 	virtual bool	Next();
@@ -319,12 +313,12 @@ class VRIterator : public IteratorBase<typename ValuePairTraitsPair<T>::value_ty
 template<typename T>
 void VRIterator<T>::Restart()
 {
-	fWeight -= ReadGamma(*fBits);
+	fWeight -= ReadGamma(*base_type::fBits);
 	
 	assert(fWeight <= kMaxWeight);
 	assert(fWeight > 0);
 	
-	Reset();
+	base_type::Reset();
 }
 
 template<typename T>
