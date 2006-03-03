@@ -90,6 +90,7 @@ package MRS::MDatabank;
 @ISA = qw( MRS );
 %OWNER = ();
 %ITERATORS = ();
+*kWildCardString = *MRSc::MDatabank_kWildCardString;
 sub new {
     my $pkg = shift;
     my $self = MRSc::new_MDatabank(@_);
@@ -103,6 +104,9 @@ sub new {
 *DumpInfo = *MRSc::MDatabank_DumpInfo;
 *CountForKey = *MRSc::MDatabank_CountForKey;
 *Find = *MRSc::MDatabank_Find;
+*Match = *MRSc::MDatabank_Match;
+*MatchRel = *MRSc::MDatabank_MatchRel;
+*BooleanQuery = *MRSc::MDatabank_BooleanQuery;
 *RankedQuery = *MRSc::MDatabank_RankedQuery;
 *Get = *MRSc::MDatabank_Get;
 *Index = *MRSc::MDatabank_Index;
@@ -145,18 +149,19 @@ sub ACQUIRE {
 }
 
 
-############# Class : MRS::MQueryResults ##############
+############# Class : MRS::MBooleanQuery ##############
 
-package MRS::MQueryResults;
+package MRS::MBooleanQuery;
 @ISA = qw( MRS );
 %OWNER = ();
 %ITERATORS = ();
-*Next = *MRSc::MQueryResults_Next;
-*Skip = *MRSc::MQueryResults_Skip;
-*Count = *MRSc::MQueryResults_Count;
+*Not = *MRSc::MBooleanQuery_Not;
+*Union = *MRSc::MBooleanQuery_Union;
+*Intersection = *MRSc::MBooleanQuery_Intersection;
+*Perform = *MRSc::MBooleanQuery_Perform;
 sub new {
     my $pkg = shift;
-    my $self = MRSc::new_MQueryResults(@_);
+    my $self = MRSc::new_MBooleanQuery(@_);
     bless $self, $pkg if defined($self);
 }
 
@@ -166,7 +171,7 @@ sub DESTROY {
     return unless defined $self;
     delete $ITERATORS{$self};
     if (exists $OWNER{$self}) {
-        MRSc::delete_MQueryResults($self);
+        MRSc::delete_MBooleanQuery($self);
         delete $OWNER{$self};
     }
 }
@@ -205,6 +210,45 @@ sub DESTROY {
     delete $ITERATORS{$self};
     if (exists $OWNER{$self}) {
         MRSc::delete_MRankedQuery($self);
+        delete $OWNER{$self};
+    }
+}
+
+sub DISOWN {
+    my $self = shift;
+    my $ptr = tied(%$self);
+    delete $OWNER{$ptr};
+}
+
+sub ACQUIRE {
+    my $self = shift;
+    my $ptr = tied(%$self);
+    $OWNER{$ptr} = 1;
+}
+
+
+############# Class : MRS::MQueryResults ##############
+
+package MRS::MQueryResults;
+@ISA = qw( MRS );
+%OWNER = ();
+%ITERATORS = ();
+*Next = *MRSc::MQueryResults_Next;
+*Skip = *MRSc::MQueryResults_Skip;
+*Count = *MRSc::MQueryResults_Count;
+sub new {
+    my $pkg = shift;
+    my $self = MRSc::new_MQueryResults(@_);
+    bless $self, $pkg if defined($self);
+}
+
+sub DESTROY {
+    return unless $_[0]->isa('HASH');
+    my $self = tied(%{$_[0]});
+    return unless defined $self;
+    delete $ITERATORS{$self};
+    if (exists $OWNER{$self}) {
+        MRSc::delete_MQueryResults($self);
         delete $OWNER{$self};
     }
 }
@@ -349,4 +393,5 @@ package MRS;
 *COMPRESSION = *MRSc::COMPRESSION;
 *COMPRESSION_LEVEL = *MRSc::COMPRESSION_LEVEL;
 *COMPRESSION_DICTIONARY = *MRSc::COMPRESSION_DICTIONARY;
+*MDatabank_kWildCardString = *MRSc::MDatabank_kWildCardString;
 1;

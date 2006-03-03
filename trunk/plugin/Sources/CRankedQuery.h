@@ -20,7 +20,7 @@ class CRankedQuery
 	void			AddTerm(const std::string& inKey, float inWeight);
 	
 	CDocIterator*	PerformSearch(CDatabankBase& inDatabank,
-						const std::string& inIndex);
+						const std::string& inIndex, CDocIterator* inMetaQuery);
 	
   private:
 					CRankedQuery(const CRankedQuery&);

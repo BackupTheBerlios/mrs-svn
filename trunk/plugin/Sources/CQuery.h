@@ -1,4 +1,4 @@
-/*	$Id: CQuery.h,v 1.16 2005/08/22 12:38:07 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Tuesday January 07 2003 20:12:37
 */
@@ -46,36 +46,96 @@
 #include "HStlVector.h"
 #include "HStlLimits.h"
 
-class CDatabankBase;
+#include <boost/shared_ptr.hpp>
 
-class CQuery
+class CDatabankBase;
+class CDocIterator;
+
+class CQueryObject
 {
   public:
-			CQuery(const std::string& inQuery, CDatabankBase& inDatabank,
-				bool inAutoWildcard);
-	virtual	~CQuery();
+							CQueryObject(CDatabankBase& inDb)
+								: fDb(inDb) {}
+	virtual					~CQueryObject() {}
 	
-	bool	Next(uint32& outDoc);
-	void	Skip(uint32 inNrOfDocs);
-	void	Rewind();
-	uint32	Count(bool inExact) const;
+	virtual CDocIterator*	Perform() = 0;
 	
-	void	GetAll(std::vector<uint32>& outDocNrs);
 	
-	CDatabankBase&
-			GetDatabank();
-
-  private:
-			CQuery(const CQuery& inOther);
-	CQuery&	operator=(const CQuery& inOther);
-
-	struct CQueryImp*	fImpl;
+  protected:
+	CDatabankBase&			fDb;
 };
 
-//bool Query(const std::string& inQuery, CDatabankBase& inDatabank,
-//	bool inAutoWildcard,
-//	std::vector<uint32>& outDocs, uint32& outCount,
-//	uint32 inFirstDoc = 0,
-//	uint32 inMaxDocs = std::numeric_limits<uint32>::max());
+class CMatchQueryObject : public CQueryObject
+{
+  public:
+							CMatchQueryObject(CDatabankBase& inDb,
+								const std::string& inValue,
+								const std::string& inIndex);
+							CMatchQueryObject(CDatabankBase& inDb,
+								const std::string& inValue,
+								const std::string& inRelOp,
+								const std::string& inIndex);
+
+	virtual CDocIterator*	Perform();
+
+  protected:
+	std::string				fValue;
+	std::string				fIndex;
+	CQueryOperator			fRelOp;
+	bool					fIsPattern;
+};
+
+class CNotQueryObject : public CQueryObject
+{
+  public:
+							CNotQueryObject(CDatabankBase& inDb,
+								boost::shared_ptr<CQueryObject> inChild);
+
+	virtual CDocIterator*	Perform();
+
+  private:
+	boost::shared_ptr<CQueryObject>		fChild;
+};
+
+class CUnionQueryObject : public CQueryObject
+{
+  public:
+							CUnionQueryObject(CDatabankBase& inDb,
+								boost::shared_ptr<CQueryObject> inObjectA,
+								boost::shared_ptr<CQueryObject> inObjectB);
+
+	virtual CDocIterator*	Perform();
+
+  private:
+	boost::shared_ptr<CQueryObject>		fChildA;
+	boost::shared_ptr<CQueryObject>		fChildB;
+};
+
+class CIntersectionQueryObject : public CQueryObject
+{
+  public:
+							CIntersectionQueryObject(CDatabankBase& inDb,
+								boost::shared_ptr<CQueryObject> inObjectA,
+								boost::shared_ptr<CQueryObject> inObjectB);
+
+	virtual CDocIterator*	Perform();
+
+  private:
+	boost::shared_ptr<CQueryObject>		fChildA;
+	boost::shared_ptr<CQueryObject>		fChildB;
+};
+
+class CParsedQueryObject : public CQueryObject
+{
+  public:
+							CParsedQueryObject(CDatabankBase& inDb,
+								const std::string& inQuery, bool inAutoWildcard);
+
+	virtual CDocIterator*	Perform();
+
+  private:
+	std::string				fQuery;
+	bool					fAutoWildcard;
+};
 
 #endif // CQUERY_H

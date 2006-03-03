@@ -71,12 +71,12 @@ class MBlastHsps;
 class MStringIterator;
 class MIndices;
 class MIndex;
-class MQueryObject;
+class MBooleanQuery;
 class MQueryResults;
 class MRankedQuery;
 
 struct MDatabankImp;
-struct MQueryObjectImp;
+struct MBooleanQueryImp;
 struct MQueryResultsImp;
 struct MKeysImp;
 struct MIndexImp;
@@ -149,6 +149,8 @@ class MStringIterator
 class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 {
   public:
+	static const std::string	kWildCardString;
+
 						MDatabank(const std::string& inName);
 
 	static MDatabank*	Create(const std::string& inPath);
@@ -162,6 +164,10 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 
 	MQueryResults*		Find(const std::string& inQuery, bool inAutoWildcard = true);
 
+	MBooleanQuery*		Match(const std::string& inValue, const std::string& inIndex = kWildCardString);
+	MBooleanQuery*		MatchRel(const std::string& inValue, const std::string& inRelOp, const std::string& inIndex = kWildCardString);
+
+	MBooleanQuery*		BooleanQuery(const std::string& inQuery);
 	MRankedQuery*		RankedQuery(const std::string& inIndex);
 	
 	const char*			Get(const std::string& inEntryID);
@@ -205,20 +211,25 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 						MDatabank(const std::string& inName, bool);
 };
 
-//class MQueryObject : public MRSObject<MQueryObject, struct MQueryObjectImp>
-//{
-//  public:
-//	
-//	static const std::string	kWildCardString;
-//	
-//	static MQueryObject*	Match(const std::string& inValue, const std::string& inIndex = kWildCardString);
-//	static MQueryObject*	MatchRel(const std::string& inValue, const std::string& inRelOp, const std::string& inIndex = kWildCardString);
-//	static MQueryObject*	Not(MQueryObject* inQuery);
-//	static MQueryObject*	Union(MQueryObject* inQueryA, MQueryObject* inQueryB);
-//	static MQueryObject*	Intersection(MQueryObject* inQueryA, MQueryObject* inQueryB);
-//	
-//	MQueryResults*			Find();
-//};
+class MBooleanQuery : public MRSObject<MBooleanQuery, struct MBooleanQueryImp>
+{
+	friend class MRankedQuery;
+  public:
+	
+	static MBooleanQuery*	Not(MBooleanQuery* inQuery);
+	static MBooleanQuery*	Union(MBooleanQuery* inQueryA, MBooleanQuery* inQueryB);
+	static MBooleanQuery*	Intersection(MBooleanQuery* inQueryA, MBooleanQuery* inQueryB);
+	
+	MQueryResults*			Perform();
+};
+
+class MRankedQuery : public MRSObject<MRankedQuery, struct MRankedQueryImp>
+{
+  public:
+	void				AddTerm(const std::string& inTerm, unsigned long inFrequency);
+
+	MQueryResults*		Perform(MBooleanQuery* inMetaQuery = NULL);
+};
 
 class MQueryResults : public MRSObject<MQueryResults, struct MQueryResultsImp>
 {
@@ -233,13 +244,6 @@ class MQueryResults : public MRSObject<MQueryResults, struct MQueryResultsImp>
 							unsigned long inWordSize, double inExpect, bool inFilter,
 							bool inGapped, unsigned long inGapOpen, unsigned long inGapExtend);
 #endif
-};
-
-class MRankedQuery : public MRSObject<MRankedQuery, struct MRankedQueryImp>
-{
-  public:
-	void				AddTerm(const std::string& inTerm, unsigned long inFrequency);
-	MQueryResults*		Perform();
 };
 
 class MKeys : public MRSObject<MKeys, struct MKeysImp>

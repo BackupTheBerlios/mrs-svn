@@ -45,6 +45,7 @@
 #include <typeinfo>
 
 #include "HStlLimits.h"
+#include "HUtils.h"
 
 #include "CIterator.h"
 #include "CBitStream.h"
@@ -740,3 +741,60 @@ uint32 CDbStringMatchIterator::Read() const
 		result = fIter->Read();
 	return result;
 }
+
+CDocCachedIterator::CDocCachedIterator(CDocIterator* inIterator, uint32 inCache)
+	: fIter(inIterator)
+	, fPointer(0)
+	, fCacheContainsAll(false)
+{
+	double start = system_time();
+	double kLimitTime = 0.1;		// limit to a tenth of a second
+
+	uint32 v = 0, n = 0;
+	
+	while (n++ < 1000 or start + kLimitTime > system_time())
+	{
+		if (fIter->Next(v, false))
+			fCache.push_back(v);
+		else
+		{
+			fCacheContainsAll = true;
+			break;
+		}
+	}
+}
+
+bool CDocCachedIterator::Next(uint32& ioDoc, bool inSkip)
+{
+	bool result = false;
+	
+	if (fPointer >= fCache.size() and fIter.get())
+	{
+		uint32 v = ioDoc;
+		if (fCache.size() > 0 and inSkip and fCache.back() > v)
+			v = fCache.back();
+		if (fIter->Next(v, inSkip))
+			fCache.push_back(v);
+	}
+
+	if (fPointer < fCache.size())
+	{
+		ioDoc = fCache[fPointer];
+		++fPointer;
+		result = true;
+	}
+
+	return result;
+}
+
+uint32 CDocCachedIterator::Count() const
+{
+	return fIter->Count();
+}
+
+uint32 CDocCachedIterator::Read() const
+{
+	return fIter->Read();
+}
+
+

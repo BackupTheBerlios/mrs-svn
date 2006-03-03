@@ -42,6 +42,8 @@
 
 #include "MRS_swig.h"
 
+#include <boost/shared_ptr.hpp>
+
 #include "HStlIOStream.h"
 #include <fstream>
 #include <iomanip>
@@ -123,44 +125,11 @@ struct MDatabankImp
 
 struct MQueryResultsImp
 {
-								MQueryResultsImp(CDatabankBase& inDb)
-									: fDatabank(&inDb) {}
-	virtual						~MQueryResultsImp() {}
-
-	virtual bool				Next(uint32& outDoc) = 0;
-	virtual uint32				Count(bool inExact) = 0;
-
-	CDatabankBase*				fDatabank;
-	string						fScratch;
-};
-
-struct MQueryResultsImpCQuery : public MQueryResultsImp
-{
-								MQueryResultsImpCQuery(CDatabankBase& inDb,
-										const string& inQuery, bool inAutoWildcard)
-									: MQueryResultsImp(inDb)
-									, fQuery(inQuery, inDb, inAutoWildcard) {}
-
-	virtual bool				Next(uint32& outDoc)
-								{
-									return fQuery.Next(outDoc);
-								}
-
-	virtual uint32				Count(bool inExact)
-								{
-									return fQuery.Count(inExact);
-								}
-
-  private:
-	CQuery						fQuery;
-};
-
-struct MQueryResultsImpCDocIterator : public MQueryResultsImp
-{
-								MQueryResultsImpCDocIterator(CDatabankBase& inDb,
+								MQueryResultsImp(CDatabankBase& inDb,
 										CDocIterator* inDocIterator)
-									: MQueryResultsImp(inDb)
+									: fDatabank(&inDb) 
 									, fIter(inDocIterator) {}
+	virtual						~MQueryResultsImp() {}
 
 	virtual bool				Next(uint32& outDoc)
 								{
@@ -172,7 +141,9 @@ struct MQueryResultsImpCDocIterator : public MQueryResultsImp
 									return fIter->Count();
 								}
 
-  private:
+	CDatabankBase*				fDatabank;
+	string						fScratch;
+
 	auto_ptr<CDocIterator>		fIter;
 };
 
@@ -279,6 +250,18 @@ struct MBlastHspsImp
 
 // ---------------------------------------------------------------------------
 //
+//  struct MBooleanQueryImp
+//
+
+struct MBooleanQueryImp
+{
+	CDatabankBase*				fDatabank;
+	boost::shared_ptr<CQueryObject>
+								fQuery;
+};
+
+// ---------------------------------------------------------------------------
+//
 //  struct MRankedQueryImp
 //
 
@@ -293,6 +276,8 @@ struct MRankedQueryImp
 //
 //  class MDatabank and struct MDatabankImp
 //
+
+const string MDatabank::kWildCardString = "*";
 
 MDatabankImp::MDatabankImp(const string& inDatabank, bool inNew)
 {
@@ -479,9 +464,28 @@ long MDatabank::CountForKey(const string& inIndex, const string& inKey) const
 	return fImpl->fDatabank->CountDocumentsContainingKey(inIndex, inKey);
 }
 
+MBooleanQuery* MDatabank::Match(const std::string& inValue, const std::string& inIndex)
+{
+	auto_ptr<MBooleanQueryImp> imp(new MBooleanQueryImp);
+	imp->fDatabank = fImpl->fDatabank.get();
+	imp->fQuery.reset(new CMatchQueryObject(*imp->fDatabank, inValue, inIndex));
+	return MBooleanQuery::Create(imp.release());
+}
+
+MBooleanQuery* MDatabank::MatchRel(const std::string& inValue, const std::string& inRelOp, const std::string& inIndex)
+{
+	auto_ptr<MBooleanQueryImp> imp(new MBooleanQueryImp);
+	imp->fDatabank = fImpl->fDatabank.get();
+	imp->fQuery.reset(new CMatchQueryObject(*imp->fDatabank, inValue, inRelOp, inIndex));
+	return MBooleanQuery::Create(imp.release());
+}
+
 MQueryResults* MDatabank::Find(const string& inQuery, bool inAutoWildcard)
 {
-	auto_ptr<MQueryResultsImp> imp(new MQueryResultsImpCQuery(*fImpl->fDatabank, inQuery, inAutoWildcard));
+	auto_ptr<CParsedQueryObject> parser(
+		new CParsedQueryObject(*fImpl->fDatabank, inQuery, inAutoWildcard));
+	
+	auto_ptr<MQueryResultsImp> imp(new MQueryResultsImp(*fImpl->fDatabank, parser->Perform()));
 	MQueryResults* result = NULL;
 
 	if (imp->Count(false) > 0)
@@ -684,6 +688,14 @@ void MDatabank::CreateDictionary(std::string inIndices, long inMinOccurrence, lo
 	indices.push_back(inIndices);
 	
 	fImpl->GetDB()->CreateDictionaryForIndexes(indices, inMinOccurrence, inMinWordLength);
+}
+
+MBooleanQuery* MDatabank::BooleanQuery(const string& inQuery)
+{
+	auto_ptr<MBooleanQueryImp> imp(new MBooleanQueryImp);
+	imp->fDatabank = fImpl->fDatabank.get();
+	imp->fQuery.reset(new CParsedQueryObject(*fImpl->fDatabank, inQuery, false));
+	return MBooleanQuery::Create(imp.release());
 }
 
 MRankedQuery* MDatabank::RankedQuery(const string& inIndex)
@@ -976,6 +988,57 @@ MBlastHsp* MBlastHsps::Next()
 }
 #endif
 
+// ---------------------------------------------------------------------------
+//
+//  class MBooleanQuery
+//
+
+MBooleanQuery* MBooleanQuery::Not(MBooleanQuery* inQuery)
+{
+	auto_ptr<MBooleanQueryImp> imp(new MBooleanQueryImp);
+	imp->fDatabank = inQuery->fImpl->fDatabank;
+	imp->fQuery.reset(new CNotQueryObject(*imp->fDatabank, inQuery->fImpl->fQuery));
+	return MBooleanQuery::Create(imp.release());
+}
+
+MBooleanQuery* MBooleanQuery::Union(MBooleanQuery* inQueryA, MBooleanQuery* inQueryB)
+{
+	auto_ptr<MBooleanQueryImp> imp(new MBooleanQueryImp);
+
+	if (inQueryA->fImpl->fDatabank != inQueryB->fImpl->fDatabank)
+		THROW(("Databanks should be the same for union boolean query objects"));
+
+	imp->fDatabank = inQueryA->fImpl->fDatabank;
+	imp->fQuery.reset(new CUnionQueryObject(*imp->fDatabank,
+		inQueryA->fImpl->fQuery, inQueryB->fImpl->fQuery));
+	return MBooleanQuery::Create(imp.release());
+}
+
+MBooleanQuery* MBooleanQuery::Intersection(MBooleanQuery* inQueryA, MBooleanQuery* inQueryB)
+{
+	auto_ptr<MBooleanQueryImp> imp(new MBooleanQueryImp);
+
+	if (inQueryA->fImpl->fDatabank != inQueryB->fImpl->fDatabank)
+		THROW(("Databanks should be the same for intersection boolean query objects"));
+
+	imp->fDatabank = inQueryA->fImpl->fDatabank;
+	imp->fQuery.reset(new CIntersectionQueryObject(*imp->fDatabank,
+		inQueryA->fImpl->fQuery, inQueryB->fImpl->fQuery));
+	return MBooleanQuery::Create(imp.release());
+}
+
+MQueryResults* MBooleanQuery::Perform()
+{
+	auto_ptr<MQueryResultsImp> imp(
+		new MQueryResultsImp(*fImpl->fDatabank, fImpl->fQuery->Perform()));
+
+	MQueryResults* result = NULL;
+
+	if (imp->Count(false) > 0)
+		result = MQueryResults::Create(imp.release());
+
+	return result;
+}
 
 // ---------------------------------------------------------------------------
 //
@@ -987,12 +1050,15 @@ void MRankedQuery::AddTerm(const std::string& inTerm, unsigned long inFrequency)
 	fImpl->fQuery->AddTerm(inTerm, inFrequency);
 }
 
-MQueryResults* MRankedQuery::Perform()
+MQueryResults* MRankedQuery::Perform(MBooleanQuery* inMetaQuery)
 {
+	auto_ptr<CDocIterator> metaDocs;
+	if (inMetaQuery != nil)
+		metaDocs.reset(inMetaQuery->fImpl->fQuery->Perform());
+	
 	auto_ptr<MQueryResultsImp> imp(
-		new MQueryResultsImpCDocIterator(
-			*fImpl->fDatabank,
-			fImpl->fQuery->PerformSearch(*fImpl->fDatabank, fImpl->fIndex)));
+		new MQueryResultsImp(*fImpl->fDatabank, fImpl->fQuery->PerformSearch(
+			*fImpl->fDatabank, fImpl->fIndex, metaDocs.release())));
 
 	MQueryResults* result = NULL;
 
@@ -1000,7 +1066,6 @@ MQueryResults* MRankedQuery::Perform()
 		result = MQueryResults::Create(imp.release());
 
 	return result;
-	
 }
 
 #pragma export off

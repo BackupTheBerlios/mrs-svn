@@ -80,26 +80,30 @@ struct CQueryImp
 {
   public:
 							CQueryImp(
-								const string&	inQuery,
 								CDatabankBase&	inDatabank,
+								const string&	inQuery,
 								bool 			inAutoWildcard);
+							CQueryImp(
+								CDatabankBase&	inDatabank);
 							~CQueryImp();
 
-	bool					Parse();
-	bool					Next(uint32& outDoc);
-	uint32					Skip(uint32 inNrDocs);
-	void					Rewind();
-//	void					Fetch(vector<uint32>& outDocs, uint32 inFetchLimit);
-	uint32					GuessCount() const;
-	uint32					Count();
-	void					GetAll(vector<uint32>& outDocNrs);
-	
-	uint32					Complexity() const;
+	CDocIterator*			Build(const string& inIndex, const string& inValue,
+								CQueryOperator inRelOp);
+
+	CDocIterator*			Parse();
+//	uint32					Skip(uint32 inNrDocs);
+//	uint32					GuessCount() const;
+//	uint32					Count();
+//	void					GetAll(vector<uint32>& outDocNrs);
+//	
+//	uint32					Complexity() const;
 	
 	CDatabankBase&			GetDatabank() const		{ return fDatabank; }
 
   private:
 	
+	void					GetIndexNames();
+
 	// tokenizer
 	
 	void					Match(CQueryToken inToken);
@@ -134,133 +138,93 @@ struct CQueryImp
 	vector<string>			fIndexNames;
 	HStreamBase*			fData;
 	vector<uint32>			fDocs;
-	uint32					fCurrent;
-	HAutoPtr<CDocIterator>	fIterator;
 	bool					fAutoWildcard;
-	bool					fDocsContainsAll;
 };
 
-CQueryImp::CQueryImp(const string& inQuery, CDatabankBase& inDatabank,
+CQueryImp::CQueryImp(CDatabankBase& inDatabank, const string& inQuery,
 		bool inAutoWildcard)
 	: fQuery(inQuery)
 	, fDatabank(inDatabank)
 	, fOffset(0)
 	, fTokenOffset(0)
-	, fCurrent(0)
-	, fIterator(nil)
 	, fAutoWildcard(inAutoWildcard)
-	, fDocsContainsAll(false)
 {
-//	inDatabank.GetIndexNames(fIndexNames);
-	for (uint32 n = 0; n < inDatabank.GetIndexCount(); ++n)
-	{
-		string code, type;
-		uint32 count;
-		
-		inDatabank.GetIndexInfo(n, code, type, count);
-		fIndexNames.push_back(code);
-	}
+	GetIndexNames();
+}
+
+CQueryImp::CQueryImp(CDatabankBase& inDatabank)
+	: fDatabank(inDatabank)
+{
+	GetIndexNames();
 }
 
 CQueryImp::~CQueryImp()
 {
 }
 
-bool CQueryImp::Parse()
+void CQueryImp::GetIndexNames()
 {
-	fCurrent = 0;
+	for (uint32 n = 0; n < fDatabank.GetIndexCount(); ++n)
+	{
+		string code, type;
+		uint32 count;
+		
+		fDatabank.GetIndexInfo(n, code, type, count);
+		fIndexNames.push_back(code);
+	}
+}
+
+CDocIterator* CQueryImp::Build(const string& inIndex,
+	const string& inValue, CQueryOperator inRelOp)
+{
+	CDocIterator* result;
+
+	if (inIndex == "*")
+		result = IteratorForTerm(inIndex, inValue, inValue.find('*') != string::npos or inValue.find('?') != string::npos);
+	else
+		result = IteratorForOperator(inIndex, inValue, inRelOp);
+	
+	return result;
+}
+
+CDocIterator* CQueryImp::Parse()
+{
+	auto_ptr<CDocIterator> result;
 
 	// shortcut
 	if (fQuery == "*")
-	{
-		fIterator.reset(new CDbAllDocIterator(fDatabank.Count()));
-		return true;
-	}
-	
-	bool result = false;
-	try
+		result.reset(new CDbAllDocIterator(fDatabank.Count()));
+	else
 	{
 		fLookahead = GetNextToken();
-		fIterator.reset(Parse_Query());
+		result.reset(Parse_Query());
 		
-		if (fIterator.get() == nil)
-			return false;
+		if (result.get() == nil)
+			THROW(("Failed to parse query"));
 		
 		// here we fetch the first 1000 or so doc Id's
 		// for this query.
 		// this is to limit extreme slow searches
 
-		double start = system_time();
-		double kLimitTime = 0.1;		// limit to a tenth of a second
-
-		uint32 v = 0, n = 0;
-		fDocsContainsAll = false;
-		
-		while (n++ < 1000 or start + kLimitTime > system_time())
-		{
-			if (fIterator->Next(v, false))
-				fDocs.push_back(v);
-			else
-			{
-				fDocsContainsAll = true;
-				break;
-			}
-		}
-		
-		result = true;
-	}
-	catch (exception& e)
-	{
-		fIterator.reset(nil);
-		
-		DisplayError(e);
-		throw;
+		result.reset(new CDocCachedIterator(result.release(), 1000));
 	}
 
-	return result;
+	return result.release();
 }
 
-bool CQueryImp::Next(uint32& outDoc)
-{
-	bool result = false;
-	
-	if (fCurrent >= fDocs.size() and fIterator.get())
-	{
-		uint32 v = 0;
-		if (fDocs.size() > 0)
-			v = fDocs.back();
-		if (fIterator->Next(v, false))
-			fDocs.push_back(v);
-	}
-
-	if (fCurrent < fDocs.size())
-	{
-		outDoc = fDocs[fCurrent];
-		++fCurrent;
-		result = true;
-	}
-
-	return result;
-}
-
-uint32 CQueryImp::Skip(uint32 inNrDocs)
-{
-	uint32 skip = inNrDocs;
-
-	if (fCurrent >= fDocs.size())
-		skip = 0;
-	else if (skip > fDocs.size() - fCurrent)
-		skip = fDocs.size() - fCurrent;
-	
-	fCurrent += skip;
-
-	return skip;
-}
-
-void CQueryImp::Rewind()
-{
-	fCurrent = 0;
-}
+//uint32 CQueryImp::Skip(uint32 inNrDocs)
+//{
+//	uint32 skip = inNrDocs;
+//
+//	if (fCurrent >= fDocs.size())
+//		skip = 0;
+//	else if (skip > fDocs.size() - fCurrent)
+//		skip = fDocs.size() - fCurrent;
+//	
+//	fCurrent += skip;
+//
+//	return skip;
+//}
 
 template<class T>
 basic_ostream<T>& operator<<(basic_ostream<T>& os, CQueryToken inToken)
@@ -800,99 +764,99 @@ CQueryImp::IteratorForString(const string& inIndex, const string& inString)
 	return new CDbStringMatchIterator(fDatabank, stringWords, result);
 }
 
-uint32 CQueryImp::GuessCount() const
-{
-	uint32 result = fDocs.size();
-
-	if (not fDocsContainsAll and fIterator.get())
-	{
-		result = fIterator->Count();
-	}
-	
-	return result;
-}
-
-uint32 CQueryImp::Count()
-{
-	if (not fDocsContainsAll and fIterator.get())
-	{
-		uint32 v = 0;
-
-		if (fDocs.size() > 0)
-			v = fDocs.back();
-
-		while (fIterator->Next(v, false))
-			fDocs.push_back(v);
-
-		fDocsContainsAll = true;
-	}
-	
-	return fDocs.size();
-}
-
-void CQueryImp::GetAll(vector<uint32>& outDocNrs)
-{
-	Count();
-	outDocNrs = fDocs;
-}
-
-uint32 CQueryImp::Complexity() const
-{
-	uint32 result = 0;
-//	if (fResult)
-//		result = fResult->Complexity();
-	return result;
-}
+//uint32 CQueryImp::GuessCount() const
+//{
+//	uint32 result = fDocs.size();
+//
+//	if (not fDocsContainsAll and fIterator.get())
+//	{
+//		result = fIterator->Count();
+//	}
+//	
+//	return result;
+//}
+//
+//uint32 CQueryImp::Count()
+//{
+//	if (not fDocsContainsAll and fIterator.get())
+//	{
+//		uint32 v = 0;
+//
+//		if (fDocs.size() > 0)
+//			v = fDocs.back();
+//
+//		while (fIterator->Next(v, false))
+//			fDocs.push_back(v);
+//
+//		fDocsContainsAll = true;
+//	}
+//	
+//	return fDocs.size();
+//}
+//
+//void CQueryImp::GetAll(vector<uint32>& outDocNrs)
+//{
+//	Count();
+//	outDocNrs = fDocs;
+//}
+//
+//uint32 CQueryImp::Complexity() const
+//{
+//	uint32 result = 0;
+////	if (fResult)
+////		result = fResult->Complexity();
+//	return result;
+//}
 
 // CQuery
 
-CQuery::CQuery(const string& inQuery, CDatabankBase& inDatabank,
-				bool inAutoWildcard)
-{
-	fImpl = new CQueryImp(inQuery, inDatabank, inAutoWildcard);
-	fImpl->Parse();
-}
-
-CQuery::~CQuery()
-{
-}
-
-bool CQuery::Next(uint32& outDoc)
-{
-	return fImpl->Next(outDoc);
-}
-
-void CQuery::Skip(uint32 inNrOfDocs)
-{
-	fImpl->Skip(inNrOfDocs);
-}
-
-void CQuery::Rewind()
-{
-	fImpl->Rewind();
-}
-
-uint32 CQuery::Count(bool inExact) const
-{
-	uint32 result;
-
-	if (inExact)
-		result = fImpl->Count();
-	else
-		result = fImpl->GuessCount();
-
-	return result;
-}
-
-void CQuery::GetAll(vector<uint32>& outDocNrs)
-{
-	fImpl->GetAll(outDocNrs);
-}
-
-CDatabankBase& CQuery::GetDatabank()
-{
-	return fImpl->GetDatabank();
-}
+//CQuery::CQuery(const string& inQuery, CDatabankBase& inDatabank,
+//				bool inAutoWildcard)
+//{
+//	fImpl = new CQueryImp(inQuery, inDatabank, inAutoWildcard);
+//	fImpl->Parse();
+//}
+//
+//CQuery::~CQuery()
+//{
+//}
+//
+//bool CQuery::Next(uint32& outDoc)
+//{
+//	return fImpl->Next(outDoc);
+//}
+//
+//void CQuery::Skip(uint32 inNrOfDocs)
+//{
+//	fImpl->Skip(inNrOfDocs);
+//}
+//
+//void CQuery::Rewind()
+//{
+//	fImpl->Rewind();
+//}
+//
+//uint32 CQuery::Count(bool inExact) const
+//{
+//	uint32 result;
+//
+//	if (inExact)
+//		result = fImpl->Count();
+//	else
+//		result = fImpl->GuessCount();
+//
+//	return result;
+//}
+//
+//void CQuery::GetAll(vector<uint32>& outDocNrs)
+//{
+//	fImpl->GetAll(outDocNrs);
+//}
+//
+//CDatabankBase& CQuery::GetDatabank()
+//{
+//	return fImpl->GetDatabank();
+//}
 
 //// Query function
 //
@@ -922,3 +886,106 @@ CDatabankBase& CQuery::GetDatabank()
 //	
 //	return result;
 //}
+
+// ----------------------------------------------------------------------------
+//
+//	QueryObject support
+//
+
+CMatchQueryObject::CMatchQueryObject(CDatabankBase& inDb,
+		const string& inValue, const string& inIndex)
+	: CQueryObject(inDb)
+	, fValue(inValue)
+	, fIndex(inIndex)
+	, fRelOp(kOpEqual)
+	, fIsPattern(inValue.find('*') != string::npos or inValue.find('?') != string::npos)
+{
+}
+
+CMatchQueryObject::CMatchQueryObject(CDatabankBase& inDb,
+		const string& inValue, const string& inRelOp, const string& inIndex)
+	: CQueryObject(inDb)
+	, fValue(inValue)
+	, fIndex(inIndex)
+	, fIsPattern(inValue.find('*') != string::npos or inValue.find('?') != string::npos)
+{
+	if (inRelOp == ":")
+		fRelOp = kOpEqual;
+	else if (inRelOp == "=" or inRelOp == "==")
+		fRelOp = kOpEquals;
+	else if (inRelOp == "<")
+		fRelOp = kOpLessThan;
+	else if (inRelOp == "<=")
+		fRelOp = kOpLessEqual;
+	else if (inRelOp == ">")
+		fRelOp = kOpGreaterThan;
+	else if (inRelOp == ">=")
+		fRelOp = kOpGreaterEqual;
+	else
+		THROW(("Unknown relational operator '%s'", inRelOp.c_str()));
+}
+
+CDocIterator* CMatchQueryObject::Perform()
+{
+	CQueryImp parser(fDb);
+	return parser.Build(fIndex, fValue, fRelOp);
+}
+
+// CNotQueryObject
+
+CNotQueryObject::CNotQueryObject(CDatabankBase& inDb, boost::shared_ptr<CQueryObject> inChild)
+	: CQueryObject(inDb)
+	, fChild(inChild)
+{
+}
+
+CDocIterator* CNotQueryObject::Perform()
+{
+	return new CDocNotIterator(fChild->Perform(), fDb.Count()); 
+}
+
+// CUnionQueryObject
+
+CUnionQueryObject::CUnionQueryObject(CDatabankBase& inDb,
+		boost::shared_ptr<CQueryObject> inObjectA, boost::shared_ptr<CQueryObject> inObjectB)
+	: CQueryObject(inDb)
+	, fChildA(inObjectA)
+	, fChildB(inObjectB)
+{
+}
+
+CDocIterator* CUnionQueryObject::Perform()
+{
+	return CDocUnionIterator::Create(fChildA->Perform(), fChildB->Perform());
+}
+
+// CIntersectionQueryObject
+
+CIntersectionQueryObject::CIntersectionQueryObject(CDatabankBase& inDb,
+		boost::shared_ptr<CQueryObject> inObjectA, boost::shared_ptr<CQueryObject> inObjectB)
+	: CQueryObject(inDb)
+	, fChildA(inObjectA)
+	, fChildB(inObjectB)
+{
+}
+
+CDocIterator* CIntersectionQueryObject::Perform()
+{
+	return new CDocIntersectionIterator(fChildA->Perform(), fChildB->Perform());
+}
+
+// CParsedQueryObject
+
+CParsedQueryObject::CParsedQueryObject(CDatabankBase& inDb,
+		const string& inQuery, bool inAutoWildcard)
+	: CQueryObject(inDb)
+	, fQuery(inQuery)
+	, fAutoWildcard(inAutoWildcard)
+{
+}
+
+CDocIterator* CParsedQueryObject::Perform()
+{
+	CQueryImp parser(fDb, fQuery, fAutoWildcard);
+	return parser.Parse();
+}

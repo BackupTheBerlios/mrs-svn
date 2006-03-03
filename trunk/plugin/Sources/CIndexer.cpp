@@ -1009,12 +1009,6 @@ void CTextIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 				docs.push_back(make_pair(docNr, weight));
 			}
 
-//#if P_DEBUG
-//			cout << fFullTextIndex.Lookup(inTerm) << ": ";
-//			for (uint32 d = 0; d < fDocCount; ++d)
-//				cout << docs[d].first << '-' << static_cast<uint32>(docs[d].second) << ' ';
-//			cout << endl;
-//#endif
 			CompressArray(docBits, docs, inDocCount);
 		}
 		else

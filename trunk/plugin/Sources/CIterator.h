@@ -345,6 +345,23 @@ class CDbAllDocIterator : public CDocIterator
 	uint32			fMaxDocNr;
 };
 
+// cached iterator, fetch the first N documents to speed up boolean searches
+class CDocCachedIterator : public CDocIterator
+{
+  public:
+					CDocCachedIterator(CDocIterator* inIterator, uint32 inCache = 1000);
+
+	virtual bool	Next(uint32& ioDoc, bool inSkip);
+	virtual uint32	Count() const;
+	virtual uint32	Read() const;
+
+  private:
+	std::auto_ptr<CDocIterator>		fIter;
+	std::vector<uint32>				fCache;
+	uint32							fPointer;
+	bool							fCacheContainsAll;
+};
+
 class CDbStringMatchIterator : public CDocIterator
 {
   public:

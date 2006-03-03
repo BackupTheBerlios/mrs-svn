@@ -667,6 +667,9 @@ CIndex::iterator CIndexImp::End()
 
 void CIndexImp::LowerBoundImp(const string& inKey, uint32 inPage, uint32& outPage, uint32& outIndex)
 {
+	if (inPage == 0)
+		return;
+
 	const CIndexPage p(fFile, fBaseOffset, inPage);
 	const COnDiskData& data = p.GetData();
 	bool found = false;
@@ -716,10 +719,14 @@ void CIndexImp::LowerBoundImp(const string& inKey, uint32 inPage, uint32& outPag
 			outIndex = static_cast<uint32>(R + 1);
 		}
 		
+		uint32 p;
 		if (R >= 0)
-			LowerBoundImp(inKey, data.e[-R].p, outPage, outIndex);
+			p = data.e[-R].p;
 		else
-			LowerBoundImp(inKey, data.p0, outPage, outIndex);
+			p = data.p0;
+
+		if (p != 0)
+			LowerBoundImp(inKey, p, outPage, outIndex);
 	}
 }
 

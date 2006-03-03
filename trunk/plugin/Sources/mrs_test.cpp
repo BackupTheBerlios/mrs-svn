@@ -126,12 +126,12 @@ int main(int argc, const char* argv[])
 {
 	// scan the options
 
-	string db, mrs_query;
+	string db, mrs_query, match;
 	ofstream of;
 	streambuf* outBuf = NULL;
 
 	int c;
-	while ((c = getopt(argc, const_cast<char**>(argv), "d:o:ve:f:s:")) != -1)
+	while ((c = getopt(argc, const_cast<char**>(argv), "d:o:ve:f:s:m:")) != -1)
 	{
 		switch (c)
 		{
@@ -145,6 +145,10 @@ int main(int argc, const char* argv[])
 
 			case 'v':
 				++VERBOSE;
+				break;
+
+			case 'm':
+				match = optarg;
 				break;
 
 			case 'o':
@@ -196,7 +200,11 @@ int main(int argc, const char* argv[])
 	for (vector<pair<string,float> >::iterator t = fp.begin(); t != fp.end(); ++t)
 		q->AddTerm(t->first, static_cast<unsigned long>(t->second / minF));
 	
-	auto_ptr<MQueryResults> r(q->Perform());
+	auto_ptr<MBooleanQuery> m;
+	if (match.length())
+			m.reset(mrsDb.BooleanQuery(match));
+
+	auto_ptr<MQueryResults> r(q->Perform(m.get()));
 
 	while (const char* id = r->Next())
 		cout << id << endl;
