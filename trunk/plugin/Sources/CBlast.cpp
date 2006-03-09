@@ -1,4 +1,4 @@
-/*	$Id: CBlast.cpp,v 1.32 2005/11/07 13:54:32 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Monday May 30 2005 15:51:00
 */
@@ -1449,11 +1449,11 @@ bool CBlastQuery<WordSize>::Test(uint32 inDocNr, const CSequence& inTarget)
 class CBlastThread : public CThread
 {
   public:
-								CBlastThread(CBlastQueryBase& inBlastQuery, CQuery& inDb,
-										CMutex& inMutex)
+								CBlastThread(CBlastQueryBase& inBlastQuery, CDatabankBase& inDb,
+										CDocIterator& inIter, CMutex& inMutex)
 									: mBlastQuery(inBlastQuery)
-									, mQuery(inDb)
-									, mDb(inDb.GetDatabank())
+									, mIter(inIter)
+									, mDb(inDb)
 									, mLock(inMutex)
 								{
 									sModulo = mDb.GetBlastDbCount() / 70;
@@ -1469,7 +1469,7 @@ class CBlastThread : public CThread
 	bool						Next(uint32& outDocNr, vector<CSequence>& outTargets);
 
 	CBlastQueryBase&			mBlastQuery;
-	CQuery&						mQuery;
+	CDocIterator&				mIter;
 	CDatabankBase&				mDb;
 	static uint32				sRead;	// for the counter
 	static uint32				sModulo;
@@ -1512,7 +1512,7 @@ bool CBlastThread::Next(uint32& outDocNr, vector<CSequence>& outTargets)
 
 	if (mLock.Wait())
 	{
-		while (mQuery.Next(outDocNr))
+		while (mIter.Next(outDocNr, false))
 		{
 			uint32 seqCount = mDb.CountSequencesForDocument(outDocNr);
 			
@@ -1585,11 +1585,9 @@ CBlast::~CBlast()
 	delete mImpl;
 }
 
-bool CBlast::Find(CQuery& inDb)
+bool CBlast::Find(CDatabankBase& inDb, CDocIterator& inIter)
 {
-	CDatabankBase& db(inDb.GetDatabank());
-	
-	inDb.Rewind();
+//	inIter.Rewind();
 
 	WordHitIteratorBase<2>::WordHitIteratorStaticData whiStaticData2;
 	WordHitIteratorBase<3>::WordHitIteratorStaticData whiStaticData3;
@@ -1602,7 +1600,7 @@ bool CBlast::Find(CQuery& inDb)
 			
 			mImpl->mBlastQuery.reset(
 				new CBlastQuery<2>(mImpl->mQuery, mImpl->mMatrix, whiStaticData2, mImpl->mExpect, mImpl->mGapped,
-					db.GetBlastDbLength(), db.GetBlastDbCount()));
+					inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
 			break;
 		
 		case 3:
@@ -1610,7 +1608,7 @@ bool CBlast::Find(CQuery& inDb)
 			
 			mImpl->mBlastQuery.reset(
 				new CBlastQuery<3>(mImpl->mQuery, mImpl->mMatrix, whiStaticData3, mImpl->mExpect, mImpl->mGapped,
-					db.GetBlastDbLength(), db.GetBlastDbCount()));
+					inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
 			break;
 		
 		case 4:
@@ -1618,14 +1616,14 @@ bool CBlast::Find(CQuery& inDb)
 			
 			mImpl->mBlastQuery.reset(
 				new CBlastQuery<4>(mImpl->mQuery, mImpl->mMatrix, whiStaticData4, mImpl->mExpect, mImpl->mGapped,
-					db.GetBlastDbLength(), db.GetBlastDbCount()));
+					inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
 			break;
 		
 		default:
 			THROW(("Unsupported word size: %d", mImpl->mWordSize));
 	}
 
-	mImpl->mDb = &db;
+	mImpl->mDb = &inDb;
 
 	if (THREADS > 1)
 	{
@@ -1643,25 +1641,25 @@ bool CBlast::Find(CQuery& inDb)
 				case 2:
 					queries.push_back(
 						new CBlastQuery<2>(mImpl->mQuery, mImpl->mMatrix, whiStaticData2, mImpl->mExpect, mImpl->mGapped,
-							db.GetBlastDbLength(), db.GetBlastDbCount()));
+							inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
 					break;
 				
 				case 3:
 					queries.push_back(
 						new CBlastQuery<3>(mImpl->mQuery, mImpl->mMatrix, whiStaticData3, mImpl->mExpect, mImpl->mGapped,
-							db.GetBlastDbLength(), db.GetBlastDbCount()));
+							inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
 					break;
 				
 				case 4:
 					queries.push_back(
 						new CBlastQuery<4>(mImpl->mQuery, mImpl->mMatrix, whiStaticData4, mImpl->mExpect, mImpl->mGapped,
-							db.GetBlastDbLength(), db.GetBlastDbCount()));
+							inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
 					break;
 			}
 
 //			queries.push_back(new CBlastQuery<3>(mImpl->mQuery, mImpl->mMatrix, whiStaticData,
-//				db.GetBlastDbLength(), db.GetBlastDbCount()));
-			threads.push_back(new CBlastThread(*queries.back(), inDb, lock));
+//				inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
+			threads.push_back(new CBlastThread(*queries.back(), inDb, inIter, lock));
 			
 			threads.back()->Start();
 		}
@@ -1678,12 +1676,12 @@ bool CBlast::Find(CQuery& inDb)
 	}
 	else
 	{
-		uint32 modulo = db.GetBlastDbCount() / 70;
+		uint32 modulo = inDb.GetBlastDbCount() / 70;
 		uint32 n = 0;
 	
 		uint32 docNr;
 	
-		while (inDb.Next(docNr))
+		while (inIter.Next(docNr, false))
 		{
 			if (VERBOSE and ++n % modulo == 0)
 			{
@@ -1693,10 +1691,10 @@ bool CBlast::Find(CQuery& inDb)
 	
 			CSequence target;
 			
-			uint32 seqCount = db.CountSequencesForDocument(docNr);
+			uint32 seqCount = inDb.CountSequencesForDocument(docNr);
 			for (uint32 s = 0; s < seqCount; ++s)
 			{
-				db.GetSequence(docNr, s, target);
+				inDb.GetSequence(docNr, s, target);
 				mImpl->mBlastQuery->Test(docNr, target);
 			}
 		}
@@ -1707,7 +1705,7 @@ bool CBlast::Find(CQuery& inDb)
 	if (VERBOSE)
 		cerr << endl;
 	
-	mImpl->mBlastQuery->SortHits(db);
+	mImpl->mBlastQuery->SortHits(inDb);
 	
 //	return mImpl->mBlastQuery->mSequenceCount > 0;
 	return true;

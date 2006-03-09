@@ -198,12 +198,11 @@ Sources = \
 	./Lib/Generic/HUtils.cpp \
 	./Lib/Posix/HUnixFile.cpp \
 	./Lib/Posix/HUnixUtils.cpp \
-	./Lib/loki/SmallObj.cpp
-
-#	./Sources/CBlast.cpp \
-#	./Sources/CBlastIndex.cpp \
-#	./Sources/CMatrix.cpp \
-#	./Sources/CNCBI.cpp \
+	./Lib/loki/SmallObj.cpp \
+	./Sources/CBlast.cpp \
+	./Sources/CBlastIndex.cpp \
+	./Sources/CMatrix.cpp \
+	./Sources/CNCBI.cpp \
 
 define SOURCES
 	$(Sources)

@@ -547,11 +547,12 @@ MBlastHits* MDatabank::Blast(const string& inQuery, const std::string& inMatrix,
 {
 	MBlastHits* result = nil;
 	
-	CQuery query("*", *fImpl->fDatabank, false);
+	auto_ptr<CDocIterator> iter(new CDbAllDocIterator(fImpl->fDatabank->Count()));
+	
 	auto_ptr<MBlastHitsImp> impl(new MBlastHitsImp(inQuery, inMatrix,
 		inWordSize, inExpect, inFilter, inGapped, inGapOpen, inGapExtend));
 	
-	if (impl->fBlast.Find(query))
+	if (impl->fBlast.Find(*fImpl->fDatabank, *iter))
 	{
 		impl->fHits.reset(new CBlastHitIterator(impl->fBlast.Hits()));
 		result = MBlastHits::Create(impl.release());
@@ -768,7 +769,7 @@ MBlastHits* MQueryResults::Blast(const string& inQuery, const std::string& inMat
 	auto_ptr<MBlastHitsImp> impl(new MBlastHitsImp(inQuery, inMatrix, inWordSize,
 		inExpect, inFilter, inGapped, inGapOpen, inGapExtend));
 	
-	if (impl->fBlast.Find(fImpl->fQuery))
+	if (impl->fBlast.Find(*fImpl->fDatabank, *fImpl->fIter))
 	{
 		impl->fHits.reset(new CBlastHitIterator(impl->fBlast.Hits()));
 		result = MBlastHits::Create(impl.release());

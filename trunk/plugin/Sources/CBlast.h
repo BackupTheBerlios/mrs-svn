@@ -1,4 +1,4 @@
-/*	$Id: CBlast.h,v 1.6 2005/10/11 13:17:30 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Monday May 30 2005 15:50:21
 */
@@ -44,7 +44,8 @@
 
 #ifndef NO_BLAST
 
-class CQuery;
+class CDatabank;
+class CDocIterator;
 class CBlastQueryBase;
 
 struct CBlastHspIterator
@@ -106,7 +107,7 @@ class CBlast
 	virtual				~CBlast();
 	
 
-	bool				Find(CQuery& inDb);
+	bool				Find(CDatabankBase& inDb, CDocIterator& inIter);
 	
 	std::string			ReportInXML();
 

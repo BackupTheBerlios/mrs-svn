@@ -1,4 +1,4 @@
-#!C:\Perl\bin\Perl.exe -w -IC:\Development\mrs\web-simple\cgi-bin\
+#!/usr/bin/perl -w
 #
 # $Id: mrs.cgi,v 1.36 2005/10/27 10:59:11 maarten Exp $
 #
@@ -107,7 +107,8 @@ my %index_types = (
 	'text' => 'Text',
 	'date' => 'Date',
 	'valu' => 'Value',
-	'nmbr' => 'Number'
+	'nmbr' => 'Number',
+	'wtxt' => 'Weighted'
 );
 
 &main();
