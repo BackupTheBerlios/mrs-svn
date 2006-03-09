@@ -1,4 +1,4 @@
-#!/usr/pkg/bin/perl -w
+#!C:\Perl\bin\Perl.exe -w -IC:\Development\mrs\web-simple\cgi-bin\
 #
 # $Id: mrs.cgi,v 1.36 2005/10/27 10:59:11 maarten Exp $
 #
@@ -175,6 +175,12 @@ sub printEntryHeader
 			-value=>"Blast",
 			-class=>'submit',
 			-onClick=>"window.location = '$base_url/cgi-bin/mrs-blast.cgi?db=$db_esc&id=$id';"
+		),
+		$q->button(
+			-name=>'similar',
+			-value=>"Find Similar",
+			-class=>'submit',
+			-onClick=>"window.location = '$base_url/cgi-bin/mrs.cgi?db=$db_esc&id=$id&similar=1';"
 		),
 	]);
 
@@ -354,15 +360,102 @@ sub printListHeader
 	print $q->div({-class=>'nav'}, $q->ul(@btns));
 }
 
+sub doFind
+{
+	my ($db, $dbo, $query, $mode) = @_;
+	
+	my $i;
+	
+	if ($mode == 1) {		# wildcard search
+		$i = $dbo->Find($query, 1);
+	}
+	elsif ($mode == 2) {	# strict boolean
+		$i = $dbo->Find($query, 0);
+	}
+	elsif ($mode == 4) {	# find similar
+
+		my $text = $dbo->Get($query) or die "$db:$query not found";
+		$text = Format::pre(&Filter($db), $q, $text, $query);
+		
+		my $rq = $dbo->RankedQuery('*alltext*');
+		
+		local($/) = undef;
+		$text =~ s/<.*?>//sgo;
+		
+		my %terms;
+		
+		open TEXT, "<", \$text;
+		while (my $line = <TEXT>)
+		{
+			foreach my $w (split(m/\s+/, $line))
+			{
+				$w =~ s/^[^a-z0-9]+//gi;
+				$w =~ s/[^a-z0-9]+$//gi;
+				
+				$terms{$w} += 1;
+			}
+		}
+		close TEXT;
+		
+		foreach my $w (keys %terms) {
+			$rq->AddTerm($w, $terms{$w});
+		}
+		
+		$i = $rq->Perform;
+	}
+	else {					# ranked/smart
+		my $rq = $dbo->RankedQuery('*alltext*');
+		my $addedRankedTerm = 0;
+		
+		my $filter;
+		
+		foreach my $term (split(m/\s+/, $query)) {
+			my $fq;
+			
+			if ($term =~ m/^([a-z0-9]+):(\S+)/) {
+				$fq = $dbo->Match("$2", "$1");
+			}
+			elsif ($term =~ m/^([a-z0-9]+)(<|<=|=|>=|>)(\S+)/) {
+				$fq = $dbo->MatchRel("$3", "$2", "$1");
+			}
+			else {
+				$term =~ s/.*?([a-z0-9]+).*/$1/i;
+				
+				$rq->AddTerm($term, 1);
+				$addedRankedTerm = 1;
+			}
+			
+			if ($fq) {
+				if ($filter) {
+					$filter = MRS::MBooleanQuery::Intersection($filter, $fq);
+				}
+				else {
+					$filter = $fq;
+				}
+			}
+		}
+		
+		if (not $addedRankedTerm and $filter) {
+			$i = $filter->Perform;
+		}
+		elsif ($filter) {
+			$i = $rq->Perform($filter);
+		}
+		else {
+			$i = $rq->Perform;
+		}
+	}
+}
+
 sub doList
 {
-	my ($db, $format, $first, $count, $query, $wildcard, $d) = @_;
+	my ($db, $format, $first, $count, $query, $mode, $d) = @_;
 	
 	my $i;
 	
 	eval
 	{
-		$i = $d->Find($query, $wildcard);
+		$i = &doFind($db, $d, $query, $mode);
 	};
 	
 	if ($@ or not defined $i)
@@ -379,14 +472,21 @@ sub doList
 		my $max = $i->Count($exact);
 		$count = $max if $count > $max;
 		my $n;
+
+		my $addScore = ($i->Score != 1);
 		
 		my @rows;
-		push @rows, $q->Tr(
+		my @th = (
 			$q->th('nr'),
 			$q->th('id'),
+			$q->th('score'),
 			$q->th('description'),
 			$q->th('&nbsp;')
 		);
+		
+#		splice(@th, 2, 1, 1) if (not $addScore);
+		
+		push @rows, $q->Tr(@th);
 	
 		$i->Skip($first) if $first > 0;
 		
@@ -406,15 +506,15 @@ sub doList
 				};
 				
 				if ($@) {
-					$fasta = $q->pre(Format::fasta(&Filter($db), $q, $$d->Get($id)));
+					$fasta = $q->pre(Format::fasta(&Filter($db), $q, $d->Get($id)));
 				}
 				
-				push @rows, $q->Tr($q->td({-colspan=>4}, $q->pre($fasta)));
+				push @rows, $q->Tr($q->td({-colspan=>length(@th)}, $q->pre($fasta)));
 			}
 			elsif (defined $format and $format eq 'entry')
 			{
 				push @rows, $q->Tr(
-					$q->td({-colspan=>4}, $q->pre($d->Get($id)))
+					$q->td({-colspan=>length(@th)}, $q->pre($d->Get($id)))
 				);
 			}
 			else
@@ -426,9 +526,14 @@ sub doList
 				$url .= "?db=$db_esc&id=$id&format=entry";
 				$url =~ s/#/%23/;
 				
-				push @rows, $q->Tr(
+				my $score = $i->Score;
+				
+				my @rd = (
 					$q->td($q->b($first + $n)),
 					$q->td($q->a({-href=>$url}, $id)),
+#					$q->td($i->Score),
+					$q->td({-style=>'vertical-align:middle;'},
+						$q->img({-src=>'../pixel-b.png', -width=>$score, -height=> 8})),
 					$q->td(Format::desc(&Filter($db), $q, $d->Get($id))),
 					$q->td(
 						$q->checkbox(
@@ -441,6 +546,10 @@ sub doList
 						)
 					)
 				);
+				
+#				splice(@rd, 2, 1, 1) if (not $addScore);
+				
+				push @rows, $q->Tr(@rd);
 			}
 		}
 		
@@ -553,7 +662,8 @@ sub doListAll()
 
 		eval
 		{
-			if (my $i = $d->Find($query, $wildcard))
+#			if (my $i = $d->Find($query, $wildcard))
+			if (my $i = &doFind($db, $d, $query, 0))
 			{
 				my $url = $q->url({-full=>1, -query=>1});
 				
@@ -816,11 +926,15 @@ sub main()
 		}
 	}
 	
-	my $wildcard = 0;
+	my $mode = 0;
 	
-	if (defined $q->param('wildcard'))
+	if (defined $q->param('mode'))
 	{
-		$wildcard = 1 if $q->param('wildcard') eq 'on';
+		$mode = $q->param('mode');
+	}
+	elsif (defined $q->param('wildcard'))
+	{
+		$mode = 2 if $q->param('wildcard') eq 'on';
 	}
 	
 	if ($q->param('extended'))
@@ -877,7 +991,8 @@ sub main()
 		}
 		elsif ($query)
 		{
-			if (my $i = $d->Find($query, $wildcard))
+#			if (my $i = $d->Find($query, $wildcard))
+			if (my $i = &doFind($db, $d, $query, 0))
 			{
 				for (my $id = $i->Next; defined $id; $id = $i->Next)
 				{
@@ -905,8 +1020,8 @@ sub main()
 	}
 
 	my %cookies = fetch CGI::Cookie;
-	my $cookie = $cookies{wildcard};
-	$cookie = new CGI::Cookie(-name => 'wildcard', -value => $wildcard, -expires => '+1y')
+	my $cookie = $cookies{mode};
+	$cookie = new CGI::Cookie(-name => 'mode', -value => $mode, -expires => '+1y')
 		unless defined $cookie;
 	$cookie->expires('+1y');
 
@@ -1009,11 +1124,11 @@ sub main()
 			"Search",
 			$searchBox,
 			$q->checkbox(
-				-name=>'wildcard',
+				-name=>'mode',
 				-checked=>$cookie->value,
 				-value=>'on',
-				-label=>'Append wildcards',
-				-onClick=>"setCookie('wildcard', document.f.wildcard.checked ? 1 : 0, '/', '$expires')"
+				-label=>'Boolean query',
+				-onClick=>"setCookie('mode', document.f.mode.checked ? 1 : 0, '/', '$expires')"
 			),
 			$q->hidden('first', 0),
 		);
@@ -1060,11 +1175,16 @@ sub main()
 			print $q->h2("News"), $q->p($news);
 		}
 	}
+	elsif ($q->param('similar'))
+	{
+		$d = new MRS::MDatabank($db) or die "Could not open databank $db";
+		&doList($db, $format, $first, $count, $q->param('id'), 4, $d);
+	}
 	elsif ($db eq 'all')
 	{
 		if (defined $query)
 		{
-			&doListAll($query, $wildcard);
+			&doListAll($query, $mode);
 		}
 	}
 	else
@@ -1077,7 +1197,7 @@ sub main()
 		}
 		elsif (defined $query)
 		{
-			doList($db, $format, $first, $count, $query, $wildcard, $d);
+			doList($db, $format, $first, $count, $query, $mode, $d);
 			
 #			# and print some buttons to do nice things
 #			

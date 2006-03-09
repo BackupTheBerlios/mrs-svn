@@ -105,7 +105,7 @@ sub parse
 				{
 					$m->IndexNumber('length', $1);
 					$m->IndexNumber('mw', $2);
-					$m->IndexText('crc64', $3);
+					$m->IndexWord('crc64', $3);
 				}
 				
 				my $sequence = "";
@@ -180,16 +180,19 @@ sub raw_files
 	$raw_dir =~ s'(sprot|trembl)/?$'uniprot';
 
 	if ($db eq 'sprot') {
-		return "gzcat $raw_dir/uniprot_sprot.dat.gz|";
+		return "zcat $raw_dir/uniprot_sprot.dat.gz|";
 	}
 	elsif ($db eq 'trembl') {
-		return "gzcat $raw_dir/uniprot_trembl.dat.gz|";
+		return "zcat $raw_dir/uniprot_trembl.dat.gz|";
 	}
 	elsif ($db eq 'sp100') {
-		return "gzcat $raw_dir/sp100.dat.gz|";
+		return "zcat $raw_dir/sp100.dat.gz|";
 	}
 	elsif ($db eq 'sp200') {
-		return "gzcat $raw_dir/sp200.dat.gz|";
+		return "zcat $raw_dir/sp200.dat.gz|";
+	}
+	elsif ($db eq 'uniprot') {
+		return ( "zcat $raw_dir/uniprot_trembl.dat.gz|", "zcat $raw_dir/uniprot_sprot.dat.gz|");
 	}
 	else {
 		die "unknown db: $db\n";

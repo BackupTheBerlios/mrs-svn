@@ -79,7 +79,7 @@ const char*		COMPRESSION = "zlib";
 int				COMPRESSION_LEVEL = 6;
 const char*		COMPRESSION_DICTIONARY = "";
 string			gErrStr;
-const char*		kFileExtension = ".clx";
+const char*		kFileExtension = ".cmp";
 
 string errstr()
 {
@@ -128,21 +128,34 @@ struct MQueryResultsImp
 								MQueryResultsImp(CDatabankBase& inDb,
 										CDocIterator* inDocIterator)
 									: fDatabank(&inDb) 
-									, fIter(inDocIterator) {}
+									, fIter(inDocIterator)
+									, fScore(1) {}
 	virtual						~MQueryResultsImp() {}
 
 	virtual bool				Next(uint32& outDoc)
 								{
-									return fIter->Next(outDoc, false);
+									bool result = false;
+
+									CDocVectorIterator* vi = dynamic_cast<CDocVectorIterator*>(fIter.get());
+									if (vi != nil)
+										result = vi->Next(outDoc, fScore, false);
+									else if (fIter.get() != nil)
+										result = fIter->Next(outDoc, false);
+
+									return result;
 								}
 
 	virtual uint32				Count(bool inExact)
 								{
-									return fIter->Count();
+									uint32 result = 0;
+									if (fIter.get() != nil)
+										result = fIter->Count();
+									return result;
 								}
 
 	CDatabankBase*				fDatabank;
 	string						fScratch;
+	float						fScore;
 
 	auto_ptr<CDocIterator>		fIter;
 };
@@ -151,7 +164,6 @@ struct MQueryResultsImp
 //
 //  struct MKeysImp
 //
-
 struct MKeysImp
 {
 	auto_ptr<CIteratorBase>		fIter;
@@ -656,9 +668,9 @@ void MDatabank::SetVersion(const string& inVersion)
 	fImpl->GetDB()->SetVersion(inVersion);
 }
 
-void MDatabank::Finish()
+void MDatabank::Finish(bool inCreateAllTextIndex)
 {
-	fImpl->GetDB()->Finish();
+	fImpl->GetDB()->Finish(inCreateAllTextIndex);
 	
 	HFileCache::Flush();
 	
@@ -724,6 +736,11 @@ const char* MQueryResults::Next()
 	}
 
 	return result;
+}
+
+unsigned long MQueryResults::Score() const
+{
+	return fImpl->fScore;
 }
 
 void MQueryResults::Skip(long inCount)
@@ -1056,14 +1073,17 @@ MQueryResults* MRankedQuery::Perform(MBooleanQuery* inMetaQuery)
 	if (inMetaQuery != nil)
 		metaDocs.reset(inMetaQuery->fImpl->fQuery->Perform());
 	
-	auto_ptr<MQueryResultsImp> imp(
-		new MQueryResultsImp(*fImpl->fDatabank, fImpl->fQuery->PerformSearch(
-			*fImpl->fDatabank, fImpl->fIndex, metaDocs.release())));
+	MQueryResults* result = nil;
 
-	MQueryResults* result = NULL;
-
-	if (imp->Count(false) > 0)
-		result = MQueryResults::Create(imp.release());
+	if (inMetaQuery == nil or metaDocs.get() != nil)
+	{
+		auto_ptr<MQueryResultsImp> imp(
+			new MQueryResultsImp(*fImpl->fDatabank, fImpl->fQuery->PerformSearch(
+				*fImpl->fDatabank, fImpl->fIndex, metaDocs.release())));
+	
+		if (imp->Count(false) > 0)
+			result = MQueryResults::Create(imp.release());
+	}
 
 	return result;
 }

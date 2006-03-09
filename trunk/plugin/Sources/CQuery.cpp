@@ -897,7 +897,7 @@ CMatchQueryObject::CMatchQueryObject(CDatabankBase& inDb,
 	: CQueryObject(inDb)
 	, fValue(inValue)
 	, fIndex(inIndex)
-	, fRelOp(kOpEqual)
+	, fRelOp(kOpContains)
 	, fIsPattern(inValue.find('*') != string::npos or inValue.find('?') != string::npos)
 {
 }
@@ -910,7 +910,7 @@ CMatchQueryObject::CMatchQueryObject(CDatabankBase& inDb,
 	, fIsPattern(inValue.find('*') != string::npos or inValue.find('?') != string::npos)
 {
 	if (inRelOp == ":")
-		fRelOp = kOpEqual;
+		fRelOp = kOpContains;
 	else if (inRelOp == "=" or inRelOp == "==")
 		fRelOp = kOpEquals;
 	else if (inRelOp == "<")

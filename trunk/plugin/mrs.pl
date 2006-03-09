@@ -267,7 +267,6 @@ sub Create()
 	
 	eval {
 		my $vers = $p->version($raw_dir, $db);
-print "Setting version: $vers\n";
 		$mrs->SetVersion($vers);
 	};
 	
@@ -314,7 +313,7 @@ print "Setting version: $vers\n";
 	}
 	
 	print "Parsing done, creating index... ";
-	$mrs->Finish;
+	$mrs->Finish(1);	# and please create the weighted alltext index
 	print "done!\n";
 }
 

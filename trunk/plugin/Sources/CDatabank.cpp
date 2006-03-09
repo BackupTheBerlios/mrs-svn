@@ -393,7 +393,7 @@ void CDatabank::RecalculateDocumentWeights(const std::string& inIndex)
 	fIndexer->RecalculateDocumentWeights(inIndex);
 }
 
-void CDatabank::Finish()
+void CDatabank::Finish(bool inCreateAllTextIndex)
 {
 	assert(fCompressor->Count() == fHeader->entries);
 	assert(fIndexer->Count() == fHeader->entries);
@@ -422,7 +422,8 @@ void CDatabank::Finish()
 	
 	fDataFile->Seek(0, SEEK_END);
 	
-	fIndexer->CreateIndex(*fDataFile, fHeader->index_offset, fHeader->index_size);
+	fIndexer->CreateIndex(*fDataFile, fHeader->index_offset,
+		fHeader->index_size, inCreateAllTextIndex);
 	delete fIndexer;
 	fIndexer = nil;
 	fIndexer = GetIndexer();

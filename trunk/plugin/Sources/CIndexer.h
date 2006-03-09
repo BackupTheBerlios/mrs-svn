@@ -77,7 +77,8 @@ class CIndexer
 	virtual			~CIndexer();
 	
 	void			CreateIndex(HStreamBase& data,
-						int64& outOffset, int64& outSize);
+						int64& outOffset, int64& outSize,
+						bool inCreateAllTextIndex);
 	
 	void			MergeIndices(HStreamBase& outData,
 						std::vector<CDatabank*>& inParts);

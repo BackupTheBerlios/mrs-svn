@@ -139,8 +139,10 @@ void ValuePairTraitsPair<T>::CompressArray(COBitStream& inBits, std::vector<T>& 
 	uint32 lastWeight = inArray.front().second;
 	WriteGamma(inBits, lastWeight);
 	
-	for (rank_type w = kMaxWeight; w > 0 and v != inArray.end(); --w)
+	while (v != inArray.end())
 	{
+		uint32 w = v->second;
+		
 		while (v != inArray.end() and v->second == w)
 		{
 			values.push_back(v->first);
@@ -157,8 +159,6 @@ void ValuePairTraitsPair<T>::CompressArray(COBitStream& inBits, std::vector<T>& 
 			lastWeight = w;
 		}
 	}
-
-	assert(v == inArray.end());
 }
 
 // an iterator type for compressed value/rank pairs
@@ -317,8 +317,13 @@ void VRIterator<T>::Restart()
 	
 	assert(fWeight <= kMaxWeight);
 	assert(fWeight > 0);
-	
-	base_type::Reset();
+
+	if (fWeight > 0)
+		base_type::Reset();
+	else
+		base_type::fCount = 0;
+
+	assert(fCount <= fTotalCount - fTotalRead);
 }
 
 template<typename T>

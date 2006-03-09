@@ -234,6 +234,7 @@ package MRS::MQueryResults;
 %OWNER = ();
 %ITERATORS = ();
 *Next = *MRSc::MQueryResults_Next;
+*Score = *MRSc::MQueryResults_Score;
 *Skip = *MRSc::MQueryResults_Skip;
 *Count = *MRSc::MQueryResults_Count;
 sub new {

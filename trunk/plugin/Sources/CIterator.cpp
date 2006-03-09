@@ -619,8 +619,8 @@ uint32 CDbAllDocIterator::Read() const
 	return fDocNr;
 }
 
-CDocVectorIterator::CDocVectorIterator(const vector<uint32>& inDocs)
-	: fDocs(new vector<uint32>(inDocs))
+CDocVectorIterator::CDocVectorIterator(const DocFreqVector& inDocs)
+	: fDocs(new DocFreqVector(inDocs))
 	, fCur(0)
 	, fRead(0)
 {
@@ -631,14 +631,33 @@ bool CDocVectorIterator::Next(uint32& ioValue, bool inSkip)
 	bool result = false;
 	while (not result and fCur < fDocs->size())
 	{
-		if (fDocs->at(fCur) <= ioValue and inSkip)
+		if (fDocs->at(fCur).first <= ioValue and inSkip)
 		{
 			++fCur;
 			continue;
 		}
 		
 		result = true;
-		ioValue = fDocs->at(fCur);
+		ioValue = fDocs->at(fCur).first;
+		++fCur;
+	}
+	return result;
+}
+
+bool CDocVectorIterator::Next(uint32& ioDoc, float& outFreq, bool inSkip)
+{
+	bool result = false;
+	while (not result and fCur < fDocs->size())
+	{
+		if (fDocs->at(fCur).first <= ioDoc and inSkip)
+		{
+			++fCur;
+			continue;
+		}
+		
+		result = true;
+		ioDoc = fDocs->at(fCur).first;
+		outFreq = fDocs->at(fCur).second;
 		++fCur;
 	}
 	return result;

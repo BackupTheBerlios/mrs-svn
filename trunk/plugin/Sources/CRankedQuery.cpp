@@ -127,7 +127,10 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 		Term& t = fImpl->fTerms[tx];
 		
 		t.iter.reset(inDatabank.GetDocWeightIterator(inIndex, t.key));
-		t.w = t.iter->Weight() * t.iter->GetIDFCorrectionFactor() * t.weight;
+		if (t.iter.get() != nil)
+			t.w = t.iter->Weight() * t.iter->GetIDFCorrectionFactor() * t.weight;
+		else
+			t.w = 0;
 	}
 	
 	fImpl->fTerms.sort(greater<Term>());
@@ -206,11 +209,11 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	
 	sort_heap(docs.begin(), docs.end(), greater<CDocScore>());
 	
-	auto_ptr<vector<uint32> > dv(new vector<uint32>());
+	auto_ptr<CDocVectorIterator::DocFreqVector> dv(new CDocVectorIterator::DocFreqVector());
 	dv->reserve(docs.size());
 
 	for (vector<CDocScore>::iterator i = docs.begin(); i != docs.end(); ++i)
-		dv->push_back(i->fDocNr);
+		dv->push_back(make_pair(i->fDocNr, static_cast<uint32>(i->fRank * 100)));
 
 	return new CDocVectorIterator(dv.release());
 }

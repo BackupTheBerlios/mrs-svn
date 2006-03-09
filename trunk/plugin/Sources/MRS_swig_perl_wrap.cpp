@@ -3149,7 +3149,47 @@ XS(_wrap_MDatabank_SetVersion) {
 }
 
 
-XS(_wrap_MDatabank_Finish) {
+XS(_wrap_MDatabank_Finish__SWIG_0) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        bool arg2 ;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 2) || (items > 2)) {
+            SWIG_croak("Usage: MDatabank_Finish(self,inCreateAllTextIndex);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_Finish. Expected _p_MDatabank");
+            }
+        }
+        arg2 = SvIV(ST(1)) ? true : false;
+        {
+            try {
+                (arg1)->Finish(arg2);
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MDatabank_Finish__SWIG_1) {
     {
         MDatabank *arg1 = (MDatabank *) 0 ;
         int argvi = 0;
@@ -3184,6 +3224,48 @@ XS(_wrap_MDatabank_Finish) {
         ;
     }
     croak(Nullch);
+}
+
+
+XS(_wrap_MDatabank_Finish) {
+    dXSARGS;
+    
+    if (items == 1) {
+        int _v;
+        {
+            void *tmp;
+            if (SWIG_ConvertPtr(ST(0), (void **) &tmp, SWIGTYPE_p_MDatabank, 0) == -1) {
+                _v = 0;
+            } else {
+                _v = 1;
+            }
+        }
+        if (_v) {
+            (*PL_markstack_ptr++);SWIG_CALLXS(_wrap_MDatabank_Finish__SWIG_1); return;
+        }
+    }
+    if (items == 2) {
+        int _v;
+        {
+            void *tmp;
+            if (SWIG_ConvertPtr(ST(0), (void **) &tmp, SWIGTYPE_p_MDatabank, 0) == -1) {
+                _v = 0;
+            } else {
+                _v = 1;
+            }
+        }
+        if (_v) {
+            {
+                _v = SvIOK(ST(1)) ? 1 : 0;
+            }
+            if (_v) {
+                (*PL_markstack_ptr++);SWIG_CALLXS(_wrap_MDatabank_Finish__SWIG_0); return;
+            }
+        }
+    }
+    
+    croak("No matching function for overloaded 'MDatabank_Finish'");
+    XSRETURN(0);
 }
 
 
@@ -3864,6 +3946,46 @@ XS(_wrap_MQueryResults_Next) {
         } else {
             sv_setsv((SV*)ST(argvi++), &PL_sv_undef);
         }
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MQueryResults_Score) {
+    {
+        MQueryResults *arg1 = (MQueryResults *) 0 ;
+        unsigned long result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: MQueryResults_Score(self);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MQueryResults,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MQueryResults_Score. Expected _p_MQueryResults");
+            }
+        }
+        {
+            try {
+                result = (unsigned long)((MQueryResults const *)arg1)->Score();
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        ST(argvi) = sv_newmortal();
+        sv_setuv(ST(argvi++), (UV) result);
         XSRETURN(argvi);
         fail:
         ;
@@ -4758,6 +4880,7 @@ static swig_command_info swig_commands[] = {
 {"MRSc::new_MRankedQuery", _wrap_new_MRankedQuery},
 {"MRSc::delete_MRankedQuery", _wrap_delete_MRankedQuery},
 {"MRSc::MQueryResults_Next", _wrap_MQueryResults_Next},
+{"MRSc::MQueryResults_Score", _wrap_MQueryResults_Score},
 {"MRSc::MQueryResults_Skip", _wrap_MQueryResults_Skip},
 {"MRSc::MQueryResults_Count", _wrap_MQueryResults_Count},
 {"MRSc::new_MQueryResults", _wrap_new_MQueryResults},

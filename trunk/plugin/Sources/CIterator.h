@@ -314,19 +314,22 @@ class CDocNotIterator : public CDocIterator
 class CDocVectorIterator : public CDocIterator
 {
   public:
-					CDocVectorIterator(std::vector<uint32>* inDocs)
+	typedef std::vector<std::pair<uint32,float> > DocFreqVector;
+
+					CDocVectorIterator(DocFreqVector* inDocs)
 						: fDocs(inDocs)
 						, fCur(0)
 						, fRead(0) {}
-					CDocVectorIterator(const std::vector<uint32>& inDocs);
+					CDocVectorIterator(const DocFreqVector& inDocs);
 	
+	virtual bool	Next(uint32& ioDoc, float& outScore, bool inSkip);
 	virtual bool	Next(uint32& ioValue, bool inSkip);
 	virtual uint32	Count() const						{ return fDocs->size(); }
 	virtual uint32	Read() const						{ return fRead; }
 	virtual uint32	Complexity() const					{ return 0; }
 
   private:
-	std::auto_ptr<std::vector<uint32> >	fDocs;
+	std::auto_ptr<DocFreqVector>	fDocs;
 	uint32			fCur, fRead;
 };
 

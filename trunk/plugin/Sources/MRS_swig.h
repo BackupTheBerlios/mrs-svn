@@ -199,7 +199,7 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 
 	void				SetVersion(const std::string& inVersion);
 
-	void				Finish();
+	void				Finish(bool inCreateAllTextIndex = false);
 	void				RecalcDocWeights(const std::string& inIndex);
 
 	// stupid swig...
@@ -235,6 +235,8 @@ class MQueryResults : public MRSObject<MQueryResults, struct MQueryResultsImp>
 {
   public:
 	const char*			Next();
+	unsigned long		Score() const;
+
 	void				Skip(long inCount);
 	
 	unsigned long		Count(bool inExact) const;
