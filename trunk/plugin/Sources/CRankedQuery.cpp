@@ -147,6 +147,8 @@ void CRankedQuery::AddTerm(const string& inKey, float inWeight)
 CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	const string& inIndex, CDocIterator* inMetaQuery)
 {
+	uint32 maxReturn = 1000;
+
 	uint32 docCount = inDatabank.Count();
 	HAutoBuf<float> Abuffer(new float[docCount]);
 	float* A = Abuffer.get();		// the accumulators
@@ -214,7 +216,7 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	Wq = sqrt(Wq);
 
 	vector<CDocScore> docs;
-	docs.reserve(30);		// << return the top 30 documents
+	docs.reserve(maxReturn);		// << return the top maxReturn documents
 	
 	auto_ptr<CDocIterator> rdi(new CAccumulatorIterator(A, docCount));
 	if (inMetaQuery)
@@ -227,7 +229,7 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 		ds.fRank = A[d] / (Wd[d] * Wq);
 		ds.fDocNr = d;
 		
-		if (docs.size() >= 30)
+		if (docs.size() >= maxReturn)
 		{
 			if (ds.fRank > docs.front().fRank)
 			{
