@@ -949,33 +949,40 @@ void SetExecutable(const HUrl& inURL, bool inExecutable)
 //{
 //};
 
-HMMappedFileStream::HMMappedFileStream(HFileStream& inFile, int64 inOffset, int64 inLength)
+struct HMMappedFileStreamImp
 {
-//	if (inOffset + inLength > inFile.fSize)
-//		THROW(("Error creating memmory mapped file stream"));
-//		
-//	int64 pageSize = ::getpagesize();
-//	int64 offset = pageSize * (inOffset / pageSize);
-//	uint32 before = inOffset - offset;
-//
-//	fBasePtr = ::mmap(0, inLength + before, PROT_READ, MAP_PRIVATE, inFile.fFD, offset);
-//
-//	if (reinterpret_cast<int64>(fBasePtr) == -1)
-//		THROW(("Memmory mapping failed: %s\n", strerror(errno)));
-//	
-//	delete[] fData;
-//	
-//	fData = static_cast<char*>(fBasePtr) + before;
-//	fLogicalSize = inLength;
-//	fPhysicalSize = inLength + before;
-//	fPointer = 0;
-//	fReadOnly = true;
-//	
-//	madvise(fBasePtr, inLength + before, MADV_SEQUENTIAL);
+	void*		fBasePtr;
+};
+
+HMMappedFileStream::HMMappedFileStream(HFileStream& inFile, int64 inOffset, int64 inLength)
+	: fImpl(new HMMappedFileStreamImp)
+{
+	if (inOffset + inLength > inFile.fSize)
+		THROW(("Error creating memmory mapped file stream"));
+		
+	int64 pageSize = ::getpagesize();
+	int64 offset = pageSize * (inOffset / pageSize);
+	uint32 before = inOffset - offset;
+
+	fImpl->fBasePtr = ::mmap(0, inLength + before, PROT_READ, MAP_PRIVATE, inFile.fFD, offset);
+
+	if (reinterpret_cast<int64>(fImpl->fBasePtr) == -1)
+		THROW(("Memmory mapping failed: %s\n", strerror(errno)));
+	
+	delete[] fData;
+	
+	fData = static_cast<char*>(fImpl->fBasePtr) + before;
+	fLogicalSize = inLength;
+	fPhysicalSize = inLength + before;
+	fPointer = 0;
+	fReadOnly = true;
+	
+	madvise(fImpl->fBasePtr, inLength + before, MADV_SEQUENTIAL);
 }
 
 HMMappedFileStream::~HMMappedFileStream()
 {
-//	::munmap(fBasePtr, fLogicalSize);
+	::munmap(fImpl->fBasePtr, fLogicalSize);
+	delete fImpl;
 }
 
