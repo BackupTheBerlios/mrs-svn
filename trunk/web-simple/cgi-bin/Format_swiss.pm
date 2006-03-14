@@ -172,16 +172,15 @@ sub pp
 			push @entry_rows, $q->Tr($q->td('Secondary accessions'), $q->td(join(' ', @acc)))
 				if (scalar @acc);
 		}
-		elsif ($line =~ /^DT\s+(\d{2})-([A-Z]{3})-(\d{4}) \(Rel. (\d+), (.+)\)/)
+		elsif ($line =~ /^DT\s+(\d{2})-([A-Z]{3})-(\d{4}), (.+?)\.?$/)
 		{
 			my %months = ( 'JAN' => 0, 'FEB' => 1, 'MAR' => 2, 'APR' => 3, 'MAY' => 4, 'JUN' => 5, 
 				 'JUL' => 6, 'AUG' => 7, 'SEP' => 8, 'OCT' => 9, 'NOV' => 10, 'DEC' => 11);
 			
-			my $release = $4;
-			my $desc = $5;
-			my $date = strftime("%B %Y", 0, 0, 0, $1, $months{$2}, $3 - 1900);
+			my $desc = $4;
+			my $date = strftime("%d %B %Y", 0, 0, 0, $1, $months{$2}, $3 - 1900);
 			
-			push @entry_rows, $q->Tr($q->td($desc), $q->td("Release $release, $date"));
+			push @entry_rows, $q->Tr($q->td($desc), $q->td("$date"));
 		}
 
 		# second block, name and origin
@@ -459,7 +458,7 @@ sub pp
 						}
 						elsif ($cc =~ /Note=(.+?);/)
 						{
-							$note .= $1;
+							$note .= " $1";
 						}
 					}
 
@@ -492,7 +491,7 @@ sub pp
 				{
 					while ($lookahead =~ /^CC\s{6,}(.+)/)
 					{
-						$text .= "$1\n";
+						$text .= " $1\n";
 						$lookahead = shift @lines;
 					}
 				}
