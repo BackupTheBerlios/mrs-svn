@@ -135,6 +135,7 @@ class CStrUnionIterator : public CIteratorBase
 {
   public:
 					CStrUnionIterator(std::vector<CIteratorBase*>& inIters);
+	virtual			~CStrUnionIterator();
 	
 	virtual bool	Next(std::string& outString, uint32& outValue);
 
@@ -163,7 +164,7 @@ class CDocIterator
 	virtual bool	Next(uint32& ioDoc, bool inSkip) = 0;
 	virtual uint32	Count() const = 0;
 	virtual uint32	Read() const = 0;
-	virtual uint32	Complexity() const;
+
 	virtual void	PrintHierarchy(int inLevel) const;
 };
 
@@ -177,7 +178,7 @@ class CDocDeltaIterator : public CDocIterator
 	virtual bool	Next(uint32& ioDoc, bool inSkip);
 	virtual uint32	Count() const;
 	virtual uint32	Read() const;
-	virtual uint32	Complexity() const;
+
 	virtual void	PrintHierarchy(int inLevel) const;
 
   protected:
@@ -199,7 +200,6 @@ class CDbDocIteratorBase : public CDocIterator
   protected:
 	float			fIDFCorrectionFactor;
 };
-
 
 template<typename T>
 class CDbDocIteratorBaseT : public CDbDocIteratorBase
@@ -227,6 +227,39 @@ class CDbDocIteratorBaseT : public CDbDocIteratorBase
 typedef CDbDocIteratorBaseT<uint32>						CDbDocIterator;
 typedef CDbDocIteratorBaseT<std::pair<uint32,uint8> >	CDbDocWeightIterator;
 
+class CMergedDbDocIterator : public CDbDocIteratorBase
+{
+  public:
+					CMergedDbDocIterator(CDbDocIteratorBase* inIterA, uint32 inDeltaA, uint32 inDbCountA,
+						CDbDocIteratorBase* inIterB, uint32 inDeltaB, uint32 inDbCountB);
+
+	virtual bool	Next(uint32& ioDoc, bool inSkip);
+	virtual bool	Next(uint32& ioDoc, uint8& ioRank, bool inSkip);
+
+	virtual uint32	Count() const						{ return fCount; }
+	virtual uint32	Read() const						{ return fRead; }
+
+  private:
+
+	struct CSubIter
+	{
+		uint32				fDocNr;
+		uint8				fRank;
+		uint32				fDelta;
+		CDbDocIteratorBase*	fIter;
+		
+		bool operator<(const CSubIter& inOther) const
+				{ return fRank > inOther.fRank or (fRank == inOther.fRank and fDocNr + fDelta < inOther.fDocNr + inOther.fDelta); }
+
+		bool operator>(const CSubIter& inOther) const
+				{ return fRank < inOther.fRank or (fRank == inOther.fRank and fDocNr + fDelta > inOther.fDocNr + inOther.fDelta); }
+	};
+
+	std::vector<CSubIter>	fIterators;
+	uint32					fCount;
+	uint32					fRead;
+};
+
 class CDocNrIterator : public CDocIterator
 {
   public:
@@ -245,17 +278,17 @@ class CDocUnionIterator : public CDocIterator
 	static CDocIterator*	Create(std::vector<CDocIterator*>& inIters);
 	static CDocIterator*	Create(CDocIterator* inFirst, CDocIterator* inSecond);
 
+	virtual			~CDocUnionIterator();
+
 	virtual bool	Next(uint32& ioDoc, bool inSkip);
 	virtual uint32	Read() const;
 	virtual uint32	Count() const;
-	virtual uint32	Complexity() const;
+
 	virtual void	PrintHierarchy(int inLevel) const;
 
   private:
-
 					CDocUnionIterator(std::vector<CDocIterator*>& inIters);
-					CDocUnionIterator(CDocIterator* inFirst, CDocIterator* inSecond);
-
+	
 	struct CSubIter
 	{
 		uint32			fValue;
@@ -272,16 +305,21 @@ class CDocUnionIterator : public CDocIterator
 class CDocIntersectionIterator : public CDocIterator
 {
   public:
-					CDocIntersectionIterator(std::vector<CDocIterator*>& inIters);
-					CDocIntersectionIterator(CDocIterator* inFirst, CDocIterator* inSecond);
+	static CDocIterator*	Create(std::vector<CDocIterator*>& inIters);
+	static CDocIterator*	Create(CDocIterator* inFirst, CDocIterator* inSecond);
+
+	virtual			~CDocIntersectionIterator();
 
 	virtual bool	Next(uint32& ioValue, bool inSkip);
 	virtual uint32	Count() const;
 	virtual uint32	Read() const;
-	virtual uint32	Complexity() const;
+
 	virtual void	PrintHierarchy(int inLevel) const;
 
   private:
+
+					CDocIntersectionIterator(std::vector<CDocIterator*>& inIters);
+
 	struct CSubIter
 	{
 		uint32				fValue;
@@ -299,11 +337,12 @@ class CDocNotIterator : public CDocIterator
 {
   public:
 					CDocNotIterator(CDocIterator* inIter, uint32 inMax);
+	virtual			~CDocNotIterator();
 
 	virtual bool	Next(uint32& ioValue, bool inSkip);
 	virtual uint32	Count() const;
 	virtual uint32	Read() const;
-	virtual uint32	Complexity() const;
+
 	virtual void	PrintHierarchy(int inLevel) const;
 
   private:
@@ -326,7 +365,6 @@ class CDocVectorIterator : public CDocIterator
 	virtual bool	Next(uint32& ioValue, bool inSkip);
 	virtual uint32	Count() const						{ return fDocs->size(); }
 	virtual uint32	Read() const						{ return fRead; }
-	virtual uint32	Complexity() const					{ return 0; }
 
   private:
 	std::auto_ptr<DocFreqVector>	fDocs;
@@ -357,6 +395,7 @@ class CDocCachedIterator : public CDocIterator
 	virtual bool	Next(uint32& ioDoc, bool inSkip);
 	virtual uint32	Count() const;
 	virtual uint32	Read() const;
+	virtual void	PrintHierarchy(int inLevel) const;
 
   private:
 	std::auto_ptr<CDocIterator>		fIter;
@@ -381,6 +420,38 @@ class CDbStringMatchIterator : public CDocIterator
 	std::vector<std::string>
 					fStringWords;
 	CDocIterator*	fIter;
+};
+
+class CDbJoinedIterator : public CDbDocIteratorBase
+{
+  public:
+					CDbJoinedIterator();
+	virtual			~CDbJoinedIterator();
+	
+	void			AddIterator(CDbDocIteratorBase* inIter, uint32 inCount);
+	
+	virtual bool	Next(uint32& ioDoc, bool inSkip);
+	virtual bool	Next(uint32& ioDoc, uint8& outRank, bool inSkip);
+	virtual uint32	Count() const;
+	virtual uint32	Read() const;
+
+	virtual void	PrintHierarchy(int inLevel) const;
+
+  protected:
+	struct CSubIter
+	{
+		uint32				fOffset;
+		uint32				fDocNr;
+		uint8				fRank;
+		CDbDocIteratorBase*	fIter;
+		
+		bool operator>(const CSubIter& inOther) const
+				{ return fRank < inOther.fRank or (fRank == inOther.fRank and fDocNr > inOther.fDocNr); }
+	};
+
+	std::vector<CSubIter>	fIterators;
+	uint32					fDocCount;
+	uint32					fCount, fRead;
 };
 
 #include "CIterator.inl"

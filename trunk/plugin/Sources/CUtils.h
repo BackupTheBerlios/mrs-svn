@@ -1,4 +1,4 @@
-/*	$Id: CUtils.h,v 1.22 2005/08/22 12:38:08 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Monday December 30 2002 14:34:43
 */

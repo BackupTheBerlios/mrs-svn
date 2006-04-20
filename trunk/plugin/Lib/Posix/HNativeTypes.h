@@ -1,4 +1,4 @@
-/*	$Id: HNativeTypes.h,v 1.15 2005/08/22 12:38:05 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created Wednesday August 22 2001 14:40:51
 */

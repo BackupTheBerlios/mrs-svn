@@ -100,7 +100,8 @@ sub parse
 			}
 			else
 			{
-				$m->IndexText(lc($fld), substr($line, 5));
+				my $txt = substr($line, 5);
+				$m->IndexText(lc($fld), $txt) if $txt;
 			}
 		}
 	}

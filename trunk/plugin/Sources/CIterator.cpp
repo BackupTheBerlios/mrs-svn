@@ -70,13 +70,21 @@ CStrUnionIterator::CStrUnionIterator(vector<CIteratorBase*>& inIters)
 			v.fIter = *i;
 			if ((*i)->Next(v.fKey, v.fValue))
 				fIterators.push_back(v);
+			else
+				delete *i;
 		}
 	}
 	
 	make_heap(fIterators.begin(), fIterators.end());
 }
 
-bool CStrUnionIterator::Next(std::string& outString, uint32& outValue)
+CStrUnionIterator::~CStrUnionIterator()
+{
+	for (vector<CSubIter>::iterator i = fIterators.begin(); i != fIterators.end(); ++i)
+		delete i->fIter;
+}
+
+bool CStrUnionIterator::Next(string& outString, uint32& outValue)
 {
 	bool result = false;
 
@@ -144,11 +152,6 @@ CDocIterator::~CDocIterator()
 {
 }
 
-uint32 CDocIterator::Complexity() const
-{
-	return 1;
-}
-
 void CDocIterator::PrintHierarchy(int inLevel) const
 {
 	for (uint32 i = 0; i < inLevel; ++i)
@@ -199,19 +202,9 @@ uint32 CDocDeltaIterator::Read() const
 	return result;
 }
 
-uint32 CDocDeltaIterator::Complexity() const
-{
-	uint32 result = 0;
-	if (fOriginal != nil)
-		result = fOriginal->Complexity();
-	return result;
-}
-
 void CDocDeltaIterator::PrintHierarchy(int inLevel) const
 {
-	for (uint32 i = 0; i < inLevel; ++i)
-		cout << "  ";
-	cout << typeid(*this).name() << endl;
+	CDocIterator::PrintHierarchy(inLevel);
 	
 	if (fOriginal != nil)
 		fOriginal->PrintHierarchy(inLevel + 1);
@@ -247,24 +240,39 @@ uint32 CDocNrIterator::Read() const
 		return 0;
 }
 
-CDocIterator* CDocUnionIterator::Create(std::vector<CDocIterator*>& inIters)
+CDocIterator* CDocUnionIterator::Create(vector<CDocIterator*>& inIters)
 {
-	if (inIters.size() == 0)
-		return nil;
-	else if (inIters.size() == 1)
-		return inIters.front();
-	else
-		return new CDocUnionIterator(inIters);
+	CDocIterator* result = nil;
+	
+	inIters.erase(
+		remove(inIters.begin(), inIters.end(), static_cast<CDocIterator*>(nil)),
+		inIters.end());
+	
+	if (inIters.size() == 1)
+		result = inIters.front();
+	else if (inIters.size() != 0)
+		result = new CDocUnionIterator(inIters);
+
+	return result;
 }
 
 CDocIterator* CDocUnionIterator::Create(CDocIterator* inFirst, CDocIterator* inSecond)
 {
+	CDocIterator* result = nil;
+	
 	if (inFirst and inSecond)
-		return new CDocUnionIterator(inFirst, inSecond);
+	{
+		vector<CDocIterator*> v;
+		v.push_back(inFirst);
+		v.push_back(inSecond);
+		result = new CDocUnionIterator(v);
+	}
 	else if (inFirst)
-		return inFirst;
+		result = inFirst;
 	else
-		return inSecond;
+		result = inSecond;
+	
+	return result;
 }
 
 CDocUnionIterator::CDocUnionIterator(vector<CDocIterator*>& inIters)
@@ -273,37 +281,33 @@ CDocUnionIterator::CDocUnionIterator(vector<CDocIterator*>& inIters)
 {
 	for (vector<CDocIterator*>::iterator i = inIters.begin(); i != inIters.end(); ++i)
 	{
-		if (*i)
+		fCount += (*i)->Count();
+
+		if (dynamic_cast<CDocUnionIterator*>(*i) != nil)
 		{
-			fCount += (*i)->Count();
-			
+			CDocUnionIterator* u = static_cast<CDocUnionIterator*>(*i);
+			fIterators.insert(fIterators.end(), u->fIterators.begin(), u->fIterators.end());
+			u->fIterators.erase(u->fIterators.begin(), u->fIterators.end());
+			delete u;
+		}
+		else
+		{
 			CSubIter v;
 			v.fIter = *i;
 			if ((*i)->Next(v.fValue, false))
 				fIterators.push_back(v);
+			else
+				delete *i;
 		}
 	}
 	
 	make_heap(fIterators.begin(), fIterators.end());
 }
 
-CDocUnionIterator::CDocUnionIterator(CDocIterator* inFirst, CDocIterator* inSecond)
-	: fCount(0)
-	, fRead(0)
+CDocUnionIterator::~CDocUnionIterator()
 {
-	fCount = inFirst->Count() + inSecond->Count();
-	
-	CSubIter v;
-	v.fIter = inFirst;
-	if (inFirst->Next(v.fValue, false))
-		fIterators.push_back(v);
-
-	v.fValue = 0;
-	v.fIter = inSecond;
-	if (inSecond->Next(v.fValue, false))
-		fIterators.push_back(v);
-	
-	make_heap(fIterators.begin(), fIterators.end());
+	for (vector<CSubIter>::iterator i = fIterators.begin(); i != fIterators.end(); ++i)
+		delete i->fIter;
 }
 
 bool CDocUnionIterator::Next(uint32& ioDoc, bool inSkip)
@@ -338,7 +342,7 @@ bool CDocUnionIterator::Next(uint32& ioDoc, bool inSkip)
 			fIterators.erase(fIterators.begin() + fIterators.size() - 1);
 		}
 		
-		while (fIterators.size() > 0 && fIterators.front().fValue <= next)
+		while (fIterators.size() > 0 and fIterators.front().fValue <= next)
 		{
 			pop_heap(fIterators.begin(), fIterators.end());
 			
@@ -371,21 +375,38 @@ uint32 CDocUnionIterator::Count() const
 
 void CDocUnionIterator::PrintHierarchy(int inLevel) const
 {
-	for (uint32 i = 0; i < inLevel; ++i)
-		cout << "  ";
-	cout << typeid(*this).name() << endl;
+	CDocIterator::PrintHierarchy(inLevel);
 	
-	std::vector<CSubIter>::const_iterator i;
+	vector<CSubIter>::const_iterator i;
 	for (i = fIterators.begin(); i != fIterators.end(); ++i)
 		(*i).fIter->PrintHierarchy(inLevel + 1);
 }
 
-uint32 CDocUnionIterator::Complexity() const
+struct CleanUpIter { void operator()(CDocIterator*& iter) const { delete iter; } };
+
+CDocIterator* CDocIntersectionIterator::Create(std::vector<CDocIterator*>& inIters)
 {
-	uint32 result = fIterators.size();
-	std::vector<CSubIter>::const_iterator i;
-	for (i = fIterators.begin(); i != fIterators.end(); ++i)
-		result += (*i).fIter->Complexity();
+	CDocIterator* result = nil;
+	if (find(inIters.begin(), inIters.end(), static_cast<CDocIterator*>(nil)) == inIters.end())
+		result = new CDocIntersectionIterator(inIters);
+	else
+		for_each(inIters.begin(), inIters.end(), CleanUpIter());
+	
+	return result;
+}
+
+CDocIterator* CDocIntersectionIterator::Create(CDocIterator* inFirst, CDocIterator* inSecond)
+{
+	CDocIterator* result = nil;
+
+	if (inFirst and inSecond)
+	{
+		vector<CDocIterator*> v;
+		v.push_back(inFirst);
+		v.push_back(inSecond);
+		result = new CDocIntersectionIterator(v);
+	}
+
 	return result;
 }
 
@@ -398,51 +419,31 @@ CDocIntersectionIterator::CDocIntersectionIterator(vector<CDocIterator*>& inIter
 		if ((*i)->Count() < fCount)
 			fCount = (*i)->Count();
 
-		CSubIter v;
-		v.fIter = *i;
-		if ((*i)->Next(v.fValue, false))
+		if (dynamic_cast<CDocIntersectionIterator*>(*i) != nil)
+		{
+			CDocIntersectionIterator* o = static_cast<CDocIntersectionIterator*>(*i);
+			fIterators.insert(fIterators.end(), o->fIterators.begin(), o->fIterators.end());
+			o->fIterators.erase(o->fIterators.begin(), o->fIterators.end());
+			delete o;
+		}
+		else
+		{
+			CSubIter v;
+			v.fIter = *i;
+			if (not (*i)->Next(v.fValue, false))
+				v.fValue = numeric_limits<uint32>::max();
+			
 			fIterators.push_back(v);
+		}
 	}
 	
 	sort(fIterators.begin(), fIterators.end());
 }
 
-CDocIntersectionIterator::CDocIntersectionIterator(CDocIterator* inFirst, CDocIterator* inSecond)
-	: fCount(0)
-	, fRead(0)
+CDocIntersectionIterator::~CDocIntersectionIterator()
 {
-	if (inFirst == nil or inSecond == nil)
-	{
-		delete inFirst;
-		delete inSecond;
-	}
-	else
-	{
-		fCount = inFirst->Count();
-		if (fCount > inSecond->Count())
-			fCount = inSecond->Count();
-
-		CSubIter v1, v2;
-		v1.fValue = 0;
-		v2.fValue = 0;
-		v1.fIter = inFirst;
-		v2.fIter = inSecond;
-	
-		if (inFirst->Next(v1.fValue, false) and
-			inSecond->Next(v2.fValue, false))
-		{
-			fIterators.push_back(v1);
-			fIterators.push_back(v2);
-		}
-		else
-		{
-			delete inFirst;
-			delete inSecond;
-		}
-	}
-	
-	if (fIterators.size())
-		sort(fIterators.begin(), fIterators.end());
+	for (vector<CSubIter>::iterator i = fIterators.begin(); i != fIterators.end(); ++i)
+		delete i->fIter;
 }
 
 bool CDocIntersectionIterator::Next(uint32& ioValue, bool inSkip)
@@ -474,6 +475,8 @@ bool CDocIntersectionIterator::Next(uint32& ioValue, bool inSkip)
 				uint32 v = next;
 				if (not (*i).fIter->Next(v, true))
 				{
+					for (vector<CSubIter>::iterator i = fIterators.begin(); i != fIterators.end(); ++i)
+						delete i->fIter;
 					fIterators.erase(fIterators.begin(), fIterators.end());
 					break;
 				}
@@ -502,24 +505,11 @@ uint32 CDocIntersectionIterator::Count() const
 	return fCount;
 }
 
-uint32 CDocIntersectionIterator::Complexity() const
-{
-	uint32 result = fIterators.size();
-
-	vector<CSubIter>::const_iterator i;
-	for (i = fIterators.begin(); i != fIterators.end(); ++i)
-		result += (*i).fIter->Complexity();
-	
-	return result;
-}
-
 void CDocIntersectionIterator::PrintHierarchy(int inLevel) const
 {
-	for (uint32 i = 0; i < inLevel; ++i)
-		cout << "  ";
-	cout << typeid(*this).name() << endl;
+	CDocIterator::PrintHierarchy(inLevel);
 	
-	std::vector<CSubIter>::const_iterator i;
+	vector<CSubIter>::const_iterator i;
 	for (i = fIterators.begin(); i != fIterators.end(); ++i)
 		(*i).fIter->PrintHierarchy(inLevel + 1);
 }
@@ -532,8 +522,13 @@ CDocNotIterator::CDocNotIterator(
 	, fMax(inMax)
 	, fRead(0)
 {
-	if (not fIter->Next(fNext, false))
+	if (fIter == nil or not fIter->Next(fNext, false))
 		fNext = fMax;
+}
+
+CDocNotIterator::~CDocNotIterator()
+{
+	delete fIter;
 }
 
 bool CDocNotIterator::Next(uint32& ioValue, bool inSkip)
@@ -544,7 +539,7 @@ bool CDocNotIterator::Next(uint32& ioValue, bool inSkip)
 	{
 		if (fCur == fNext)
 		{
-			if (fNext < fMax and not fIter->Next(fNext, false))
+			if (fNext < fMax and (fIter == nil or not fIter->Next(fNext, false)))
 				fNext = fMax;
 		}
 		else if (fCur < fMax)
@@ -565,7 +560,10 @@ bool CDocNotIterator::Next(uint32& ioValue, bool inSkip)
 
 uint32 CDocNotIterator::Count() const
 {
-	return fMax - fIter->Count();
+	uint32 result = fMax;
+	if (fIter != nil)
+		result -= fIter->Count();
+	return result;
 }
 
 uint32 CDocNotIterator::Read() const
@@ -573,18 +571,12 @@ uint32 CDocNotIterator::Read() const
 	return fRead;
 }
 
-uint32 CDocNotIterator::Complexity() const
-{
-	return fIter->Complexity() + 1;
-}
-
 void CDocNotIterator::PrintHierarchy(int inLevel) const
 {
-	for (uint32 i = 0; i < inLevel; ++i)
-		cout << "  ";
-	cout << typeid(*this).name() << endl;
+	CDocIterator::PrintHierarchy(inLevel);
 	
-	fIter->PrintHierarchy(inLevel + 1);
+	if (fIter != nil)
+		fIter->PrintHierarchy(inLevel + 1);
 }
 
 CDbAllDocIterator::CDbAllDocIterator(uint32 inMaxDocNr)
@@ -665,7 +657,7 @@ bool CDocVectorIterator::Next(uint32& ioDoc, float& outFreq, bool inSkip)
 
 // ---------------------------------------------------------------------------
 
-CDbStringMatchIterator::CDbStringMatchIterator(CDatabankBase& inDb, const std::vector<std::string>& inStringWords,
+CDbStringMatchIterator::CDbStringMatchIterator(CDatabankBase& inDb, const vector<string>& inStringWords,
 		CDocIterator* inBaseIterator)
 	: fDb(inDb)
 	, fStringWords(inStringWords)
@@ -816,4 +808,186 @@ uint32 CDocCachedIterator::Read() const
 	return fIter->Read();
 }
 
+void CDocCachedIterator::PrintHierarchy(int inLevel) const
+{
+	CDocIterator::PrintHierarchy(inLevel);
+	
+	if (fIter.get() != nil)
+		fIter->PrintHierarchy(inLevel + 1);
+}
 
+// the merged db doc iterator
+
+CMergedDbDocIterator::CMergedDbDocIterator(
+		CDbDocIteratorBase* inIterA, uint32 inDeltaA, uint32 inDbCountA,
+		CDbDocIteratorBase* inIterB, uint32 inDeltaB, uint32 inDbCountB)
+	: fCount(0)
+	, fRead(0)
+{
+	CSubIter v;
+	
+	if (inIterA != nil and inIterA->Next(v.fDocNr, v.fRank, false))
+	{
+		v.fDelta = inDeltaA;
+		v.fIter = inIterA;
+		fCount += inIterA->Count();
+		fIterators.push_back(v);
+	}
+	else
+		delete inIterA;
+	
+	if (inIterB != nil and inIterB->Next(v.fDocNr, v.fRank, false))
+	{
+		v.fDelta = inDeltaB;
+		v.fIter = inIterB;
+		fCount += inIterB->Count();
+		fIterators.push_back(v);
+	}
+	else
+		delete inIterB;
+	
+	make_heap(fIterators.begin(), fIterators.end(), greater<CSubIter>());
+
+	fIDFCorrectionFactor = log(1.0 + static_cast<double>(inDbCountA + inDbCountB) / fCount);
+}
+
+bool CMergedDbDocIterator::Next(uint32& ioDoc, bool inSkip)
+{
+	uint8 r;
+	return Next(ioDoc, r, inSkip);
+}
+
+bool CMergedDbDocIterator::Next(uint32& ioDoc, uint8& ioRank, bool inSkip)
+{
+	bool result = false;
+
+	while (fIterators.size() > 0)
+	{
+		pop_heap(fIterators.begin(), fIterators.end(), greater<CSubIter>());
+		
+		CSubIter& si = fIterators.back();
+		
+		uint32 d = si.fDocNr + si.fDelta;
+		uint8 r = si.fRank;
+		
+		if (si.fIter->Next(si.fDocNr, si.fRank, inSkip))
+			push_heap(fIterators.begin(), fIterators.end(), greater<CSubIter>());
+		else
+		{
+			delete si.fIter;
+			fIterators.erase(fIterators.end() - 1);
+		}
+		
+		if (inSkip and d <= ioDoc)
+			continue;
+		
+		ioDoc = d;
+		ioRank = r;
+		
+		result = true;
+		++fRead;
+		break;
+	}
+	
+	return result;
+}
+
+// ----------------------------------------------------------------------------
+//
+//	Joined db support, simply merge the passed in iterators adding an offset if needed
+//
+
+CDbJoinedIterator::CDbJoinedIterator()
+	: fDocCount(0)
+	, fCount(0)
+	, fRead(0)
+{
+}
+
+CDbJoinedIterator::~CDbJoinedIterator()
+{
+}
+
+void CDbJoinedIterator::AddIterator(CDbDocIteratorBase* inIter, uint32 inCount)
+{
+	fCount += inIter->Count();
+
+	CSubIter si;
+	si.fOffset = fDocCount;
+	si.fIter = inIter;
+
+	if (inIter->Next(si.fDocNr, si.fRank, false))
+	{
+		si.fDocNr += si.fOffset;
+		fIterators.push_back(si);
+		
+		make_heap(fIterators.begin(), fIterators.end(), greater<CSubIter>());
+	}
+	else
+		delete inIter;
+
+	fDocCount += inCount;
+	
+	fIDFCorrectionFactor = log(1.0 + static_cast<double>(fDocCount) / fCount);
+}
+
+bool CDbJoinedIterator::Next(uint32& ioDoc, bool inSkip)
+{
+	THROW(("Should not be called"));
+	return false;
+}
+
+bool CDbJoinedIterator::Next(uint32& ioDoc, uint8& outRank, bool inSkip)
+{
+	bool result = false;
+
+	while (fIterators.size() > 0 and not result)
+	{
+		++fRead;
+		
+		if (fIterators.size() > 1)
+		{
+			pop_heap(fIterators.begin(), fIterators.end(), greater<CSubIter>());
+			
+			result = true;
+			ioDoc = fIterators.back().fDocNr;
+			outRank = fIterators.back().fRank;
+		}
+		
+		uint32 v;
+		uint8 r;
+
+		if (fIterators.back().fIter->Next(v, r, false))
+		{
+			fIterators.back().fDocNr = v + fIterators.back().fOffset;
+			fIterators.back().fRank = r;
+			push_heap(fIterators.begin(), fIterators.end(), greater<CSubIter>());
+		}
+		else
+		{
+			delete fIterators.back().fIter;
+			fIterators.erase(fIterators.begin() + fIterators.size() - 1);
+		}
+	}
+	
+	return result;
+}
+
+uint32 CDbJoinedIterator::Count() const
+{
+	return fCount;
+}
+
+uint32 CDbJoinedIterator::Read() const
+{
+	return fRead;
+}
+
+void CDbJoinedIterator::PrintHierarchy(int inLevel) const
+{
+	CDocIterator::PrintHierarchy(inLevel);
+	
+	vector<CSubIter>::const_iterator i;
+	for (i = fIterators.begin(); i != fIterators.end(); ++i)
+		(*i).fIter->PrintHierarchy(inLevel + 1);
+}

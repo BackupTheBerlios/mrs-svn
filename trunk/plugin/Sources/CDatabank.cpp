@@ -68,6 +68,7 @@
 #include "CBlastIndex.h"
 #endif
 #include "CDictionary.h"
+#include "CDocWeightArray.h"
 
 using namespace std;
 
@@ -178,14 +179,6 @@ CDbDocIteratorBase* CDatabankBase::GetDocWeightIterator(
 	return nil;
 }
 
-const CDocWeightArray& CDatabankBase::GetDocWeights(const string& inIndex)
-{
-	THROW(("No doc weights array for index %s", inIndex.c_str()));
-
-	CDocWeightArray* result = nil;
-	return *result;
-}
-
 string CDatabankBase::GetDocument(const string& inDocumentID)
 {
 	return GetDocument(GetDocumentNr(inDocumentID));
@@ -248,6 +241,86 @@ uint32 CDatabankBase::GetIndexNr(const string& inIndexName)
 std::string	CDatabankBase::GetDbNameForDocID(const std::string& inDocID) const
 {
 	return GetDbName();
+}
+
+HUrl CDatabankBase::GetDbDirectory() const
+{
+	HUrl result;
+	result.SetNativePath(getenv("MRS_DATA_DIR"));
+	return result;
+}
+
+HUrl CDatabankBase::GetWeightFileURL(const string& inIndex) const
+{
+	HUrl url = GetDbDirectory();
+	return url.GetChild(GetDbName() + '_' + inIndex + ".weights");
+}
+
+void CDatabankBase::RecalculateDocumentWeights(const string& inIndex)
+{
+	if (VERBOSE > 0)
+		cout << "Recalculating document weights for index " << inIndex << "... ";
+	
+	HFile::SafeSaver save(GetWeightFileURL(inIndex));
+	
+	int mode = O_RDWR | O_CREAT | O_BINARY | O_TRUNC;
+	auto_ptr<HStreamBase> file(new HBufferedFileStream(save.GetURL(), mode));
+	
+	uint32 docCount = Count();
+	
+	HAutoBuf<float> dwb(new float[docCount]);
+	float* dw = dwb.get();
+	
+	memset(dw, 0, docCount * sizeof(float));
+	
+	auto_ptr<CIteratorBase> keys(GetIteratorForIndex(inIndex));
+	string key;
+	uint32 v;
+	
+	while (keys->Next(key, v))
+	{
+		auto_ptr<CDbDocIteratorBase> iter(GetDocWeightIterator(inIndex, key));
+		
+		float idf = iter->GetIDFCorrectionFactor();
+		
+		uint32 doc;
+		uint8 freq;
+
+		while (iter->Next(doc, freq, false))
+		{
+			float wdt = freq * idf;
+			dw[doc] += wdt * wdt;
+		}
+	}
+	
+	for (uint32 d = 0; d < docCount; ++d)
+	{
+		if (dw[d] != 0)
+		{
+			dw[d] = sqrt(dw[d]);
+#if P_LITTLEENDIAN
+			dw[d] = byte_swapper::swap(dw[d]);
+#endif
+		}
+	}
+	
+	file->Write(dw, docCount * sizeof(float));
+	
+	if (VERBOSE > 0)
+		cout << "done" << endl;
+	
+	save.Commit();
+}
+
+CDocWeightArray CDatabankBase::GetDocWeights(const std::string& inIndex)
+{
+	HUrl url = GetWeightFileURL(inIndex);
+	
+	if (not HFile::Exists(url))
+		RecalculateDocumentWeights(inIndex);
+	
+	CDocWeightArray arr(url, Count());
+	return arr;
 }
 
 /*
@@ -386,13 +459,6 @@ string CDatabank::GetDbName() const
 	return basename(fPath.GetFileName());
 }
 
-void CDatabank::RecalculateDocumentWeights(const std::string& inIndex)
-{
-	if (fIndexer == nil)
-		THROW(("Logic error: called RecalculateDocumentWeights when there is no indexer object"));
-	fIndexer->RecalculateDocumentWeights(inIndex);
-}
-
 void CDatabank::Finish(bool inCreateAllTextIndex)
 {
 	assert(fCompressor->Count() == fHeader->entries);
@@ -448,7 +514,7 @@ void CDatabank::Finish(bool inCreateAllTextIndex)
 	else if (VERBOSE >= 1)
 		cout << "No ID table created since there is no id index" << endl;
 
-	fIndexer->FixupDocWeights();
+//	fIndexer->FixupDocWeights();
 
 	delete fIndexer;
 	fIndexer = nil;
@@ -688,7 +754,7 @@ void CDatabank::Merge(vector<CDatabank*>& inParts)
 	*fDataFile << *fHeader;
 
 	// now fix up the weighted document weights...
-	fIndexer->FixupDocWeights();
+//	fIndexer->FixupDocWeights();
 }
 
 string CDatabank::GetDocument(uint32 inDocNr)
@@ -841,11 +907,6 @@ CDbDocIteratorBase* CDatabank::GetDocWeightIterator(
 	const string& inIndex, const string& inKey)
 {
 	return GetIndexer()->GetDocWeightIterator(inIndex, inKey);
-}
-
-const CDocWeightArray& CDatabank::GetDocWeights(const string& inIndex)
-{
-	return GetIndexer()->GetDocWeights(inIndex);
 }
 
 void CDatabank::CreateDictionaryForIndexes(const vector<string>& inIndexNames,
@@ -1396,6 +1457,23 @@ uint32 CJoinedDatabank::CountDocumentsContainingKey(const string& inIndex,
 	return result;
 }
 
+CIteratorBase* CJoinedDatabank::GetIteratorForIndex(const string& inIndex)
+{
+	vector<CIteratorBase*> iters;
+	for (uint32 p = 0; p < fPartCount; ++p)
+		iters.push_back(fParts[p].fDb->GetIteratorForIndex(inIndex));
+	return new CStrUnionIterator(iters);
+}
+
+CIteratorBase* CJoinedDatabank::GetIteratorForIndexAndKey(
+	const string& inIndex, const string& inKey)
+{
+	vector<CIteratorBase*> iters;
+	for (uint32 p = 0; p < fPartCount; ++p)
+		iters.push_back(fParts[p].fDb->GetIteratorForIndexAndKey(inIndex, inKey));
+	return new CStrUnionIterator(iters);
+}
+
 CDocIterator* CJoinedDatabank::CreateDocIterator(
 	const string& inIndex, const string& inKey, bool inKeyIsPattern, CQueryOperator inOperator)
 {
@@ -1419,6 +1497,25 @@ CDocIterator* CJoinedDatabank::CreateDocIterator(
 	}
 	
 	return CDocUnionIterator::Create(imps);
+}
+
+CDbDocIteratorBase* CJoinedDatabank::GetDocWeightIterator(
+	const string& inIndex, const string& inKey)
+{
+	auto_ptr<CDbJoinedIterator> result(new CDbJoinedIterator());
+	
+	for (uint32 ix = 0; ix < fPartCount; ++ix)
+	{
+		CDbDocIteratorBase* imp =
+			fParts[ix].fDb->GetDocWeightIterator(inIndex, inKey);
+		
+		if (imp == nil)
+			continue;
+		
+		result->AddIterator(imp, fParts[ix].fCount);
+	}
+	
+	return result.release();
 }
 
 bool CJoinedDatabank::PartForDoc(uint32& ioDocNr, CDatabankBase*& outDb) const
@@ -1451,6 +1548,18 @@ string CJoinedDatabank::GetVersion() const
 		vers += fParts[p].fDb->GetVersion();
 	}
 	return vers;
+}
+
+string CJoinedDatabank::GetDbName() const
+{
+	string result;
+	for (uint32 p = 0; p < fPartCount; ++p)
+	{
+		if (p > 0)
+			result += '+';
+		result += fParts[p].fDb->GetDbName();
+	}
+	return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -1530,44 +1639,78 @@ string CUpdatedDatabank::GetDocumentID(uint32 inDocNr) const
 		return CDatabank::GetDocumentID(inDocNr);
 }
 
-class CUpdateIterator : public CDocDeltaIterator
+template<class T>
+class CUpdateIterator : public CDbDocIteratorBase
 {
   public:
-					CUpdateIterator(CDatabankBase* inDb, CIndex* inOmit,
-						CDocIterator* inOriginal);
-	virtual			~CUpdateIterator();
+						CUpdateIterator(CDatabankBase* inDb, CIndex* inOmit,
+							T* inOriginal);
+	virtual				~CUpdateIterator();
 	
-	virtual bool	Next(uint32& outDocNr, bool inSkip);
-	
-	CDatabankBase*	fDb;
-	CIndex*			fOmit;
+	virtual bool		Next(uint32& ioDoc, bool inSkip);
+	virtual bool		Next(uint32& ioDoc, uint8& outRank, bool inSkip);
+
+	virtual uint32		Count() const		{ return fOriginal->Count(); }
+	virtual uint32		Read() const		{ return fOriginal->Read(); }
+
+  protected:	
+	CDatabankBase*		fDb;
+	CIndex*				fOmit;
+	T*					fOriginal;
 };
 
-CUpdateIterator::CUpdateIterator(CDatabankBase* inDb, CIndex* inOmit, CDocIterator* inOriginal)
-	: CDocDeltaIterator(inOriginal)
-	, fDb(inDb)
+template<class T>
+CUpdateIterator<T>::CUpdateIterator(CDatabankBase* inDb, CIndex* inOmit, T* inOriginal)
+	: fDb(inDb)
 	, fOmit(inOmit)
+	, fOriginal(inOriginal)
 {
 }
 
-CUpdateIterator::~CUpdateIterator()
+template<class T>
+CUpdateIterator<T>::~CUpdateIterator()
 {
+	delete fOriginal;
 	delete fOmit;
 }
 
-bool CUpdateIterator::Next(uint32& outDocNr, bool inSkip)
+template<class T>
+bool CUpdateIterator<T>::Next(uint32& outDocNr, bool inSkip)
 {
-	bool result = false;
-	while (not result and fOriginal != nil and fOriginal->Next(outDocNr, inSkip))
-	{
-		string id = fDb->GetDocumentID(outDocNr);
-		
-		uint32 v;
-		if (not fOmit->GetValue(id, v))
-			result = true;
-	}
-	return result;
+	THROW(("NOT IMPLEMENTED YET"));
+//	bool result = false;
+//	while (not result and fOriginal != nil and fOriginal->Next(outDocNr, inSkip))
+//	{
+//		string id = fDb->GetDocumentID(outDocNr);
+//		
+//		uint32 v;
+//		if (not fOmit->GetValue(id, v))
+//			result = true;
+//	}
+//	return result;
 }
+
+template<class T>
+bool CUpdateIterator<T>::Next(uint32& outDocNr, uint8& outRank, bool inSkip)
+{
+	THROW(("NOT IMPLEMENTED YET"));
+//	bool result = false;
+//	while (not result and fOriginal != nil and fOriginal->Next(outDocNr, outRank, inSkip))
+//	{
+//		string id = fDb->GetDocumentID(outDocNr);
+//		
+//		uint32 v;
+//		if (not fOmit->GetValue(id, v))
+//			result = true;
+//	}
+//	return result;
+}
+
+//bool CUpdateIterator::Next(uint32& outDocNr, bool inSkip)
+//{
+//	uint8 r;
+//	return Next(outDocNr, r, inSkip);
+//}
 
 CDocIterator* CUpdatedDatabank::CreateDocIterator(const string& inIndex,
 	const string& inKey, bool inKeyIsPattern, CQueryOperator inOperator)
@@ -1577,7 +1720,7 @@ CDocIterator* CUpdatedDatabank::CreateDocIterator(const string& inIndex,
 		THROW(("Update databank does not contain an id index"));
 
 	CDocIterator* a = CDatabank::CreateDocIterator(inIndex, inKey, inKeyIsPattern, inOperator);
-	CDocIterator* b = new CDocDeltaIterator(new CUpdateIterator(fOriginal, omit,
+	CDocIterator* b = new CDocDeltaIterator(new CUpdateIterator<CDocIterator>(fOriginal, omit,
 		fOriginal->CreateDocIterator(inIndex, inKey, inKeyIsPattern, inOperator)), Count());
 	
 	return CDocUnionIterator::Create(a, b);
@@ -1624,4 +1767,20 @@ vector<string> CUpdatedDatabank::SuggestCorrection(const string& inKey)
 string CUpdatedDatabank::GetVersion() const
 {
 	return fOriginal->GetVersion() + '|' + CDatabank::GetVersion();
+}
+
+CDbDocIteratorBase* CUpdatedDatabank::GetDocWeightIterator(
+	const std::string& inIndex, const std::string& inKey)
+{
+//	THROW(("not supported yet, sorry"));
+
+	CIndex* omit = GetIndexer()->GetIndex("id");
+	if (omit == nil)
+		THROW(("Update databank does not contain an id index"));
+
+	CDbDocIteratorBase* a = CDatabank::GetDocWeightIterator(inIndex, inKey);
+	CDbDocIteratorBase* b = new CUpdateIterator<CDbDocIteratorBase>(fOriginal, omit,
+		fOriginal->GetDocWeightIterator(inIndex, inKey));
+	
+	return new CMergedDbDocIterator(a, 0, fOriginal->Count(), b, Count(), Count());
 }

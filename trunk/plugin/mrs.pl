@@ -39,12 +39,12 @@ use strict;
 use English;
 use Time::HiRes qw(usleep ualarm gettimeofday tv_interval);
 #use Sys::Proctitle;
-#use MRS;
+use MRS;
 
-BEGIN {
-	require "./MRS.pm";
-	import MRS::errstr;
-}
+#BEGIN {
+#	require "./MRS.pm";
+#	import MRS::errstr;
+#}
 
 use Getopt::Std;
 
@@ -75,12 +75,13 @@ elsif ($action eq 'merge')
 }
 elsif ($action eq 'query')
 {
-	getopts('d:q:v', \%opts);
+	getopts('d:q:vr:', \%opts);
 
 	my $db = $opts{d} or &Usage();
 	my $q = $opts{'q'};
+	my $r = $opts{'r'};
 	
-	&Query($db, $opts{v}, $q);
+	&Query($db, $opts{v}, $q, $r);
 }
 elsif ($action eq 'entry')
 {
@@ -246,14 +247,14 @@ sub Create()
 	my $cmp_name = $db;
 	$cmp_name .= $partNr if defined $partNr;
 
-	my $fileName = "$data_dir/$cmp_name.clx";
+	my $fileName = "$data_dir/$cmp_name.cmp";
 	my $exists = -f $fileName;
 	
 	my $mrs = MRS::MDatabank::Create($fileName)
 		or die "Could not create new databank $db: " . MRS::errstr;
 
 	# protect the new born file
-#	chmod 0400, "$data_dir/$cmp_name.clx" if not $exists;
+#	chmod 0400, "$data_dir/$cmp_name.cmp" if not $exists;
 	
 	# Now we can create the parser object
 	
@@ -332,26 +333,35 @@ sub Merge()
 	my @parts;
 	foreach my $n (1 .. $cnt)
 	{
-		my $part = new MRS::MDatabank("$db$n.clx")
+		my $part = new MRS::MDatabank("$db$n.cmp")
 			or die "Could not find part $n: " . MRS::errstr . "\n";
 		
 		push @parts, $part;
 	}
 	
-	MRS::MDatabank::Merge("$data_dir/$db.clx", \@parts);
+	MRS::MDatabank::Merge("$data_dir/$db.cmp", \@parts);
 }
 
 sub Query()
 {
-	my ($db, $verbose, $q) = @_;
+	my ($db, $verbose, $q, $r) = @_;
 	
 	$verbose = 0 unless defined $verbose;
 	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
 	
 	my $d = new MRS::MDatabank($db);
 	
-	my $s = $d->Find($q, 1);
+#	my $s = $d->Find($q, 1);
 	
+		my $rq = $d->RankedQuery('*alltext*');
+		
+		foreach my $w (split(m/\s+/, $r)) {
+			$rq->AddTerm($w, 1);
+		}
+		
+	my $s = $rq->Perform;
+
+
 	if ($s)
 	{
 		print "Hits for '$q' in $db\n";

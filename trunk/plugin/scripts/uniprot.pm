@@ -46,13 +46,10 @@ my $count = 0;
 our $COMPRESSION_LEVEL = 9;
 our $COMPRESSION = "zlib";
 our $COMPRESSION_DICTIONARY=<<'END'; #'
-CC   --------------------------------------------------------------------------
-CC   This Swiss-Prot entry is copyright. It is produced through a collaboration
-CC   between  the Swiss Institute of Bioinformatics  and the  EMBL outstation -
-CC   the European Bioinformatics Institute.  There are no  restrictions on  its
-CC   use as long as its content is in no way modified and this statement is not
-CC   removed.
-CC   --------------------------------------------------------------------------
+CC   -----------------------------------------------------------------------
+CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
+CC   Distributed under the Creative Commons Attribution-NoDerivs License
+CC   -----------------------------------------------------------------------
 END
 
 sub new
@@ -180,19 +177,19 @@ sub raw_files
 	$raw_dir =~ s'(sprot|trembl)/?$'uniprot';
 
 	if ($db eq 'sprot') {
-		return "zcat $raw_dir/uniprot_sprot.dat.gz|";
+		return "gzcat $raw_dir/uniprot_sprot.dat.gz|";
 	}
 	elsif ($db eq 'trembl') {
-		return "zcat $raw_dir/uniprot_trembl.dat.gz|";
+		return "gzcat $raw_dir/uniprot_trembl.dat.gz|";
 	}
 	elsif ($db eq 'sp100') {
-		return "zcat $raw_dir/sp100.dat.gz|";
+		return "gzcat $raw_dir/sp100.dat.gz|";
 	}
 	elsif ($db eq 'sp200') {
-		return "zcat $raw_dir/sp200.dat.gz|";
+		return "gzcat $raw_dir/sp200.dat.gz|";
 	}
 	elsif ($db eq 'uniprot') {
-		return ( "zcat $raw_dir/uniprot_trembl.dat.gz|", "zcat $raw_dir/uniprot_sprot.dat.gz|");
+		return ( "gzcat $raw_dir/uniprot_trembl.dat.gz|", "gzcat $raw_dir/uniprot_sprot.dat.gz|");
 	}
 	else {
 		die "unknown db: $db\n";

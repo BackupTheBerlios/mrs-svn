@@ -127,9 +127,9 @@ struct MQueryResultsImp
 {
 								MQueryResultsImp(CDatabankBase& inDb,
 										CDocIterator* inDocIterator)
-									: fDatabank(&inDb) 
-									, fIter(inDocIterator)
-									, fScore(1) {}
+									: fDatabank(&inDb)
+									, fScore(1.0f)
+									, fIter(inDocIterator) {}
 	virtual						~MQueryResultsImp() {}
 
 	virtual bool				Next(uint32& outDoc)
@@ -289,7 +289,7 @@ struct MRankedQueryImp
 //  class MDatabank and struct MDatabankImp
 //
 
-const string MDatabank::kWildCardString = "*";
+const char MDatabank::kWildCardString[] = "*";
 
 MDatabankImp::MDatabankImp(const string& inDatabank, bool inNew)
 {
@@ -406,7 +406,7 @@ MDatabankImp::MDatabankImp(const string& inDatabank, bool inNew)
 				if (not HFile::Exists(url) and data_dir != nil)
 					url.SetNativePath(string(data_dir) + '/' + db);
 				if (not HFile::Exists(url) and data_dir != nil)
-					url.SetNativePath(string(data_dir) + '/' + db + ".clx");
+					url.SetNativePath(string(data_dir) + '/' + db + ".cmp");
 		
 				if (not HFile::Exists(url))
 					THROW(("Databank not found: '%s'", db.c_str()));
@@ -476,7 +476,7 @@ long MDatabank::CountForKey(const string& inIndex, const string& inKey) const
 	return fImpl->fDatabank->CountDocumentsContainingKey(inIndex, inKey);
 }
 
-MBooleanQuery* MDatabank::Match(const std::string& inValue, const std::string& inIndex)
+MBooleanQuery* MDatabank::Match(const string& inValue, const string& inIndex)
 {
 	auto_ptr<MBooleanQueryImp> imp(new MBooleanQueryImp);
 	imp->fDatabank = fImpl->fDatabank.get();
@@ -484,7 +484,7 @@ MBooleanQuery* MDatabank::Match(const std::string& inValue, const std::string& i
 	return MBooleanQuery::Create(imp.release());
 }
 
-MBooleanQuery* MDatabank::MatchRel(const std::string& inValue, const std::string& inRelOp, const std::string& inIndex)
+MBooleanQuery* MDatabank::MatchRel(const string& inValue, const string& inRelOp, const string& inIndex)
 {
 	auto_ptr<MBooleanQueryImp> imp(new MBooleanQueryImp);
 	imp->fDatabank = fImpl->fDatabank.get();
@@ -541,7 +541,7 @@ const char* MDatabank::Sequence(const string& inEntryID, unsigned long inIndex)
 	return result;
 }
 
-MBlastHits* MDatabank::Blast(const string& inQuery, const std::string& inMatrix,
+MBlastHits* MDatabank::Blast(const string& inQuery, const string& inMatrix,
 	unsigned long inWordSize, double inExpect, bool inFilter,
 	bool inGapped, unsigned long inGapOpen, unsigned long inGapExtend)
 {
@@ -562,7 +562,7 @@ MBlastHits* MDatabank::Blast(const string& inQuery, const std::string& inMatrix,
 }
 #endif
 
-MIndex* MDatabank::Index(const std::string& inIndex)
+MIndex* MDatabank::Index(const string& inIndex)
 {
 	auto_ptr<MIndices> indices(Indices());
 	MIndex* result = nil;
@@ -681,7 +681,7 @@ void MDatabank::Finish(bool inCreateAllTextIndex)
 		fImpl->fSafe->Commit();
 }
 
-void MDatabank::RecalcDocWeights(const std::string& inIndex)
+void MDatabank::RecalcDocWeights(const string& inIndex)
 {
 	fImpl->GetDB()->RecalculateDocumentWeights(inIndex);
 }
@@ -714,10 +714,20 @@ MBooleanQuery* MDatabank::BooleanQuery(const string& inQuery)
 MRankedQuery* MDatabank::RankedQuery(const string& inIndex)
 {
 	auto_ptr<MRankedQueryImp> imp(new MRankedQueryImp);
+
 	imp->fDatabank = fImpl->fDatabank.get();
 	imp->fIndex = inIndex;
 	imp->fQuery.reset(new CRankedQuery);
-	return MRankedQuery::Create(imp.release());
+
+	MRankedQuery* result = MRankedQuery::Create(imp.release());
+
+	result->MaxReturn = 1000;
+	
+	const char kVectorName[] = "vector";
+	result->Algorithm = new char[strlen(kVectorName) + 1];
+	strcpy(result->Algorithm, kVectorName);
+
+	return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -741,7 +751,7 @@ const char* MQueryResults::Next()
 
 unsigned long MQueryResults::Score() const
 {
-	return fImpl->fScore;
+	return static_cast<unsigned long>(fImpl->fScore);
 }
 
 void MQueryResults::Skip(long inCount)
@@ -760,7 +770,7 @@ unsigned long MQueryResults::Count(bool inExact) const
 }
 
 #ifndef NO_BLAST
-MBlastHits* MQueryResults::Blast(const string& inQuery, const std::string& inMatrix,
+MBlastHits* MQueryResults::Blast(const string& inQuery, const string& inMatrix,
 	unsigned long inWordSize, double inExpect, bool inFilter,
 	bool inGapped, unsigned long inGapOpen, unsigned long inGapExtend)
 {
@@ -1063,7 +1073,7 @@ MQueryResults* MBooleanQuery::Perform()
 //  class MRankedQuery
 //
 
-void MRankedQuery::AddTerm(const std::string& inTerm, unsigned long inFrequency)
+void MRankedQuery::AddTerm(const string& inTerm, unsigned long inFrequency)
 {
 	fImpl->fQuery->AddTerm(inTerm, inFrequency);
 }
@@ -1076,11 +1086,16 @@ MQueryResults* MRankedQuery::Perform(MBooleanQuery* inMetaQuery)
 	
 	MQueryResults* result = nil;
 
+	string algorithm = "vector";
+	if (Algorithm != nil)
+		algorithm = Algorithm;
+
 	if (inMetaQuery == nil or metaDocs.get() != nil)
 	{
 		auto_ptr<MQueryResultsImp> imp(
 			new MQueryResultsImp(*fImpl->fDatabank, fImpl->fQuery->PerformSearch(
-				*fImpl->fDatabank, fImpl->fIndex, metaDocs.release())));
+				*fImpl->fDatabank, fImpl->fIndex, Algorithm, metaDocs.release(),
+				MaxReturn)));
 	
 		if (imp->Count(false) > 0)
 			result = MQueryResults::Create(imp.release());

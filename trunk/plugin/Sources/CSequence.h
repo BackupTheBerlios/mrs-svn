@@ -1,4 +1,4 @@
-/*	$Id: CSequence.h,v 1.14 2005/11/07 13:54:44 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Friday May 27 2005 15:46:37
 */

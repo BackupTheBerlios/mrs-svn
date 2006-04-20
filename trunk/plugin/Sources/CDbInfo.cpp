@@ -1,4 +1,4 @@
-/*	$Id: CDbInfo.cpp,v 1.7 2005/08/22 12:38:06 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Friday March 05 2004 14:45:43
 */

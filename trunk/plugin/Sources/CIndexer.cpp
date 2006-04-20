@@ -92,11 +92,10 @@ struct SIndexPart
 	int64			tree_offset;
 	uint32			root;
 	uint32			entries;
-	int64			weight_offset;
 };
 
 const uint32
-	kSIndexPartSize = 5 * sizeof(uint32) + 3 * sizeof(int64) + 16;
+	kSIndexPartSize = 5 * sizeof(uint32) + 2 * sizeof(int64) + 16;
 
 HStreamBase& operator<<(HStreamBase& inData, const SIndexHeader& inStruct);
 HStreamBase& operator>>(HStreamBase& inData, SIndexHeader& inStruct);
@@ -135,8 +134,7 @@ HStreamBase& operator<<(HStreamBase& inData, const SIndexPart& inStruct)
 	data.Write(inStruct.name, sizeof(inStruct.name));
 	data.Write(&inStruct.kind, sizeof(inStruct.kind));
 	data << inStruct.bits_offset << inStruct.tree_offset
-		 << inStruct.root << inStruct.entries
-		 << inStruct.weight_offset;
+		 << inStruct.root << inStruct.entries;
 	
 	return inData;
 }
@@ -150,8 +148,7 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexPart& inStruct)
 	data.Read(inStruct.name, sizeof(inStruct.name));
 	data.Read(&inStruct.kind, sizeof(inStruct.kind));
 	data >> inStruct.bits_offset >> inStruct.tree_offset
-		 >> inStruct.root >> inStruct.entries
-		 >> inStruct.weight_offset;
+		 >> inStruct.root >> inStruct.entries;
 	
 	if (inStruct.size != kSIndexPartSize)
 	{
@@ -194,7 +191,7 @@ class CJoinedIterator : public CIteratorBase
 	
 	struct CElement
 	{
-		string		fSValue;
+		string			fSValue;
 		uint32			fNValue;
 		CIteratorBase*	fIter;
 		
@@ -728,7 +725,15 @@ void CFullTextIndex::FlushDoc(uint32 inDoc)
 {
 	if (buffer_ix + fDocWords.size() >= kBufferEntryCount)
 		FlushRun();
+
+	// normalize the frequencies.
 	
+	uint32 maxFreq = 1;
+	
+	for (DocWords::iterator w = fDocWords.begin(); w != fDocWords.end(); ++w)
+		if (w->freq > maxFreq)
+			maxFreq = w->freq;
+
 	for (DocWords::iterator w = fDocWords.begin(); w != fDocWords.end(); ++w)
 	{
 		if (w->freq == 0)
@@ -738,10 +743,10 @@ void CFullTextIndex::FlushDoc(uint32 inDoc)
 		buffer[buffer_ix].doc = inDoc;
 		buffer[buffer_ix].ix = w->index;
 
-		if (w->freq > kMaxWeight)
-			buffer[buffer_ix].weight = kMaxWeight;
-		else
-			buffer[buffer_ix].weight = w->freq;
+		float wf = static_cast<float>(w->freq) / maxFreq;
+		buffer[buffer_ix].weight = static_cast<uint32>(wf * kMaxWeight);
+		if (buffer[buffer_ix].weight < 1)
+			buffer[buffer_ix].weight = 1;
 
 		++buffer_ix;
 	}
@@ -1228,7 +1233,6 @@ CWeightedWordIndex::CWeightedWordIndex(CFullTextIndex& inFullTextIndex,
 void CWeightedWordIndex::Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo)
 {
 	CTextIndexBase::Write(inDataFile, inDocCount, outInfo);
-	outInfo.weight_offset = inDataFile.Seek(0, SEEK_END);
 	
 	// allocate space for the weight vector
 	const int kBufSize = 4096;
@@ -1338,7 +1342,6 @@ CIndexer::CIndexer(const HUrl& inDb)
 	, fFile(nil)
 	, fHeader(new SIndexHeader)
 	, fParts(nil)
-	, fDocWeights(nil)
 	, fOffset(0)
 	, fSize(0)
 {
@@ -1351,7 +1354,6 @@ CIndexer::CIndexer(HStreamBase& inFile, int64 inOffset, int64 inSize)
 	: fFullTextIndex(nil)
 	, fNextTextIndexID(0)
 	, fFile(&inFile)
-	, fDocWeights(nil)
 	, fOffset(inOffset)
 	, fSize(inSize)
 {
@@ -1363,30 +1365,10 @@ CIndexer::CIndexer(HStreamBase& inFile, int64 inOffset, int64 inSize)
 	fParts = new SIndexPart[fHeader->count];
 	for (uint32 i = 0; i < fHeader->count; ++i)
 		view >> fParts[i];
-
-	// pre load the document weight arrays
-	fDocWeights = new CDocWeightArray*[fHeader->count];
-	memset(fDocWeights, 0, sizeof(CDocWeightArray*) * fHeader->count);
-	
-	for (uint32 ix = 0; ix < fHeader->count; ++ix)
-	{
-		if (fParts[ix].weight_offset != 0)
-		{
-			fDocWeights[ix] = 
-				new CDocWeightArray(*fFile, fParts[ix].weight_offset, fHeader->entries);
-		}
-	}
 }
 
 CIndexer::~CIndexer()
 {
-	if (fDocWeights != nil)
-	{
-		for (uint32 ix = 0; ix < fHeader->count; ++ix)
-			delete fDocWeights[ix];
-		delete[] fDocWeights;
-	}
-
 	delete fHeader;
 	delete[] fParts;
 	
@@ -2135,7 +2117,6 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 		if (fParts[ix].kind == kWeightedIndex)
 		{
 			HAutoBuf<float> dwb(new float[fHeader->entries]);
-			fParts[ix].weight_offset = outData.Seek(0, SEEK_END);
 			outData.Write(dwb.get(), sizeof(float) * fHeader->entries);
 		}
 		
@@ -2338,9 +2319,6 @@ void CIndexer::PrintInfo()
 		cout << "  root:          " << p.root << endl;
 		cout << "  entries:       " << p.entries << endl;
 		
-		if (p.kind == kWeightedIndex)
-			cout << "  weight offset: " << p.weight_offset << endl;
-		
 		cout << endl;
 
 #if 0 //P_DEBUG
@@ -2512,133 +2490,75 @@ uint32 CIndexer::GetDocumentNr(const string& inDocumentID, bool inThrowIfNotFoun
 	return result;
 }
 
-struct CDocWeightArrayImp
-{
-	float*		fData;
-	uint32		fCount;
-};
-
-CDocWeightArray::CDocWeightArray(HStreamBase& inFile, int64 inOffset, uint32 inCount)
-	: fImpl(nil)
-{
-	auto_ptr<CDocWeightArrayImp> imp(new CDocWeightArrayImp);
-	imp->fData = new float[inCount];
-	imp->fCount = inCount;
-	
-	inFile.PRead(imp->fData, inCount * sizeof(float), inOffset);
-
-#if P_LITTLEENDIAN
-	for (uint32 i = 0; i < inCount; ++i)
-		imp->fData[i] = byte_swapper::swap(imp->fData[i]);
-#endif
-
-	fImpl = imp.release();
-}
-
-CDocWeightArray::~CDocWeightArray()
-{
-	delete[] fImpl->fData;
-	delete fImpl;
-}
-
-float CDocWeightArray::operator[](uint32 inDocNr) const
-{
-	return fImpl->fData[inDocNr];
-}
-
-const CDocWeightArray& CIndexer::GetDocWeights(const string& inIndex) const
-{
-	string index = tolower(inIndex);
-
-	CDocWeightArray* result = nil;
-
-	for (uint32 ix = 0; ix < fHeader->count; ++ix)
-	{
-		if (index != fParts[ix].name)
-			continue;
-
-		if (fParts[ix].weight_offset == 0 or fDocWeights[ix] == nil)
-			THROW(("There is no weights array for this index (%s)", inIndex.c_str()));
-
-		result = fDocWeights[ix];
-		break;
-	}
-	
-	if (result == nil)
-		THROW(("Doc weights for index %s not found", inIndex.c_str()));
-	
-	return *result;
-}
-
-void CIndexer::RecalculateDocumentWeights(const std::string& inIndex)
-{
-	if (VERBOSE > 0)
-		cout << "Recalculating document weights for index " << inIndex << "... ";
-	
-	string index = tolower(inIndex);
-	auto_ptr<CIndex> indx;
-
-	uint32 ix;
-	for (ix = 0; ix < fHeader->count; ++ix)
-	{
-		if (index != fParts[ix].name)
-			continue;
-
-		indx.reset(new CIndex(fParts[ix].kind, *fFile, fParts[ix].tree_offset, fParts[ix].root));
-		break;
-	}
-
-	if (indx.get() == nil)
-		THROW(("Index %s not found!", inIndex.c_str()));
-	
-	uint32 docCount = fHeader->entries;
-	
-	HAutoBuf<float> dwb(new float[docCount]);
-	float* dw = dwb.get();
-	
-	memset(dw, 0, docCount * sizeof(float));
-	
-	int64 bitsOffset = fParts[ix].bits_offset;
-	
-	for (CIndex::iterator t = indx->begin(); t != indx->end(); ++t)
-	{
-		CDbDocWeightIterator iter(*fFile, bitsOffset + t->second, docCount);
-		
-		float idf = iter.GetIDFCorrectionFactor();
-		
-		uint32 doc;
-		uint8 freq;
-
-		while (iter.Next(doc, freq, false))
-		{
-			float wdt = freq * idf;
-			dw[doc] += wdt * wdt;
-		}
-	}
-	
-	for (uint32 d = 0; d < docCount; ++d)
-	{
-		if (dw[d] != 0)
-		{
-			dw[d] = sqrt(dw[d]);
-#if P_LITTLEENDIAN
-			dw[d] = byte_swapper::swap(dw[d]);
-#endif
-		}
-	}
-	
-	fFile->PWrite(dw, docCount * sizeof(float), fParts[ix].weight_offset);
-	
-	if (VERBOSE > 0)
-		cout << "done" << endl;
-}
-
-void CIndexer::FixupDocWeights()
-{
-	for (uint32 ix = 0; ix < fHeader->count; ++ix)
-	{
-		if (fParts[ix].kind == kWeightedIndex)
-			RecalculateDocumentWeights(fParts[ix].name);
-	}
-}
+//void CIndexer::RecalculateDocumentWeights(const std::string& inIndex)
+//{
+//	if (VERBOSE > 0)
+//		cout << "Recalculating document weights for index " << inIndex << "... ";
+//	
+//	string index = tolower(inIndex);
+//	auto_ptr<CIndex> indx;
+//
+//	uint32 ix;
+//	for (ix = 0; ix < fHeader->count; ++ix)
+//	{
+//		if (index != fParts[ix].name)
+//			continue;
+//
+//		indx.reset(new CIndex(fParts[ix].kind, *fFile, fParts[ix].tree_offset, fParts[ix].root));
+//		break;
+//	}
+//
+//	if (indx.get() == nil)
+//		THROW(("Index %s not found!", inIndex.c_str()));
+//	
+//	uint32 docCount = fHeader->entries;
+//	
+//	HAutoBuf<float> dwb(new float[docCount]);
+//	float* dw = dwb.get();
+//	
+//	memset(dw, 0, docCount * sizeof(float));
+//	
+//	int64 bitsOffset = fParts[ix].bits_offset;
+//	
+//	for (CIndex::iterator t = indx->begin(); t != indx->end(); ++t)
+//	{
+//		CDbDocWeightIterator iter(*fFile, bitsOffset + t->second, docCount);
+//		
+//		float idf = iter.GetIDFCorrectionFactor();
+//		
+//		uint32 doc;
+//		uint8 freq;
+//
+//		while (iter.Next(doc, freq, false))
+//		{
+//			float wdt = freq * idf;
+//			dw[doc] += wdt * wdt;
+//		}
+//	}
+//	
+//	for (uint32 d = 0; d < docCount; ++d)
+//	{
+//		if (dw[d] != 0)
+//		{
+//			dw[d] = sqrt(dw[d]);
+//#if P_LITTLEENDIAN
+//			dw[d] = byte_swapper::swap(dw[d]);
+//#endif
+//		}
+//	}
+//	
+//	fFile->PWrite(dw, docCount * sizeof(float), fParts[ix].weight_offset);
+//	
+//	if (VERBOSE > 0)
+//		cout << "done" << endl;
+//}
+//
+//void CIndexer::FixupDocWeights()
+//{
+//	for (uint32 ix = 0; ix < fHeader->count; ++ix)
+//	{
+//		if (fParts[ix].kind == kWeightedIndex)
+//			RecalculateDocumentWeights(fParts[ix].name);
+//	}
+//}
 

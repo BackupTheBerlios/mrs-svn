@@ -1,4 +1,4 @@
-/*	$Id: CTokenizer.h,v 1.22 2005/09/15 10:12:08 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Sunday January 05 2003 19:10:48
 */

@@ -1,4 +1,4 @@
-/*	$Id: HXGlobals.h,v 1.11 2005/08/22 12:38:06 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created Tuesday October 02 2001 09:23:52
 */

@@ -56,18 +56,6 @@ class CIndexCache;
 class CIndex;
 class CIteratorBase;
 
-class CDocWeightArray
-{
-  public:
-					CDocWeightArray(HStreamBase& inFile, int64 inOffset, uint32 inCount);
-	virtual			~CDocWeightArray();
-
-	float			operator[](uint32 inDocNr) const;
-
-  private:
-	struct CDocWeightArrayImp*	fImpl;
-};
-
 class CIndexer
 {
   public:
@@ -104,10 +92,6 @@ class CIndexer
 	CDbDocIteratorBase*
 					GetDocWeightIterator(const std::string& inIndex, const std::string& inKey);
 	
-	// returns an array of floats
-	const CDocWeightArray&
-					GetDocWeights(const std::string& inIndex) const;
-
 	void			PrintInfo();
 	void			DumpIndex(const std::string& inIndex) const;
 	
@@ -125,8 +109,8 @@ class CIndexer
 
 	void			FlushDoc();
 
-	void			FixupDocWeights();
-	void			RecalculateDocumentWeights(const std::string& inIndex);
+//	void			FixupDocWeights();
+//	void			RecalculateDocumentWeights(const std::string& inIndex);
 
   private:
 
@@ -144,8 +128,6 @@ class CIndexer
 	HStreamBase*					fFile;
 	struct SIndexHeader*			fHeader;
 	struct SIndexPart*				fParts;
-	
-	CDocWeightArray**				fDocWeights;
 	
 	// for statistics
 	int64							fOffset;

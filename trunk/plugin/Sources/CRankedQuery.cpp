@@ -44,19 +44,21 @@
 #include "HStlVector.h"
 #include "HUtils.h"
 #include "HStlIOStream.h"
+#include "HError.h"
 
 #include <boost/ptr_container/ptr_vector.hpp>
 
 #include "CRankedQuery.h"
 #include "CDatabank.h"
 #include "CIndexer.h"
+#include "CDocWeightArray.h"
 
 using namespace std;
 
 struct Term
 {
 	string							key;
-	float							weight;
+	uint32							weight;
 	auto_ptr<CDbDocIteratorBase>	iter;
 	float							w;
 	
@@ -134,41 +136,95 @@ CRankedQuery::~CRankedQuery()
 	delete fImpl;
 }
 
-void CRankedQuery::AddTerm(const string& inKey, float inWeight)
+void CRankedQuery::AddTerm(const string& inKey, uint32 inFrequency)
 {
 	auto_ptr<Term> t(new Term);
 
 	t->key = inKey;
-	t->weight = inWeight;
+	t->weight = inFrequency;
 	
 	fImpl->fTerms.push_back(t.release());
 }
 
-CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
-	const string& inIndex, CDocIterator* inMetaQuery)
+struct Algorithm
 {
-	uint32 maxReturn = 1000;
+	virtual float		operator()(float inAccumulator, float inDocWeight, float inQueryWeight) = 0;
+	
+	static Algorithm&	Choose(const string& inName);
+};
 
+template<class T>
+struct AlgorithmT : public Algorithm
+{
+	static T		sInstance;
+};
+
+template<class T>
+T AlgorithmT<T>::sInstance;
+
+struct VectorAlgorithm : public AlgorithmT<VectorAlgorithm>
+{
+	virtual float	operator()(float inAccumulator, float inDocWeight, float inQueryWeight)
+						{ return inAccumulator / (inDocWeight * inQueryWeight); }
+};
+
+struct DiceAlgorithm : public AlgorithmT<DiceAlgorithm>
+{
+	virtual float	operator()(float inAccumulator, float inDocWeight, float inQueryWeight)
+						{ return 2 * inAccumulator / (inDocWeight * inDocWeight + inQueryWeight * inQueryWeight); }
+};
+
+struct JaccardAlgorithm : public AlgorithmT<JaccardAlgorithm>
+{
+	virtual float	operator()(float inAccumulator, float inDocWeight, float inQueryWeight)
+						{ return inAccumulator / (inDocWeight * inDocWeight + inQueryWeight * inQueryWeight - inAccumulator); }
+};
+
+Algorithm& Algorithm::Choose(const string& inName)
+{
+	if (inName == "vector")
+		return VectorAlgorithm::sInstance;
+	else if (inName == "dice")
+		return DiceAlgorithm::sInstance;
+	else if (inName == "jaccard")
+		return JaccardAlgorithm::sInstance;
+	else
+		THROW(("Unknown algorithm: %s", inName.c_str()));
+}
+
+CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
+	const string& inIndex, const std::string& inAlgorithm,
+	CDocIterator* inMetaQuery, uint32 inMaxReturn)
+{
 	uint32 docCount = inDatabank.Count();
 	HAutoBuf<float> Abuffer(new float[docCount]);
 	float* A = Abuffer.get();		// the accumulators
 	
+	Algorithm& alg = Algorithm::Choose(inAlgorithm);
+	
 	memset(A, 0, sizeof(float) * docCount);
 	
-	const CDocWeightArray& Wd = inDatabank.GetDocWeights(inIndex);
+	CDocWeightArray Wd = inDatabank.GetDocWeights(inIndex);
 	
 	float Wq = 0, Smax = 0;
 
-	// first create the iterators and sort them by decreasing rank
-	for (uint32 tx = 0; tx < fImpl->fTerms.size(); ++tx)
+	// normalize the term frequencies.
+	
+	uint32 maxTermFreq = 1;
+	for (TermVector::iterator t = fImpl->fTerms.begin(); t != fImpl->fTerms.end(); ++t)
+		if (t->weight > maxTermFreq)
+			maxTermFreq = t->weight;
+
+	// create the iterators and sort them by decreasing rank
+	for (TermVector::iterator t = fImpl->fTerms.begin(); t != fImpl->fTerms.end(); ++t)
 	{
-		Term& t = fImpl->fTerms[tx];
+		t->weight = static_cast<uint32>(kMaxWeight * (static_cast<float>(t->weight) / maxTermFreq));
 		
-		t.iter.reset(inDatabank.GetDocWeightIterator(inIndex, t.key));
-		if (t.iter.get() != nil)
-			t.w = t.iter->Weight() * t.iter->GetIDFCorrectionFactor() * t.weight;
+		t->iter.reset(inDatabank.GetDocWeightIterator(inIndex, t->key));
+		if (t->iter.get() != nil)
+			t->w = t->iter->Weight() * t->iter->GetIDFCorrectionFactor() * t->weight;
 		else
-			t.w = 0;
+			t->w = 0;
 	}
 	
 	fImpl->fTerms.sort(greater<Term>());
@@ -216,20 +272,21 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	Wq = sqrt(Wq);
 
 	vector<CDocScore> docs;
-	docs.reserve(maxReturn);		// << return the top maxReturn documents
+	docs.reserve(inMaxReturn);		// << return the top maxReturn documents
 	
 	auto_ptr<CDocIterator> rdi(new CAccumulatorIterator(A, docCount));
 	if (inMetaQuery)
-		rdi.reset(new CDocIntersectionIterator(rdi.release(), inMetaQuery));
+		rdi.reset(CDocIntersectionIterator::Create(rdi.release(), inMetaQuery));
 	
 	uint32 d = 0;
 	while (rdi->Next(d, false))
 	{
 		CDocScore ds;
-		ds.fRank = A[d] / (Wd[d] * Wq);
+//		ds.fRank = A[d] / (Wd[d] * Wq);
+		ds.fRank = alg(A[d], Wd[d], Wq);
 		ds.fDocNr = d;
 		
-		if (docs.size() >= maxReturn)
+		if (docs.size() >= inMaxReturn)
 		{
 			if (ds.fRank > docs.front().fRank)
 			{
@@ -251,7 +308,7 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	dv->reserve(docs.size());
 
 	for (vector<CDocScore>::iterator i = docs.begin(); i != docs.end(); ++i)
-		dv->push_back(make_pair(i->fDocNr, static_cast<uint32>(i->fRank * 100)));
+		dv->push_back(make_pair(i->fDocNr, i->fRank * 100));
 
 	return new CDocVectorIterator(dv.release());
 }

@@ -116,7 +116,7 @@ class CDatabankBase
 	virtual CDbDocIteratorBase*
 						GetDocWeightIterator(const std::string& inIndex,
 							const std::string& inKey);
-	virtual const CDocWeightArray&
+	virtual CDocWeightArray
 						GetDocWeights(const std::string& inIndex);
 
 	virtual long		GetIndexCount() = 0;
@@ -138,6 +138,11 @@ class CDatabankBase
 	virtual CDocIterator* CreateDocIterator(const std::string& inIndex,
 							const std::string& inKey, bool inKeyIsPattern,
 							CQueryOperator inOperator) = 0;
+
+	virtual void		RecalculateDocumentWeights(const std::string& inIndex);
+
+	virtual HUrl		GetDbDirectory() const;
+	HUrl				GetWeightFileURL(const std::string& inIndex) const;
 };
 
 class CDatabank : public CDatabankBase
@@ -155,11 +160,6 @@ class CDatabank : public CDatabankBase
 	virtual CIteratorBase*
 						GetIteratorForIndexAndKey(const std::string& inIndex,
 							const std::string& inKey);
-	virtual CDbDocIteratorBase*
-						GetDocWeightIterator(const std::string& inIndex,
-							const std::string& inConceptID);
-	virtual const CDocWeightArray&
-						GetDocWeights(const std::string& inIndex);
 
 	virtual void		PrintInfo();
 
@@ -197,7 +197,6 @@ class CDatabank : public CDatabankBase
 
 	void				SetVersion(const std::string& inVersion);
 
-	void				RecalculateDocumentWeights(const std::string& inIndex);
 	void				Finish(bool inCreateAllTextIndex);
 	
 	virtual uint32		Count() const;
@@ -220,6 +219,10 @@ class CDatabank : public CDatabankBase
 	virtual CDocIterator* CreateDocIterator(const std::string& inIndex,
 						const std::string& inKey, bool inKeyIsPattern,
 						CQueryOperator inOperator);
+
+	virtual CDbDocIteratorBase*
+						GetDocWeightIterator(const std::string& inIndex,
+							const std::string& inKey);
 	
 	CDocIterator*
 					GetImpForPattern(const std::string& inIndex,
@@ -297,6 +300,15 @@ class CJoinedDatabank : public CDatabankBase
 	virtual long		GetIndexCount();
 	virtual	void		GetIndexInfo(uint32 inIndexNr, std::string& outCode,
 							std::string& outType, uint32& outCount);
+
+	virtual CIteratorBase*
+						GetIteratorForIndex(const std::string& inIndex);
+	virtual CIteratorBase*
+						GetIteratorForIndexAndKey(const std::string& inIndex,
+							const std::string& inKey);
+	virtual CDbDocIteratorBase*
+						GetDocWeightIterator(const std::string& inIndex,
+							const std::string& inKey);
 	
 	virtual uint32		CountDocumentsContainingKey(const std::string& inIndex,
 							const std::string& inKey);
@@ -304,6 +316,8 @@ class CJoinedDatabank : public CDatabankBase
 	virtual CDocIterator* CreateDocIterator(const std::string& inIndex,
 							const std::string& inKey, bool inKeyIsPattern,
 							CQueryOperator inOperator);
+
+	virtual std::string	GetDbName() const;
 
   private:
 	
@@ -362,6 +376,10 @@ class CUpdatedDatabank : public CDatabank
 	virtual CDocIterator* CreateDocIterator(const std::string& inIndex,
 							const std::string& inKey, bool inKeyIsPattern,
 							CQueryOperator inOperator);
+
+	virtual CDbDocIteratorBase*
+						GetDocWeightIterator(const std::string& inIndex,
+							const std::string& inKey);
 
   private:
 	CDatabankBase*		fOriginal;

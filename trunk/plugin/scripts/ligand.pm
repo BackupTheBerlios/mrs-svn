@@ -110,12 +110,14 @@ sub parse
 				{
 					$value =~ s/^EC\s+// if ($db eq 'ligand-enzyme');
 					
-					
-					$m->IndexValue('id', $1), $id = $1 if ($value =~ /^(\S+)/);
+					if ($value =~ /^(\S+)/ and $1) {
+						$m->IndexValue('id', "$1");
+						$id = $1 ;
+					}
 				}
 				else
 				{
-					$m->IndexText(lc $fld, $value);
+					$m->IndexText(lc $fld, $value) if $value;
 				}
 			}
 		}

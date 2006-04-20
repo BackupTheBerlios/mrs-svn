@@ -1,4 +1,4 @@
-/*	$Id: CLexicon.h,v 1.4 2005/08/22 12:38:07 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Tuesday February 17 2004 10:41:41
 	

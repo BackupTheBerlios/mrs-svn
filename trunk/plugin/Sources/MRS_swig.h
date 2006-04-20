@@ -149,7 +149,7 @@ class MStringIterator
 class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 {
   public:
-	static const std::string	kWildCardString;
+	static const char	kWildCardString[];
 
 						MDatabank(const std::string& inName);
 
@@ -227,6 +227,10 @@ class MRankedQuery : public MRSObject<MRankedQuery, struct MRankedQueryImp>
 {
   public:
 	void				AddTerm(const std::string& inTerm, unsigned long inFrequency);
+
+	int					MaxReturn;
+//	std::string			Algorithm;
+	char*				Algorithm;
 
 	MQueryResults*		Perform(MBooleanQuery* inMetaQuery = NULL);
 };

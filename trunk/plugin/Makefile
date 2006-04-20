@@ -56,8 +56,8 @@ LIBPATHS	=  ./Lib/ /usr/local/lib/ /usr/X11R6/lib/
 INCPATHS	= ./Lib/Includes/ ./Lib/X/ ./Lib/ ./Sources/X/
 SYSINCPATHS	= /usr/include ./Lib/loki $(BOOST)
 WARNINGS	=  -Wall -Wno-multichar -Wno-unknown-pragmas -Wno-long-long -Wno-sign-compare
-CFLAGS		= -fsigned-char -g -ffor-scope -ansi -pedantic # -pthread
-LDFLAGS		= -ffunction-sections -fdata-sections
+CFLAGS		= -fsigned-char -g -ffor-scope
+LDFLAGS		= -ffunction-sections -fdata-sections -g
 CC			= c++
 OPT			+= -fstrict-aliasing
 
@@ -143,7 +143,7 @@ ifeq ($(DEBUG),0)
 	OBJDIR	= Obj.NoDebug
 	DEFINES	+= NDEBUG
 else
-	DBG		+= -g
+#	DBG		+= -g
 	OBJDIR	= Obj.Debug
 	DEFINES	+= DEBUG
 #	LIBS	+= efence
@@ -169,13 +169,14 @@ LDFLAGS += $(addprefix -L, $(LIBPATHS))
 
 Sources = \
 	./Sources/MRS_swig.cpp \
-	./Sources/MRS_swig_$(TARGET)_wrap.cxx \
+	./Sources/MRS_$(TARGET).cpp \
 	./Sources/CBitStream.cpp \
 	./Sources/CCompress.cpp \
 	./Sources/CDatabank.cpp \
 	./Sources/CDbInfo.cpp \
 	./Sources/CDecompress.cpp \
 	./Sources/CDictionary.cpp \
+	./Sources/CDocWeightArray.cpp \
 	./Sources/CFilter.cpp \
 	./Sources/CIdTable.cpp \
 	./Sources/CIndexer.cpp \
@@ -298,7 +299,7 @@ tags: FORCE
 $(OBJDIR):
 	@ test -d $(OBJDIR) || mkdir $(OBJDIR)
 
-$(OBJDIR)/%_$(TARGET)_wrap.o: Sources/%_$(TARGET)_wrap.cxx
+$(OBJDIR)/%_$(TARGET).o: Sources/%_$(TARGET).cpp
 	@ echo "=> "$(@F)
 	$(CC) -c $< -o $@ $(INCLUDES) $(CFLAGS) -O0
 
@@ -308,19 +309,14 @@ $(OBJDIR)/%.o: %.cpp
 
 include $(OBJS:%.o=%.d)
 
-MRS_swig_perl5_wrap.cxx: Sources/MRS_swig.h Sources/MRS_swig.i
-	$(SWIG) $(DEFS) -c++ -perl5 -o Sources/MRS_swig_perl5_wrap.cxx -outdir ./ Sources/MRS_swig.i
+MRS_perl5.cpp: Sources/MRS_swig.h Sources/MRS_perl5.i
+	$(SWIG) $(DEFS) -c++ -perl5 -o Sources/MRS_perl5.cpp -outdir ./ Sources/MRS_perl5.i
 
-MRS_swig_java_wrap.cxx: Sources/MRS_swig.h Sources/MRS_swig_java.i
+MRS_java.cpp: Sources/MRS_swig.h Sources/MRS_java.i
 	mkdir -p Java/nl/ru/cmbi/MRSPlugin
-	$(SWIG) $(DEFS) -c++ -java -o Sources/MRS_swig_java_wrap.cxx -outdir Java/nl/ru/cmbi/MRSPlugin -package nl.ru.cmbi.MRSPlugin Sources/MRS_swig_java.i
+	$(SWIG) $(DEFS) -c++ -java -o Sources/MRS_java.cpp -outdir Java/nl/ru/cmbi/MRSPlugin -package nl.ru.cmbi.MRSPlugin Sources/MRS_java.i
 
 $(OBJDIR)/%.d:%.cpp
-	@ test -d $(OBJDIR) || mkdir $(OBJDIR)
-	@ echo "-> "$(@F)
-	@ $(SHELL) -ec '$(CC) $(DEFS) -M $(INCLUDES) $< | sed '\''s/\(.*\.o\)[ :]*/$(OBJDIR)\/\1 $(@F): /g'\'' > $@'
-
-$(OBJDIR)/%.d:%.cxx
 	@ test -d $(OBJDIR) || mkdir $(OBJDIR)
 	@ echo "-> "$(@F)
 	@ $(SHELL) -ec '$(CC) $(DEFS) -M $(INCLUDES) $< | sed '\''s/\(.*\.o\)[ :]*/$(OBJDIR)\/\1 $(@F): /g'\'' > $@'

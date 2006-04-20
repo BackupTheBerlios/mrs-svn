@@ -1,4 +1,4 @@
-/*	$Id: CDictionary.h,v 1.2 2005/08/26 10:51:37 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Thursday August 25 2005 12:46:55
 */

@@ -1,4 +1,4 @@
-/*	$Id: CBlastIndex.h,v 1.6 2005/10/11 13:17:30 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Friday May 27 2005 15:45:23
 */

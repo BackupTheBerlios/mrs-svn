@@ -1,4 +1,4 @@
-/*	$Id: CIdTable.h,v 1.7 2005/08/22 12:38:07 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Friday April 02 2004 15:37:19
 */

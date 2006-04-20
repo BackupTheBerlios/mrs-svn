@@ -628,28 +628,60 @@ int64 Seek(int inFD, int64 inOffset, int inMode)
 
 int32 Read(int inFD, void* inBuffer, uint32 inSize)
 {
-	int result = ::read(inFD, inBuffer, inSize);
+	int result;
+	
+	for (;;)
+	{
+		result = ::read(inFD, inBuffer, inSize);
+		if (result >= 0 or errno != EINTR)
+			break;
+	}
+
 	HErrno = errno;
 	return result;
 }
 
 int32 PRead(int inFD, void* inBuffer, uint32 inSize, int64 inOffset)
 {
-	int result = ::pread(inFD, inBuffer, inSize, inOffset);
+	int result;
+	
+	for (;;)
+	{
+		result = ::pread(inFD, inBuffer, inSize, inOffset);
+		if (result >= 0 or errno != EINTR)
+			break;
+	}
+		
 	HErrno = errno;
 	return result;
 }
 
 int32 Write(int inFD, const void* inBuffer, uint32 inSize)
 {
-	int result = ::write(inFD, inBuffer, inSize);
+	int result;
+	
+	for (;;)
+	{
+		result = ::write(inFD, inBuffer, inSize);
+		if (result >= 0 or errno != EINTR)
+			break;
+	}
+
 	HErrno = errno;
 	return result;
 }
 
 int32 PWrite(int inFD, const void* inBuffer, uint32 inSize, int64 inOffset)
 {
-	int result = ::pwrite(inFD, inBuffer, inSize, inOffset);
+	int result;
+	
+	for (;;)
+	{
+		result = ::pwrite(inFD, inBuffer, inSize, inOffset);
+		if (result >= 0 or errno != EINTR)
+			break;
+	}
+
 	HErrno = errno;
 	return result;
 }

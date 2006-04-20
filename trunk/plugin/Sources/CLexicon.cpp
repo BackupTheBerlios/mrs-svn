@@ -1,4 +1,4 @@
-/*	$Id: CLexicon.cpp,v 1.16 2005/09/08 14:21:33 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Tuesday February 17 2004 10:41:58
 	

@@ -1,4 +1,4 @@
-/*	$Id: CTextTable.h,v 1.7 2005/08/22 12:38:08 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Saturday January 11 2003 10:02:34
 */

@@ -324,7 +324,7 @@ class VRIterator : public IteratorBase<typename ValuePairTraitsPair<T>::value_ty
 						fTotalCount = ReadGamma(inData);
 						fWeight = ReadGamma(inData);
 						fTotalRead = 0;
-						base_type::Reset();
+						this->Reset();
 					}
 
 	virtual bool	Next();
@@ -349,17 +349,17 @@ class VRIterator : public IteratorBase<typename ValuePairTraitsPair<T>::value_ty
 template<typename T>
 void VRIterator<T>::Restart()
 {
-	fWeight -= ReadGamma(*base_type::fBits);
+	fWeight -= ReadGamma(*this->fBits);
 	
 	assert(fWeight <= kMaxWeight);
-	assert(fWeight > 0);
+//	assert(fWeight > 0);
 
 	if (fWeight > 0)
-		base_type::Reset();
+		this->Reset();
 	else
-		base_type::fCount = 0;
+		this->fCount = 0;
 
-	assert(fCount <= fTotalCount - fTotalRead);
+	assert(this->fCount <= fTotalCount - fTotalRead);
 }
 
 template<typename T>

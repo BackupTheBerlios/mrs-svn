@@ -16,9 +16,7 @@ CDbDocIteratorBaseT<T>::CDbDocIteratorBaseT(HStreamBase& inData,
 {
 	using namespace std;
 
-//	float s = 1000 * static_cast<float>(fIter.Count()) / inMax;
-//	fCorrectionFactor = pow(1 / (s + 1), 0.3f);
-	fIDFCorrectionFactor = log(1.0f + inMax / fIter.Count());
+	fIDFCorrectionFactor = log(1.0 + static_cast<double>(inMax) / fIter.Count());
 }
 
 template<typename T>

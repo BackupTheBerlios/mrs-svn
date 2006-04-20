@@ -1,4 +1,4 @@
-/*	$Id: CCompress.h,v 1.30 2005/08/22 12:38:06 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Monday December 09 2002 14:15:21
 */

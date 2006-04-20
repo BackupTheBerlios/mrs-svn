@@ -1,4 +1,4 @@
-/*	$Id: CTextTable.cpp,v 1.12 2005/09/01 14:19:08 maarten Exp $
+/*	$Id$
 	Copyright Maarten L. Hekkelman
 	Created Saturday January 11 2003 10:03:06
 */
