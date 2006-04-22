@@ -224,9 +224,10 @@ class CDatabank : public CDatabankBase
 						GetDocWeightIterator(const std::string& inIndex,
 							const std::string& inKey);
 	
-	CDocIterator*
-					GetImpForPattern(const std::string& inIndex,
-						const std::string& inKey);
+	CDocIterator*		GetImpForPattern(const std::string& inIndex,
+							const std::string& inKey);
+
+	virtual void		RecalculateDocumentWeights(const std::string& inIndex);	
 	
 	HStreamBase&	GetDataFile()			{ return *fDataFile; }
 	HUrl			GetDataUrl()			{ return fPath; }

@@ -2490,69 +2490,70 @@ uint32 CIndexer::GetDocumentNr(const string& inDocumentID, bool inThrowIfNotFoun
 	return result;
 }
 
-//void CIndexer::RecalculateDocumentWeights(const std::string& inIndex)
-//{
-//	if (VERBOSE > 0)
-//		cout << "Recalculating document weights for index " << inIndex << "... ";
-//	
-//	string index = tolower(inIndex);
-//	auto_ptr<CIndex> indx;
-//
-//	uint32 ix;
-//	for (ix = 0; ix < fHeader->count; ++ix)
-//	{
-//		if (index != fParts[ix].name)
-//			continue;
-//
-//		indx.reset(new CIndex(fParts[ix].kind, *fFile, fParts[ix].tree_offset, fParts[ix].root));
-//		break;
-//	}
-//
-//	if (indx.get() == nil)
-//		THROW(("Index %s not found!", inIndex.c_str()));
-//	
-//	uint32 docCount = fHeader->entries;
-//	
-//	HAutoBuf<float> dwb(new float[docCount]);
-//	float* dw = dwb.get();
-//	
-//	memset(dw, 0, docCount * sizeof(float));
-//	
-//	int64 bitsOffset = fParts[ix].bits_offset;
-//	
-//	for (CIndex::iterator t = indx->begin(); t != indx->end(); ++t)
-//	{
-//		CDbDocWeightIterator iter(*fFile, bitsOffset + t->second, docCount);
-//		
-//		float idf = iter.GetIDFCorrectionFactor();
-//		
-//		uint32 doc;
-//		uint8 freq;
-//
-//		while (iter.Next(doc, freq, false))
-//		{
-//			float wdt = freq * idf;
-//			dw[doc] += wdt * wdt;
-//		}
-//	}
-//	
-//	for (uint32 d = 0; d < docCount; ++d)
-//	{
-//		if (dw[d] != 0)
-//		{
-//			dw[d] = sqrt(dw[d]);
-//#if P_LITTLEENDIAN
-//			dw[d] = byte_swapper::swap(dw[d]);
-//#endif
-//		}
-//	}
-//	
-//	fFile->PWrite(dw, docCount * sizeof(float), fParts[ix].weight_offset);
-//	
-//	if (VERBOSE > 0)
-//		cout << "done" << endl;
-//}
-//
+void CIndexer::RecalculateDocumentWeights(const std::string& inIndex,
+	HStreamBase& inFile)
+{
+	if (VERBOSE > 0)
+		cout << "Recalculating document weights for index " << inIndex << "... ";
+	
+	string index = tolower(inIndex);
+	auto_ptr<CIndex> indx;
+
+	uint32 ix;
+	for (ix = 0; ix < fHeader->count; ++ix)
+	{
+		if (index != fParts[ix].name)
+			continue;
+
+		indx.reset(new CIndex(fParts[ix].kind, *fFile, fParts[ix].tree_offset, fParts[ix].root));
+		break;
+	}
+
+	if (indx.get() == nil)
+		THROW(("Index %s not found!", inIndex.c_str()));
+	
+	uint32 docCount = fHeader->entries;
+	
+	HAutoBuf<float> dwb(new float[docCount]);
+	float* dw = dwb.get();
+	
+	memset(dw, 0, docCount * sizeof(float));
+	
+	int64 bitsOffset = fParts[ix].bits_offset;
+	
+	for (CIndex::iterator t = indx->begin(); t != indx->end(); ++t)
+	{
+		CDbDocWeightIterator iter(*fFile, bitsOffset + t->second, docCount);
+		
+		float idf = iter.GetIDFCorrectionFactor();
+		
+		uint32 doc;
+		uint8 freq;
+
+		while (iter.Next(doc, freq, false))
+		{
+			float wdt = freq * idf;
+			dw[doc] += wdt * wdt;
+		}
+	}
+	
+	for (uint32 d = 0; d < docCount; ++d)
+	{
+		if (dw[d] != 0)
+		{
+			dw[d] = sqrt(dw[d]);
+#if P_LITTLEENDIAN
+			dw[d] = byte_swapper::swap(dw[d]);
+#endif
+		}
+	}
+	
+	inFile.Write(dw, docCount * sizeof(float));
+	
+	if (VERBOSE > 0)
+		cout << "done" << endl;
+}
+
 //void CIndexer::FixupDocWeights()
 //{
 //	for (uint32 ix = 0; ix < fHeader->count; ++ix)

@@ -264,7 +264,7 @@ void CDatabankBase::RecalculateDocumentWeights(const string& inIndex)
 	HFile::SafeSaver save(GetWeightFileURL(inIndex));
 	
 	int mode = O_RDWR | O_CREAT | O_BINARY | O_TRUNC;
-	auto_ptr<HStreamBase> file(new HBufferedFileStream(save.GetURL(), mode));
+	auto_ptr<HStreamBase> file(new HFileStream(save.GetURL(), mode));
 	
 	uint32 docCount = Count();
 	
@@ -1099,6 +1099,18 @@ CDocIterator* CDatabank::CreateDocIterator(const string& inIndex,
 	else
 		result = GetIndexer()->CreateDocIterator(inIndex, inKey, inKeyIsPattern, inOperator);
 	return result;
+}
+
+void CDatabank::RecalculateDocumentWeights(const std::string& inIndex)
+{
+	HFile::SafeSaver save(GetWeightFileURL(inIndex));
+	
+	int mode = O_RDWR | O_CREAT | O_BINARY | O_TRUNC;
+	auto_ptr<HStreamBase> file(new HFileStream(save.GetURL(), mode));
+	
+	GetIndexer()->RecalculateDocumentWeights(inIndex, *file.get());
+
+	save.Commit();
 }
 
 // DatabankHeader I/O

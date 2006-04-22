@@ -109,8 +109,8 @@ class CIndexer
 
 	void			FlushDoc();
 
-//	void			FixupDocWeights();
-//	void			RecalculateDocumentWeights(const std::string& inIndex);
+	void			RecalculateDocumentWeights(const std::string& inIndex,
+						HStreamBase& inFile);
 
   private:
 
