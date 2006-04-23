@@ -82,15 +82,6 @@ struct CIndexTraitsComp<kNumberIndex>
 		{ return CompareKeyNumber(inA, inLengthA, inB, inLengthB); }
 };
 
-template<>
-struct CIndexTraitsComp<kWeightedIndex>
-{
-	enum { uses_strcmp = 0 };
-
-	int Compare(const char* inA, uint32 inLengthA, const char* inB, uint32 inLengthB) const
-		{ return CompareKeyNumber(inA, inLengthA, inB, inLengthB); }
-};
-
 template<uint32 INDEX_TYPE>
 struct CIndexTraits
 {

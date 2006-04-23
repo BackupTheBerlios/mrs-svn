@@ -130,14 +130,30 @@ ${MRS_FILES:=.cmp}: $(ZIPFILES)
 
 endif
 
-$(MRSDIR)%.dict: $(MRSDIR)%.cmp
-	$(MRS_DICT_CREATE) -d ${@F:.dict=} -i $(MRS_DICT) $(MRS_DICT_OPTIONS)
+# dictionary support
 
-ifneq ($(MRS_DICT),)
-DICT = $(addsuffix .dict, $(basename $(MRS_FILES)))
+$(MRSDIR)%.dict: ${MRS_FILES:=.cmp}
+	$(MRS_DICT_CREATE) -d ${@F:.dict=} -i $(MRS_DICT_FIELDS) $(MRS_DICT_OPTIONS)
+
+ifeq ($(MRS_DICTS),)
+MRS_DICTS = $(MRSLIBS)
 endif
 
-mrs: ${MRS_FILES:=.cmp} $(DICT)
+MRS_DICT_FILES		:= $(addsuffix .dict, $(addprefix $(MRSDIR), $(MRS_DICTS)))
+
+# ranked search, weight files
+
+$(MRSDIR)%.weights: ${MRS_FILES:=.cmp}
+	$(MRS_WEIGHT_CREATE) -d ${@F:_*alltext*.weights=} -v -i '*alltext*'
+	chmod a+r '$@'
+
+ifeq ($(MRS_WEIGHTS),)
+MRS_WEIGHTS = $(MRSLIBS)
+endif
+
+MRS_WEIGHT_FILES	:= $(addsuffix _*alltext*.weights, $(addprefix $(MRSDIR), $(MRS_WEIGHTS)))
+
+mrs: ${MRS_FILES:=.cmp} $(MRS_WEIGHT_FILES) $(MRS_DICT_FILES)
 
 else # MRSLIBS empty
 

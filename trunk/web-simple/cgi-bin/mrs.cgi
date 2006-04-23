@@ -16,6 +16,8 @@ use Data::Dumper;
 use Format;
 use Time::HiRes;
 
+$| = 1;
+
 my $q = new MRSCGI(script => 'mrs.cgi');
 
 my $about =<<END;
@@ -337,7 +339,7 @@ sub printListHeader
 			-size=>3,
 			-maxlength=>4,
 			-default=>'15',
-			-onKeyPress=>'doKeyPress(event);'
+#			-onKeyPress=>'doKeyPress(event);'
 		),
 		$q->button(
 			-id=>'save',
@@ -380,6 +382,8 @@ sub doFind
 		
 		my $rq = $dbo->RankedQuery('*alltext*');
 		
+		$rq->{Algorithm} = $q->param('alg') if defined $q->param('alg');
+		
 		local($/) = undef;
 		$text =~ s/<.*?>//sgo;
 		
@@ -390,8 +394,8 @@ sub doFind
 		{
 			foreach my $w (split(m/\s+/, $line))
 			{
-				$w =~ s/^[^a-z0-9]+//gi;
-				$w =~ s/[^a-z0-9]+$//gi;
+				$w =~ s/^[^a-z0-9_]+//gi;
+				$w =~ s/[^a-z0-9_]+$//gi;
 				
 				$terms{$w} += 1;
 			}
@@ -407,20 +411,31 @@ sub doFind
 	else {					# ranked/smart
 		my $rq = $dbo->RankedQuery('*alltext*');
 		my $addedRankedTerm = 0;
+
+		$rq->{Algorithm} = $q->param('alg') if defined $q->param('alg');
 		
 		my $filter;
 		
 		foreach my $term (split(m/\s+/, $query)) {
 			my $fq;
 			
-			if ($term =~ m/^([a-z0-9]+):(\S+)/) {
-				$fq = $dbo->Match("$2", "$1");
+			if ($term =~ m/^(-?)([a-z0-9_]+):(\S+)/) {
+				my $not = $1 eq '-';
+				
+				$fq = $dbo->Match("$3", "$2");
+				
+#				if ($not) {
+#					$fq = MRS::BooleanQuery::Not($fq);
+#				}
 			}
 			elsif ($term =~ m/^([a-z0-9]+)(<|<=|=|>=|>)(\S+)/) {
 				$fq = $dbo->MatchRel("$3", "$2", "$1");
 			}
+			elsif ($term =~ m/^-(\S+)/) {
+				$fq = MRS::MBooleanQuery::Not($dbo->Match("$1"));
+			}
 			else {
-				$term =~ s/.*?([a-z0-9]+).*/$1/i;
+				$term =~ s/\W/$1/gi;
 				
 				$rq->AddTerm($term, 1);
 				$addedRankedTerm = 1;
@@ -480,7 +495,7 @@ sub doList
 		my @th = (
 			$q->th('nr'),
 			$q->th('id'),
-			$q->th('score'),
+			$q->th({-style=>'width:100px;'}, 'score'),
 			$q->th('description'),
 			$q->th('&nbsp;')
 		);
@@ -571,10 +586,13 @@ sub doList
 		my $url = $q->url({-absolute=>1});
 		
 		my (@suggestions, $andOrWarning);
+
+		my $db_esc = $db;
+		$db_esc =~ s/\+/%2B/;
 		
 		for (my $i = 0; $i < scalar(@query_parts); ++$i)
 		{
-			my $ix;
+			my ($ix, $not);
 			my $term = $query_parts[$i];
 			
 			next if $term =~ /[<=>]/;
@@ -585,21 +603,30 @@ sub doList
 				$term = $3;
 			}
 			
+			if ($term =~ /^-(\S+)/)
+			{
+				$not = 1;
+				$term = $1;
+			}
+			
 			if ($term eq 'and' or $term eq 'or' or $term eq 'not')
 			{
 				$andOrWarning = $q->p($q->strong("Note:"), "The words '<code>and</code>, '<code>or</code>' and '<code>not</code>'",
 					" can be used as boolean operators. But then they have to be in upper case.");
+				next;
 			}
 			
 			my $alt_iter = $d->SuggestCorrection($term);
 			
 			if (defined $alt_iter)
 			{
-				my $alt;
-				while (defined ($alt = $alt_iter->Next))
+				my @alt;
+				my $n = 0;
+				while (my $alt = $alt_iter->Next and $n++ < 5)
 				{
 					if ($alt ne $term and length($alt) > 0)
 					{
+						$alt = "-$alt" if defined $not;
 						$alt = "$ix:$alt" if defined $ix;
 						
 						my @alt_query_parts = @query_parts;
@@ -608,16 +635,11 @@ sub doList
 						
 						my $alt_query = join(' ', @alt_query_parts);
 						
-						my ($iter, $count);
-						if ($iter = $d->Find($alt_query, 0) and $count = $iter->Count(0))
-						{
-							my $db_esc = $db;
-							$db_esc =~ s/\+/%2B/;
-							
-							push @suggestions, $q->li($q->a({-href=>"$url?db=$db_esc&query=$alt_query"}, $alt_query), " ($count)");
-						}
+						push @alt, $q->a({-href=>"$url?db=$db_esc&query=$alt_query"}, $alt);
 					}
 				}
+				
+				push @suggestions, $q->li("$term: ", join(", ", @alt));
 			}
 		}
 
@@ -635,8 +657,6 @@ sub doList
 sub doListAll()
 {
 	my ($query, $wildcard) = @_;
-
-	$| = 1;
 	
 	print "<div class='list'><table cellspacing='0' cellpadding='0'>\n";
 	print "<tr><th>Databank</th><th>Entries found</th></tr>\n";
@@ -1076,7 +1096,7 @@ sub main()
 						-class=>'tb',
 						-size=>50,
 						-maxlength=>256,
-						-onKeyPress=>'doKeyPress(event);'
+#						-onKeyPress=>'doKeyPress(event);'
 					)
 				)
 			),
@@ -1109,7 +1129,7 @@ sub main()
 				-class=>'tb',
 				-size=>40,
 				-maxlength=>256,
-				-onKeyPress=>'doKeyPress(event);'
+#				-onKeyPress=>'doKeyPress(event);'
 			),
 			$q->button(-name=>'search', -value=>"Search", -class=>'submit', onClick=>'doSearch();'),
 #			$q->button(-name=>'clear', -value=>"Reset", -class=>'submit', onClick=>'doClear();'),
@@ -1124,13 +1144,6 @@ sub main()
 		$q->div({id=>'s', class=>'blackbox'},
 			"Search",
 			$searchBox,
-			$q->checkbox(
-				-name=>'mode',
-				-checked=>$cookie->value,
-				-value=>'on',
-				-label=>'Boolean query',
-				-onClick=>"setCookie('mode', document.f.mode.checked ? 1 : 0, '/', '$expires')"
-			),
 			$q->hidden('first', 0),
 		);
 	

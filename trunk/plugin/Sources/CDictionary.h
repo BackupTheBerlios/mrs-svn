@@ -11,16 +11,16 @@
 
 #include "HStream.h"
 
-class CDatabank;
+class CDatabankBase;
 
 class CDictionary
 {
   public:
-	static void		Create(CDatabank& inDatabank,
+	static void		Create(CDatabankBase& inDatabank,
 						const std::vector<std::string>& inIndexNames,
 						uint32 inMinOccurrence, uint32 inMinWordLength);
 
-					CDictionary(CDatabank& inDatabank);
+					CDictionary(CDatabankBase& inDatabank);
 					
 					~CDictionary();
 
@@ -57,10 +57,7 @@ class CDictionary
 			{ return inA.second > inB.second; }
 	};
 
-	static HUrl		CreateUrlForDictionaryFile(CDatabank& inDb);
-
-
-	CDatabank&							fDatabank;
+	CDatabankBase&						fDatabank;
 	std::auto_ptr<HFileStream>			fDictionaryFile;
 	std::auto_ptr<HMMappedFileStream>	fMemMapper;
 	const union CTransition*			fAutomaton;

@@ -210,6 +210,11 @@ void CDocDeltaIterator::PrintHierarchy(int inLevel) const
 		fOriginal->PrintHierarchy(inLevel + 1);
 }
 
+// ----------------------------------------------------------------------------
+//
+//	CDocNotIterator
+//
+
 CDocNrIterator::CDocNrIterator(uint32 inValue)
 	: fValue(inValue)
 {
@@ -218,10 +223,10 @@ CDocNrIterator::CDocNrIterator(uint32 inValue)
 bool CDocNrIterator::Next(uint32& ioDoc, bool)
 {
 	bool result = false;
-	if (fValue != numeric_limits<uint32>::max())
+	if (fValue != kInvalidDocID)
 	{
 		ioDoc = fValue;
-		fValue = numeric_limits<uint32>::max();
+		fValue = kInvalidDocID;
 		result = true;
 	}
 	return result;
@@ -234,11 +239,16 @@ uint32 CDocNrIterator::Count() const
 
 uint32 CDocNrIterator::Read() const
 {
-	if (fValue == numeric_limits<uint32>::max())
+	if (fValue == kInvalidDocID)
 		return 1;
 	else
 		return 0;
 }
+
+// ----------------------------------------------------------------------------
+//
+//	CDocUnionIterator
+//
 
 CDocIterator* CDocUnionIterator::Create(vector<CDocIterator*>& inIters)
 {
@@ -411,7 +421,7 @@ CDocIterator* CDocIntersectionIterator::Create(CDocIterator* inFirst, CDocIterat
 }
 
 CDocIntersectionIterator::CDocIntersectionIterator(vector<CDocIterator*>& inIters)
-	: fCount(numeric_limits<uint32>::max())
+	: fCount(kInvalidDocID)
 	, fRead(0)
 {
 	for (vector<CDocIterator*>::iterator i = inIters.begin(); i != inIters.end(); ++i)
@@ -431,7 +441,7 @@ CDocIntersectionIterator::CDocIntersectionIterator(vector<CDocIterator*>& inIter
 			CSubIter v;
 			v.fIter = *i;
 			if (not (*i)->Next(v.fValue, false))
-				v.fValue = numeric_limits<uint32>::max();
+				v.fValue = kInvalidDocID;
 			
 			fIterators.push_back(v);
 		}
@@ -991,3 +1001,4 @@ void CDbJoinedIterator::PrintHierarchy(int inLevel) const
 	for (i = fIterators.begin(); i != fIterators.end(); ++i)
 		(*i).fIter->PrintHierarchy(inLevel + 1);
 }
+

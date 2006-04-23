@@ -700,7 +700,7 @@ void MDatabank::CreateDictionary(std::string inIndices, long inMinOccurrence, lo
 	}
 	indices.push_back(inIndices);
 	
-	fImpl->GetDB()->CreateDictionaryForIndexes(indices, inMinOccurrence, inMinWordLength);
+	fImpl->fDatabank->CreateDictionaryForIndexes(indices, inMinOccurrence, inMinWordLength);
 }
 
 MBooleanQuery* MDatabank::BooleanQuery(const string& inQuery)

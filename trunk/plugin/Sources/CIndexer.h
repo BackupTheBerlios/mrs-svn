@@ -104,8 +104,7 @@ class CIndexer
 	void			IndexWordWithWeight(const std::string& inIndex,	
 						const std::string& inText, uint32 inFrequency);
 
-	uint32			GetDocumentNr(const std::string& inDocumentID,
-						bool inThrowIfNotFound = true);
+	bool			GetDocumentNr(const std::string& inDocumentID, uint32& outDocNr);
 
 	void			FlushDoc();
 

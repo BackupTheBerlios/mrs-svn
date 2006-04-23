@@ -146,11 +146,13 @@ HStreamBase& operator>>(HStreamBase& inData, SBlastIndexHeader& inStruct);
 */
 
 CDatabankBase::CDatabankBase()
+	: fDictionary(nil)
 {
 }
 
 CDatabankBase::~CDatabankBase()
 {
+	delete fDictionary;
 }
 
 string CDatabankBase::GetDbName() const
@@ -179,6 +181,21 @@ CDbDocIteratorBase* CDatabankBase::GetDocWeightIterator(
 	return nil;
 }
 
+bool CDatabankBase::GetDocumentNr(const std::string& inDocID, uint32& outDocNr) const
+{
+	stringstream s(inDocID);
+	s >> outDocNr;
+	return outDocNr < Count();
+}
+
+uint32 CDatabankBase::GetDocumentNr(const std::string& inDocID) const
+{
+	uint32 result;
+	if (not GetDocumentNr(inDocID, result))
+		THROW(("Document (%s) not found", inDocID.c_str()));
+	return result;
+}
+
 string CDatabankBase::GetDocument(const string& inDocumentID)
 {
 	return GetDocument(GetDocumentNr(inDocumentID));
@@ -189,14 +206,6 @@ string CDatabankBase::GetDocumentID(uint32 inDocNr) const
 	stringstream s;
 	s << inDocNr;
 	return s.str();
-}
-
-uint32 CDatabankBase::GetDocumentNr(const string& inDocID, bool inThrowIfNotFound) const
-{
-	stringstream s(inDocID);
-	uint32 result;
-	s >> result;
-	return result;
 }
 
 #ifndef NO_BLAST
@@ -214,11 +223,6 @@ string CDatabankBase::GetSequence(const string& inDocID, uint32 inIndex)
 	return Decode(seq);
 }
 #endif
-
-vector<string> CDatabankBase::SuggestCorrection(const string& inKey)
-{
-	return vector<string>();
-}
 
 // lame... but works
 uint32 CDatabankBase::GetIndexNr(const string& inIndexName)
@@ -254,6 +258,12 @@ HUrl CDatabankBase::GetWeightFileURL(const string& inIndex) const
 {
 	HUrl url = GetDbDirectory();
 	return url.GetChild(GetDbName() + '_' + inIndex + ".weights");
+}
+
+HUrl CDatabankBase::GetDictionaryFileURL() const
+{
+	HUrl url = GetDbDirectory();
+	return url.GetChild(GetDbName() + ".dict");
 }
 
 void CDatabankBase::RecalculateDocumentWeights(const string& inIndex)
@@ -323,6 +333,23 @@ CDocWeightArray CDatabankBase::GetDocWeights(const std::string& inIndex)
 	return arr;
 }
 
+void CDatabankBase::CreateDictionaryForIndexes(const vector<string>& inIndexNames,
+	uint32 inMinOccurrence, uint32 inMinWordLength)
+{
+	delete fDictionary;
+	fDictionary = nil;
+
+	CDictionary::Create(*this, inIndexNames, inMinOccurrence, inMinWordLength);
+}
+
+vector<string> CDatabankBase::SuggestCorrection(const string& inKey)
+{
+	if (fDictionary == nil)
+		fDictionary = new CDictionary(*this);
+
+	return fDictionary->SuggestCorrection(inKey);
+}
+
 /*
 	Implementations
 */
@@ -338,7 +365,6 @@ CDatabank::CDatabank(const HUrl& inUrl, bool inNew)
 #ifndef NO_BLAST
 	, fBlastIndex(nil)
 #endif
-	, fDictionary(nil)
 	, fHeader(new SHeader)
 	, fDataHeader(new SDataHeader)
 	, fParts(nil)
@@ -451,7 +477,6 @@ CDatabank::~CDatabank()
 	delete fBlast;
 	delete fBlastIndex;
 #endif
-	delete fDictionary;
 }
 
 string CDatabank::GetDbName() const
@@ -773,13 +798,13 @@ string CDatabank::GetDocument(uint32 inDocNr)
 		->GetDocument(inDocNr);
 }
 
-uint32 CDatabank::GetDocumentNr(const string& inDocID, bool inThrowIfNotFound) const
+bool CDatabank::GetDocumentNr(const string& inDocID, uint32& outDocNr) const
 {
 	if (fIndexer == nil)
 		fIndexer = new CIndexer(*fDataFile,
 			fHeader->index_offset, fHeader->index_size);
 	
-	return fIndexer->GetDocumentNr(inDocID, inThrowIfNotFound);
+	return fIndexer->GetDocumentNr(inDocID, outDocNr);
 }
 
 #ifndef NO_BLAST
@@ -909,15 +934,6 @@ CDbDocIteratorBase* CDatabank::GetDocWeightIterator(
 	return GetIndexer()->GetDocWeightIterator(inIndex, inKey);
 }
 
-void CDatabank::CreateDictionaryForIndexes(const vector<string>& inIndexNames,
-	uint32 inMinOccurrence, uint32 inMinWordLength)
-{
-	delete fDictionary;
-	fDictionary = nil;
-
-	CDictionary::Create(*this, inIndexNames, inMinOccurrence, inMinWordLength);
-}
-
 uint32 CDatabank::CountDocumentsContainingKey(
 	const string& inIndex, const string& inKey)
 {
@@ -928,14 +944,6 @@ uint32 CDatabank::CountDocumentsContainingKey(
 		result = iter->Count();
 	
 	return result;
-}
-
-vector<string> CDatabank::SuggestCorrection(const string& inKey)
-{
-	if (fDictionary == nil)
-		fDictionary = new CDictionary(*this);
-
-	return fDictionary->SuggestCorrection(inKey);
 }
 
 void CDatabank::PrintInfo()
@@ -1370,27 +1378,24 @@ string CJoinedDatabank::GetDocumentID(uint32 inDocNr) const
 	return result;
 }
 
-uint32 CJoinedDatabank::GetDocumentNr(const string& inDocID, bool inThrowIfNotFound) const
+bool CJoinedDatabank::GetDocumentNr(const string& inDocID, uint32& outDocNr) const
 {
-	uint32 result = 0;
 	bool found = false;
+	outDocNr = 0;
 	
 	for (uint32 d = 0; d < fPartCount and not found; ++d)
 	{
-		uint32 nr = fParts[d].fDb->GetDocumentNr(inDocID, false);
-		if (nr < fParts[d].fCount)
+		uint32 nr;
+		if (fParts[d].fDb->GetDocumentNr(inDocID, nr))
 		{
-			result += nr;
+			outDocNr += nr;
 			found = true;
 		}
 		else
-			result += fParts[d].fCount;
+			outDocNr += fParts[d].fCount;
 	}
 	
-	if (not found and inThrowIfNotFound)
-		THROW(("ID (%s) not found in ID index", inDocID.c_str()));
-	
-	return result;
+	return found;
 }
 
 #ifndef NO_BLAST
@@ -1627,17 +1632,14 @@ int64 CUpdatedDatabank::GetBlastDbLength() const
 }
 #endif
 
-uint32 CUpdatedDatabank::GetDocumentNr(const string& inDocumentID, bool inThrowIfNotFound) const
+bool CUpdatedDatabank::GetDocumentNr(const string& inDocumentID, uint32& outDocNr) const
 {
-	uint32 result;
-
-	try
+	bool result = CDatabank::GetDocumentNr(inDocumentID, outDocNr);
+	
+	if (not result and fOriginal->GetDocumentNr(inDocumentID, outDocNr))
 	{
-		result = CDatabank::GetDocumentNr(inDocumentID, true);
-	}
-	catch (...)
-	{
-		result = Count() + fOriginal->GetDocumentNr(inDocumentID, inThrowIfNotFound);
+		result = true;
+		outDocNr += Count();
 	}
 	
 	return result;
@@ -1756,24 +1758,6 @@ uint32 CUpdatedDatabank::CountDocumentsContainingKey(const string& inIndex, cons
 {
 	return CDatabank::CountDocumentsContainingKey(inIndex, inKey) +
 		fOriginal->CountDocumentsContainingKey(inIndex, inKey);
-}
-
-vector<string> CUpdatedDatabank::SuggestCorrection(const string& inKey)
-{
-//	string a = CDatabank::SuggestCorrection(inKey);
-//	
-//	string b = fOriginal->SuggestCorrection(inKey);
-//	
-//	if (a != b)
-//	{
-//		uint32 na = CDatabank::CountDocumentsContainingKey("*", a);
-//		uint32 nb = fOriginal->CountDocumentsContainingKey("*", b);
-//		
-//		if (na < nb)
-//			a = b;
-//	}
-	
-	return fOriginal->SuggestCorrection(inKey);
 }
 
 string CUpdatedDatabank::GetVersion() const

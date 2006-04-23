@@ -2373,10 +2373,7 @@ CIteratorBase* CIndexer::GetIteratorForIndex(const string& inIndex)
 	CIteratorWrapper<CIndex>* result = nil;
 
 	if (indx.get())
-	{
 		result = new CIndexIteratorWrapper(indx.get(), indx->begin());
-		indx.release();
-	}
 	
 	return result;
 }
@@ -2387,10 +2384,7 @@ CIteratorBase* CIndexer::GetIteratorForIndexAndKey(const string& inIndex, const 
 	CIteratorWrapper<CIndex>* result = nil;
 
 	if (indx.get())
-	{
 		result = new CIndexIteratorWrapper(indx.get(), indx->find(inKey));
-		indx.release();
-	}
 	
 	return result;
 }
@@ -2399,7 +2393,7 @@ CDbDocIteratorBase* CIndexer::GetDocWeightIterator(const string& inIndex, const 
 {
 	string index = tolower(inIndex);
 	CDbDocIteratorBase* result = nil;
-
+	
 	for (uint32 ix = 0; result == nil and ix < fHeader->count; ++ix)
 	{
 		if (index != fParts[ix].name)
@@ -2412,7 +2406,7 @@ CDbDocIteratorBase* CIndexer::GetDocWeightIterator(const string& inIndex, const 
 			result = new CDbDocWeightIterator(*fFile, fParts[ix].bits_offset + value, fHeader->entries);
 		break;
 	}
-	
+
 	return result;
 }
 
@@ -2463,9 +2457,9 @@ void CIndexer::DumpIndex(const string& inIndex) const
 #endif
 }
 
-uint32 CIndexer::GetDocumentNr(const string& inDocumentID, bool inThrowIfNotFound)
+bool CIndexer::GetDocumentNr(const string& inDocumentID, uint32& outDocNr)
 {
-	uint32 result;
+	bool result = true;
 	auto_ptr<CIndex> index(GetIndex("id"));
 	
 	if (index.get())
@@ -2473,18 +2467,12 @@ uint32 CIndexer::GetDocumentNr(const string& inDocumentID, bool inThrowIfNotFoun
 		if (index->GetKind() != kValueIndex)
 			THROW(("ID index is of the wrong kind, should be a value index"));
 
-		if (not index->GetValue(inDocumentID, result))
-		{
-			if (inThrowIfNotFound)
-				THROW(("ID not found in ID index"));
-			else
-				result = numeric_limits<uint32>::max();
-		}
+		result = index->GetValue(inDocumentID, outDocNr);
 	}
 	else
 	{
 		stringstream s(inDocumentID);
-		s >> result;
+		s >> outDocNr;
 	}
 	
 	return result;

@@ -90,7 +90,8 @@ class CDatabankBase
 	std::string			GetDocument(const std::string& inDocID);
 
 	virtual std::string	GetDocumentID(uint32 inDocNr) const;
-	virtual uint32		GetDocumentNr(const std::string& inDocID, bool inThrowIfNotFound = true) const;
+	virtual bool		GetDocumentNr(const std::string& inDocID, uint32& outDocNr) const;
+	uint32				GetDocumentNr(const std::string& inDocID) const;
 
 #ifndef NO_BLAST
 	virtual uint32		GetBlastDbCount() const = 0;
@@ -129,7 +130,7 @@ class CDatabankBase
 	virtual uint32		CountDocumentsContainingKey(const std::string& inIndex,
 							const std::string& inKey) = 0;
 	
-	virtual std::vector<std::string>
+	std::vector<std::string>
 						SuggestCorrection(const std::string& inKey);
 	
 	virtual std::string	GetDbName() const;
@@ -139,10 +140,20 @@ class CDatabankBase
 							const std::string& inKey, bool inKeyIsPattern,
 							CQueryOperator inOperator) = 0;
 
-	virtual void		RecalculateDocumentWeights(const std::string& inIndex);
+	// I give up, we have to have separate files. Dictionary files for 
+	// spell checker functionality and weights files for ranked searches.
 
 	virtual HUrl		GetDbDirectory() const;
 	HUrl				GetWeightFileURL(const std::string& inIndex) const;
+	HUrl				GetDictionaryFileURL() const;
+
+	virtual void		RecalculateDocumentWeights(const std::string& inIndex);
+	void				CreateDictionaryForIndexes(
+							const std::vector<std::string>& inIndexNames,
+							uint32 inMinOccurrence, uint32 inMinWordLength);
+
+  protected:
+	CDictionary*		fDictionary;
 };
 
 class CDatabank : public CDatabankBase
@@ -166,7 +177,8 @@ class CDatabank : public CDatabankBase
 	virtual std::string	GetDocument(uint32 inDocNr);
 
 	virtual std::string	GetDocumentID(uint32 inDocNr) const;
-	virtual uint32		GetDocumentNr(const std::string& inDocID, bool inThrowIfNotFound = true) const;
+	virtual bool		GetDocumentNr(const std::string& inDocID, uint32& outDocNr) const;
+
 	
 #ifndef NO_BLAST
 	virtual uint32		GetBlastDbCount() const;
@@ -208,13 +220,6 @@ class CDatabank : public CDatabankBase
 
 	virtual uint32		CountDocumentsContainingKey(const std::string& inIndex,
 							const std::string& inKey);
-
-	void				CreateDictionaryForIndexes(
-							const std::vector<std::string>& inIndexNames,
-							uint32 inMinOccurrence, uint32 inMinWordLength);
-
-	virtual std::vector<std::string>
-						SuggestCorrection(const std::string& inKey);
 
 	virtual CDocIterator* CreateDocIterator(const std::string& inIndex,
 						const std::string& inKey, bool inKeyIsPattern,
@@ -265,7 +270,6 @@ class CDatabank : public CDatabankBase
 #ifndef NO_BLAST
 	CBlastIndex*	fBlastIndex;
 #endif
-	CDictionary*	fDictionary;
 
 	// on disk info
 	SHeader*		fHeader;
@@ -285,7 +289,7 @@ class CJoinedDatabank : public CDatabankBase
 	virtual std::string	GetDocument(uint32 inDocNr);
 
 	virtual std::string	GetDocumentID(uint32 inDocNr) const;
-	virtual uint32		GetDocumentNr(const std::string& inDocID, bool inThrowIfNotFound = true) const;
+	virtual bool		GetDocumentNr(const std::string& inDocID, uint32& outDocNr) const;
 
 #ifndef NO_BLAST
 	virtual uint32		GetBlastDbCount() const;
@@ -358,7 +362,7 @@ class CUpdatedDatabank : public CDatabank
 	virtual std::string	GetDocument(uint32 inDocNr);
 
 	virtual std::string	GetDocumentID(uint32 inDocNr) const;
-	virtual uint32		GetDocumentNr(const std::string& inDocID, bool inThrowIfNotFound = true) const;
+	virtual bool		GetDocumentNr(const std::string& inDocID, uint32& outDocNr) const;
 
 #ifndef NO_BLAST
 	virtual uint32		GetBlastDbCount() const;
@@ -370,9 +374,6 @@ class CUpdatedDatabank : public CDatabank
 
 	virtual uint32		CountDocumentsContainingKey(const std::string& inIndex,
 							const std::string& inKey);
-
-	virtual std::vector<std::string>
-						SuggestCorrection(const std::string& inKey);
 
 	virtual CDocIterator* CreateDocIterator(const std::string& inIndex,
 							const std::string& inKey, bool inKeyIsPattern,

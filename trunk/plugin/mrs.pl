@@ -73,6 +73,15 @@ elsif ($action eq 'merge')
 	
 	&Merge($db, $opts{v}, $cnt);
 }
+elsif ($action eq 'weights')
+{
+	getopts('d:i:v', \%opts);
+
+	my $db = $opts{d} or &Usage();
+	my $ix = $opts{i} or &Usage();
+	
+	&Weights($db, $opts{v}, $ix);
+}
 elsif ($action eq 'query')
 {
 	getopts('d:q:vr:', \%opts);
@@ -575,3 +584,14 @@ sub Version()
 	print $m->GetVersion() . "\n";
 }
 
+sub Weights()
+{
+	my ($db, $verbose, $ix) = @_;
+		
+	$verbose = 0 unless defined $verbose;
+	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
+
+	my $m = new MRS::MDatabank($db);
+	
+	$m->RecalcDocWeights($ix);
+}

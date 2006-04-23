@@ -149,27 +149,12 @@ uint32 CHashTable::Lookup(CTransition* state, uint32 state_len, CAutomaton& auto
 
 }
 
-HUrl CDictionary::CreateUrlForDictionaryFile(CDatabank& inDatabank)
-{
-	HUrl url = inDatabank.GetDataUrl();
-	
-	string name = url.GetFileName();
-	string::size_type e;
-	if ((e = name.rfind(kFileExtension)) != string::npos)
-		name.erase(e);
-	name.append(".dict");
-
-	url.SetFileName(name);
-	
-	return url;
-}
-
-CDictionary::CDictionary(CDatabank& inDatabank)
+CDictionary::CDictionary(CDatabankBase& inDatabank)
 	: fDatabank(inDatabank)
 	, fDictionaryFile(nil)
 	, fAutomaton(nil)
 {
-	HUrl url = CreateUrlForDictionaryFile(inDatabank);
+	HUrl url = inDatabank.GetDictionaryFileURL();
 
 	if (not HFile::Exists(url))
 		THROW(("Dictionary %s does not exist", url.GetURL().c_str()));
@@ -189,7 +174,7 @@ CDictionary::~CDictionary()
 	fDictionaryFile.reset(nil);
 }
 
-void CDictionary::Create(CDatabank& inDatabank,
+void CDictionary::Create(CDatabankBase& inDatabank,
 	const vector<string>& inIndexNames,
 	uint32 inMinOccurrence, uint32 inMinWordLength)
 {
@@ -291,7 +276,7 @@ void CDictionary::Create(CDatabank& inDatabank,
 	t.b.dest = start_state;
 	automaton.push_back(t);
 	
-	HUrl url = CreateUrlForDictionaryFile(inDatabank);
+	HUrl url = inDatabank.GetDictionaryFileURL();
 	HFileStream file(url, O_RDWR|O_CREAT|O_TRUNC);
 	file.Write(&automaton[0], automaton.size() * sizeof(CTransition));
 }

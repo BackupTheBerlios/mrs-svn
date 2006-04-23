@@ -282,6 +282,10 @@ ul.results a:visited {
 	text-decoration: underline;
 }
 
+.list th a {
+	color: white;
+}
+
 /* an pretty entry */
 
 .entry table {
@@ -586,3 +590,12 @@ hit_count {
 	background-color: #9aefaf;
 }
 
+/* styles for the databanks.cgi script */
+
+.failed {
+	background-color: #faa;
+}
+
+.ok {
+	
+}

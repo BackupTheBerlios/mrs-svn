@@ -101,8 +101,8 @@ sub pp
 		{
 			if ($code eq 'TX' or $code eq 'AV')
 			{
-				$p =~ s|\((\d{6})\)|(<a class='bluelink' href='$url?db=omim\&id=$1'>$1</a>)|g;
-				$p =~ s|\((\d{6})\.(\d{4})\)|(<a class='bluelink' href='$url?db=omim\&id=$1#.$2'>$1.$2</a>)|g;
+				$p =~ s|\((\S+?;\s+)?(\d{6})\)|($1<a class='bluelink' href='$url?db=omim\&id=$2'>$2</a>)|g;
+				$p =~ s|\((\S+?;\s+)?(\d{6})\.(\d{4})\)|($1<a class='bluelink' href='$url?db=omim\&id=$2#.$3'>$2.$3</a>)|g;
 				
 				$p =~ s|^[A-Z ]+$|<h4>$&</h4>|mg;
 			}

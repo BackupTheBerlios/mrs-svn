@@ -43,6 +43,7 @@
 #define MRS_H
 
 #include "HLib.h"
+#include "HStlLimits.h"
 
 //#if P_WIN
 //#include "DebugNew.h"
@@ -78,6 +79,9 @@ enum CIndexKind
 const uint32
 	kWeightBitCount = 6,
 	kMaxWeight = ((1 << 6) - 1);
+
+const uint32
+	kInvalidDocID = std::numeric_limits<uint32>::max();
 
 enum CQueryOperator
 {

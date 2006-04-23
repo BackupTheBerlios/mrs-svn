@@ -102,6 +102,14 @@ all: tools dirs ${DBALLFLAGS:=.done}
 	@ find $(FLAGSDIR) -type f | xargs rm
 	echo "Complete update done"
 
+alldailydata: tools dirs ${DBDAILYFLAGS:=.make}
+	@ find $(FLAGSDIR) -type f | xargs rm
+	echo "Complete remake done"
+
+allweeklydata: tools dirs ${DBWEEKLYFLAGS:=.make}
+	@ find $(FLAGSDIR) -type f | xargs rm
+	echo "Complete remake done"
+
 test:
 	echo $(DATABASES)
 

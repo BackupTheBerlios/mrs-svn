@@ -233,17 +233,6 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	{
 		Term& t = fImpl->fTerms[tx];
 
-		if (t.iter.get() == nil)
-			continue;
-
-		float idf = t.iter->GetIDFCorrectionFactor();
-		float wq = idf * t.weight;
-
-		Wq += wq * wq;
-
-		uint32 docNr;
-		uint8 rank;
-
 		// use two thresholds, one to limit adding accumulators
 		// and one to stop walking the iterator
 
@@ -252,6 +241,28 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 
 		float s_add = c_add * Smax;
 		float s_ins = c_ins * Smax;
+
+		// HACK!!!
+		// suppose we're looking for a term that is the ID for a record.
+		// In that case the ID will not be found since it isn't part of the *alltext* index.
+		// However, we would expect the doc to score very high in this case.
+		uint32 docNr;
+		if (inDatabank.GetDocumentNr(t.key, docNr))
+		{
+			A[docNr] += (Wd[docNr] * t.weight) / maxTermFreq;
+			Smax = max(Smax, A[docNr]);
+			continue;
+		}
+
+		if (t.iter.get() == nil)
+			continue;
+
+		float idf = t.iter->GetIDFCorrectionFactor();
+		float wq = idf * t.weight;
+
+		Wq += wq * wq;
+
+		uint8 rank;
 
 		uint8 f_add = static_cast<uint8>(s_add / (idf * wq * wq));
 		uint8 f_ins = static_cast<uint8>(s_ins / (idf * wq * wq));
