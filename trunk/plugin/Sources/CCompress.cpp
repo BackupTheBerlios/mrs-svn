@@ -40,7 +40,7 @@
  */
  
 #include "MRS.h"
-#include "MRS_swig.h"
+#include "MRSInterface.h"
 
 #include "HStlList.h"
 #include "HStlIOStream.h"

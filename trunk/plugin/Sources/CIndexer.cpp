@@ -1991,7 +1991,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 			count += md[i].count;
 		}
 
-		HAutoPtr<HStreamBase> bitFile(nil);
+		auto_ptr<HStreamBase> bitFile(nil);
 		HUrl url(fDb + ".indexbits");
 
 		if (fParts[ix].kind != kValueIndex)
@@ -2162,7 +2162,7 @@ void CIndexer::GetIndexInfo(uint32 inIndexNr, string& outCode,
 CDocIterator* CIndexer::GetImpForPattern(const string& inIndex,
 	const string& inValue)
 {
-	HAutoPtr<CDocIterator> result(nil);
+	auto_ptr<CDocIterator> result(nil);
 	
 	uint32 ix = 0;
 	while (ix < fHeader->count and inIndex != fParts[ix].name)

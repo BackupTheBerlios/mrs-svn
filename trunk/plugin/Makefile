@@ -44,6 +44,7 @@ endif
 #TARGET		= perl5 or java
 
 SO_EXT		= .so
+LIBNAME		= libmrs
 VERSION		= 1.2.0
 # DEBUG should be either 1 or 0
 DEBUG		= 0
@@ -123,13 +124,13 @@ endif
 ifeq ($(OS),Darwin)
 ifeq ($(TARGET),java)
 	SO_EXT		:= .jnilib
-	LD_SO_FLAG	= -bundle
+	LD_SO_FLAG	= -bundle -undefined suppress -flat_namespace
 else
 	SO_EXT		:= .bundle
-	LD_SO_FLAG	= -dynamiclib -framework JavaVM
+	LD_SO_FLAG	= -dynamiclib -framework JavaVM -undefined suppress -flat_namespace
 endif
 	DEFINES		+= DARWIN
-	LDFLAGS		+= -undefined suppress -flat_namespace
+	LDFLAGS		+= 
 	CFLAGS		+= -force_cpusubtype_ALL
 	OPT			+= -O3 -mcpu=G4 -falign-loops=32
 	WARNINGS	+= -Wno-long-double
@@ -147,13 +148,17 @@ else
 	OBJDIR	= Obj.Debug
 	DEFINES	+= DEBUG
 #	LIBS	+= efence
+	LIBNAME	:= $(LIBNAME)d
 endif
 
 ifeq ($(PROFILE),1)
 	LDFLAGS	+= -pg
 	CFLAGS += -pg -g3
 	OBJDIR	:= $(OBJDIR).Profile
+	LIBNAME	:= $(LIBNAME)p
 endif
+
+LIBNAME	:= $(LIBNAME).a
 
 ifeq ($(TARGET),java)
 	OUTPUT		= libmrs$(SO_EXT)
@@ -168,8 +173,7 @@ endif
 LDFLAGS += $(addprefix -L, $(LIBPATHS)) 
 
 Sources = \
-	./Sources/MRS_swig.cpp \
-	./Sources/MRS_$(TARGET).cpp \
+	./Sources/MRSInterface.cpp \
 	./Sources/CBitStream.cpp \
 	./Sources/CCompress.cpp \
 	./Sources/CDatabank.cpp \
@@ -264,9 +268,15 @@ echo_flags:
 	 @ echo Compiler flags used: $(CFLAGS)
 	 @ echo Include paths: $(INCLUDES)
 
-$(OUTPUT): echo_flags $(OBJDIR) $(OBJS)
+$(LIBNAME): $(OBJDIR) $(OBJS)
+	@ echo Linking $(LIBNAME)
+	@ $(LD) -r -o $@ $(OBJS)
+
+lib: $(LIBNAME)
+
+$(OUTPUT): echo_flags lib $(OBJDIR)/MRS_$(TARGET).o
 	@ echo "Linking "$(@F)
-	@ $(CC) -o $(OUTPUT) $(LD_SO_FLAG) $(OBJS) $(LDFLAGS)
+	@ $(CC) -o $(OUTPUT) $(LD_SO_FLAG) $(LIBNAME) $(OBJDIR)/MRS_$(TARGET).o $(LDFLAGS)
 	@ chmod a+rx $(OUTPUT)
 	@ echo "Done"
 
@@ -290,8 +300,8 @@ install: dist
 
 #	install -m 755 $< /usr/local/bin/mrs
 
-blast: $(filter-out $(OBJDIR)/%wrap.o, $(OBJS)) mrs_blast.cpp
-	$(CC) $(CFLAGS) -o mrs_blast -ILib/Includes $? $(LDFLAGS)
+blast: echo_flags lib Sources/mrs_blast.cpp
+	$(CC) $(CFLAGS) -o mrs_blast -ILib/Includes Sources/mrs_blast.cpp $(LIBNAME) $(LDFLAGS)
 
 tags: FORCE
 	$(CTAGS) $(wildcard $(addsuffix *, $(SRC_PATHS))) $(wildcard $(addsuffix *.h, $(INCPATHS)))

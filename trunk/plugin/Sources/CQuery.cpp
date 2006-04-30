@@ -508,7 +508,7 @@ CQueryToken CQueryImp::GetNextToken()
 
 CDocIterator* CQueryImp::Parse_Query()
 {
-	HAutoPtr<CDocIterator> result(Parse_Test());
+	auto_ptr<CDocIterator> result(Parse_Test());
 
 	while (fLookahead != qeEnd and fLookahead != ')')
 	{
@@ -533,7 +533,7 @@ CDocIterator* CQueryImp::Parse_Query()
 
 CDocIterator* CQueryImp::Parse_Test()
 {
-	HAutoPtr<CDocIterator> result(nil);
+	auto_ptr<CDocIterator> result(nil);
 	
 	switch (fLookahead)
 	{
@@ -637,7 +637,7 @@ CDocIterator* CQueryImp::Parse_QualifiedTest(const string& inIndex)
 
 CDocIterator* CQueryImp::Parse_Term(const string& inIndex)
 {
-	HAutoPtr<CDocIterator> result(nil);
+	auto_ptr<CDocIterator> result(nil);
 	
 	switch (fLookahead)
 	{

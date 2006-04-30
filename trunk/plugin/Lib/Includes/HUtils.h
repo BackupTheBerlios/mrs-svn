@@ -1,4 +1,4 @@
-/*	$Id: HUtils.h,v 1.61 2005/08/22 12:38:05 maarten Exp $
+/*	$Id$
 
 	Utils.h, Copyright Hekkelman Programmatuur b.v.
 	Created: 12/04/97 14:08:52 by Maarten Hekkelman
@@ -51,144 +51,14 @@
 class HUrl;
 
 template <class T>
-class HAutoPtr
-{
-  public:
-	explicit		HAutoPtr();
-	explicit		HAutoPtr(T* inPtr);
-					HAutoPtr(HAutoPtr& inPtr);
-#if ! P_VISUAL_CPP
-					template <class Y>
-					HAutoPtr(HAutoPtr<Y>& inOther);
-#endif
-					~HAutoPtr();
-
-	HAutoPtr&		operator=(HAutoPtr& inOther);
-#if ! P_VISUAL_CPP
-	template <class Y>
-	HAutoPtr&		operator=(HAutoPtr<Y>& inOther);
-#endif
-	void			reset(T* inNewPtr);
-	T*				get() const;
-	T*				release();
-	T*				operator->() const;
-	T&				operator*() const;
-
-  private:
-	T*				fPtr;
-};
-
-template <class T>
-inline
-HAutoPtr<T>::HAutoPtr ()
-	: fPtr(nil)
-{
-}
-
-template <class T>
-inline
-HAutoPtr<T>::HAutoPtr(T* inPtr)
-	: fPtr(inPtr)
-{
-}
-
-template <class T>
-inline
-HAutoPtr<T>::HAutoPtr(HAutoPtr<T>& inPtr)
-	: fPtr(inPtr)
-{
-}
-
-#if ! P_VISUAL_CPP
-template <class T>
-template <class Y>
-inline
-HAutoPtr<T>::HAutoPtr(HAutoPtr<Y>& inOther)
-	: fPtr(inOther)
-{
-}
-#endif
-
-template <class T>
-inline
-HAutoPtr<T>::~HAutoPtr()
-{
-	delete fPtr;
-}
-
-template <class T>
-inline
-HAutoPtr<T>&
-HAutoPtr<T>::operator=(HAutoPtr& inOther)
-{
-	reset(inOther.release());
-	return *this;
-}
-
-#if ! P_VISUAL_CPP
-template <class T>
-template <class Y>
-inline
-HAutoPtr<T>&
-HAutoPtr<T>::operator=(HAutoPtr<Y>& inOther)
-{
-	reset(inOther.release());
-	return *this;
-}
-#endif
-
-template <class T>
-inline
-void HAutoPtr<T>::reset(T* inNewPtr)
-{
-	delete fPtr;
-	fPtr = inNewPtr;
-}
-
-template <class T>
-inline
-T* HAutoPtr<T>::get() const
-{
-	return fPtr;
-}
-
-template <class T>
-inline
-T* HAutoPtr<T>::operator->() const
-{
-	return fPtr;
-}
-
-template <class T>
-inline
-T& HAutoPtr<T>::operator*() const
-{
-	return *fPtr;
-}
-
-template <class T>
-inline
-T* HAutoPtr<T>::release()
-{
-	T* ptr = fPtr;
-	fPtr = nil;
-	return ptr;
-}
-
-
-template <class T>
 class HAutoBuf
 {
   public:
 	explicit		HAutoBuf(T* inPtr);
 					HAutoBuf(HAutoBuf& inPtr);
-//					template <class Y>
-//					HAutoBuf(HAutoBuf<Y, traits::rebind<Y>::other>& inOther);
 					~HAutoBuf();
 
 	HAutoBuf&		operator=(HAutoBuf& inOther);
-//	template <class Y>
-//	HAutoBuf&		operator=(HAutoBuf<Y, traits::rebind<Y>::other>& inOther);
 	
 	T&				operator[](uint32 inIndex) const;
 
@@ -216,16 +86,6 @@ HAutoBuf<T>::HAutoBuf(HAutoBuf& inPtr)
 {
 }
 
-/*
-template <class T>
-template <class Y>
-inline
-HAutoBuf<T>::HAutoBuf(HAutoBuf<Y, traits::rebind<Y>::other>& inOther)
-	: fPtr(inOther.release())
-{
-}
-*/
-
 template <class T>
 inline
 HAutoBuf<T>::~HAutoBuf()
@@ -241,18 +101,6 @@ HAutoBuf<T>::operator=(HAutoBuf& inOther)
 	reset(inOther.release());
 	return *this;
 }
-
-/*
-template <class T>
-template <class Y>
-inline
-HAutoBuf<T>&
-HAutoBuf<T>::operator=(HAutoBuf<Y, traits::rebind<Y>::other>& inOther)
-{
-	reset(inOther.release());
-	return *this;
-}
-*/
 
 template <class T>
 inline
@@ -290,7 +138,6 @@ T& HAutoBuf<T>::operator[](uint32 inIndex) const
 	return fPtr[inIndex];
 }
 
-
 template <class T>
 inline
 T* HAutoBuf<T>::release()
@@ -299,7 +146,6 @@ T* HAutoBuf<T>::release()
 	fPtr = nil;
 	return ptr;
 }
-
 
 template <class T>
 class HValueChanger

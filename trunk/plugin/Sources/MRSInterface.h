@@ -38,11 +38,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
  
-#ifndef MRS_SWIG_H
-#define MRS_SWIG_H
+#ifndef MRSINTERFACE_H
+#define MRSINTERFACE_H
 
-#include "HStlString.h"
-#include "HStlVector.h"
+#include <string>
+#include <vector>
+#include "MObject.h"
 
 class MDatabank;
 typedef std::vector<MDatabank*> MDatabankArray;
@@ -88,35 +89,6 @@ struct MBlastHspImp;
 struct MBlastHspsImp;
 #endif
 
-// base class for all our interface objects
-template<class Derived, class Impl>
-class MRSObject
-{
-  public:
-	virtual				~MRSObject();
-
-	static Derived*		Create(Impl* inImpl)
-							{ Derived* result = new Derived; result->fImpl = inImpl; return result; }
-
-  protected:
-	typedef Impl		impl;
-	
-						MRSObject()
-							: fImpl(NULL) {}
-
-						MRSObject(impl* inImpl)
-							: fImpl(inImpl) {}
-
-	impl*				GetImpl()			{ return fImpl; }
-
-	impl*				fImpl;
-
-  private:
-
-						MRSObject(const MRSObject&);
-	MRSObject&			operator=(MRSObject&);
-};
-
 class MStringIterator
 {
   public:
@@ -144,7 +116,6 @@ class MStringIterator
 	std::vector<std::string>				fStrings;
 	std::vector<std::string>::iterator		fIter;
 };
-
 
 class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 {

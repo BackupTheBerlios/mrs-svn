@@ -40,7 +40,7 @@
  */
  
 #include "MRS.h"
- 
+
 #include "HFile.h"
 #include "HError.h"
 #include "HStream.h"
@@ -519,7 +519,7 @@ void CDatabank::Finish(bool inCreateAllTextIndex)
 	fIndexer = nil;
 	fIndexer = GetIndexer();
 
-	HAutoPtr<CIteratorBase> iter(fIndexer->GetIteratorForIndex("id"));
+	auto_ptr<CIteratorBase> iter(fIndexer->GetIteratorForIndex("id"));
 	if (iter.get() != nil)
 	{
 		if (VERBOSE >= 1)
@@ -689,7 +689,7 @@ void CDatabank::Merge(vector<CDatabank*>& inParts)
 	fDataFile->Seek(0, SEEK_END);
 	fHeader->index_size = fDataFile->Tell() - fHeader->index_offset;
 
-	HAutoPtr<CIteratorBase> iter(index.GetIteratorForIndex("id"));
+	auto_ptr<CIteratorBase> iter(index.GetIteratorForIndex("id"));
 	if (iter.get() != nil)
 	{
 		if (VERBOSE >= 1)
@@ -1691,33 +1691,45 @@ CUpdateIterator<T>::~CUpdateIterator()
 template<class T>
 bool CUpdateIterator<T>::Next(uint32& outDocNr, bool inSkip)
 {
-	THROW(("NOT IMPLEMENTED YET"));
-//	bool result = false;
-//	while (not result and fOriginal != nil and fOriginal->Next(outDocNr, inSkip))
-//	{
-//		string id = fDb->GetDocumentID(outDocNr);
-//		
-//		uint32 v;
-//		if (not fOmit->GetValue(id, v))
-//			result = true;
-//	}
-//	return result;
+	THROW(("runtime error"));
+	return false;
 }
 
 template<class T>
 bool CUpdateIterator<T>::Next(uint32& outDocNr, uint8& outRank, bool inSkip)
 {
-	THROW(("NOT IMPLEMENTED YET"));
-//	bool result = false;
-//	while (not result and fOriginal != nil and fOriginal->Next(outDocNr, outRank, inSkip))
-//	{
-//		string id = fDb->GetDocumentID(outDocNr);
-//		
-//		uint32 v;
-//		if (not fOmit->GetValue(id, v))
-//			result = true;
-//	}
-//	return result;
+	THROW(("runtime error"));
+	return false;
+}
+
+template<>
+bool CUpdateIterator<CDocIterator>::Next(uint32& outDocNr, bool inSkip)
+{
+	bool result = false;
+	while (not result and fOriginal != nil and fOriginal->Next(outDocNr, inSkip))
+	{
+		string id = fDb->GetDocumentID(outDocNr);
+		
+		uint32 v;
+		if (not fOmit->GetValue(id, v))
+			result = true;
+	}
+	return result;
+}
+
+template<>
+bool CUpdateIterator<CDbDocIteratorBase>::Next(uint32& outDocNr, uint8& outRank, bool inSkip)
+{
+	bool result = false;
+	while (not result and fOriginal != nil and fOriginal->Next(outDocNr, outRank, inSkip))
+	{
+		string id = fDb->GetDocumentID(outDocNr);
+		
+		uint32 v;
+		if (not fOmit->GetValue(id, v))
+			result = true;
+	}
+	return result;
 }
 
 //bool CUpdateIterator::Next(uint32& outDocNr, bool inSkip)
@@ -1780,3 +1792,14 @@ CDbDocIteratorBase* CUpdatedDatabank::GetDocWeightIterator(
 	
 	return new CMergedDbDocIterator(a, 0, fOriginal->Count(), b, Count(), Count());
 }
+
+string	CUpdatedDatabank::GetDbName() const
+{
+	return fOriginal->GetDbName() + '_' + CDatabank::GetDbName();
+}
+
+void CUpdatedDatabank::RecalculateDocumentWeights(const std::string& inIndex)
+{
+	CDatabankBase::RecalculateDocumentWeights(inIndex);
+}
+

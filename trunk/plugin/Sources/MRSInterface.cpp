@@ -40,7 +40,8 @@
  
 #include "MRS.h"
 
-#include "MRS_swig.h"
+#include "MObjectInt.h"
+#include "MRSInterface.h"
 
 #include <boost/shared_ptr.hpp>
 
@@ -84,12 +85,6 @@ const char*		kFileExtension = ".cmp";
 string errstr()
 {
 	return gErrStr;
-}
-
-template<class Derived, class Impl>
-MRSObject<Derived,Impl>::~MRSObject()
-{
-	delete fImpl;
 }
 
 // ---------------------------------------------------------------------------
@@ -1103,5 +1098,19 @@ MQueryResults* MRankedQuery::Perform(MBooleanQuery* inMetaQuery)
 
 	return result;
 }
+
+//// Instantiate destructor objects
+//
+//MRSObject<MBlastHits, MBlastHitsImp>::MRSObject();
+//MRSObject<MBlastHsps, MBlastHspsImp>::MRSObject();
+//MRSObject<MRankedQuery, MRankedQueryImp>::MRSObject();
+//MRSObject<MBooleanQuery, MBooleanQueryImp>::MRSObject();
+//MRSObject<MQueryResults, MQueryResultsImp>::MRSObject();
+//MRSObject<MKeys, MKeysImp>::MRSObject();
+//MRSObject<MIndex, MIndexImp>::MRSObject();
+//MRSObject<MIndices, MIndicesImp>::MRSObject();
+//MRSObject<MBlastHit, MBlastHitImp>::MRSObject();
+//MRSObject<MBlastHsp, MBlastHspImp>::MRSObject();
+//MRSObject<MDatabank, MDatabankImp>::MRSObject();
 
 #pragma export off

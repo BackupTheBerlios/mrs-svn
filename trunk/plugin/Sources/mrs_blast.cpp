@@ -41,7 +41,7 @@
 
 //#include "MRS.h"
 
-#include "MRS_swig.h"
+#include "MRSInterface.h"
 #include "getopt.h"
 
 using namespace std;

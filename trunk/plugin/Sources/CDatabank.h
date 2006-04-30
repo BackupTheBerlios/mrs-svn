@@ -133,7 +133,7 @@ class CDatabankBase
 	std::vector<std::string>
 						SuggestCorrection(const std::string& inKey);
 	
-	virtual std::string	GetDbName() const;
+	virtual std::string	GetDbName() const = 0;
 	virtual std::string	GetDbNameForDocID(const std::string& inDocID) const;
 	
 	virtual CDocIterator* CreateDocIterator(const std::string& inIndex,
@@ -382,6 +382,10 @@ class CUpdatedDatabank : public CDatabank
 	virtual CDbDocIteratorBase*
 						GetDocWeightIterator(const std::string& inIndex,
 							const std::string& inKey);
+
+	virtual void		RecalculateDocumentWeights(const std::string& inIndex);
+
+	virtual std::string	GetDbName() const;
 
   private:
 	CDatabankBase*		fOriginal;
