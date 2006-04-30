@@ -41,8 +41,8 @@
  
 #include "MRS.h"
 
-#include "HStlSStream.h"
-#include "HStlIOStream.h"
+#include <sstream>
+#include <iostream>
 #include "HError.h"
 #include "HUtils.h"
 

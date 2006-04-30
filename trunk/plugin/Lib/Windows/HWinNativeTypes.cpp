@@ -13,9 +13,9 @@
 #undef CreateStatusWindow
 
 #include "HNativeTypes.h"
-#include "HStdCString.h"
-#include "HStdCCtype.h"
-#include "HStlString.h"
+#include <cstring>
+#include <cctype>
+#include <string>
 #include "HUtils.h"
 #include "HEncoding.h"
 #include "HWinUtils.h"

@@ -41,10 +41,10 @@
  
 #include "MRS.h"
 
-#include "HStlIOStream.h"
-#include "HStlMap.h"
-#include "HStlList.h"
-#include "HStdCString.h"
+#include <iostream>
+#include <map>
+#include <list>
+#include <cstring>
 
 #include "CIndexPage.h"
 #include "HStream.h"

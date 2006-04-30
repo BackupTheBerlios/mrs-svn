@@ -5,7 +5,7 @@
 
 #include "MRS.h"
 
-#include "HStlIOStream.h"
+#include <iostream>
 
 #include "HGlobals.h"
 #include "HFile.h"

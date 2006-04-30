@@ -41,8 +41,8 @@
  
 #include "HLib.h"
 
-#include "HStdCCtype.h"
-#include "HStdCString.h"
+#include <cctype>
+#include <cstring>
 
 #include "HFile.h"
 #include "HDefines.h"

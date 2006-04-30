@@ -42,7 +42,7 @@
 #ifndef CRANKEDQUERY_H
 #define CRANKEDQUERY_H
 
-#include "HStlString.h"
+#include <string>
 
 class CDocIterator;
 class CDatabankBase;

@@ -42,7 +42,7 @@
 #ifndef CDECOMPRESS_H
 #define CDECOMPRESS_H
 
-#include "HStlString.h"
+#include <string>
 
 #include "CDatabank.h"
 

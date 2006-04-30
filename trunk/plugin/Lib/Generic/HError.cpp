@@ -46,13 +46,13 @@
 #include "HError.h"
 #include "HGlobals.h"
 #include "HUtils.h"
-#include "HStdCStdio.h"
-#include "HStdCString.h"
-#include "HStdCStdlib.h"
-#include "HStdCStdarg.h"
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+#include <cstdarg>
 
 #if MINI_H_LIB
-#include "HStlIOStream.h"
+#include <iostream>
 #else
 //#include "HAlerts.h"
 //#include "HStrings.h"

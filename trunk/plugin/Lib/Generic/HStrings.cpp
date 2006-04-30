@@ -41,8 +41,8 @@
  
 #include "HLib.h"
 
-#include "HStdCString.h"
-#include "HStlSet.h"
+#include <cstring>
+#include <set>
 
 #include "HStrings.h"
 #include "HError.h"

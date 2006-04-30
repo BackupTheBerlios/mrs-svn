@@ -41,12 +41,12 @@
  
 #include "MRS.h"
 
-#include "HStlList.h"
-#include "HStlSet.h"
-#include "HStlIOStream.h"
-#include "HStlLimits.h"
-#include "HStdCTime.h"
-#include "HStlSStream.h"
+#include <list>
+#include <set>
+#include <iostream>
+#include <limits>
+#include <ctime>
+#include <sstream>
 #include "HFile.h"
 #include "HUtils.h"
 #include "HError.h"

@@ -40,7 +40,7 @@
  */
  
 #include "HStream.h"
-#include "HStlIOStream.h"
+#include <iostream>
 #include "HError.h"
 
 template<class T>

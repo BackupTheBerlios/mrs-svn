@@ -47,8 +47,8 @@
 #include "HUrl.h"
 #include "HFile.h"
 #include "HFileCache.h"
-#include "HStlVector.h"
-#include "HStlIOManip.h"
+#include <vector>
+#include <iomanip>
 
 #include "CBlastIndex.h"
 #include "CBitStream.h"

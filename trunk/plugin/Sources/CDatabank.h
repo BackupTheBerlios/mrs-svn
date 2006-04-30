@@ -42,9 +42,9 @@
 #ifndef CDATABANK_H
 #define CDATABANK_H
 
-#include "HStlVector.h"
-#include "HStlString.h"
-#include "HStdCString.h"
+#include <vector>
+#include <string>
+#include <cstring>
 
 #include "HUrl.h"
 

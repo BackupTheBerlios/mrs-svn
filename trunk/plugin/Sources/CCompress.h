@@ -42,8 +42,8 @@
 #ifndef CCOMPRESS_H
 #define CCOMPRESS_H
 
-#include "HStlMap.h"
-#include "HStlVector.h"
+#include <map>
+#include <vector>
 
 class HStreamBase;
 class CTextTable;

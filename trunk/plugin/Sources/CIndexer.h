@@ -42,8 +42,8 @@
 #ifndef CINDEXER_H
 #define CINDEXER_H
 
-#include "HStlSStream.h"
-#include "HStlMap.h"
+#include <sstream>
+#include <map>
 
 #include "CDatabank.h"
 #include "CIterator.h"

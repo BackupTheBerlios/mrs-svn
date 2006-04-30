@@ -7,7 +7,7 @@
 #define HWINAPIWRAPPERS_H
 
 #include "HNativeTypes.h"
-#include "HStlVector.h"
+#include <vector>
 
 /*
 	This files wraps some Win API calls to use the HToWinString and

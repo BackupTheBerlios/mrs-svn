@@ -1,4 +1,4 @@
-/*	$Id: HFileCache.h,v 1.13 2005/08/22 12:38:04 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created Tuesday September 12 2000 11:09:19
 */

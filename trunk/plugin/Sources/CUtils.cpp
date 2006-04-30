@@ -41,7 +41,7 @@
  
 #include "MRS.h"
 #include "HUtils.h"
-#include "HStdCCtype.h"
+#include <cctype>
 
 #include "CUtils.h"
 

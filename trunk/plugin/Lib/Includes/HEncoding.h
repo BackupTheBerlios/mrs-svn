@@ -6,7 +6,7 @@
 #ifndef HENCODING_H
 #define HENCODING_H
 
-#include "HStlString.h"
+#include <string>
 
 #if P_WIN
 typedef std::wstring				UTF16String;

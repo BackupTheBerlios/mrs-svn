@@ -1,4 +1,4 @@
-/*	$Id: HUrl.cpp,v 1.67 2005/08/22 12:38:04 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created Thursday August 17 2000 15:17:58
 */
@@ -41,10 +41,10 @@
  
 #include "HLib.h"
 
-#include "HStdCCtype.h"
-#include "HStdCStdio.h"
-#include "HStdCString.h"
-#include "HStdCStdlib.h"
+#include <cctype>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
 
 #include "HFile.h"
 #include "HError.h"

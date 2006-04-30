@@ -44,14 +44,14 @@
  
 #include "HLib.h"
 
-#include "HStdCCtype.h"
-#include "HStlStack.h"
-#include "HStdCFcntl.h"
-#include "HStdCString.h"
-#include "HStdCStdlib.h"
-#include "HStdCTime.h"
-#include "HStdCStdio.h"
-#include "HStdCMath.h"
+#include <cctype>
+#include <stack>
+#include <fcntl.h>
+#include <cstring>
+#include <cstdlib>
+#include <ctime>
+#include <cstdio>
+#include <cmath>
 
 #include "HUtils.h"
 #include "HFile.h"

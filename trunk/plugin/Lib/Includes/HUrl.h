@@ -1,4 +1,4 @@
-/*	$Id: HUrl.h,v 1.14 2005/08/22 12:38:05 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created Thursday August 17 2000 15:18:14
 */
@@ -42,7 +42,7 @@
 #ifndef HUrl_H
 #define HUrl_H
 
-#include "HStlString.h"
+#include <string>
 #include "HNativeTypes.h"		// for HFileSpec
 
 extern const char

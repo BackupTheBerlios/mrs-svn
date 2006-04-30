@@ -43,9 +43,9 @@
 #ifndef HUTILS_H
 #define HUTILS_H
 
-#include "HStlAlgorithm.h"
-#include "HStlString.h"
-#include "HStdCTime.h"
+#include <algorithm>
+#include <string>
+#include <ctime>
 #include "HTypes.h"
 
 class HUrl;

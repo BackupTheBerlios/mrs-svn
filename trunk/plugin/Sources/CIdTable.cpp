@@ -47,8 +47,8 @@
 
 #include "HStream.h"
 #include "CIndexPage.h"
-#include "HStlIOStream.h"
-#include "HStlSStream.h"
+#include <iostream>
+#include <sstream>
 #include "HUtils.h"
 #include "HError.h"
 #include "HByteSwap.h"

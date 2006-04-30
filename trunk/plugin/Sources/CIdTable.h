@@ -42,7 +42,7 @@
 #ifndef CIDTABLE_H
 #define CIDTABLE_H
 
-#include "HStlString.h"
+#include <string>
 
 class HStreamBase;
 class CIteratorBase;

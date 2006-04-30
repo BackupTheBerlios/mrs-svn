@@ -6,7 +6,7 @@
 #ifndef HWINUTILS_H
 #define HWINUTILS_H
 
-#include "HStlString.h"
+#include <string>
 
 /*
 	Should be in HWinGlobals.h but would be the only one 

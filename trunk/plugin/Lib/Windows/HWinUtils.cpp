@@ -21,8 +21,8 @@
 //#endif
 #include <shlobj.h>
 
-#include "HStdCString.h"
-#include "HStdCCtype.h"
+#include <cstring>
+#include <cctype>
 #include "HGlobals.h"
 #ifndef MINI_H_LIB
 #include "HEncoder.h"

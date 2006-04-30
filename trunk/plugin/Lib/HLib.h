@@ -435,7 +435,7 @@
 #	define _ASSERT_H
 #	if P_DEBUG
 
-#include "HStdCStdio.h"
+#include <cstdio>
 
 #undef __builtin_expect
 #define __builtin_expect(x,y)	(x)
@@ -447,7 +447,7 @@
 #		define assert(x)
 #	endif
 #else
-#	include "HStdCAssert.h"
+#	include <cassert>
 #endif
 
 #ifndef P_PROFILE

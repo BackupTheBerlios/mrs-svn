@@ -42,7 +42,7 @@
 #ifndef CSEQUENCE_H
 #define CSEQUENCE_H
 
-#include "HStlString.h"
+#include <string>
 #include "SmallObj.h"
 
 struct CMatrix;

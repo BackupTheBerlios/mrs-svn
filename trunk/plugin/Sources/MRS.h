@@ -43,7 +43,7 @@
 #define MRS_H
 
 #include "HLib.h"
-#include "HStlLimits.h"
+#include <limits>
 
 //#if P_WIN
 //#include "DebugNew.h"
@@ -61,7 +61,7 @@
 
 // some globals, settable from the outside
 
-#include "HStlString.h"
+#include <string>
 
 enum CIndexKind
 {

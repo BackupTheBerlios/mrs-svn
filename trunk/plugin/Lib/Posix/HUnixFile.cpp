@@ -41,10 +41,10 @@
  
 #include "HLib.h"
 
-#include "HStlStack.h"
-#include "HStdCStdio.h"
+#include <stack>
+#include <cstdio>
 #if P_DEBUG
-#include "HStlIOStream.h"
+#include <iostream>
 #endif
 
 #include <unistd.h>

@@ -41,10 +41,10 @@
  
 #include "MRS.h"
 
-#include "HStlLimits.h"
-#include "HStdCCtype.h"
-#include "HStlIOStream.h"
-#include "HStlIOManip.h"
+#include <limits>
+#include <cctype>
+#include <iostream>
+#include <iomanip>
 
 #include "HError.h"
 

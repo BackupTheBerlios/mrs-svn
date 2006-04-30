@@ -42,9 +42,9 @@
 #ifndef CUTILS_H
 #define CUTILS_H
 
-#include "HStlString.h"
-#include "HStdCTime.h"
-#include "HStlTypeinfo.h"
+#include <string>
+#include <ctime>
+#include <typeinfo>
 
 class ProgressCallBackHandlerBase
 {

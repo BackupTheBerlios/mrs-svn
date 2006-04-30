@@ -1,4 +1,4 @@
-/*	$Id: HFileCache.cpp,v 1.45 2005/08/22 12:38:04 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created Tuesday September 12 2000 11:10:51
 */
@@ -41,8 +41,8 @@
  
 #include "HLib.h"
 
-#include "HStdCStdio.h"
-#include "HStdCStdlib.h"
+#include <cstdio>
+#include <cstdlib>
 
 #include "HFileCache.h"
 #include "HFile.h"

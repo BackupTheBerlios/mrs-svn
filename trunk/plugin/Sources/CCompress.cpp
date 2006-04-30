@@ -42,14 +42,14 @@
 #include "MRS.h"
 #include "MRSInterface.h"
 
-#include "HStlList.h"
-#include "HStlIOStream.h"
-#include "HStlSet.h"
+#include <list>
+#include <iostream>
+#include <set>
 #include "HFile.h"
 #include "HError.h"
 #include "HUtils.h"
 #include "HStream.h"
-#include "HStlLimits.h"
+#include <limits>
 
 #include "zlib.h"
 #include "bzlib.h"

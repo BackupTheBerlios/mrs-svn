@@ -41,10 +41,10 @@
  
 #include "MRS.h"
 
-#include "HStdCStdlib.h"
-#include "HStdCString.h"
-#include "HStdCMath.h"
-#include "HStlLimits.h"
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
+#include <limits>
 #include "HError.h"
 
 #include "CBitStream.h"

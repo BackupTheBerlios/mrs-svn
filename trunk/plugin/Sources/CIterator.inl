@@ -6,7 +6,7 @@
 #ifndef CITERATOR_INL
 #define CITERATOR_INL
 
-#include "HStdCMath.h"
+#include <cmath>
 
 template<typename T>
 CDbDocIteratorBaseT<T>::CDbDocIteratorBaseT(HStreamBase& inData,

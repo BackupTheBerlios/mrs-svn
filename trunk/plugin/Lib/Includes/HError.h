@@ -42,7 +42,7 @@
 #ifndef HERROR_H
 #define HERROR_H
 
-#include "HStlException.h"
+#include <exception>
 #include "HTypes.h"
 
 /*

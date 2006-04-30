@@ -42,8 +42,8 @@
 #ifndef CBITSTREAM_H
 #define CBITSTREAM_H
 
-#include "HStlVector.h"
-#include "HStdCMath.h"
+#include <vector>
+#include <cmath>
 
 // bit stream utility classes and routines
 

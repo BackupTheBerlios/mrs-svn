@@ -41,12 +41,12 @@
  
 #include "MRS.h"
 
-#include "HStdCMath.h"
-#include "HStlIOStream.h"
-#include "HStlIOManip.h"
-#include "HStlLimits.h"
-#include "HStlSStream.h"
-#include "HStlAlgorithm.h"
+#include <cmath>
+#include <iostream>
+#include <iomanip>
+#include <limits>
+#include <sstream>
+#include <algorithm>
 
 #include "HUtils.h"
 #include "HError.h"

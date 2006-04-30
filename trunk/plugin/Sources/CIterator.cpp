@@ -44,7 +44,7 @@
 #include <iostream>
 #include <typeinfo>
 
-#include "HStlLimits.h"
+#include <limits>
 #include "HUtils.h"
 
 #include "CIterator.h"

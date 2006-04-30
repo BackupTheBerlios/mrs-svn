@@ -42,8 +42,8 @@
 #ifndef CDBINFO_H
 #define CDBINFO_H
 
-#include "HStlString.h"
-#include "HStlVector.h"
+#include <string>
+#include <vector>
 
 class HStreamBase;
 

@@ -44,10 +44,10 @@
 #include "HFile.h"
 #include "HError.h"
 #include "HStream.h"
-#include "HStlIOStream.h"
-#include "HStlDeque.h"
-#include "HStlSet.h"
-#include "HStdCFcntl.h"
+#include <iostream>
+#include <deque>
+#include <set>
+#include <fcntl.h>
 #include "HUtils.h"
 #include "HByteSwap.h"
 #include "HStream.h"

@@ -41,15 +41,15 @@
  
 #include "MRS.h"
 
-#include "HStlLimits.h"
-#include "HStdCMath.h"
-#include "HStlAlgorithm.h"
-#include "HStlString.h"
-#include "HStlVector.h"
-#include "HStdCCtype.h"
-#include "HStlIOStream.h"
+#include <limits>
+#include <cmath>
+#include <algorithm>
+#include <string>
+#include <vector>
+#include <cctype>
+#include <iostream>
 //#include "HStlFStream.h"
-#include "HStlMap.h"
+#include <map>
 
 #include "CFilter.h"
 

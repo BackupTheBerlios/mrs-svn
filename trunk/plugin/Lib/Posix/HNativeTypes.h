@@ -45,7 +45,7 @@
 //#include <X11/Xlib.h>
 //#include <X11/Xutil.h>
 
-#include "HStlString.h"
+#include <string>
 
 #include "HTypes.h"
 

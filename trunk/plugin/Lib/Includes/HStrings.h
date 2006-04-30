@@ -1,4 +1,4 @@
-/*	$Id: HStrings.h,v 1.8 2005/08/22 12:38:05 maarten Exp $
+/*	$Id$
 	Copyright Hekkelman Programmatuur b.v.
 	Created Tuesday October 09 2001 11:19:13
 */

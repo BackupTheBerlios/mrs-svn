@@ -42,7 +42,7 @@
 #ifndef CTEXTTABLE_H
 #define CTEXTTABLE_H
 
-#include "HStlVector.h"
+#include <vector>
 
 struct CTextTableBlock;
 

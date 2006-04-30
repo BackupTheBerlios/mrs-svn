@@ -42,9 +42,9 @@
 #ifndef CQUERY_H
 #define CQUERY_H
 
-#include "HStlString.h"
-#include "HStlVector.h"
-#include "HStlLimits.h"
+#include <string>
+#include <vector>
+#include <limits>
 
 #include <boost/shared_ptr.hpp>
 

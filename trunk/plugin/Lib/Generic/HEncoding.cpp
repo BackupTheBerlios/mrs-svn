@@ -1,4 +1,3 @@
-/*	$Id$
 	Copyright hekkelman
 	Created Wednesday January 18 2006 13:44:37
 */

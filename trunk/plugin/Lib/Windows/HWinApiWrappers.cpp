@@ -6,7 +6,7 @@
 
 #include "HLib.h"
 
-#include "HStdCString.h"
+#include <cstring>
 
 #define NOMINMAX
 #include <windows.h>

@@ -45,13 +45,13 @@
 
 #include <boost/shared_ptr.hpp>
 
-#include "HStlIOStream.h"
+#include <iostream>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
 #include <bzlib.h>
 
-#include "HStdCStdlib.h"
+#include <cstdlib>
 
 #include "HError.h"
 #include "HStream.h"

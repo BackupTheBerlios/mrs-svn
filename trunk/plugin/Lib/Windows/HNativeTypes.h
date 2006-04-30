@@ -13,7 +13,7 @@
 */
 
 #include "HTypes.h"
-#include "HStlString.h"
+#include <string>
 #include "HEncoding.h"
 
 /*	

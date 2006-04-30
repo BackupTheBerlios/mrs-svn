@@ -43,8 +43,8 @@
 #define HFILE_H
 
 #include "HUrl.h"
-#include "HStlVector.h"
-#include "HStdCFcntl.h"
+#include <vector>
+#include <fcntl.h>
 #include "HGlobals.h"
 
 #ifndef O_BINARY

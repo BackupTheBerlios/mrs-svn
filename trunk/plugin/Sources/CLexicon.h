@@ -45,8 +45,8 @@
 #ifndef CLEXICON_H
 #define CLEXICON_H
 
-#include "HStlString.h"
-#include "HStlVector.h"
+#include <string>
+#include <vector>
 
 class CLexicon
 {

@@ -6,8 +6,8 @@
 #ifndef CDICTIONARY_H
 #define CDICTIONARY_H
 
-#include "HStlString.h"
-#include "HStlVector.h"
+#include <string>
+#include <vector>
 
 #include "HStream.h"
 

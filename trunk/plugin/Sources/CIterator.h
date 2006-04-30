@@ -42,8 +42,8 @@
 #ifndef CITERATOR_H
 #define CITERATOR_H
 
-#include "HStlString.h"
-#include "HStlVector.h"
+#include <string>
+#include <vector>
 
 #include "CValuePairArray.h"
 

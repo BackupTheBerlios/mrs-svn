@@ -44,9 +44,9 @@
  
 #include "HLib.h"
 
-#include "HStdCStdio.h"
-#include "HStdCString.h"
-#include "HStdCStdlib.h"
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
 
 #include "HStream.h"
 #include "HFile.h"
@@ -59,7 +59,7 @@
 #else
 
 #ifdef P_DEBUG
-#include "HStlIOStream.h"
+#include <iostream>
 #endif
 
 #endif

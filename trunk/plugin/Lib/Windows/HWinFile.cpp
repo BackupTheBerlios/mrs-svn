@@ -10,12 +10,12 @@
 #include <shlobj.h>
 #include <sstream>
 
-#include "HStdCFcntl.h"
-#include "HStdCString.h"
-#include "HStdCStdio.h"
-#include "HStlSet.h"
-#include "HStlVector.h"
-#include "HStlStack.h"
+#include <fcntl.h>
+#include <cstring>
+#include <cstdio>
+#include <set>
+#include <vector>
+#include <stack>
 #include "HFile.h"
 #include "HError.h"
 #include "HWinUtils.h"

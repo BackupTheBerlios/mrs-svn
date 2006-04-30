@@ -42,8 +42,8 @@
 #ifndef CTOKENIZER_H
 #define CTOKENIZER_H
 
-#include "HStdCCtype.h"
-#include "HStlStack.h"
+#include <cctype>
+#include <stack>
 #include "HStream.h"
 #include "HError.h"
 

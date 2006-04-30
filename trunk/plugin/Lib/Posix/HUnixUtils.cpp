@@ -44,10 +44,10 @@
 #include <sys/time.h>
 #include <unistd.h>
 //#include <pwd.h>
-#include "HStdCStdlib.h"
-#include "HStlString.h"
-#include "HStdCStdarg.h"
-#include "HStdCStdio.h"
+#include <cstdlib>
+#include <string>
+#include <cstdarg>
+#include <cstdio>
 
 #include "HError.h"
 #include "HUtils.h"

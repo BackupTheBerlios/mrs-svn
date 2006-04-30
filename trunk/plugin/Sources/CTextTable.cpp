@@ -41,7 +41,7 @@
  
 #include "MRS.h"
 
-#include "HStlAlgorithm.h"
+#include <algorithm>
 
 #include "CTextTable.h"
 

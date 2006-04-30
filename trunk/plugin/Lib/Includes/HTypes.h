@@ -46,7 +46,7 @@
 #define HTYPES_H
 
 #include "HDefines.h"
-#include "HStdCStdlib.h"
+#include <cstdlib>
 
 typedef unsigned long	HUnicode;
 typedef long			HErrorCode;
