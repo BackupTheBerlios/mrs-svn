@@ -541,6 +541,8 @@ void CDatabank::Finish(bool inCreateAllTextIndex)
 
 //	fIndexer->FixupDocWeights();
 
+	iter.release();
+
 	delete fIndexer;
 	fIndexer = nil;
 	

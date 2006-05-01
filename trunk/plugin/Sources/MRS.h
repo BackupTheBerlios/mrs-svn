@@ -78,7 +78,7 @@ enum CIndexKind
 
 const uint32
 	kWeightBitCount = 6,
-	kMaxWeight = ((1 << 6) - 1);
+	kMaxWeight = ((1 << kWeightBitCount) - 1);
 
 const uint32
 	kInvalidDocID = std::numeric_limits<uint32>::max();

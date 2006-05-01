@@ -174,6 +174,7 @@ class CDatabank : public CDatabankBase
 
 	virtual void		PrintInfo();
 
+	using CDatabankBase::GetDocument;
 	virtual std::string	GetDocument(uint32 inDocNr);
 
 	virtual std::string	GetDocumentID(uint32 inDocNr) const;

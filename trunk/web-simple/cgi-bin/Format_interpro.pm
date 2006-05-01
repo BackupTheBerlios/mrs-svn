@@ -30,7 +30,7 @@ my @links = (
 	},
 	{
 		match	=> qr|^(#=GS .+AC )(\S+)|i,
-		result	=> '$1.$q->a({-href=>"$url?db=uniprot&query=ac:$2"}, $2)'
+		result	=> '$1.$q->a({-href=>"$url?db=sprot%2Btrembl&query=ac:$2"}, $2)'
 	},
 );
 

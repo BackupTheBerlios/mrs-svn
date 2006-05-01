@@ -1,4 +1,4 @@
-#!/usr/pkg/bin/perl -w
+#!/usr/bin/perl -w
 
 use strict;
 use MRSCGI;
@@ -203,7 +203,7 @@ sub main()
 			my $diagnostics = "";
 			my $alignment = "";
 			
-			open IN, "/usr/pkg/bin/clustalw -INFILE=$$.fa -TYPE=PROTEIN -OUTPUT=GDE -CASE=UPPER |";
+			open IN, "/opt/local/bin/clustalw -INFILE=$$.fa -TYPE=PROTEIN -OUTPUT=GDE -CASE=UPPER |";
 			while (my $line = <IN>) {
 				$diagnostics .= $line;
 			}

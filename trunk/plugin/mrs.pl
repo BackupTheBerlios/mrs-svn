@@ -464,6 +464,7 @@ sub Info()
 		'text' => 'Text',
 		'valu' => 'Value',
 		'date' => 'Date',
+		'wtxt' => 'Weighted',
 	);
 
 	print "Name: $db\n";
@@ -480,7 +481,7 @@ sub Info()
 		my $entries = &printNumber($ix->Count);
 
 format Formaat1 =
-@<<<<<<<<<<<<<<<<  @<<<<<<  @>>>>>>>>>>>>>>>
+@<<<<<<<<<<<<<<<<  @<<<<<<<  @>>>>>>>>>>>>>>>
 $name,             $type,   $entries
 .
 		
@@ -502,12 +503,6 @@ sub Dump()
 	$min_occurrence = 1 unless defined $min_occurrence;
 	$no_leading_digit = 0 unless defined $no_leading_digit;
 	$min_wordlength = 1 unless defined $min_wordlength;
-
-	my %index_types = (
-		'text' => 'Text',
-		'valu' => 'Value',
-		'date' => 'Date',
-	);
 
 	my $i = $m->Indices or die "No indices in databank\n";
 

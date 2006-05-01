@@ -22,7 +22,7 @@ my @links_db_xref = (
 	},
 	{
 		match	=> qr[^(swiss-prot|sptrembl|uniprot/swiss-prot|uniprot/trembl):(\S+)]i,
-		result	=> '$1.":".$q->a({-href=>"$url?db=uniprot&query=ac:$2"}, $2)'
+		result	=> '$1.":".$q->a({-href=>"$url?db=sprot%2Btrembl&query=ac:$2"}, $2)'
 	},
 	{
 		match	=> qr|^(taxon:)(\S+)|i,
@@ -58,7 +58,7 @@ my %links = (
 
 	'UNIPROT'	=> {
 		match	=> qr[^(\S+)(?=;)]i,
-		result	=> '$q->a({-href=>"$url?db=uniprot&query=ac:$1"}, $1)'
+		result	=> '$q->a({-href=>"$url?db=sprot%2Btrembl&query=ac:$1"}, $1)'
 	},
 
 	'PDB'		=> {

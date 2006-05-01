@@ -18,7 +18,7 @@ use Time::HiRes;
 
 $| = 1;
 
-my $q = new MRSCGI(script => 'mrs.cgi');
+my $q = new MRSCGI;
 
 my $about =<<END;
 <h2>About</h2>
@@ -339,7 +339,6 @@ sub printListHeader
 			-size=>3,
 			-maxlength=>4,
 			-default=>'15',
-#			-onKeyPress=>'doKeyPress(event);'
 		),
 		$q->button(
 			-id=>'save',
@@ -424,9 +423,9 @@ sub doFind
 				
 				$fq = $dbo->Match("$3", "$2");
 				
-#				if ($not) {
-#					$fq = MRS::BooleanQuery::Not($fq);
-#				}
+				if ($not) {
+					$fq = MRS::MBooleanQuery::Not($fq);
+				}
 			}
 			elsif ($term =~ m/^([a-z0-9]+)(<|<=|=|>=|>)(\S+)/) {
 				$fq = $dbo->MatchRel("$3", "$2", "$1");
@@ -500,8 +499,6 @@ sub doList
 			$q->th('&nbsp;')
 		);
 		
-#		splice(@th, 2, 1, 1) if (not $addScore);
-		
 		push @rows, $q->Tr(@th);
 	
 		$i->Skip($first) if $first > 0;
@@ -547,7 +544,6 @@ sub doList
 				my @rd = (
 					$q->td($q->b($first + $n)),
 					$q->td($q->a({-href=>$url}, $id)),
-#					$q->td($i->Score),
 					$q->td({-style=>'vertical-align:middle;'},
 						$q->img({-src=>'../pixel-b.png', -width=>$score, -height=> 8})),
 					$q->td(Format::desc(&Filter($db), $q, $d->Get($id))),
@@ -562,8 +558,6 @@ sub doList
 						)
 					)
 				);
-				
-#				splice(@rd, 2, 1, 1) if (not $addScore);
 				
 				push @rows, $q->Tr(@rd);
 			}
@@ -683,7 +677,6 @@ sub doListAll()
 
 		eval
 		{
-#			if (my $i = $d->Find($query, $wildcard))
 			if (my $i = &doFind($db, $d, $query, 0))
 			{
 				my $url = $q->url({-full=>1, -query=>1});
@@ -984,7 +977,6 @@ sub main()
 
 		my $save_to = $q->param('save_to');
 
-#		print $q->header($save_to);
 		if ($q->param('save_to') eq 'text/plain') {
 			print $q->header(-type=>'text/plain');
 		}
@@ -1012,7 +1004,6 @@ sub main()
 		}
 		elsif ($query)
 		{
-#			if (my $i = $d->Find($query, $wildcard))
 			if (my $i = &doFind($db, $d, $query, 0))
 			{
 				for (my $id = $i->Next; defined $id; $id = $i->Next)
@@ -1062,79 +1053,17 @@ sub main()
 
 		# the search bar
 		
-	my $searchBox;
-	
-	if ($q->param('extended'))
-	{
-		print $q->p('This page is a work in progress, it is not intended for normal use.',
-			'Please use the regular search instead unless you know how this page works.',
-			'An improved version of this page will follow shortly.');
-		
-		if (defined $db and $db ne 'all')
-		{
-			$d = new MRS::MDatabank($db) or die "Could not open databank $db";
-
-			&getFields($d, $db) if defined $d;
-		}
-		
-		$searchBox = $q->table({id=>'tabel'},
-			$q->Tr(
-				$q->td({colspan=>3},
-					"Databank",
-					&getDbPopup('uniprot', "changeDb(\"".$q->url({-relative=>1})."\");"),
-				)
-			),
-			$q->Tr(
-				$q->td({id=>'rij', colspan=>3},
-					$q->popup_menu(-name=>"idx",
-						-values=>\@fields,
-						-default=>'all',
-						-labels=>\%fldLabels
-					),
-					$q->textfield(
-						-name=>"fld",
-						-class=>'tb',
-						-size=>50,
-						-maxlength=>256,
-#						-onKeyPress=>'doKeyPress(event);'
-					)
-				)
-			),
-			$q->Tr(
-				$q->td({width=>'80%'},
-					$q->button(-name=>'add', -value=>"More Fields", -class=>'submit', onClick=>'addField();')
-				),
-				$q->td(
-					$q->button(-name=>'search', -value=>"Search", -class=>'submit', onClick=>'doSearch();')
-				),
-#				$q->td(
-#					$q->button(-name=>'clear', -value=>"Reset", -class=>'submit', onClick=>'doClear();')
-#				),
-			)
-		);
-	}
-	else
-	{
-		$searchBox = $q->span(
-			&getDbPopup('all', "doSearch();"),
-#			$q->popup_menu(-name=>"db",
-#				-values=>\@dbIds,
-#				-default=>'all',
-#				-labels=>\%dbLabels,
-#				-onChange=>"doSearch();"
-#			),
-			"for",
-			$q->textfield(
-				-name=>"query",
-				-class=>'tb',
-				-size=>40,
-				-maxlength=>256,
-#				-onKeyPress=>'doKeyPress(event);'
-			),
-			$q->button(-name=>'search', -value=>"Search", -class=>'submit', onClick=>'doSearch();'),
-#			$q->button(-name=>'clear', -value=>"Reset", -class=>'submit', onClick=>'doClear();'),
-		);
-	}
+	my $searchBox = $q->span(
+		&getDbPopup('all', "doSearch();"),
+		"for",
+		$q->textfield(
+			-name=>"query",
+			-class=>'tb',
+			-size=>40,
+			-maxlength=>256,
+		),
+		$q->button(-name=>'search', -value=>"Search", -class=>'submit', onClick=>'doSearch();'),
+	);
 	
 	my $expires = gmtime(time + 3600 * 24 * 365);
 	

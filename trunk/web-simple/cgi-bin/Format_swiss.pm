@@ -23,7 +23,7 @@ my %links = (
 
 	'UNIPROT'	=> {
 		match	=> qr[^(\S+)(?=;)]i,
-		result	=> '$q->a({-href=>"$url?db=uniprot&query=ac:$1"}, $1)'
+		result	=> '$q->a({-href=>"$url?db=sprot%2Btrembl&query=ac:$1"}, $1)'
 	},
 
 	'PDB'		=> {
@@ -552,7 +552,7 @@ sub pp
 			foreach my $kw (@kw)
 			{
 				$kw =~ s/\.$//;
-				my $kw_url = $url . "?db=uniprot&query=";
+				my $kw_url = $url . "?db=sprot%2Btrembl&query=";
 				foreach my $kww (split(m/\s/, $kw))
 				{
 					$kw_url .= "kw:$kww ";

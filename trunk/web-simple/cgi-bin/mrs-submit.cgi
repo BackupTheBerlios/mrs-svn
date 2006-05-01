@@ -1,4 +1,4 @@
-#!/usr/pkg/bin/perl -w
+#!/usr/bin/perl -w
 
 use strict;
 use MRSCGI;
@@ -11,8 +11,8 @@ use POSIX qw(strftime);
 my $q = new MRSCGI(script=>'mrs-submit.cgi');
 my $ug = new Data::UUID;
 
-my $SGE_ROOT = '/usr/data/gridware/sge/';
-my $qsub = "$SGE_ROOT/bin/lx24-amd64/qsub";
+#my $SGE_ROOT = '/usr/data/gridware/sge/';
+#my $qsub = "$SGE_ROOT/bin/lx24-amd64/qsub";
 
 my %cookies = fetch CGI::Cookie;
 
@@ -152,7 +152,7 @@ sub submitJobs()
 		print SCRIPT "#!/bin/tcsh\n";
 		print SCRIPT "#\$ -N blast_$query_name\n";
 		print SCRIPT "cd $work_dir\n";
-		print SCRIPT "( /usr/bin/env MRS_DATA_DIR=$mrs_data /usr/local/bin/mrs_blast -p $program $options -i $query_name.fa -o $query_name.out ) >& $query_name.err\n";
+		print SCRIPT "( /usr/bin/env MRS_DATA_DIR=$mrs_data /opt/local/bin/mrs_blast -p $program $options -i $query_name.fa -o $query_name.out ) >& $query_name.err\n";
 		close SCRIPT;
 		
 		chmod 0744, "$query_name.csh";
@@ -161,8 +161,8 @@ sub submitJobs()
 		$q->save(\*PARAMS);
 		close PARAMS;
 		
-		my $submission_id = `. $SGE_ROOT/default/common/settings.sh; $qsub -cwd /$work_dir/$query_name.csh`;
-#		system("batch -f /$work_dir/$query_name.csh");
+#		my $submission_id = `. $SGE_ROOT/default/common/settings.sh; $qsub -cwd /$work_dir/$query_name.csh`;
+		system("batch -f /$work_dir/$query_name.csh");
 #		
 #		print $q->p("job id: $submission_id");
 	}

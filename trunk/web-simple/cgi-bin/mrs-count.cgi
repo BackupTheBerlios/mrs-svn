@@ -1,4 +1,4 @@
-#!/usr/pkg/bin/perl -w
+#!/usr/bin/perl -w
 #
 # $Id: mrs-count.cgi,v 1.1 2005/10/13 14:14:07 maarten Exp $
 #
@@ -65,7 +65,7 @@ sub main()
 	my $cnt = 0;
 	
 	eval {
-		my $i = $m->Find($query, $wildcard);
+		my $i = $m->Find($query, $wildcard ? 1 : 0);
 		$cnt = $i->Count(0);
 	};
 	

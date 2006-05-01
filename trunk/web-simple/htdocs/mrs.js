@@ -79,22 +79,6 @@ function doClear()
 	document.f.query.value = "";
 }
 
-function doKeyPress(event)
-{
-	var k = 0;
-
-	if (navigator.appName == "Netscape") {
-		k = event.which;
-	}
-	else if (navigator.appName.indexOf("Microsoft") != -1) {
-		k = event.keyCode;
-	}
-	
-	if (k == 13) {
-		doSearch(); 
-	}
-}
-
 function doReloadEntry(url, db, e)
 {
 	var format = document.f.format;

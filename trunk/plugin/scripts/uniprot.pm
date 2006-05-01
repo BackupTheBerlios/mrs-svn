@@ -43,13 +43,17 @@ use strict;
 
 my $count = 0;
 
+my $commentLine1 = "CC   -----------------------------------------------------------------------";
+my $commentLine2 = "CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms";
+my $commentLine3 = "CC   Distributed under the Creative Commons Attribution-NoDerivs License";
+
 our $COMPRESSION_LEVEL = 9;
 our $COMPRESSION = "zlib";
-our $COMPRESSION_DICTIONARY=<<'END'; #'
-CC   -----------------------------------------------------------------------
-CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms
-CC   Distributed under the Creative Commons Attribution-NoDerivs License
-CC   -----------------------------------------------------------------------
+our $COMPRESSION_DICTIONARY=<<END;
+$commentLine1
+$commentLine2
+$commentLine3
+$commentLine1
 END
 
 sub new
@@ -129,6 +133,15 @@ sub parse
 			{
 				$m->IndexTextAndNumbers('ref', substr($line, 5));
 			}
+			elsif ($fld ne 'CC')
+			{
+				if ($line ne $commentLine1 and
+					$line ne $commentLine2 and
+					$line ne $commentLine3)
+				{
+					$m->IndexTextAndNumbers('cc', substr($line, 5));
+				}
+			}
 			elsif ($fld ne 'XX')
 			{
 				$m->IndexTextAndNumbers(lc($fld), substr($line, 5));
@@ -183,7 +196,7 @@ sub raw_files
 		return "gzcat $raw_dir/uniprot_trembl.dat.gz|";
 	}
 	elsif ($db eq 'sp100') {
-		return "gzcat $raw_dir/sp100.dat.gz|";
+		return "$raw_dir/sprot.dat";
 	}
 	elsif ($db eq 'sp200') {
 		return "gzcat $raw_dir/sp200.dat.gz|";

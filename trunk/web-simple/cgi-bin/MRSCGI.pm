@@ -16,6 +16,9 @@ sub new
 	my $self = { @_ };
 	my $result = bless $self, "MRSCGI";
 
+	$self->{script} = $0 unless defined $self->{script};
+	$self->{script} =~ s|^.*/([^/]+)$|$1|;
+
 	$self->init();
 
 	my $base_url = $self->url({-absolute=>1});

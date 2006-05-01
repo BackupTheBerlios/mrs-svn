@@ -40,9 +40,9 @@ sub pp
 						(\S+)(,\s+)(\S+)(?=\s*,\s+.;)
 					}
 					{
-						"<a href='$url?db=uniprot\&query=ac:$1'>$1</a>" .
+						"<a href='$url?db=sprot%2Btrembl\&query=ac:$1'>$1</a>" .
 						"$2" .
-						"<a href='$url?db=uniprot\&id=$3'>$3</a>"
+						"<a href='$url?db=sprot%2Btrembl\&id=$3'>$3</a>"
 					}xge;
 		}
 		elsif (substr($line, 0, 2) eq 'DO')

@@ -10,8 +10,8 @@ use POSIX qw(strftime);
 use File::stat;
 use Data::Dumper;
 
-my $status_dir = "/Users/maarten/data/status/";
-my $q = new MRSCGI(script => 'databanks.cgi');
+my $status_dir = "/data/status/";
+my $q = new MRSCGI;
 
 &main();
 exit;

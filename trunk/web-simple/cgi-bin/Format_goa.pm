@@ -58,8 +58,8 @@ sub pp
 		{
 			my $value = $fields[$n];
 	
-			$value = "${url}uniprot&id=$value'>$value</a>" if ($n == 2);
-			$value = "${url}uniprot&query=ac:$value'>$value</a>" if ($n == 1);
+			$value = "${url}sprot%2Btrembl&id=$value'>$value</a>" if ($n == 2);
+			$value = "${url}sprot%2Btrembl&query=ac:$value'>$value</a>" if ($n == 1);
 			$value =~ s|(GO:)(\d+)|${url}go\&id=$2'>$1$2</a>|g if ($n == 4);
 			
 			my $line = $labels[$n] . $value . "\n";

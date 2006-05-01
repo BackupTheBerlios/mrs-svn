@@ -28,7 +28,7 @@ sub pp
 {
 	my ($this, $q, $text) = @_;
 	
-	my $url1 = $q->url({-full=>1}) . "?db=uniprot&id=";
+	my $url1 = $q->url({-full=>1}) . "?db=sprot%2Btrembl&id=";
 	my $url2 = $q->url({-full=>1}) . "?db=pdb&id=";
 	
 	$text =~ s/&/&amp;/g;
