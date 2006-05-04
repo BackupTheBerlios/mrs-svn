@@ -52,18 +52,14 @@ struct no_swapper
 // a class that swaps
 struct byte_swapper
 {
-	static bool		swap(bool inValue);
-	static int8		swap(int8 inValue);
-	static int16	swap(int16 inValue);
-	static int32	swap(int32 inValue);
-	static float	swap(float inValue);
-	static int64	swap(int64 inValue);
-	static uint8	swap(uint8 inValue);
-	static uint16	swap(uint16 inValue);
-	static uint32	swap(uint32 inValue);
-	static uint64	swap(uint64 inValue);
+	template<typename T>
+	static T	swap(T inValue)
+	{
+		this_will_not_compile_I_hope(inValue);
+	}
 };
 
+template<>
 inline
 int64 byte_swapper::swap(int64 inValue)
 {
@@ -78,6 +74,7 @@ int64 byte_swapper::swap(int64 inValue)
 		(((static_cast<uint64>(inValue))>>56) & 0x00000000000000FFULL));
 }
 
+template<>
 inline
 uint64 byte_swapper::swap(uint64 inValue)
 {
@@ -92,6 +89,7 @@ uint64 byte_swapper::swap(uint64 inValue)
 		((((uint64)inValue)>>56) & 0x00000000000000FFULL));
 }
 
+template<>
 inline
 int32 byte_swapper::swap(int32 inValue)
 {
@@ -102,6 +100,7 @@ int32 byte_swapper::swap(int32 inValue)
 			((((uint32)inValue)>>24) & 0x000000FF));
 }
 
+template<>
 inline
 uint32 byte_swapper::swap(uint32 inValue)
 {
@@ -112,6 +111,7 @@ uint32 byte_swapper::swap(uint32 inValue)
 			((((uint32)inValue)>>24) & 0x000000FF));
 }
 
+template<>
 inline
 float byte_swapper::swap(float inValue)
 {
@@ -131,6 +131,7 @@ float byte_swapper::swap(float inValue)
 	return v.a;
 }
 
+template<>
 inline
 int16 byte_swapper::swap(int16 inValue)
 {
@@ -139,6 +140,7 @@ int16 byte_swapper::swap(int16 inValue)
 			((((uint16)inValue)>> 8) & 0x00FF));
 }
 
+template<>
 inline
 uint16 byte_swapper::swap(uint16 inValue)
 {
@@ -147,18 +149,21 @@ uint16 byte_swapper::swap(uint16 inValue)
 			((((uint16)inValue)>> 8) & 0x00FF));
 }
 
+template<>
 inline
 int8 byte_swapper::swap(int8 inValue)
 {
 	return inValue;
 }
 
+template<>
 inline
 uint8 byte_swapper::swap(uint8 inValue)
 {
 	return inValue;
 }
 
+template<>
 inline
 bool byte_swapper::swap(bool inValue)
 {

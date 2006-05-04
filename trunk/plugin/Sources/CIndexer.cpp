@@ -178,9 +178,9 @@ class CDeltaIterator : public CIteratorBase
 class CJoinedIterator : public CIteratorBase
 {
   public:
-					CJoinedIterator(bool inUnique);
+					CJoinedIterator();
 					CJoinedIterator(
-						vector<CIteratorBase*>& inIters, bool inUnique);
+						vector<CIteratorBase*>& inIters);
 					~CJoinedIterator();
 	
 	void			Append(CIteratorBase* inIter);
@@ -209,7 +209,6 @@ class CJoinedIterator : public CIteratorBase
 	typedef vector<CElement>	CElementList;
 
 	CElementList	fItems;
-	bool			fUnique;
 };
 
 CIteratorBase::CIteratorBase()
@@ -229,13 +228,11 @@ CIteratorBase& CIteratorBase::operator=(const CIteratorBase&)
 	return *this;
 }
 
-CJoinedIterator::CJoinedIterator(bool inUnique)
-	: fUnique(inUnique)
+CJoinedIterator::CJoinedIterator()
 {
 }
 
-CJoinedIterator::CJoinedIterator(vector<CIteratorBase*>& inIters, bool inUnique)
-	: fUnique(inUnique)
+CJoinedIterator::CJoinedIterator(vector<CIteratorBase*>& inIters)
 {
 	vector<CIteratorBase*>::iterator i;
 	for (i = inIters.begin(); i != inIters.end(); ++i)
@@ -293,23 +290,6 @@ bool CJoinedIterator::Next(string& outString, uint32& outValue)
 		{
 			delete fItems.back().fIter;
 			fItems.erase(fItems.end() - 1);
-		}
-		
-		if (fUnique)
-		{
-			while (fItems.size() > 0 and
-				fItems.front().fSValue == outString)
-			{
-				pop_heap(fItems.begin(), fItems.end());
-
-				if (fItems.back().fIter->Next(fItems.back().fSValue, fItems.back().fNValue))
-					push_heap(fItems.begin(), fItems.end());
-				else
-				{
-					delete fItems.back().fIter;
-					fItems.erase(fItems.end() - 1);
-				}
-			}
 		}
 	}
 
@@ -706,9 +686,6 @@ void CFullTextIndex::AddWord(uint8 inIndex, uint32 inWord, uint8 inFrequency)
 	if (fFTIndexCnt < inIndex + 1)
 		fFTIndexCnt = inIndex + 1;
 
-	if (inFrequency > kMaxWeight)
-		inFrequency = kMaxWeight;
-	
 	if (inFrequency > 0)
 	{
 		DocWord w = { inWord, inIndex, inFrequency };
@@ -1557,12 +1534,6 @@ void CIndexer::IndexWordWithWeight(const string& inIndex, const string& inText, 
 	if (inText.length() >= kMaxKeySize)
 		THROW(("Data error: length of unique key too long (%s)", inText.c_str()));
 
-	if (inFrequency > kMaxWeight)
-	{
-		cerr << "The value for weight " << inFrequency << " is out of range, max is " << kMaxWeight << endl;
-		inFrequency = kMaxWeight;
-	}
-
 	index->AddWord(inText, inFrequency);
 }
 
@@ -1966,7 +1937,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 
 		uint32 i;
 		int32 count = 0;
-		CJoinedIterator iter(true);
+		CJoinedIterator iter;
 		
 		for (i = 0; i < md.size(); ++i)
 		{
@@ -2003,13 +1974,23 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 		
 //		list<pair<string,uint32> > indx;
 		CMergeIndexBuffer indx(fDb);
-		string s;
+		string s, lastS;
 		uint32 v = 0;
 		
 		fParts[ix].entries = 0;
 		
 		while (iter.Next(s, v))
 		{
+			if (s == lastS)
+			{
+				if (fParts[ix].kind == kValueIndex)
+					THROW(("Attempt to enter duplicate key '%s' in index '%s'",
+						s.c_str(), fParts[ix].name));
+				continue;
+			}
+
+			lastS = s;
+
 			++fParts[ix].entries;
 			
 			switch (fParts[ix].kind)

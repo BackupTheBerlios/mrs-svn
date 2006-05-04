@@ -708,6 +708,8 @@ void CDatabank::Merge(vector<CDatabank*>& inParts)
 
 		if (VERBOSE >= 1)
 			cout << "done" << endl;
+		
+		iter.release();
 	}
 	else if (VERBOSE >= 1)
 		cout << "No ID table created since there is no id index" << endl;

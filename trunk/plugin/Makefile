@@ -58,7 +58,7 @@ INCPATHS	= ./Lib/Includes/ ./Lib/X/ ./Lib/ ./Sources/X/
 SYSINCPATHS	= /usr/include ./Lib/loki $(BOOST)
 WARNINGS	=  -Wall -Wno-multichar -Wno-unknown-pragmas -Wno-long-long -Wno-sign-compare
 CFLAGS		= -fsigned-char -g -ffor-scope
-LDFLAGS		= -ffunction-sections -fdata-sections -g
+LDFLAGS		= -fdata-sections -g # -ffunction-sections 
 CC			= c++
 OPT			+= -fstrict-aliasing
 
@@ -133,7 +133,7 @@ endif
 	LDFLAGS		+= 
 	CFLAGS		+= -force_cpusubtype_ALL
 	OPT			+= -O3 -mcpu=G4 -falign-loops=32
-	WARNINGS	+= -Wno-long-double
+#	WARNINGS	+= -Wno-long-double
 	CTAGS		= /sw/bin/ctags
 	STRIP		= strip -S
 	JAVA_INC	= -I/System/Library/Frameworks/JavaVM.framework/Versions/1.4.2/Headers/
@@ -302,6 +302,11 @@ install: dist
 
 blast: echo_flags lib Sources/mrs_blast.cpp
 	$(CC) $(CFLAGS) -o mrs_blast -ILib/Includes Sources/mrs_blast.cpp $(LIBNAME) $(LDFLAGS)
+	@ echo "Done"
+
+query: echo_flags lib Sources/mrs_test.cpp
+	$(CC) $(CFLAGS) -o mrs_query -ILib/Includes Sources/mrs_test.cpp $(LIBNAME) $(LDFLAGS)
+	@ echo "Done"
 
 tags: FORCE
 	$(CTAGS) $(wildcard $(addsuffix *, $(SRC_PATHS))) $(wildcard $(addsuffix *.h, $(INCPATHS)))

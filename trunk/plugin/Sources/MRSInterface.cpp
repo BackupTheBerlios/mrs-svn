@@ -419,6 +419,11 @@ MDatabankImp::MDatabankImp(const string& inDatabank, bool inNew)
 	}
 }
 
+MDatabank::MDatabank()
+{
+	THROW(("Don't do this"));
+}
+
 MDatabank::MDatabank(const string& inDatabank)
 	: MRSObject<MDatabank, struct MDatabankImp>(new MDatabankImp(inDatabank, false))
 {
@@ -1111,6 +1116,6 @@ MQueryResults* MRankedQuery::Perform(MBooleanQuery* inMetaQuery)
 //MRSObject<MIndices, MIndicesImp>::MRSObject();
 //MRSObject<MBlastHit, MBlastHitImp>::MRSObject();
 //MRSObject<MBlastHsp, MBlastHspImp>::MRSObject();
-//MRSObject<MDatabank, MDatabankImp>::MRSObject();
+template class MRSObject<MDatabank, MDatabankImp>::MRSObject;
 
 #pragma export off

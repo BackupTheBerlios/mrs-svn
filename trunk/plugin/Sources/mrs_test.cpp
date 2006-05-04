@@ -47,12 +47,6 @@
 #include "MRSInterface.h"
 #include "getopt.h"
 
-#include <expat.h>
-
-#define not !
-#define and &&
-#define or ||
-
 using namespace std;
 
 void error(const char* msg, ...)
@@ -126,12 +120,15 @@ int main(int argc, const char* argv[])
 {
 	// scan the options
 
-	string db, mrs_query, match;
+	string db, filter, ix;
 	ofstream of;
 	streambuf* outBuf = NULL;
+	vector<string> queryWords;
+
+	ix = "*alltext*";
 
 	int c;
-	while ((c = getopt(argc, const_cast<char**>(argv), "d:o:ve:f:s:m:")) != -1)
+	while ((c = getopt(argc, const_cast<char**>(argv), "d:o:vq:f:s:i:")) != -1)
 	{
 		switch (c)
 		{
@@ -139,16 +136,20 @@ int main(int argc, const char* argv[])
 				db = optarg;
 				break;
 			
-			case 'e':
-				mrs_query = optarg;
+			case 'q':
+				queryWords.push_back(optarg);
+				break;
+
+			case 'i':
+				ix = optarg;
 				break;
 
 			case 'v':
 				++VERBOSE;
 				break;
 
-			case 'm':
-				match = optarg;
+			case 'f':
+				filter = optarg;
 				break;
 
 			case 'o':
@@ -161,53 +162,29 @@ int main(int argc, const char* argv[])
 				break;
 		}
 	}
-
+	
 	MDatabank mrsDb(db);
-	
-	stringstream path;
-	path << "C:/data/fp/" << db << '/' << mrs_query << ".xml";
 
-	ifstream fs(path.str().c_str());
+	auto_ptr<MRankedQuery> q(mrsDb.RankedQuery(ix));
 
-	if (not fs.is_open())
-		exit(1);
-
-	vector<pair<string,float> > fp;
-
-	XML_Parser p = XML_ParserCreate(NULL);
-	if (p == NULL)
-		exit(1);
-
-	XML_SetUserData(p, &fp);
-
-	XML_SetElementHandler(p, StartElement, EndElement);
-//	XML_SetCharacterDataHandler(p, charData);
-	
-	while (not fs.eof())
-	{
-		string line;
-		getline(fs, line);
-
-		(void)XML_Parse(p, line.c_str(), line.length(), fs.eof());
-	}
-	
-	XML_ParserFree(p);
-	
-	fs.close();
-	
-	auto_ptr<MRankedQuery> q(mrsDb.RankedQuery("mesh2002"));
-	float minF = fp.back().second;
-	for (vector<pair<string,float> >::iterator t = fp.begin(); t != fp.end(); ++t)
-		q->AddTerm(t->first, static_cast<unsigned long>(t->second / minF));
+	for (vector<string>::iterator qw = queryWords.begin(); qw != queryWords.end(); ++qw)
+		q->AddTerm(*qw, 1);
 	
 	auto_ptr<MBooleanQuery> m;
-	if (match.length())
-			m.reset(mrsDb.BooleanQuery(match));
+	if (filter.length())
+			m.reset(mrsDb.BooleanQuery(filter));
 
 	auto_ptr<MQueryResults> r(q->Perform(m.get()));
-
-	while (const char* id = r->Next())
-		cout << id << endl;
+	
+	if (r.get() != NULL)
+	{
+		int n = 10;
+		const char* id;
+		while (n-- > 0 and (id = r->Next()) != NULL)
+			cout << id << endl;
+	}
+	else
+		cout << "No hits found" << endl;
 
 	if (outBuf)
 		cout.rdbuf(outBuf);

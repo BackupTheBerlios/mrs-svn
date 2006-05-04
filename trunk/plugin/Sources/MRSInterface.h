@@ -122,6 +122,9 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
   public:
 	static const char	kWildCardString[];
 
+#ifndef SWIG
+						MDatabank();
+#endif
 						MDatabank(const std::string& inName);
 
 	static MDatabank*	Create(const std::string& inPath);

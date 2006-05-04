@@ -45,6 +45,8 @@
 #include "HUtils.h"
 #include <iostream>
 #include "HError.h"
+#include <tr1/unordered_map>
+#include <boost/functional/hash/hash.hpp>
 
 #include <boost/ptr_container/ptr_vector.hpp>
 
@@ -87,43 +89,119 @@ struct CDocScore
 						{ return fRank > inOther.fRank; }
 };
 
-class CAccumulatorIterator : public CDocIterator
+class CAccumulator
 {
-  public:
-					CAccumulatorIterator(float inAccumulators[], uint32 inMaxDocCount)
-						: fA(inAccumulators)
-						, fCount(inMaxDocCount)
-						, fPointer(0) {}
-	
-	virtual bool	Next(uint32& ioDoc, bool inSkip);
-	virtual uint32	Count() const						{ return fCount; }
-	virtual uint32	Read() const						{ return fPointer; }
+	friend class Iterator;
 
+	struct Item
+	{
+		float			value;
+		uint32			count;
+		
+						Item() : value(0), count(0) {}
+	};
+	
+	typedef tr1::unordered_map<uint32,Item,boost::hash<uint32> >	DataMap;
+
+  public:
+
+	struct ItemRef
+	{
+		friend class CAccumulator;
+		
+		float		operator+=(float inValue)
+					{
+						if (fItem == fData.end())
+							fItem = fData.insert(make_pair(fDocNr, Item())).first;
+
+						fItem->second.value += inValue;
+						fItem->second.count += 1;
+
+						return fItem->second.value;
+					}
+
+					operator float() const
+					{
+						float result = 0.f;
+						if (fItem != fData.end())
+							result = fItem->second.value;
+						return result;
+					}
+		
+		uint32		Count() const;
+
+	  private:
+
+					ItemRef(DataMap& inData, uint32 inDocNr)
+						: fData(inData)
+						, fDocNr(inDocNr)
+						, fItem(fData.find(fDocNr)) {}
+					ItemRef(const ItemRef&);
+					ItemRef();
+		ItemRef&	operator=(const ItemRef&);
+
+		DataMap&			fData;
+		uint32				fDocNr;
+		DataMap::iterator	fItem;
+	};
+	
+					CAccumulator(uint32 inBucketSize) : fData(inBucketSize) {}
+	virtual			~CAccumulator() {}
+	
+	ItemRef			operator[](uint32 inDocNr)				{ return ItemRef(fData, inDocNr); }
+	
+	class Iterator : public CDocIterator
+	{
+	  public:
+					Iterator(CAccumulator& inAccumulator, uint32 inTermCount)
+						: fData(inAccumulator.fData)
+						, fIter(fData.begin())
+						, fRead(0)
+						, fTermCount(inTermCount) {}
+		
+		virtual bool	Next(uint32& ioDoc, bool inSkip);
+		virtual uint32	Count() const						{ return fData.size(); }
+		virtual uint32	Read() const						{ return fRead; }
+		const Item&		GetItem() const						{ return fItem; }
+	
+	  private:
+		DataMap&			fData;
+		DataMap::iterator	fIter;
+		uint32				fRead;
+		uint32				fTermCount;
+		Item				fItem;
+	};
+	
   private:
-	float*			fA;
-	uint32			fCount;
-	uint32			fPointer;
+	DataMap				fData;
 };
 
-bool CAccumulatorIterator::Next(uint32& ioDoc, bool inSkip)
+bool CAccumulator::Iterator::Next(uint32& ioDoc, bool inSkip)
 {
-	bool done = false;
-	
-	if (inSkip)
-		fPointer = ioDoc + 1;
-	
-	while (not done and fPointer < fCount)
+	bool result = false;
+
+	while (fIter != fData.end())
 	{
-		if (fA[fPointer] != 0)
+		if (inSkip and fIter->first < ioDoc)
 		{
-			ioDoc = fPointer;
-			done = true;
+			++fIter;
+			continue;
 		}
 		
-		++fPointer;
+		if (fTermCount and fIter->second.count != fTermCount)
+		{
+			++fIter;
+			continue;
+		}
+		
+		result = true;
+		ioDoc = fIter->first;
+		fItem = fIter->second;
+		++fIter;
+		break;
 	}
 	
-	return done;
+	return result;
 }
 
 CRankedQuery::CRankedQuery()
@@ -148,6 +226,8 @@ void CRankedQuery::AddTerm(const string& inKey, uint32 inFrequency)
 
 struct Algorithm
 {
+	virtual				~Algorithm() {}
+
 	virtual float		operator()(float inAccumulator, float inDocWeight, float inQueryWeight) = 0;
 	
 	static Algorithm&	Choose(const string& inName);
@@ -196,13 +276,7 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	const string& inIndex, const std::string& inAlgorithm,
 	CDocIterator* inMetaQuery, uint32 inMaxReturn)
 {
-	uint32 docCount = inDatabank.Count();
-	HAutoBuf<float> Abuffer(new float[docCount]);
-	float* A = Abuffer.get();		// the accumulators
-	
 	Algorithm& alg = Algorithm::Choose(inAlgorithm);
-	
-	memset(A, 0, sizeof(float) * docCount);
 	
 	CDocWeightArray Wd = inDatabank.GetDocWeights(inIndex);
 	
@@ -215,6 +289,8 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 		if (t->weight > maxTermFreq)
 			maxTermFreq = t->weight;
 
+	uint32 maxCount = 1000;
+
 	// create the iterators and sort them by decreasing rank
 	for (TermVector::iterator t = fImpl->fTerms.begin(); t != fImpl->fTerms.end(); ++t)
 	{
@@ -222,12 +298,23 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 		
 		t->iter.reset(inDatabank.GetDocWeightIterator(inIndex, t->key));
 		if (t->iter.get() != nil)
+		{
 			t->w = t->iter->Weight() * t->iter->GetIDFCorrectionFactor() * t->weight;
+			
+			uint32 cnt = t->iter->Count();
+			if (cnt > maxCount)
+				maxCount = cnt;
+		}
 		else
 			t->w = 0;
 	}
 	
 	fImpl->fTerms.sort(greater<Term>());
+
+	if (maxCount > 100000)
+		maxCount = 100000;
+
+	CAccumulator A(maxCount);
 
 	for (uint32 tx = 0; tx < fImpl->fTerms.size(); ++tx)
 	{
@@ -250,7 +337,7 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 		if (inDatabank.GetDocumentNr(t.key, idDocNr))
 		{
 			A[idDocNr] += (Wd[idDocNr] * t.weight) / maxTermFreq;
-			Smax = max(Smax, A[idDocNr]);
+			Smax = max(Smax, (float)A[idDocNr]);
 		}
 
 		if (t.iter.get() == nil)
@@ -274,18 +361,22 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 				float wd = rank;
 				float sd = idf * wd * wq;
 
-				A[docNr] += sd;
-				Smax = max(Smax, A[docNr]);
+				Smax = max(Smax, A[docNr] += sd);
 			}
 		}
 	}
-	
+
 	Wq = sqrt(Wq);
 
 	vector<CDocScore> docs;
 	docs.reserve(inMaxReturn);		// << return the top maxReturn documents
 	
-	auto_ptr<CDocIterator> rdi(new CAccumulatorIterator(A, docCount));
+	CAccumulator::Iterator* ai;
+	
+	uint32 termCount = fImpl->fTerms.size();
+	
+	auto_ptr<CDocIterator> rdi(ai = new CAccumulator::Iterator(A, termCount));
+
 	if (inMetaQuery)
 		rdi.reset(CDocIntersectionIterator::Create(rdi.release(), inMetaQuery));
 	
@@ -293,7 +384,6 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	while (rdi->Next(d, false))
 	{
 		CDocScore ds;
-//		ds.fRank = A[d] / (Wd[d] * Wq);
 		ds.fRank = alg(A[d], Wd[d], Wq);
 		ds.fDocNr = d;
 		

@@ -1,4 +1,4 @@
-#!/usr/pkg/bin/perl -w
+#!/usr/bin/perl -w
 # 
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.
