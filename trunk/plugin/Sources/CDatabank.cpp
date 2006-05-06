@@ -385,6 +385,10 @@ CDatabank::CDatabank(const HUrl& inUrl, bool inNew)
 		
 		fHeader->sig = kHeaderSig;
 		
+		// generate a uuid based on time and MAC address
+		// that way it is easier to track where DB's come from.
+		uuid_generate_time(fHeader->uuid);
+		
 		*fDataFile << *fHeader;
 
 		fHeader->data_offset = fDataFile->Tell();
@@ -962,8 +966,12 @@ void CDatabank::PrintInfo()
 	
 	const char* sig = reinterpret_cast<const char*>(&fHeader->sig);
 
+	char suuid[40];
+	uuid_unparse(fHeader->uuid, suuid);
+
 	cout << "Header:" << endl;
 	cout << "  signature:    " << sig[0] << sig[1] << sig[2] << sig[3] << endl;
+	cout << "  uuid:         " << suuid << endl;
 	cout << "  size:         " << fHeader->size << endl;
 	cout << "  entries:      " << fHeader->entries << endl;
 	cout << "  data offset:  " << fHeader->data_offset << endl;

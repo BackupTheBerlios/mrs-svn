@@ -152,6 +152,19 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexPart& inStruct)
 	HSwapStream<net_swapper> data(inData);
 	
 	data.Read(&inStruct.sig, sizeof(inStruct.sig));
+
+	// backward compatibility code from here ...
+	
+	const uint32
+		kIndexPartSigV1old = FOUR_CHAR_INLINE('indP'),
+		kIndexPartSigV2old = FOUR_CHAR_INLINE('InDP');
+
+	if (inStruct.sig == kIndexPartSigV1old)
+		inStruct.sig = kIndexPartSig;
+	else if (inStruct.sig == kIndexPartSigV2old)
+		inStruct.sig = kIndexPartSigV2;
+		
+	// ... to here.
 	
 	if (inStruct.sig == kIndexPartSig)
 		inStruct.large_offsets = false;
