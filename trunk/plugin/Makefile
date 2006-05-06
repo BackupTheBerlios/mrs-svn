@@ -71,7 +71,7 @@ PERL_CORE	= $(shell $(PERL) -MExtUtils::Embed -e perl_inc)
 ifeq ($(OS),FreeBSD)
 	LIBS		+= 
 	INCPATHS	+= 
-	SYSINCPATHS	+= /usr/local/include /usr/local/include/freetype2/
+	SYSINCPATHS	+= /usr/local/include
 	DEFINES		+= HAS_ENDIAN FREEBSD
 	LDFLAGS		+= -shared
 	CTAGS		= exctags
@@ -91,9 +91,9 @@ endif
 
 ifeq ($(OS),Linux)
 	SHELLLIBS	+= dl pthread
-	SYSINCPATHS	+= /usr/X11R6/include/freetype2 /usr/include/freetype2/
 	DEFINES		+= LINUX
 	LD_SO_FLAG	= -shared
+	LDFLAGS		+= -pthread
 	STRIP		= strip -d
 	OPT			+= -O3
 
@@ -325,10 +325,10 @@ $(OBJDIR)/%.o: %.cpp
 
 include $(OBJS:%.o=%.d)
 
-MRS_perl5.cpp: Sources/MRS_swig.h Sources/MRS_perl5.i
+MRS_perl5.cpp: Sources/MRSInterface.h Sources/MRS_perl5.i
 	$(SWIG) $(DEFS) -c++ -perl5 -o Sources/MRS_perl5.cpp -outdir ./ Sources/MRS_perl5.i
 
-MRS_java.cpp: Sources/MRS_swig.h Sources/MRS_java.i
+MRS_java.cpp: Sources/MRSInterface.h Sources/MRS_java.i
 	mkdir -p Java/nl/ru/cmbi/MRSPlugin
 	$(SWIG) $(DEFS) -c++ -java -o Sources/MRS_java.cpp -outdir Java/nl/ru/cmbi/MRSPlugin -package nl.ru.cmbi.MRSPlugin Sources/MRS_java.i
 

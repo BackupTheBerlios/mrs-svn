@@ -53,6 +53,7 @@
 #include "HStream.h"
 #include "HUtils.h"
 #include "zlib.h"
+#include <uuid/uuid.h>
 
 #include "CDatabank.h"
 #include "CCompress.h"
@@ -97,6 +98,7 @@ struct SHeader
 	int64		id_size;
 	int64		blast_ix_offset;
 	int64		blast_ix_size;
+	uuid_t		uuid;
 };
 
 struct SDataHeader
@@ -1140,7 +1142,8 @@ HStreamBase& operator<<(HStreamBase& inData, SHeader& inStruct)
 		 << inStruct.index_offset << inStruct.index_size
 		 << inStruct.info_offset << inStruct.info_size
 		 << inStruct.id_offset << inStruct.id_size
-		 << inStruct.blast_ix_offset << inStruct.blast_ix_size;
+		 << inStruct.blast_ix_offset << inStruct.blast_ix_size
+		 << inStruct.uuid;
 	
 	return inData;
 }
@@ -1157,11 +1160,16 @@ HStreamBase& operator>>(HStreamBase& inData, SHeader& inStruct)
 		 >> inStruct.index_offset >> inStruct.index_size
 		 >> inStruct.info_offset >> inStruct.info_size
 		 >> inStruct.id_offset >> inStruct.id_size
-		 >> inStruct.blast_ix_offset >> inStruct.blast_ix_size;
+		 >> inStruct.blast_ix_offset >> inStruct.blast_ix_size
+		 >> inStruct.uuid;
 	
 	if (inStruct.size != sizeof(inStruct))
 	{
 		SHeader t = { 0 };
+		
+		if (inStruct.size > sizeof(SHeader))
+			inStruct.size = sizeof(SHeader);
+		
 		memcpy(&t, &inStruct, inStruct.size);
 		inStruct = t;
 		

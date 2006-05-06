@@ -69,8 +69,8 @@ using namespace std;
 
 const uint32
 	kIndexSig = FOUR_CHAR_INLINE('indx'),
-	kIndexPartSig = FOUR_CHAR_INLINE('indP'),
-	kIndexPartSigV2 = FOUR_CHAR_INLINE('inDP'),
+	kIndexPartSig = FOUR_CHAR_INLINE('indp'),
+	kIndexPartSigV2 = FOUR_CHAR_INLINE('Indp'),
 	kMaxIndexNr = 31;
 
 struct SIndexHeader

@@ -199,28 +199,37 @@ struct COnDiskData
 	static uint32	PageNrToAddr(uint32 inPageNr)	{ return inPageNr; }
 	static uint32	PageAddrToNr(uint32 inPageAddr)	{ return inPageAddr; }
 
-	void			SwapBytes();
+	void			SwapBytesHToN();
+	void			SwapBytesNToH();
 };
 
-void COnDiskData::SwapBytes()
+void COnDiskData::SwapBytesNToH()
+{
+	n = byte_swapper::swap(n);
+
+	for (int32 i = 0; i < n; ++i)
+	{
+		e[-i].p = byte_swapper::swap(e[-i].p);
+		e[-i].value = byte_swapper::swap(e[-i].value);
+	}
+
+	p0 = byte_swapper::swap(p0);
+	pp = byte_swapper::swap(pp);
+}
+
+void COnDiskData::SwapBytesHToN()
 {
 	for (int32 i = 0; i < n; ++i)
 	{
 		e[-i].p = byte_swapper::swap(e[-i].p);
 		e[-i].value = byte_swapper::swap(e[-i].value);
 	}
+
+	n = byte_swapper::swap(n);
+
 	p0 = byte_swapper::swap(p0);
 	pp = byte_swapper::swap(pp);
-	n = byte_swapper::swap(n);
 }
-
-struct V2Entry
-{
-	int64			value : 40;
-	uint32			p	  : 24;
-};
-
-typedef V2Entry V2EntryArray[2];
 
 struct COnDiskDataV2
 {
@@ -228,24 +237,45 @@ struct COnDiskDataV2
 	uint32			pp;
 	int32			n;
 	unsigned char	keys[kKeySpace];
-	V2Entry			e[1];
+	struct
+	{
+		int64		value : 40;
+		uint32		p	  : 24;
+	}				e[1];
 
 	static uint32	PageNrToAddr(uint32 inPageNr)	{ return (inPageNr - 1) * kPageSize; }
 	static uint32	PageAddrToNr(uint32 inPageAddr)	{ return (inPageAddr / kPageSize) + 1; }
 
-	void			SwapBytes();
+	void			SwapBytesHToN();
+	void			SwapBytesNToH();
 };
 
-void COnDiskDataV2::SwapBytes()
+void COnDiskDataV2::SwapBytesNToH()
+{
+	n = byte_swapper::swap(n);
+
+	for (int32 i = 0; i < n; ++i)
+	{
+		e[-i].p = byte_swapper::swap(e[-i].p) >> 24;
+		e[-i].value = byte_swapper::swap(e[-i].value) >> 8;
+	}
+
+	p0 = byte_swapper::swap(p0);
+	pp = byte_swapper::swap(pp);
+}
+
+void COnDiskDataV2::SwapBytesHToN()
 {
 	for (int32 i = 0; i < n; ++i)
 	{
 		e[-i].p = byte_swapper::swap(e[-i].p) >> 24;
 		e[-i].value = byte_swapper::swap(e[-i].value) >> 8;
 	}
+
+	n = byte_swapper::swap(n);
+
 	p0 = byte_swapper::swap(p0);
 	pp = byte_swapper::swap(pp);
-	n = byte_swapper::swap(n);
 }
 
 template<typename DD>
@@ -617,7 +647,7 @@ void CIndexPage<DD>::Read()
 	fDirty = false;
 
 #if P_LITTLEENDIAN
-	fData.SwapBytes();
+	fData.SwapBytesNToH();
 #endif
 
 //#if P_DEBUG
@@ -643,7 +673,7 @@ template<typename DD>
 void CIndexPage<DD>::Write()
 {
 #if P_LITTLEENDIAN
-		fData.SwapBytes();
+		fData.SwapBytesHToN();
 #endif
 
 //int64 offset = fBaseOffset + DD::PageNrToAddr(fOffset);
@@ -657,7 +687,7 @@ void CIndexPage<DD>::Write()
 	fDirty = false;
 
 #if P_LITTLEENDIAN
-	fData.SwapBytes();
+	fData.SwapBytesNToH();
 #endif
 }
 
