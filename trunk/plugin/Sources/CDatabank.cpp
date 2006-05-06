@@ -1142,8 +1142,9 @@ HStreamBase& operator<<(HStreamBase& inData, SHeader& inStruct)
 		 << inStruct.index_offset << inStruct.index_size
 		 << inStruct.info_offset << inStruct.info_size
 		 << inStruct.id_offset << inStruct.id_size
-		 << inStruct.blast_ix_offset << inStruct.blast_ix_size
-		 << inStruct.uuid;
+		 << inStruct.blast_ix_offset << inStruct.blast_ix_size;
+	
+	data.Write(inStruct.uuid, sizeof(inStruct.uuid));
 	
 	return inData;
 }
@@ -1160,8 +1161,9 @@ HStreamBase& operator>>(HStreamBase& inData, SHeader& inStruct)
 		 >> inStruct.index_offset >> inStruct.index_size
 		 >> inStruct.info_offset >> inStruct.info_size
 		 >> inStruct.id_offset >> inStruct.id_size
-		 >> inStruct.blast_ix_offset >> inStruct.blast_ix_size
-		 >> inStruct.uuid;
+		 >> inStruct.blast_ix_offset >> inStruct.blast_ix_size;
+	
+	data.Read(inStruct.uuid, sizeof(inStruct.uuid));
 	
 	if (inStruct.size != sizeof(inStruct))
 	{
