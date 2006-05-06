@@ -39,8 +39,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
  
-#ifndef CINDEXPAGE_H
-#define CINDEXPAGE_H
+#ifndef CINDEX_H
+#define CINDEX_H
 
 #include <string>
 #include <vector>
@@ -53,6 +53,7 @@
 #include "CIterator.h"
 
 class HStreamBase;
+class CIteratorBase;
 
 extern const uint32 kMaxKeySize;
 
@@ -113,16 +114,17 @@ class CIndex
   public:
 
 						// normal constructor for an exisiting index on disk
-						CIndex(uint32 inIndexKind, HStreamBase& inFile, int64 inOffset, uint32 inRoot);
+						CIndex(uint32 inIndexKind, bool inLargeOffsets, HStreamBase& inFile, int64 inOffset, uint32 inRoot);
 						~CIndex();
 	
-						// static factories to create new indices on disk
-	static CIndex*		Create(uint32 inIndexKind, HStreamBase& inFile);
-
 						// CreateFromIterator creates a compacted tree from sorted data
-	static CIndex*		CreateFromIterator(uint32 inIndexKind, CIteratorBase& inData, HStreamBase& inFile);
+	static CIndex*		CreateFromIterator(uint32 inIndexKind, bool inLargeOffsets, CIteratorBase& inData, HStreamBase& inFile);
 
 						// access data
+						// first GetValue will return an int64
+	bool				GetValue(const std::string& inKey, int64& outValue) const;
+
+						// WARNING!!! next GetValue methods will throw if their value is larger than the max for uint32
 	bool				GetValue(const std::string& inKey, uint32& outValue) const;
 	void				GetValuesForPattern(const std::string& inKey, std::vector<uint32>& outValues);
 
@@ -143,10 +145,13 @@ class CIndex
 #endif
 
 	class iterator : public boost::iterator_facade<iterator,
-		const std::pair<std::string,uint32>, boost::bidirectional_traversal_tag>
+		const std::pair<std::string,int64>, boost::bidirectional_traversal_tag>
 	{
 	  public:
 						iterator();
+						iterator(struct iterator_imp* inImpl);
+		virtual 		~iterator();
+						
 						iterator(const iterator& inOther);
 		iterator&		operator=(const iterator& inOther);
 		
@@ -155,20 +160,12 @@ class CIndex
 		friend class CIndex;
 		friend struct CIndexImp;
 
-						iterator(HStreamBase& inFile, int64 inOffset,
-							uint32 inPage, uint32 inPageIndex);
-	
 		void			increment();
 		void			decrement();
 		bool			equal(const iterator& inOther) const;
 		reference		dereference() const;
 		
-		HStreamBase*	fFile;
-		int64			fBaseOffset;
-		uint32			fPage;
-		uint32			fPageIndex;
-		std::pair<std::string,uint32>
-						fCurrent;
+		struct iterator_imp*	fImpl;
 	};
 
 	iterator			begin();
@@ -183,20 +180,20 @@ class CIndex
 	struct VisitorBase
 	{
 		virtual			~VisitorBase() {}
-		virtual void	Visit(const std::string& inKey, uint32& ioValue) = 0;
+		virtual void	Visit(const std::string& inKey, int64 inValue) = 0;
 	};
 	
 	template <class T>
 	struct Visitor : public VisitorBase
 	{
-		typedef void	(T::*VisitProc)(const std::string& inKey, uint32& ioValue);
+		typedef void	(T::*VisitProc)(const std::string& inKey, int64 inValue);
 		
 						Visitor(T* inObject, VisitProc inMethod)
 							: fObj(inObject)
 							, fMethod(inMethod) {}
 		
-		virtual void	Visit(const std::string& inKey, uint32& ioValue)
-							{ (fObj->*fMethod)(inKey, ioValue); }
+		virtual void	Visit(const std::string& inKey, int64 inValue)
+							{ (fObj->*fMethod)(inKey, inValue); }
 	  private:
 		T*				fObj;
 		VisitProc		fMethod;
@@ -215,4 +212,4 @@ class CIndex
 	struct CIndexImp*	fImpl;
 };
 
-#endif // CINDEXPAGE_H
+#endif // CINDEX_H

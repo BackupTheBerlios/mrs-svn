@@ -58,7 +58,7 @@
 #include "CCompress.h"
 #include "CDecompress.h"
 #include "CIndexer.h"
-#include "CIndexPage.h"
+#include "CIndex.h"
 #include "CUtils.h"
 #include "CBitStream.h"
 #include "CDbInfo.h"
@@ -285,7 +285,7 @@ void CDatabankBase::RecalculateDocumentWeights(const string& inIndex)
 	
 	auto_ptr<CIteratorBase> keys(GetIteratorForIndex(inIndex));
 	string key;
-	uint32 v;
+	int64 v;
 	
 	while (keys->Next(key, v))
 	{

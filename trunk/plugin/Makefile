@@ -180,11 +180,12 @@ Sources = \
 	./Sources/CDbInfo.cpp \
 	./Sources/CDecompress.cpp \
 	./Sources/CDictionary.cpp \
+	./Sources/CDocIterator.cpp \
 	./Sources/CDocWeightArray.cpp \
 	./Sources/CFilter.cpp \
 	./Sources/CIdTable.cpp \
+	./Sources/CIndex.cpp \
 	./Sources/CIndexer.cpp \
-	./Sources/CIndexPage.cpp \
 	./Sources/CIterator.cpp \
 	./Sources/CLexicon.cpp \
 	./Sources/CQuery.cpp \

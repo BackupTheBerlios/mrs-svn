@@ -13,6 +13,7 @@
 
 #include "CDictionary.h"
 #include "CDatabank.h"
+#include "CIterator.h"
 
 using namespace std;
 
@@ -209,7 +210,7 @@ void CDictionary::Create(CDatabankBase& inDatabank,
 		cerr << "Creating dictionary" << endl;
 	
 	string s;
-	uint32 v;
+	int64 v;
 	
 	while (iter->Next(s, v))
 	{

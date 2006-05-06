@@ -49,7 +49,7 @@
 #include "HUrl.h"
 
 #include "CBitStream.h"
-#include "CIterator.h"
+#include "CDocIterator.h"
 #include "CSequence.h"
 
 class HStreamBase;
@@ -64,6 +64,7 @@ class CBlastIndex;
 #endif
 class CDictionary;
 class CDocWeightArray;
+class CIteratorBase;
 
 struct SIndexPart;
 struct SHeader;

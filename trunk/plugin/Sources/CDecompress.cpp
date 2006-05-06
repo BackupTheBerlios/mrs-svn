@@ -48,7 +48,7 @@
 
 #include "CDecompress.h"
 #include "CCompress.h"
-#include "CIndexPage.h"
+#include "CIndex.h"
 #include "CBitStream.h"
 #include "CUtils.h"
 #include "CArray.h"

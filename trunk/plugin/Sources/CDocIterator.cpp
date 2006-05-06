@@ -47,102 +47,12 @@
 #include <limits>
 #include "HUtils.h"
 
-#include "CIterator.h"
+#include "CDocIterator.h"
 #include "CBitStream.h"
 #include "CDatabank.h"
 #include "CTokenizer.h"
 
 using namespace std;
-
-// string iterators
-
-CStrUnionIterator::CStrUnionIterator(vector<CIteratorBase*>& inIters)
-//	: fCount(0)
-//	, fRead(0)
-{
-	for (vector<CIteratorBase*>::iterator i = inIters.begin(); i != inIters.end(); ++i)
-	{
-		if (*i != nil)
-		{
-//			fCount += (*i)->Count();
-			
-			CSubIter v;
-			v.fIter = *i;
-			if ((*i)->Next(v.fKey, v.fValue))
-				fIterators.push_back(v);
-			else
-				delete *i;
-		}
-	}
-	
-	make_heap(fIterators.begin(), fIterators.end());
-}
-
-CStrUnionIterator::~CStrUnionIterator()
-{
-	for (vector<CSubIter>::iterator i = fIterators.begin(); i != fIterators.end(); ++i)
-		delete i->fIter;
-}
-
-bool CStrUnionIterator::Next(string& outString, uint32& outValue)
-{
-	bool result = false;
-
-	while (fIterators.size() > 0 and not result)
-	{
-//		++fRead;
-		
-		if (fIterators.size() > 1)
-			pop_heap(fIterators.begin(), fIterators.end());
-		
-		string next = fIterators.back().fKey;
-		if (next > outString)
-		{
-			outString = fIterators.back().fKey;
-			outValue = fIterators.back().fValue;
-			result = true;
-		}
-
-		string k = next;
-		uint32 v = outValue;
-		
-		if (fIterators.back().fIter->Next(k, v))
-		{
-			fIterators.back().fKey = k;
-			fIterators.back().fValue = v;
-			push_heap(fIterators.begin(), fIterators.end());
-		}
-		else
-		{
-			delete fIterators.back().fIter;
-			fIterators.erase(fIterators.begin() + fIterators.size() - 1);
-		}
-		
-		while (fIterators.size() > 0 and fIterators.front().fKey <= next)
-		{
-			pop_heap(fIterators.begin(), fIterators.end());
-			
-			k = next;
-			v = outValue;
-			
-			if (fIterators.back().fIter->Next(k, v))
-			{
-				fIterators.back().fKey = k;
-				fIterators.back().fValue = v;
-				push_heap(fIterators.begin(), fIterators.end());
-			}
-			else
-			{
-				delete fIterators.back().fIter;
-				fIterators.erase(fIterators.begin() + fIterators.size() - 1);
-			}
-		}
-	}
-	
-	return result;
-}
-
-// doc iterators
 
 CDocIterator::CDocIterator()
 {

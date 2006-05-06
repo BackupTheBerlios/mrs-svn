@@ -66,7 +66,7 @@
 #endif
 #include "CRankedQuery.h"
 
-#include "CIndexPage.h"		// for CIndexIterator
+#include "CIndex.h"		// for CIndexIterator
 
 const char kAppName[] = "MRS";
 
@@ -798,7 +798,7 @@ MBlastHits* MQueryResults::Blast(const string& inQuery, const string& inMatrix,
 const char* MKeys::Next()
 {
 	const char* result = nil;
-	uint32 v;
+	int64 v;
 
 	if (fImpl->fIter->Next(fImpl->fScratch, v))
 		result = fImpl->fScratch.c_str();
@@ -809,7 +809,7 @@ const char* MKeys::Next()
 void MKeys::Skip(long inCount)
 {
 	string s;
-	uint32 v;
+	int64 v;
 
 	if (inCount > 0)
 	{

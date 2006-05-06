@@ -10,6 +10,5 @@ include make.pre
 DB_URL = ftp://ftp.ebi.ac.uk/pub/databases/enzyme/release_with_updates
 
 ZIPFILES = $(SRCDIR)enzyme.dat
-#DATFILES = $(DSTDIR)enzyme.dat
 
 include make.post

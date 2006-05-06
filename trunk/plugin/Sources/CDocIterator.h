@@ -39,8 +39,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
  
-#ifndef CITERATOR_H
-#define CITERATOR_H
+#ifndef CDOCITERATOR_H
+#define CDOCITERATOR_H
 
 #include <string>
 #include <vector>
@@ -50,110 +50,6 @@
 class HStreamBase;
 class CIBitStream;
 class CDatabankBase;
-
-class CIteratorBase
-{
-  public:
-
-	virtual			~CIteratorBase();
-
-	virtual bool	Next(std::string& outString, uint32& outValue) = 0;
-	virtual bool	Prev(std::string& outKey, uint32& outValue) { return false; }
-//	virtual bool	Goto(std::string inKey) = 0;
-
-  protected:
-	
-					CIteratorBase();
-					CIteratorBase(const CIteratorBase&);
-					
-	CIteratorBase&	operator=(const CIteratorBase&);
-};
-
-// The next iterator is a wrapper around an STL container
-// containing pair's of string and uint32
-
-template<class T>
-class CIteratorWrapper : public CIteratorBase
-{
-	typedef typename T::iterator	iterator;
-	
-  public:
-						CIteratorWrapper(T& inContainer);
-
-	virtual bool		Next(std::string& outString, uint32& outValue);
-	virtual bool		Prev(std::string& outKey, uint32& outValue);
-
-  protected:
-	iterator			fBegin, fEnd, fCurrent;
-};
-
-template<class T>
-CIteratorWrapper<T>::CIteratorWrapper(T& inContainer)
-	: fBegin(inContainer.begin())
-	, fEnd(inContainer.end())
-	, fCurrent(fBegin)
-{
-}
-
-template<class T>
-bool CIteratorWrapper<T>::Next(std::string& outKey, uint32& outValue)
-{
-	bool result = false;
-	if (fCurrent != fEnd)
-	{
-		std::pair<std::string,uint32> c = *fCurrent;
-
-		++fCurrent;
-		
-		outKey = c.first;
-		outValue = c.second;
-		
-		result = true;
-	}
-	return result;
-}
-
-template<class T>
-bool CIteratorWrapper<T>::Prev(std::string& outKey, uint32& outValue)
-{
-	bool result = false;
-	if (fCurrent != fBegin)
-	{
-		--fCurrent;
-
-		std::pair<std::string,uint32> c = *fCurrent;
-		
-		outKey = c.first;
-		outValue = c.second;
-		
-		result = true;
-	}
-	return result;
-}
-
-class CStrUnionIterator : public CIteratorBase
-{
-  public:
-					CStrUnionIterator(std::vector<CIteratorBase*>& inIters);
-	virtual			~CStrUnionIterator();
-	
-	virtual bool	Next(std::string& outString, uint32& outValue);
-
-  private:
-
-	struct CSubIter
-	{
-		std::string		fKey;
-		uint32			fValue;
-		CIteratorBase*	fIter;
-		
-		bool operator<(const CSubIter& inOther) const
-				{ return fKey > inOther.fKey; }
-	};
-
-	std::vector<CSubIter>	fIterators;
-//	uint32					fCount, fRead;
-};
 
 class CDocIterator
 {
@@ -456,4 +352,4 @@ class CDbJoinedIterator : public CDbDocIteratorBase
 
 #include "CIterator.inl"
 
-#endif // CITERATOR_H
+#endif // CDOCITERATOR_H

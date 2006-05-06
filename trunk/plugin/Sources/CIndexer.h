@@ -46,7 +46,8 @@
 #include <map>
 
 #include "CDatabank.h"
-#include "CIterator.h"
+//#include "CIterator.h"
+//#include "CDocIterator.h"
 
 class HStreamBase;
 class CDecompressor;

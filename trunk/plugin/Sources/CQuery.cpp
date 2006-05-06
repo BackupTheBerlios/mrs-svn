@@ -52,7 +52,7 @@
 #include "HStream.h"
 #include "CIndexer.h"
 #include "CTokenizer.h"
-#include "CIndexPage.h"
+#include "CIndex.h"
 
 using namespace std;
 

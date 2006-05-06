@@ -373,7 +373,8 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	
 	CAccumulator::Iterator* ai;
 	
-	uint32 termCount = fImpl->fTerms.size();
+//	uint32 termCount = fImpl->fTerms.size();
+	uint32 termCount = 0;
 	
 	auto_ptr<CDocIterator> rdi(ai = new CAccumulator::Iterator(A, termCount));
 

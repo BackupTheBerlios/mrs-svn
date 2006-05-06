@@ -46,7 +46,7 @@
 #include <list>
 #include <cstring>
 
-#include "CIndexPage.h"
+#include "CIndex.h"
 #include "HStream.h"
 #include "CUtils.h"
 #include "HUtils.h"
@@ -195,8 +195,60 @@ struct COnDiskData
 	uint32			p0;
 	uint32			pp;
 	int32			n;
+	
+	static uint32	PageNrToAddr(uint32 inPageNr)	{ return inPageNr; }
+	static uint32	PageAddrToNr(uint32 inPageAddr)	{ return inPageAddr; }
+
+	void			SwapBytes();
 };
 
+void COnDiskData::SwapBytes()
+{
+	for (int32 i = 0; i < n; ++i)
+	{
+		e[-i].p = byte_swapper::swap(e[-i].p);
+		e[-i].value = byte_swapper::swap(e[-i].value);
+	}
+	p0 = byte_swapper::swap(p0);
+	pp = byte_swapper::swap(pp);
+	n = byte_swapper::swap(n);
+}
+
+struct V2Entry
+{
+	int64			value : 40;
+	uint32			p	  : 24;
+};
+
+typedef V2Entry V2EntryArray[2];
+
+struct COnDiskDataV2
+{
+	uint32			p0;
+	uint32			pp;
+	int32			n;
+	unsigned char	keys[kKeySpace];
+	V2Entry			e[1];
+
+	static uint32	PageNrToAddr(uint32 inPageNr)	{ return (inPageNr - 1) * kPageSize; }
+	static uint32	PageAddrToNr(uint32 inPageAddr)	{ return (inPageAddr / kPageSize) + 1; }
+
+	void			SwapBytes();
+};
+
+void COnDiskDataV2::SwapBytes()
+{
+	for (int32 i = 0; i < n; ++i)
+	{
+		e[-i].p = byte_swapper::swap(e[-i].p) >> 24;
+		e[-i].value = byte_swapper::swap(e[-i].value) >> 8;
+	}
+	p0 = byte_swapper::swap(p0);
+	pp = byte_swapper::swap(pp);
+	n = byte_swapper::swap(n);
+}
+
+template<typename DD>
 class CIndexPage
 {
   public:
@@ -220,10 +272,10 @@ class CIndexPage
 
 	uint32					GetOffset() const	{ return fOffset; }
 
-	const COnDiskData&		GetData() const		{ return fData; }
-	COnDiskData&			GetData()			{ fDirty = true; return fData; }
+	const DD&				GetData() const		{ return fData; }
+	DD&						GetData()			{ fDirty = true; return fData; }
 	
-	void					GetData(uint32 inIndex, string& outKey, uint32& outValue, uint32& outP) const;
+	void					GetData(uint32 inIndex, string& outKey, int64& outValue, uint32& outP) const;
 	
 	uint32					GetP0() const		{ return fData.p0; }
 	uint32					GetParent() const	{ return fData.pp; }
@@ -240,7 +292,7 @@ class CIndexPage
 	unsigned char*			GetKey(uint32 inIndex);
 	const unsigned char*	GetKey(uint32 inIndex) const;
 
-	void					Insert(int32 inIndex, const string& inKey, uint32 inValue, uint32 inP);
+	void					Insert(int32 inIndex, const string& inKey, int64 inValue, uint32 inP);
 	void					Delete(int32 inIndex);
 	void					Copy(CIndexPage& inFromPage, int32 inFromIndex, int32 inToIndex, int32 inCount);
 
@@ -250,25 +302,23 @@ class CIndexPage
 	void					SetParent(uint32 inParent);
 
   private:
-
-	void					SwapBytesHtoN();
-	void					SwapBytesNtoH();
-
-	COnDiskData				fData;
+	DD						fData;
 	HStreamBase*			fFile;
 	int64					fBaseOffset;
 	uint32					fOffset;
 	bool					fDirty;
 };
 
-CIndexPage::CIndexPage()
+template<typename DD>
+CIndexPage<DD>::CIndexPage()
 	: fFile(nil)
 	, fBaseOffset(0)
 	, fDirty(false)
 {
 }
 
-CIndexPage::CIndexPage(HStreamBase& inFile, int64 inBaseOffset)
+template<typename DD>
+CIndexPage<DD>::CIndexPage(HStreamBase& inFile, int64 inBaseOffset)
 	: fFile(&inFile)
 	, fBaseOffset(inBaseOffset)
 	, fDirty(false)
@@ -276,7 +326,8 @@ CIndexPage::CIndexPage(HStreamBase& inFile, int64 inBaseOffset)
 	Allocate();
 }
 
-CIndexPage::CIndexPage(HStreamBase& inFile, int64 inBaseOffset, uint32 inOffset)
+template<typename DD>
+CIndexPage<DD>::CIndexPage(HStreamBase& inFile, int64 inBaseOffset, uint32 inOffset)
 	: fFile(&inFile)
 	, fBaseOffset(inBaseOffset)
 	, fOffset(inOffset)
@@ -285,13 +336,15 @@ CIndexPage::CIndexPage(HStreamBase& inFile, int64 inBaseOffset, uint32 inOffset)
 	Read();
 }
 
-CIndexPage::~CIndexPage()
+template<typename DD>
+CIndexPage<DD>::~CIndexPage()
 {
 	if (fDirty)
 		Write();
 }
 
-void CIndexPage::Load(HStreamBase& inFile, int64 inBaseOffset, uint32 inOffset)
+template<typename DD>
+void CIndexPage<DD>::Load(HStreamBase& inFile, int64 inBaseOffset, uint32 inOffset)
 {
 	assert(fDirty == false);
 	
@@ -305,7 +358,8 @@ void CIndexPage::Load(HStreamBase& inFile, int64 inBaseOffset, uint32 inOffset)
 	}
 }
 
-void CIndexPage::Allocate()
+template<typename DD>
+void CIndexPage<DD>::Allocate()
 {
 	if (fDirty)
 		Write();
@@ -313,7 +367,7 @@ void CIndexPage::Allocate()
 	memset(&fData, 0, kPageSize);
 
 	fFile->Seek(0, SEEK_END);
-	fOffset = static_cast<uint32>(fFile->Tell() - fBaseOffset);
+	fOffset = DD::PageAddrToNr(static_cast<uint32>(fFile->Tell() - fBaseOffset));
 	if (fOffset == 0) // avoid returning a zero address!!!
 	{
 		char c = 0xff;
@@ -326,7 +380,8 @@ void CIndexPage::Allocate()
 	Write();
 }
 
-unsigned char* CIndexPage::GetKey(uint32 inIndex)
+template<typename DD>
+unsigned char* CIndexPage<DD>::GetKey(uint32 inIndex)
 {
 	if (inIndex > fData.n)
 		THROW(("Key index out of range"));
@@ -338,7 +393,8 @@ unsigned char* CIndexPage::GetKey(uint32 inIndex)
 	return k;
 }
 
-const unsigned char* CIndexPage::GetKey(uint32 inIndex) const
+template<typename DD>
+const unsigned char* CIndexPage<DD>::GetKey(uint32 inIndex) const
 {
 	if (inIndex > fData.n)
 		THROW(("Key index out of range"));
@@ -350,7 +406,8 @@ const unsigned char* CIndexPage::GetKey(uint32 inIndex) const
 	return k;
 }
 
-void CIndexPage::GetData(uint32 inIndex, string& outKey, uint32& outValue, uint32& outP) const
+template<typename DD>
+void CIndexPage<DD>::GetData(uint32 inIndex, string& outKey, int64& outValue, uint32& outP) const
 {
 	assert(inIndex < fData.n);
 	if (inIndex >= fData.n)
@@ -362,7 +419,8 @@ void CIndexPage::GetData(uint32 inIndex, string& outKey, uint32& outValue, uint3
 	outP = fData.e[-static_cast<int32>(inIndex)].p;
 }
 
-uint32 CIndexPage::GetP(uint32 inIndex) const
+template<typename DD>
+uint32 CIndexPage<DD>::GetP(uint32 inIndex) const
 {
 	assert(inIndex < fData.n);
 	if (inIndex >= fData.n)
@@ -371,7 +429,8 @@ uint32 CIndexPage::GetP(uint32 inIndex) const
 	return fData.e[-static_cast<int32>(inIndex)].p;
 }
 
-uint32 CIndexPage::GetIndexForP(uint32 inP) const
+template<typename DD>
+uint32 CIndexPage<DD>::GetIndexForP(uint32 inP) const
 {
 	uint32 ix = 0;
 
@@ -385,7 +444,8 @@ uint32 CIndexPage::GetIndexForP(uint32 inP) const
 	return ix;
 }
 
-void CIndexPage::SetValue(uint32 inIndex, uint32 inValue)
+template<typename DD>
+void CIndexPage<DD>::SetValue(uint32 inIndex, uint32 inValue)
 {
 	assert(inIndex < fData.n);
 	if (inIndex >= fData.n)
@@ -395,7 +455,8 @@ void CIndexPage::SetValue(uint32 inIndex, uint32 inValue)
 	fDirty = true;
 }
 
-void CIndexPage::SetParent(uint32 inParent)
+template<typename DD>
+void CIndexPage<DD>::SetParent(uint32 inParent)
 {
 	if (fData.pp != inParent)
 	{
@@ -419,8 +480,9 @@ void CIndexPage::SetParent(uint32 inParent)
 	}
 }
 
+template<typename DD>
 inline
-uint32 CIndexPage::FreeSpace() const
+uint32 CIndexPage<DD>::FreeSpace() const
 {
 	uint32 result = static_cast<uint32>(kKeySpace - fData.n * kEntrySize);
 
@@ -430,13 +492,15 @@ uint32 CIndexPage::FreeSpace() const
 	return result;
 }
 
+template<typename DD>
 inline
-bool CIndexPage::CanStore(const string& inKey) const
+bool CIndexPage<DD>::CanStore(const string& inKey) const
 {
 	return FreeSpace() >= inKey.length() + kEntrySize + 1;
 }
 
-void CIndexPage::Insert(int32 inIndex, const string& inKey, uint32 inValue, uint32 inP)
+template<typename DD>
+void CIndexPage<DD>::Insert(int32 inIndex, const string& inKey, int64 inValue, uint32 inP)
 {
 	fDirty = true;
 
@@ -470,9 +534,25 @@ void CIndexPage::Insert(int32 inIndex, const string& inKey, uint32 inValue, uint
 	fData.e[-static_cast<int32>(inIndex)].value = inValue;
 	fData.e[-static_cast<int32>(inIndex)].p = inP;
 	++fData.n;
+
+//#if P_DEBUG
+//	cerr << "dumping page " << fOffset << ", parent=" << GetParent() << ", n=" << fData.n << endl;
+//
+//	for (uint32 i = 0; i < fData.n; ++i)
+//	{
+//		string k;
+//		int64 v;
+//		uint32 c;
+//		
+//		GetData(i, k, v, c);
+//		
+//		cerr << "ix: " << i << ", p: " << c << ", key: " << k << endl;
+//	}
+//#endif
 }
 
-void CIndexPage::Delete(int32 inIndex)
+template<typename DD>
+void CIndexPage<DD>::Delete(int32 inIndex)
 {
 	fDirty = true;
 	
@@ -500,7 +580,8 @@ void CIndexPage::Delete(int32 inIndex)
 	}
 }
 
-void CIndexPage::Copy(CIndexPage& inFromPage, int32 inFromIndex, int32 inToIndex, int32 inCount)
+template<typename DD>
+void CIndexPage<DD>::Copy(CIndexPage& inFromPage, int32 inFromIndex, int32 inToIndex, int32 inCount)
 {
 	fDirty = true;
 
@@ -510,7 +591,7 @@ void CIndexPage::Copy(CIndexPage& inFromPage, int32 inFromIndex, int32 inToIndex
 		assert(inToIndex <= fData.n);
 		
 		string key;
-		uint32 value;
+		int64 value;
 		uint32 p;
 		
 		inFromPage.GetData(inFromIndex, key, value, p);
@@ -522,9 +603,13 @@ void CIndexPage::Copy(CIndexPage& inFromPage, int32 inFromIndex, int32 inToIndex
 	}
 }
 
-void CIndexPage::Read()
+template<typename DD>
+void CIndexPage<DD>::Read()
 {
-	uint32 read = fFile->PRead(&fData, kPageSize, fBaseOffset + fOffset);
+//int64 offset = fBaseOffset + DD::PageNrToAddr(fOffset);
+//cerr << "reading page from offset: " << offset << " base offset = " << fBaseOffset << endl;
+//
+	uint32 read = fFile->PRead(&fData, kPageSize, fBaseOffset + DD::PageNrToAddr(fOffset));
 	assert(read == kPageSize);
 	if (read != kPageSize)
 		THROW(("IO Error, reading page for index"));
@@ -532,17 +617,39 @@ void CIndexPage::Read()
 	fDirty = false;
 
 #if P_LITTLEENDIAN
-	SwapBytesNtoH();
+	fData.SwapBytes();
 #endif
+
+//#if P_DEBUG
+//	cout << "dumping page " << fOffset
+//		 << ", parent=" << GetParent()
+//		 << ", p0=" << GetP0()
+//		 << ", n=" << fData.n << endl;
+//
+//	for (uint32 i = 0; i < fData.n; ++i)
+//	{
+//		string k;
+//		int64 v;
+//		uint32 c;
+//		
+//		GetData(i, k, v, c);
+//		
+//		cout << "ix: " << i << ", p: " << c << ", key: " << k << endl;
+//	}
+//#endif
 }
 
-void CIndexPage::Write()
+template<typename DD>
+void CIndexPage<DD>::Write()
 {
 #if P_LITTLEENDIAN
-	SwapBytesHtoN();
+		fData.SwapBytes();
 #endif
-	
-	uint32 written = fFile->PWrite(&fData, kPageSize, fBaseOffset + fOffset);
+
+//int64 offset = fBaseOffset + DD::PageNrToAddr(fOffset);
+//cerr << "writing page to offset: " << offset << " base offset = " << fBaseOffset << endl;
+//	
+	uint32 written = fFile->PWrite(&fData, kPageSize, fBaseOffset + DD::PageNrToAddr(fOffset));
 	assert(written == kPageSize);
 	if (written != kPageSize)
 		THROW(("IO Error, writing page for index"));
@@ -550,73 +657,140 @@ void CIndexPage::Write()
 	fDirty = false;
 
 #if P_LITTLEENDIAN
-	SwapBytesNtoH();
+	fData.SwapBytes();
 #endif
 }
 
-void CIndexPage::SwapBytesHtoN()
+
+// ---------------------------------------------------------------------------
+// 
+// iterator_imp
+// 
+
+struct iterator_imp
 {
-	for (int32 i = 0; i < fData.n; ++i)
-	{
-		fData.e[-i].p = net_swapper::swap(fData.e[-i].p);
-		fData.e[-i].value = net_swapper::swap(fData.e[-i].value);
-	}
-	fData.p0 = net_swapper::swap(fData.p0);
-	fData.pp = net_swapper::swap(fData.pp);
-	fData.n = net_swapper::swap(fData.n);
+	virtual				~iterator_imp() {}
+	
+						iterator_imp(HStreamBase& inFile, int64 inOffset,
+							uint32 inPage, uint32 inPageIndex);
+						iterator_imp(const iterator_imp& inOther);
+
+	virtual void		increment() = 0;
+	virtual void		decrement() = 0;
+	
+	virtual iterator_imp*
+						clone() const = 0;
+
+	bool				equal(const iterator_imp& inOther) const;
+	const pair<string,int64>&
+						dereference() const;
+
+	HStreamBase*		fFile;
+	int64				fBaseOffset;
+	uint32				fPage;
+	uint32				fPageIndex;
+	pair<string,int64>	fCurrent;
+};
+
+iterator_imp::iterator_imp(HStreamBase& inFile, int64 inOffset,
+		uint32 inPage, uint32 inPageIndex)
+	: fFile(&inFile)
+	, fBaseOffset(inOffset)
+	, fPage(inPage)
+	, fPageIndex(inPageIndex)
+{
 }
 
-void CIndexPage::SwapBytesNtoH()
+iterator_imp::iterator_imp(const iterator_imp& inOther)
+	: fFile(inOther.fFile)
+	, fBaseOffset(inOther.fBaseOffset)
+	, fPage(inOther.fPage)
+	, fPageIndex(inOther.fPageIndex)
+	, fCurrent(inOther.fCurrent)
 {
-	fData.p0 = net_swapper::swap(fData.p0);
-	fData.pp = net_swapper::swap(fData.pp);
-	fData.n = net_swapper::swap(fData.n);
-	for (int32 i = 0; i < fData.n; ++i)
-	{
-		fData.e[-i].p = net_swapper::swap(fData.e[-i].p);
-		fData.e[-i].value = net_swapper::swap(fData.e[-i].value);
-	}
+}
+
+bool iterator_imp::equal(const iterator_imp& inOther) const
+{
+	assert(fFile == inOther.fFile);
+	assert(fBaseOffset == inOther.fBaseOffset);
+
+	return
+		fFile == inOther.fFile and fBaseOffset == inOther.fBaseOffset and
+		fPage == inOther.fPage and fPageIndex == inOther.fPageIndex;
+}
+
+inline
+const pair<string,int64>&
+iterator_imp::dereference() const
+{
+	return fCurrent;
 }
 
 // ---------------------------------------------------------------------------
+// 
+// iterator_imp_t
+// 
+
+template<class DD>
+struct iterator_imp_t : public iterator_imp
+{
+	typedef DD				COnDiskData;
+	typedef CIndexPage<DD>	CIndexPage;
+
+						iterator_imp_t(HStreamBase& inFile, int64 inOffset,
+							uint32 inPage, uint32 inPageIndex);
+						iterator_imp_t(const iterator_imp_t& inOther);
+
+	virtual void		increment();
+	virtual void		decrement();
+
+	virtual iterator_imp*
+						clone() const;
+};
+
+// ---------------------------------------------------------------------------
+// 
+// CIndexImp
+// 
 
 struct CIndexImp
 {
-  public:
+	typedef CIndex::iterator	iterator;
+	
 					CIndexImp(uint32 inKind, HStreamBase& inFile, int64 inOffset, uint32 inRoot);
-	virtual 		~CIndexImp();
+	virtual			~CIndexImp() {}
 
 	HStreamBase&	GetFile() const					{ return fFile; }
 	int64			GetBaseOffset() const			{ return fBaseOffset; }
 	uint32			GetRoot() const					{ return fRoot; }
 	uint32			GetKind() const					{ return fKind; }
 
-	CIndex::iterator	Begin();		// Begin is defined as the first entry on the left most leaf page
-	CIndex::iterator	End();			// End is defined as N on the right most leaf page
-	CIndex::iterator	LowerBound(const string& inKey);
+	virtual iterator
+					Begin() = 0;		// Begin is defined as the first entry on the left most leaf page
+	virtual iterator
+					End() = 0;			// End is defined as N on the right most leaf page
+	virtual iterator
+					LowerBound(const string& inKey) = 0;
 
-	bool			GetValue(const string& inKey, uint32& outValue) const;
-	void			GetValuesForPattern(const string& inKey, vector<uint32>& outValues) const;
+	virtual bool	GetValue(const string& inKey, int64& outValue) const = 0;
 
-	uint32			GetCount(uint32 inPage) const;
-	void			Visit(uint32 inPage, CIndex::VisitorBase& inVisitor);
+	virtual void	GetValuesForPattern(const string& inKey, vector<uint32>& outValues) const = 0;
 
-	void			CreateFromIterator(CIteratorBase& inIter);
+	virtual uint32	GetCount(uint32 inPage) const = 0;
+	virtual void	Visit(uint32 inPage, CIndex::VisitorBase& inVisitor) = 0;
+
+	virtual void	CreateFromIterator(CIteratorBase& inIter) = 0;
+
+#if P_DEBUG
+	virtual void	Test(CIndex& inIndex) = 0;
+	virtual void	Dump(uint32 inPage, uint32 inLevel) = 0;
+#endif
 
  	virtual int		Compare(const char* inA, uint32 inLengthA,
 						const char* inB, uint32 inLengthB) const;
-
 	int				Compare(const string& inA, const string& inB) const
 						{ return Compare(inA.c_str(), inA.length(), inB.c_str(), inB.length()); }
-
-#if P_DEBUG
-	void			Test(CIndex& inIndex);
-	void			Dump(uint32 inPage, uint32 inLevel);
-#endif
-
-  private:
-
-	void			LowerBoundImp(const string& inKey, uint32 inPage, uint32& outPage, uint32& outIndex);
 
 	HStreamBase&	fFile;
 	int64			fBaseOffset;
@@ -632,40 +806,86 @@ CIndexImp::CIndexImp(uint32 inKind, HStreamBase& inFile, int64 inOffset, uint32 
 {
 }
 
-CIndexImp::~CIndexImp()
-{
-}
-
 int CIndexImp::Compare(const char* inA, uint32 inLengthA,
 	const char* inB, uint32 inLengthB) const
 {
 	return CompareKeyString(inA, inLengthA, inB, inLengthB);
 }
 
-CIndex::iterator CIndexImp::Begin()
+// ---------------------------------------------------------------------------
+// 
+// CIndexImpT
+// 
+
+template<typename DD>
+struct CIndexImpT : public CIndexImp
+{
+	typedef DD				COnDiskData;
+	typedef CIndexPage<DD>	CIndexPage;
+
+  public:
+					CIndexImpT(uint32 inKind, HStreamBase& inFile, int64 inOffset, uint32 inRoot);
+
+	virtual iterator
+					Begin();		// Begin is defined as the first entry on the left most leaf page
+	virtual iterator
+					End();			// End is defined as N on the right most leaf page
+	virtual iterator
+					LowerBound(const string& inKey);
+
+	virtual bool	GetValue(const string& inKey, int64& outValue) const;
+
+	virtual void	GetValuesForPattern(const string& inKey, vector<uint32>& outValues) const;
+
+	virtual uint32	GetCount(uint32 inPage) const;
+	virtual void	Visit(uint32 inPage, CIndex::VisitorBase& inVisitor);
+
+	virtual void	CreateFromIterator(CIteratorBase& inIter);
+
+#if P_DEBUG
+	virtual void	Test(CIndex& inIndex);
+	virtual void	Dump(uint32 inPage, uint32 inLevel);
+#endif
+
+  private:
+
+	void			LowerBoundImp(const string& inKey, uint32 inPage, uint32& outPage, uint32& outIndex);
+};
+
+template<typename DD>
+CIndexImpT<DD>::CIndexImpT(uint32 inKind, HStreamBase& inFile, int64 inOffset, uint32 inRoot)
+	: CIndexImp(inKind, inFile, inOffset, inRoot)
+{
+}
+
+template<typename DD>
+CIndex::iterator CIndexImpT<DD>::Begin()
 {
 	uint32 page = fRoot;
-	CIndex::iterator result;
+	uint32 pp = 0;
 	
 	while (page != 0)
 	{
+		pp = page;
 		CIndexPage p(fFile, fBaseOffset, page);
-		
-		result = CIndex::iterator(fFile, fBaseOffset, page, 0);
-		
 		page = p.GetP0();
 	}
 	
-	return result;
+	if (pp == 0)
+		THROW(("Empty index"));
+	
+	return iterator(new iterator_imp_t<DD>(fFile, fBaseOffset, pp, 0));
 }
 
-CIndex::iterator CIndexImp::End()
+template<typename DD>
+CIndex::iterator CIndexImpT<DD>::End()
 {
 	CIndexPage p(fFile, fBaseOffset, fRoot);
-	return CIndex::iterator(fFile, fBaseOffset, fRoot, p.GetN());
+	return iterator(new iterator_imp_t<DD>(fFile, fBaseOffset, fRoot, p.GetN()));
 }
 
-void CIndexImp::LowerBoundImp(const string& inKey, uint32 inPage, uint32& outPage, uint32& outIndex)
+template<typename DD>
+void CIndexImpT<DD>::LowerBoundImp(const string& inKey, uint32 inPage, uint32& outPage, uint32& outIndex)
 {
 	if (inPage == 0)
 		return;
@@ -730,16 +950,18 @@ void CIndexImp::LowerBoundImp(const string& inKey, uint32 inPage, uint32& outPag
 	}
 }
 
-CIndex::iterator CIndexImp::LowerBound(const string& inKey)
+template<typename DD>
+CIndex::iterator CIndexImpT<DD>::LowerBound(const string& inKey)
 {
 	uint32 page = 0, index = 0;
 
 	LowerBoundImp(inKey, fRoot, page, index);
 	
-	return CIndex::iterator(fFile, fBaseOffset, page, index);
+	return iterator(new iterator_imp_t<DD>(fFile, fBaseOffset, page, index));
 }
 
-bool CIndexImp::GetValue(const string& inKey, uint32& outValue) const
+template<typename DD>
+bool CIndexImpT<DD>::GetValue(const string& inKey, int64& outValue) const
 {
 	bool found = false;
 
@@ -782,14 +1004,16 @@ bool CIndexImp::GetValue(const string& inKey, uint32& outValue) const
 	return found;
 }
 
-void CIndexImp::GetValuesForPattern(const string& inKey, vector<uint32>& outValues) const
+template<typename DD>
+void CIndexImpT<DD>::GetValuesForPattern(const string& inKey, vector<uint32>& outValues) const
 {
 	uint32 page = fRoot;
 	
 	pair<uint32,uint32> v(page, 0);
 	stack<pair<uint32,uint32> > pStack;
 
-	uint32 c, val;
+	uint32 c;
+	int64 val;
 	string key;
 	
 	while (page != 0)
@@ -842,7 +1066,11 @@ void CIndexImp::GetValuesForPattern(const string& inKey, vector<uint32>& outValu
 			MatchResult m = Match(inKey.c_str(), key.c_str());
 
 			if (m == eMatch)
+			{
+				if (val >= numeric_limits<uint32>::max())
+					THROW(("index value out of range"));
 				outValues.push_back(val);
+			}
 			else if (m == eNoMatchAndGreater)
 				done = true;
 			
@@ -865,7 +1093,8 @@ void CIndexImp::GetValuesForPattern(const string& inKey, vector<uint32>& outValu
 	}
 }
 
-uint32 CIndexImp::GetCount(uint32 inPage) const
+template<typename DD>
+uint32 CIndexImpT<DD>::GetCount(uint32 inPage) const
 {
 	uint32 result = 0;
 	
@@ -883,7 +1112,8 @@ uint32 CIndexImp::GetCount(uint32 inPage) const
 	return result;		
 }
 
-void CIndexImp::Visit(uint32 inPage, CIndex::VisitorBase& inVisitor)
+template<typename DD>
+void CIndexImpT<DD>::Visit(uint32 inPage, CIndex::VisitorBase& inVisitor)
 {
 	if (inPage != 0)
 	{
@@ -896,15 +1126,12 @@ void CIndexImp::Visit(uint32 inPage, CIndex::VisitorBase& inVisitor)
 		for (uint32 i = 0; i < n; ++i)
 		{
 			string k;
-			uint32 ov, nv, c;
+			uint32 c;
+			int64 v;
 			
-			p.GetData(i, k, ov, c);
-			nv = ov;
-			
-			inVisitor.Visit(k, nv);
-			
-			if (ov != nv)
-				p.SetValue(i, nv);
+			p.GetData(i, k, v, c);
+
+			inVisitor.Visit(k, v);
 			
 			if (p.GetP(i))
 				Visit(p.GetP(i), inVisitor);
@@ -922,20 +1149,31 @@ struct CTempValue
 
 typedef list<CTempValue>	CTempValueList;
 
-void CIndexImp::CreateFromIterator(CIteratorBase& inData)
+template<typename DD>
+void CIndexImpT<DD>::CreateFromIterator(CIteratorBase& inData)
 {
+//cerr << " sizeof(DD) = " << sizeof(DD)
+//	 << " sizeof(V2Entry) = " << sizeof(V2Entry)
+//	 << " sizeof(V2EntryArray) = " << sizeof(V2EntryArray)
+//	 << " kPageSize = " << kPageSize << endl;
+	
+	assert(sizeof(DD) == kPageSize);
+	
 	// first pass, collect the data from the iterator building the leaf pages
 	
 	string k;
-	uint32 v;
+	int64 v;
 	
 	CIndexPage p(fFile, fBaseOffset);
 	CTempValueList up;
 
 	fRoot = p.GetOffset();
+//cerr << "Root = " << fRoot << endl;
 
 	while (inData.Next(k, v))
 	{
+//cerr << "Entry " << k << " with value " << v << endl;
+		
 		if (not p.CanStore(k))
 		{
 			CTempValue t;
@@ -1008,38 +1246,49 @@ void CIndexImp::CreateFromIterator(CIteratorBase& inData)
 }
 
 #if P_DEBUG
-void CIndexImp::Test(CIndex& inIndex)
+template<typename DD>
+void CIndexImpT<DD>::Test(CIndex& inIndex)
 {
 	vector<string> keys;
 	
-	for (CIndex::iterator i = Begin(); i != End(); ++i)
+	for (iterator i = Begin(); i != End(); ++i)
 		keys.push_back(i->first);
 	
 	for (vector<string>::iterator k = keys.begin(); k != keys.end(); ++k)
 	{
-		CIndex::iterator i = inIndex.find(*k);
+//cerr << "testing " << *k << endl;
+		iterator i = inIndex.find(*k);
 		
 		assert(i != inIndex.end());
+
+//cerr << "test 2" << endl;
 		
 		uint32 n = 0;
 		while (i != inIndex.end())
 			++i, ++n;
-		
+
 		assert(n == (keys.end() - k));
 
+//cerr << "test 3" << endl;
+
 		i = inIndex.find(*k);
-		
+
 		assert(i != inIndex.end());
+
+//cerr << "test 4" << endl;
 		
 		n = 0;
 		while (i != inIndex.begin())
 			--i, ++n;
 		
 		assert(n == (k - keys.begin()));
+
+//cerr << "test 5" << endl;
 	}
 }
 
-void CIndexImp::Dump(uint32 inPage, uint32 inLevel)
+template<typename DD>
+void CIndexImpT<DD>::Dump(uint32 inPage, uint32 inLevel)
 {
 	const CIndexPage p(fFile, fBaseOffset, inPage);
 
@@ -1053,7 +1302,7 @@ void CIndexImp::Dump(uint32 inPage, uint32 inLevel)
 			cout << "\t";
 		
 		string k;
-		uint32 v;
+		int64 v;
 		uint32 c;
 		
 		p.GetData(i, k, v, c);
@@ -1067,7 +1316,7 @@ void CIndexImp::Dump(uint32 inPage, uint32 inLevel)
 	for (uint32 i = 0; i < p.GetN(); ++i)
 	{
 		string k;
-		uint32 v;
+		int64 v;
 		uint32 c;
 		
 		p.GetData(i, k, v, c);
@@ -1082,17 +1331,19 @@ void CIndexImp::Dump(uint32 inPage, uint32 inLevel)
 
 // ---------------------------------------------------------------------------
 
-class CNumberIndexImp : public CIndexImp
+template<typename DD>
+class CNumberIndexImp : public CIndexImpT<DD>
 {
   public:
 					CNumberIndexImp(uint32 inKind, HStreamBase& inFile, int64 inOffset, uint32 inRoot)
-						: CIndexImp(inKind, inFile, inOffset, inRoot) {}
+						: CIndexImpT<DD>(inKind, inFile, inOffset, inRoot) {}
 
 	virtual int		Compare(const char* inA, uint32 inLengthA,
 						const char* inB, uint32 inLengthB) const;
 };
 
-int CNumberIndexImp::Compare(const char* inA, uint32 inLengthA,
+template<typename DD>
+int CNumberIndexImp<DD>::Compare(const char* inA, uint32 inLengthA,
 	const char* inB, uint32 inLengthB) const
 {
 	return CompareKeyNumber(inA, inLengthA, inB, inLengthB);
@@ -1101,7 +1352,7 @@ int CNumberIndexImp::Compare(const char* inA, uint32 inLengthA,
 // ---------------------------------------------------------------------------
 
 // normal constructor for an exisiting index on disk
-CIndex::CIndex(uint32 inKind, HStreamBase& inFile, int64 inOffset, uint32 inRoot)
+CIndex::CIndex(uint32 inKind, bool inLargeOffsets, HStreamBase& inFile, int64 inOffset, uint32 inRoot)
 {
 	switch (inKind)
 	{
@@ -1109,11 +1360,17 @@ CIndex::CIndex(uint32 inKind, HStreamBase& inFile, int64 inOffset, uint32 inRoot
 		case kDateIndex:
 		case kValueIndex:
 		case kWeightedIndex:
-			fImpl = new CIndexImp(inKind, inFile, inOffset, inRoot);
+			if (inLargeOffsets)
+				fImpl = new CIndexImpT<COnDiskDataV2>(inKind, inFile, inOffset, inRoot);
+			else
+				fImpl = new CIndexImpT<COnDiskData>(inKind, inFile, inOffset, inRoot);
 			break;
 		
 		case kNumberIndex:
-			fImpl = new CNumberIndexImp(inKind, inFile, inOffset, inRoot);
+			if (inLargeOffsets)
+				fImpl = new CNumberIndexImp<COnDiskDataV2>(inKind, inFile, inOffset, inRoot);
+			else
+				fImpl = new CNumberIndexImp<COnDiskData>(inKind, inFile, inOffset, inRoot);
 			break;
 		
 		default:
@@ -1127,32 +1384,45 @@ CIndex::~CIndex()
 	delete fImpl;
 }
 
-// static factories to create new indices on disk
-CIndex* CIndex::Create(uint32 inIndexKind, HStreamBase& inFile)
+// copy creates a compacted copy
+CIndex* CIndex::CreateFromIterator(uint32 inIndexKind, bool inLargeOffsets, CIteratorBase& inData, HStreamBase& inFile)
 {
 	int64 offset = inFile.Seek(0, SEEK_END);
-	return new CIndex(inIndexKind, inFile, offset, 0);
-}
 
-// copy creates a compacted copy
-CIndex* CIndex::CreateFromIterator(uint32 inIndexKind, CIteratorBase& inData, HStreamBase& inFile)
-{
-	auto_ptr<CIndex> result(Create(inIndexKind, inFile));
+	auto_ptr<CIndex> result(new CIndex(inIndexKind, inLargeOffsets, inFile, offset, 0));
 	result->fImpl->CreateFromIterator(inData);
 	
 	inFile.Seek(0, SEEK_END);
 	
-//#if P_DEBUG
-//	result->fImpl->Test(*result);
-//#endif
+#if P_DEBUG
+	result->fImpl->Test(*result);
+//	result->Dump();
+#endif
 	
 	return result.release();
 }
 
 // access data
-bool CIndex::GetValue(const string& inKey, uint32& outValue) const
+bool CIndex::GetValue(const string& inKey, int64& outValue) const
 {
 	return fImpl->GetValue(inKey, outValue);
+}
+
+bool CIndex::GetValue(const string& inKey, uint32& outValue) const
+{
+	int64 v;
+	bool result = false;
+	
+	if (GetValue(inKey, v))
+	{
+		if (v >= numeric_limits<uint32>::max())
+			THROW(("Index value out of range"));
+
+		outValue = static_cast<uint32>(v);
+		result = true;
+	}
+	
+	return result;
 }
 
 void CIndex::GetValuesForPattern(const string& inKey, std::vector<uint32>& outValues)
@@ -1163,7 +1433,7 @@ void CIndex::GetValuesForPattern(const string& inKey, std::vector<uint32>& outVa
 void CIndex::GetValuesForRange(const char* inLowerBound,
 	const char* inUpperBound, std::vector<uint32>& outValues)
 {
-	CIndex::iterator b, e, i;
+	iterator b, e, i;
 	
 	if (inLowerBound)
 		b = lower_bound(inLowerBound);
@@ -1182,7 +1452,7 @@ void CIndex::GetValuesForRange(const char* inLowerBound,
 void CIndex::GetValuesForOperator(const string& inKey, CQueryOperator inOperator,
 	vector<uint32>& outValues)
 {
-	CIndex::iterator b, e, i;
+	iterator b, e, i;
 	
 	switch (inOperator)
 	{
@@ -1285,20 +1555,10 @@ void CIndex::Dump() const
 // iterator	(boost rules!)
 //
 
-CIndex::iterator::iterator()
-	: fFile(nil)
-	, fBaseOffset(0)
-	, fPage(0)
-	, fPageIndex(0)
-{
-}
-
-CIndex::iterator::iterator(HStreamBase& inFile, int64 inOffset,
+template<typename DD>
+iterator_imp_t<DD>::iterator_imp_t(HStreamBase& inFile, int64 inOffset,
 		uint32 inPage, uint32 inPageIndex)
-	: fFile(&inFile)
-	, fBaseOffset(inOffset)
-	, fPage(inPage)
-	, fPageIndex(inPageIndex)
+	: iterator_imp(inFile, inOffset, inPage, inPageIndex)
 {
 	CIndexPage p(*fFile, fBaseOffset, fPage);
 	uint32 c;
@@ -1307,30 +1567,14 @@ CIndex::iterator::iterator(HStreamBase& inFile, int64 inOffset,
 		p.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
 }
 
-CIndex::iterator::iterator(const iterator& inOther)
-	: fFile(inOther.fFile)
-	, fBaseOffset(inOther.fBaseOffset)
-	, fPage(inOther.fPage)
-	, fPageIndex(inOther.fPageIndex)
-	, fCurrent(inOther.fCurrent)
+template<typename DD>
+iterator_imp_t<DD>::iterator_imp_t(const iterator_imp_t& inOther)
+	: iterator_imp(inOther)
 {
 }
 
-CIndex::iterator& CIndex::iterator::operator=(const iterator& inOther)
-{
-	if (this != &inOther)
-	{
-		fFile = inOther.fFile;
-		fBaseOffset = inOther.fBaseOffset;
-		fPage = inOther.fPage;
-		fPageIndex = inOther.fPageIndex;
-		fCurrent = inOther.fCurrent;
-	}
-
-	return *this;
-}
-
-void CIndex::iterator::increment()
+template<typename DD>
+void iterator_imp_t<DD>::increment()
 {
 	CIndexPage p(*fFile, fBaseOffset, fPage);
 	bool valid = true;
@@ -1374,7 +1618,8 @@ void CIndex::iterator::increment()
 	}
 }
 
-void CIndex::iterator::decrement()
+template<typename DD>
+void iterator_imp_t<DD>::decrement()
 {
 	CIndexPage p(*fFile, fBaseOffset, fPage);
 
@@ -1427,18 +1672,81 @@ void CIndex::iterator::decrement()
 	p.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
 }
 
-bool CIndex::iterator::equal(const iterator& inOther) const
+template<typename DD>
+iterator_imp* iterator_imp_t<DD>::clone() const
 {
-	assert(fFile == inOther.fFile);
-	assert(fBaseOffset == inOther.fBaseOffset);
-
-	return
-		fFile == inOther.fFile and fBaseOffset == inOther.fBaseOffset and
-		fPage == inOther.fPage and fPageIndex == inOther.fPageIndex;
+	return new iterator_imp_t(*fFile, fBaseOffset, fPage, fPageIndex);
 }
 
-const pair<string,uint32>& CIndex::iterator::dereference() const
+// ---------------------------------------------------------------------------
+
+CIndex::iterator::iterator()
+	: fImpl(nil)
 {
-	return fCurrent;
+}
+
+CIndex::iterator::~iterator()
+{
+	delete fImpl;
+}
+
+CIndex::iterator::iterator(iterator_imp* inImpl)
+	: fImpl(inImpl)
+{
+}
+
+CIndex::iterator::iterator(const iterator& inOther)
+	: fImpl(nil)
+{
+	iterator_imp* imp = inOther.fImpl;
+	if (imp != nil)
+		fImpl = imp->clone();
+}
+
+CIndex::iterator& CIndex::iterator::operator=(const iterator& inOther)
+{
+	if (this != &inOther)
+	{
+		delete fImpl;
+		
+		if (inOther.fImpl != nil)
+			fImpl = inOther.fImpl->clone();
+		else
+			fImpl = nil;
+	}
+
+	return *this;
+}
+
+void CIndex::iterator::increment()
+{
+	if (fImpl == nil)
+		THROW(("Uninitialised iterator"));
+	
+	fImpl->increment();
+}
+
+void CIndex::iterator::decrement()
+{
+	if (fImpl == nil)
+		THROW(("Uninitialised iterator"));
+	
+	fImpl->decrement();
+}
+
+bool CIndex::iterator::equal(const iterator& inOther) const
+{
+	if (fImpl == nil or inOther.fImpl == nil)
+		THROW(("Uninitialised iterator"));
+	
+	return fImpl->equal(*inOther.fImpl);
+}
+
+CIndex::iterator::reference CIndex::iterator::dereference() const
+{
+	if (fImpl == nil)
+		THROW(("Uninitialised iterator"));
+	
+	return fImpl->dereference();
 }
 

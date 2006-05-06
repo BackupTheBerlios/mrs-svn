@@ -51,11 +51,12 @@
 #include "HUtils.h"
 #include "HError.h"
 
+#include "CIndex.h"
+#include "CIterator.h"
 #include "CIndexer.h"
 #include "CDecompress.h"
 #include "CTokenizer.h"
 #include "HStream.h"
-#include "CIndexPage.h"
 #include "CBitStream.h"
 #include "CLexicon.h"
 #include "CUtils.h"
@@ -69,6 +70,7 @@ using namespace std;
 const uint32
 	kIndexSig = FOUR_CHAR_INLINE('indx'),
 	kIndexPartSig = FOUR_CHAR_INLINE('indP'),
+	kIndexPartSigV2 = FOUR_CHAR_INLINE('inDP'),
 	kMaxIndexNr = 31;
 
 struct SIndexHeader
@@ -92,6 +94,9 @@ struct SIndexPart
 	int64			tree_offset;
 	uint32			root;
 	uint32			entries;
+	
+	// members that are implictly part of the above
+	bool			large_offsets;
 };
 
 const uint32
@@ -129,6 +134,9 @@ HStreamBase& operator<<(HStreamBase& inData, const SIndexPart& inStruct)
 {
 	HSwapStream<net_swapper> data(inData);
 	
+	if (inStruct.sig != 0)
+		assert((inStruct.sig == kIndexPartSig and inStruct.large_offsets == false) or (inStruct.sig == kIndexPartSigV2 and inStruct.large_offsets == true));
+	
 	data.Write(&inStruct.sig, sizeof(inStruct.sig));
 	data << kSIndexPartSize;
 	data.Write(inStruct.name, sizeof(inStruct.name));
@@ -144,6 +152,14 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexPart& inStruct)
 	HSwapStream<net_swapper> data(inData);
 	
 	data.Read(&inStruct.sig, sizeof(inStruct.sig));
+	
+	if (inStruct.sig == kIndexPartSig)
+		inStruct.large_offsets = false;
+	else if (inStruct.sig == kIndexPartSigV2)
+		inStruct.large_offsets = true;
+	else
+		THROW(("Incompatible index"));
+	
 	data >> inStruct.size;
 	data.Read(inStruct.name, sizeof(inStruct.name));
 	data.Read(&inStruct.kind, sizeof(inStruct.kind));
@@ -158,170 +174,6 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexPart& inStruct)
 	}
 	
 	return inData;
-}
-
-// support classes
-
-class CDeltaIterator : public CIteratorBase
-{
-  public:
-					CDeltaIterator(CIndex& inIndex, int32 inDelta);
-	virtual			~CDeltaIterator();
-	virtual bool	Next(string& outString, uint32& outValue);
-
-  private:
-	CIndex::iterator	fIter;
-	CIndex::iterator	fEnd;
-	int32				fDelta;
-};
-
-class CJoinedIterator : public CIteratorBase
-{
-  public:
-					CJoinedIterator();
-					CJoinedIterator(
-						vector<CIteratorBase*>& inIters);
-					~CJoinedIterator();
-	
-	void			Append(CIteratorBase* inIter);
-
-	virtual bool	Next(string& outString, uint32& outValue);
-
-  private:
-	
-	struct CElement
-	{
-		string			fSValue;
-		uint32			fNValue;
-		CIteratorBase*	fIter;
-		
-		bool operator<(const CElement& inOther) const
-		{
-#if P_GNU
-			int d = strcmp(fSValue.c_str(), inOther.fSValue.c_str());
-			return d > 0 or d == 0 and fNValue > inOther.fNValue;
-#else
-			return fSValue > inOther.fSValue or
-				(fSValue == inOther.fSValue and fNValue > inOther.fNValue); 
-#endif
-		}
-	};
-	typedef vector<CElement>	CElementList;
-
-	CElementList	fItems;
-};
-
-CIteratorBase::CIteratorBase()
-{
-}
-
-CIteratorBase::CIteratorBase(const CIteratorBase&)
-{
-}
-
-CIteratorBase::~CIteratorBase()
-{
-}
-					
-CIteratorBase& CIteratorBase::operator=(const CIteratorBase&)
-{
-	return *this;
-}
-
-CJoinedIterator::CJoinedIterator()
-{
-}
-
-CJoinedIterator::CJoinedIterator(vector<CIteratorBase*>& inIters)
-{
-	vector<CIteratorBase*>::iterator i;
-	for (i = inIters.begin(); i != inIters.end(); ++i)
-	{
-		CElement e;
-		
-		e.fIter = *i;
-		
-		if ((*i)->Next(e.fSValue, e.fNValue))
-			fItems.push_back(e);
-		else
-			delete *i;
-	}
-	
-	make_heap(fItems.begin(), fItems.end());
-}
-
-CJoinedIterator::~CJoinedIterator()
-{
-	CElementList::iterator e;
-	for (e = fItems.begin(); e != fItems.end(); ++e)
-		delete (*e).fIter;
-}
-
-void CJoinedIterator::Append(CIteratorBase* inIter)
-{
-	CElement e;
-	
-	e.fIter = inIter;
-	
-	if (inIter->Next(e.fSValue, e.fNValue))
-	{
-		fItems.push_back(e);
-		make_heap(fItems.begin(), fItems.end());
-	}
-	else
-		delete inIter;
-}
-	
-bool CJoinedIterator::Next(string& outString, uint32& outValue)
-{
-	bool result = false;
-	
-	if (fItems.size() > 0)
-	{
-		pop_heap(fItems.begin(), fItems.end());
-		
-		outString = fItems.back().fSValue;
-		outValue = fItems.back().fNValue;
-		result = true;
-		
-		if (fItems.back().fIter->Next(fItems.back().fSValue, fItems.back().fNValue))
-			push_heap(fItems.begin(), fItems.end());
-		else
-		{
-			delete fItems.back().fIter;
-			fItems.erase(fItems.end() - 1);
-		}
-	}
-
-	return result;
-}
-
-CDeltaIterator::CDeltaIterator(CIndex& inIndex, int32 inDelta)
-	: fIter(inIndex.begin())
-	, fEnd(inIndex.end())
-	, fDelta(inDelta)
-{
-}
-
-CDeltaIterator::~CDeltaIterator()
-{
-}
-
-bool CDeltaIterator::Next(string& outString, uint32& outValue)
-{
-	bool result = false;
-
-	if (fIter != fEnd)
-	{
-		result = true;
-
-		outString = fIter->first;
-		outValue = fIter->second + fDelta;
-		
-		++fIter;
-	}
-	
-	return result;
 }
 
 class CMergeWeightedDocInfo
@@ -484,12 +336,13 @@ void CValueIndex::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPa
 	}
 
 	outInfo.sig = kIndexPartSig;
+	outInfo.large_offsets = false;
 	fName.copy(outInfo.name, 15);
 	outInfo.kind = fKind;
 	outInfo.tree_offset = inDataFile.Size();
 	
 	CIteratorWrapper<map<string,uint32,CValueLess> > iter(fIndex);
-	auto_ptr<CIndex> n(CIndex::CreateFromIterator(kValueIndex, iter, inDataFile));
+	auto_ptr<CIndex> n(CIndex::CreateFromIterator(kValueIndex, false, iter, inDataFile));
 
 	outInfo.root = n->GetRoot();
 	outInfo.entries = n->GetCount();
@@ -1083,24 +936,24 @@ class CFullTextIterator : public CIteratorBase
 {
   public:
 						CFullTextIterator(CFullTextIndex& inFullTextIndex,
-							vector<pair<uint32,uint32> >& inLexicon);
+							vector<pair<uint32,int64> >& inLexicon);
 
-	virtual bool		Next(string& outString, uint32& outValue);
+	virtual bool		Next(string& outString, int64& outValue);
 
   private:
 	CFullTextIndex&							fFullText;
-	vector<pair<uint32,uint32> >::iterator	fCurrent, fEnd;
+	vector<pair<uint32,int64> >::iterator	fCurrent, fEnd;
 };
 
 CFullTextIterator::CFullTextIterator(CFullTextIndex& inFullTextIndex,
-		vector<pair<uint32,uint32> >& inLexicon)
+		vector<pair<uint32,int64> >& inLexicon)
 	: fFullText(inFullTextIndex)
 	, fCurrent(inLexicon.begin())
 	, fEnd(inLexicon.end())
 {
 }
 
-bool CFullTextIterator::Next(string& outKey, uint32& outValue)
+bool CFullTextIterator::Next(string& outKey, int64& outValue)
 {
 	bool result = false;
 	if (fCurrent != fEnd)
@@ -1127,6 +980,18 @@ void CTextIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SInde
 	fName.copy(outInfo.name, 15);
 	outInfo.kind = fKind;
 	outInfo.bits_offset = inDataFile.Seek(0, SEEK_END);
+
+	outInfo.large_offsets = false;
+#if P_DEBUG
+	outInfo.sig = kIndexPartSigV2;
+	outInfo.large_offsets = true;
+#endif
+	
+	if (fBitFile->Size() >= numeric_limits<uint32>::max())
+	{
+		outInfo.sig = kIndexPartSigV2;
+		outInfo.large_offsets = true;
+	}
 	
 	// copy the bits to the data file
 	const int kBufSize = 4096;
@@ -1146,13 +1011,14 @@ void CTextIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SInde
 	// construct the optimized b-tree
 	outInfo.tree_offset = inDataFile.Seek(0, SEEK_END);
 
-	vector<pair<uint32,uint32> > lexicon;
+	vector<pair<uint32,int64> > lexicon;
 	lexicon.reserve(fRawIndexCnt);
 	
 	fRawIndex->sync();
 	CIBitStream bits(fRawIndex->peek(), fRawIndex->size());
 	
-	uint32 term, offset;
+	uint32 term;
+	int64 offset;
 	term = ReadGamma(bits) - 1;
 	offset = ReadGamma(bits) - 1;
 	
@@ -1168,7 +1034,7 @@ void CTextIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SInde
 	sort(lexicon.begin(), lexicon.end(), SortLex(fFullTextIndex, this));
 
 	CFullTextIterator iter(fFullTextIndex, lexicon);
-	auto_ptr<CIndex> indx(CIndex::CreateFromIterator(fKind, iter, inDataFile));
+	auto_ptr<CIndex> indx(CIndex::CreateFromIterator(fKind, outInfo.large_offsets, iter, inDataFile));
 
 	outInfo.root = indx->GetRoot();
 	outInfo.entries = lexicon.size();
@@ -1716,7 +1582,7 @@ struct CCompareIndexInfo
 
 class CMergeIndexBuffer
 {
-	typedef pair<string,uint32>	value_type;
+	typedef pair<string,int64>	value_type;
 	
   public:
 						CMergeIndexBuffer(const string& inBaseUrl);
@@ -1955,9 +1821,10 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 			}
 
 			md[i].data = &inParts[i]->GetDataFile();
-			md[i].indx = new CIndex(fParts[ix].kind, *md[i].data, md[i].info[ix].tree_offset, md[i].info[ix].root);
+			md[i].indx = new CIndex(fParts[ix].kind, fParts[ix].large_offsets,
+				*md[i].data, md[i].info[ix].tree_offset, md[i].info[ix].root);
 
-			iter.Append(new CDeltaIterator(*md[i].indx, count));
+			iter.Append(new CIteratorWrapper<CIndex>(*md[i].indx, count));
 			
 			count += md[i].count;
 		}
@@ -1975,9 +1842,11 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 //		list<pair<string,uint32> > indx;
 		CMergeIndexBuffer indx(fDb);
 		string s, lastS;
-		uint32 v = 0;
+		int64 v = 0;
 		
 		fParts[ix].entries = 0;
+		fParts[ix].sig = kIndexPartSig;
+		fParts[ix].large_offsets = false;
 		
 		while (iter.Next(s, v))
 		{
@@ -2008,12 +1877,12 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					
 					for (i = 0; i < md.size(); ++i)
 					{
-						uint32 v;
+						int64 o;
 
-						if (md[i].info[ix].kind != 0 and md[i].indx->GetValue(s, v))
+						if (md[i].info[ix].kind != 0 and md[i].indx->GetValue(s, o))
 						{
 							CDbDocIterator docIter(*md[i].data,
-								md[i].info[ix].bits_offset + v, md[i].count);
+								md[i].info[ix].bits_offset + o, md[i].count);
 						
 							uint32 doc;
 							while (docIter.Next(doc, false))
@@ -2025,7 +1894,10 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					
 					int64 offset = bitFile->Seek(0, SEEK_END);
 					if (offset > numeric_limits<uint32>::max())
-						THROW(("Index %s is too large", fParts[ix].name));
+					{
+						fParts[ix].sig = kIndexPartSigV2;
+						fParts[ix].large_offsets = true;
+					}
 
 					COBitStream bits(*bitFile.get());
 					CompressArray(bits, docs, fHeader->entries);
@@ -2041,12 +1913,12 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					
 					for (i = 0; i < md.size(); ++i)
 					{
-						uint32 v;
+						int64 o;
 
-						if (md[i].info[ix].kind != 0 and md[i].indx->GetValue(s, v))
+						if (md[i].info[ix].kind != 0 and md[i].indx->GetValue(s, o))
 						{
 							CDbDocWeightIterator docIter(*md[i].data,
-								md[i].info[ix].bits_offset + v, md[i].count);
+								md[i].info[ix].bits_offset + o, md[i].count);
 						
 							uint32 doc;
 							uint8 weight;
@@ -2059,7 +1931,10 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					
 					int64 offset = bitFile->Seek(0, SEEK_END);
 					if (offset > numeric_limits<uint32>::max())
-						THROW(("Index %s is too large", fParts[ix].name));
+					{
+						fParts[ix].sig = kIndexPartSigV2;
+						fParts[ix].large_offsets = true;
+					}
 
 					COBitStream bits(*bitFile.get());
 					CompressArray(bits, docs, fHeader->entries);
@@ -2071,7 +1946,8 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 		}
 		
 		CIteratorWrapper<CMergeIndexBuffer> mapIter(indx);
-		auto_ptr<CIndex> indxOnDisk(CIndex::CreateFromIterator(fParts[ix].kind, mapIter, outData));
+		auto_ptr<CIndex> indxOnDisk(CIndex::CreateFromIterator(fParts[ix].kind,
+			fParts[ix].large_offsets, mapIter, outData));
 		fParts[ix].root = indxOnDisk->GetRoot();
 		
 		if (fParts[ix].kind != kValueIndex)
@@ -2152,7 +2028,8 @@ CDocIterator* CIndexer::GetImpForPattern(const string& inIndex,
 	if (ix == fHeader->count)
 		THROW(("Index '%s' not found", inIndex.c_str()));
 
-	auto_ptr<CIndex> indx(new CIndex(fParts[ix].kind, *fFile, fParts[ix].tree_offset, fParts[ix].root));
+	auto_ptr<CIndex> indx(new CIndex(fParts[ix].kind, fParts[ix].large_offsets,
+		*fFile, fParts[ix].tree_offset, fParts[ix].root));
 
 	vector<uint32> values;
 	indx->GetValuesForPattern(inValue, values);
@@ -2202,7 +2079,8 @@ CDocIterator* CIndexer::CreateDocIterator(const string& inIndex, const string& i
 			if (fParts[ix].kind == kTextIndex)
 				THROW(("Cannot search with a relational operator on a fulltext index"));
 			
-			auto_ptr<CIndex> indx(new CIndex(fParts[ix].kind, *fFile, fParts[ix].tree_offset, fParts[ix].root));
+			auto_ptr<CIndex> indx(new CIndex(fParts[ix].kind, fParts[ix].large_offsets,
+				*fFile, fParts[ix].tree_offset, fParts[ix].root));
 
 			vector<uint32> values;
 			
@@ -2225,9 +2103,10 @@ CDocIterator* CIndexer::CreateDocIterator(const string& inIndex, const string& i
 		}
 		else
 		{
-			auto_ptr<CIndex> indx(new CIndex(fParts[ix].kind, *fFile, fParts[ix].tree_offset, fParts[ix].root));
+			auto_ptr<CIndex> indx(new CIndex(fParts[ix].kind, fParts[ix].large_offsets,
+				*fFile, fParts[ix].tree_offset, fParts[ix].root));
 		
-			uint32 value;
+			int64 value;
 			if (indx->GetValue(key, value))
 			{
 				if (fParts[ix].kind == kValueIndex)
@@ -2380,9 +2259,10 @@ CDbDocIteratorBase* CIndexer::GetDocWeightIterator(const string& inIndex, const 
 		if (index != fParts[ix].name)
 			continue;
 
-		auto_ptr<CIndex> indx(new CIndex(fParts[ix].kind, *fFile, fParts[ix].tree_offset, fParts[ix].root));
+		auto_ptr<CIndex> indx(new CIndex(fParts[ix].kind, fParts[ix].large_offsets,
+			*fFile, fParts[ix].tree_offset, fParts[ix].root));
 
-		uint32 value;
+		int64 value;
 		if (indx->GetValue(inKey, value))
 			result = new CDbDocWeightIterator(*fFile, fParts[ix].bits_offset + value, fHeader->entries);
 		break;
@@ -2401,7 +2281,8 @@ CIndex* CIndexer::GetIndex(const string& inIndex) const
 		if (index != fParts[ix].name)
 			continue;
 
-		result = new CIndex(fParts[ix].kind, *fFile, fParts[ix].tree_offset, fParts[ix].root);
+		result = new CIndex(fParts[ix].kind, fParts[ix].large_offsets,
+			*fFile, fParts[ix].tree_offset, fParts[ix].root);
 	}
 	
 	return result;
@@ -2474,7 +2355,8 @@ void CIndexer::RecalculateDocumentWeights(const std::string& inIndex,
 		if (index != fParts[ix].name)
 			continue;
 
-		indx.reset(new CIndex(fParts[ix].kind, *fFile, fParts[ix].tree_offset, fParts[ix].root));
+		indx.reset(new CIndex(fParts[ix].kind, fParts[ix].large_offsets,
+			*fFile, fParts[ix].tree_offset, fParts[ix].root));
 		break;
 	}
 

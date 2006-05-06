@@ -46,7 +46,7 @@
 #include "CBitStream.h"
 
 #include "HStream.h"
-#include "CIndexPage.h"
+#include "CIndex.h"
 #include <iostream>
 #include <sstream>
 #include "HUtils.h"
@@ -188,7 +188,8 @@ void CIdTable::Create(HStreamBase& inFile, CIteratorBase& inData,
 		memset(idMap.get(), ~0, sizeof(uint32) * inDocCount);
 		
 		string id;
-		uint32 v, n = 0, i;
+		int64 v;
+		uint32 n = 0, i;
 		
 		while (inData.Next(id, v))
 		{
