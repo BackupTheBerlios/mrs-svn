@@ -350,6 +350,6 @@ class CDbJoinedIterator : public CDbDocIteratorBase
 	uint32					fCount, fRead;
 };
 
-#include "CIterator.inl"
+#include "CDocIterator.inl"
 
 #endif // CDOCITERATOR_H
