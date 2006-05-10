@@ -1424,10 +1424,10 @@ CIndex* CIndex::CreateFromIterator(uint32 inIndexKind, bool inLargeOffsets, CIte
 	
 	inFile.Seek(0, SEEK_END);
 	
-#if P_DEBUG
-	result->fImpl->Test(*result);
+//#if P_DEBUG
+//	result->fImpl->Test(*result);
 //	result->Dump();
-#endif
+//#endif
 	
 	return result.release();
 }

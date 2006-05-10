@@ -120,7 +120,7 @@ int main(int argc, const char* argv[])
 {
 	// scan the options
 
-	string db, filter, ix;
+	string db, filter, ix, alg = "vector";
 	ofstream of;
 	streambuf* outBuf = NULL;
 	vector<string> queryWords;
@@ -128,7 +128,7 @@ int main(int argc, const char* argv[])
 	ix = "*alltext*";
 
 	int c;
-	while ((c = getopt(argc, const_cast<char**>(argv), "d:o:vq:f:s:i:")) != -1)
+	while ((c = getopt(argc, const_cast<char**>(argv), "d:o:vq:f:s:i:a:")) != -1)
 	{
 		switch (c)
 		{
@@ -146,6 +146,10 @@ int main(int argc, const char* argv[])
 
 			case 'v':
 				++VERBOSE;
+				break;
+
+			case 'a':
+				alg = optarg;
 				break;
 
 			case 'f':
@@ -166,6 +170,8 @@ int main(int argc, const char* argv[])
 	MDatabank mrsDb(db);
 
 	auto_ptr<MRankedQuery> q(mrsDb.RankedQuery(ix));
+
+	q->SetAlgorithm(alg);
 
 	for (vector<string>::iterator qw = queryWords.begin(); qw != queryWords.end(); ++qw)
 		q->AddTerm(*qw, 1);

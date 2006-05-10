@@ -1083,7 +1083,8 @@ using namespace std;
 
 
 class MDatabank;
-typedef std::vector<MDatabank*> MDatabankArray;
+typedef std::vector<MDatabank*> 	MDatabankArray;
+typedef std::vector<std::string>	MStringArray;
 
 
 #include "MRSInterface.h"
@@ -2926,6 +2927,74 @@ XS(_wrap_MDatabank_SuggestCorrection) {
 }
 
 
+XS(_wrap_MDatabank_SetStopWords) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        SwigValueWrapper<std::vector<std::string > > arg2 ;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 2) || (items > 2)) {
+            SWIG_croak("Usage: MDatabank_SetStopWords(self,inStopWords);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_SetStopWords. Expected _p_MDatabank");
+            }
+        }
+        {
+            if (!SvROK(ST(1)))
+            croak("Argument 2 is not a reference.");
+            
+            AV* av = (AV*)SvRV(ST(1));
+            
+            if (SvTYPE(av) != SVt_PVAV)
+            croak("ST(1) is not an array.");
+            
+            I32 len = av_len(av) + 1;
+            
+            std::vector<std::string> a;
+            
+            for (int i = 0; i < len; ++i)
+            {
+                SV** tv = av_fetch(av, i, 0);
+                
+                STRLEN len;
+                const char *ptr = SvPV(*tv, len);
+                if (!ptr) {
+                    SWIG_croak("Undefined variable in array.");
+                } else {
+                    string s(ptr, len);
+                    a.push_back(s);
+                }
+            }
+            
+            arg2 = a;
+        }
+        {
+            try {
+                (arg1)->SetStopWords(arg2);
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
 XS(_wrap_MDatabank_Store) {
     {
         MDatabank *arg1 = (MDatabank *) 0 ;
@@ -3670,56 +3739,6 @@ XS(_wrap_MDatabank_Finish) {
 }
 
 
-XS(_wrap_MDatabank_RecalcDocWeights) {
-    {
-        MDatabank *arg1 = (MDatabank *) 0 ;
-        std::string *arg2 = 0 ;
-        std::string temp2 ;
-        int argvi = 0;
-        dXSARGS;
-        
-        if ((items < 2) || (items > 2)) {
-            SWIG_croak("Usage: MDatabank_RecalcDocWeights(self,inIndex);");
-        }
-        {
-            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
-                SWIG_croak("Type error in argument 1 of MDatabank_RecalcDocWeights. Expected _p_MDatabank");
-            }
-        }
-        {
-            STRLEN len;
-            const char *ptr = SvPV(ST(1), len);
-            if (!ptr) {
-                SWIG_croak("Undefined variable in argument 2 of MDatabank_RecalcDocWeights.");
-            } else {
-                temp2.assign(ptr, len);
-                arg2 = &temp2;
-            }
-        }
-        {
-            try {
-                (arg1)->RecalcDocWeights((std::string const &)*arg2);
-                
-            }
-            
-            catch (const std::exception& e) {
-                gErrStr = e.what();
-                SWIG_croak(e.what());
-            }
-            catch (...) {
-                gErrStr = "Unknown exception";
-                SWIG_croak("unknown exception");
-            }
-        }
-        
-        XSRETURN(argvi);
-        fail:
-        ;
-    }
-    croak(Nullch);
-}
-
-
 XS(_wrap_MDatabank_CreateDictionary) {
     {
         MDatabank *arg1 = (MDatabank *) 0 ;
@@ -4160,64 +4179,48 @@ XS(_wrap_MRankedQuery_MaxReturn_get) {
 }
 
 
-XS(_wrap_MRankedQuery_Algorithm_set) {
+XS(_wrap_MRankedQuery_SetAlgorithm) {
     {
         MRankedQuery *arg1 = (MRankedQuery *) 0 ;
-        char *arg2 = (char *) 0 ;
+        std::string *arg2 = 0 ;
+        std::string temp2 ;
         int argvi = 0;
         dXSARGS;
         
         if ((items < 2) || (items > 2)) {
-            SWIG_croak("Usage: MRankedQuery_Algorithm_set(self,Algorithm);");
+            SWIG_croak("Usage: MRankedQuery_SetAlgorithm(self,inAlgorithm);");
         }
         {
             if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MRankedQuery,0) < 0) {
-                SWIG_croak("Type error in argument 1 of MRankedQuery_Algorithm_set. Expected _p_MRankedQuery");
+                SWIG_croak("Type error in argument 1 of MRankedQuery_SetAlgorithm. Expected _p_MRankedQuery");
             }
         }
-        if (!SvOK((SV*) ST(1))) arg2 = 0;
-        else arg2 = (char *) SvPV(ST(1), PL_na);
         {
-            if (arg1->Algorithm) delete [] arg1->Algorithm;
-            if (arg2) {
-                arg1->Algorithm = (char *) (new char[strlen(arg2)+1]);
-                strcpy((char *) arg1->Algorithm,arg2);
+            STRLEN len;
+            const char *ptr = SvPV(ST(1), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 2 of MRankedQuery_SetAlgorithm.");
             } else {
-                arg1->Algorithm = 0;
+                temp2.assign(ptr, len);
+                arg2 = &temp2;
             }
-        }
-        
-        XSRETURN(argvi);
-        fail:
-        ;
-    }
-    croak(Nullch);
-}
-
-
-XS(_wrap_MRankedQuery_Algorithm_get) {
-    {
-        MRankedQuery *arg1 = (MRankedQuery *) 0 ;
-        char *result;
-        int argvi = 0;
-        dXSARGS;
-        
-        if ((items < 1) || (items > 1)) {
-            SWIG_croak("Usage: MRankedQuery_Algorithm_get(self);");
         }
         {
-            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MRankedQuery,0) < 0) {
-                SWIG_croak("Type error in argument 1 of MRankedQuery_Algorithm_get. Expected _p_MRankedQuery");
+            try {
+                (arg1)->SetAlgorithm((std::string const &)*arg2);
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
             }
         }
-        result = (char *) ((arg1)->Algorithm);
         
-        ST(argvi) = sv_newmortal();
-        if (result) {
-            sv_setpv((SV*)ST(argvi++), (char *) result);
-        } else {
-            sv_setsv((SV*)ST(argvi++), &PL_sv_undef);
-        }
         XSRETURN(argvi);
         fail:
         ;
@@ -6159,7 +6162,7 @@ static swig_type_info _swigt__p_MRankedQuery = {"MRS::MRankedQuery", "MRankedQue
 static swig_type_info _swigt__p_MStringIterator = {"MRS::MStringIterator", "MStringIterator *", 0, 0, 0};
 static swig_type_info _swigt__p_std__string = {"_p_std__string", "std::string *", 0, 0, 0};
 static swig_type_info _swigt__p_std__vectorTMDatabank_p_t = {"_p_std__vectorTMDatabank_p_t", "std::vector<MDatabank * > *|MDatabankArray *", 0, 0, 0};
-static swig_type_info _swigt__p_std__vectorTstd__string_t = {"_p_std__vectorTstd__string_t", "std::vector<std::string > *", 0, 0, 0};
+static swig_type_info _swigt__p_std__vectorTstd__string_t = {"_p_std__vectorTstd__string_t", "std::vector<std::string > *|MStringArray *", 0, 0, 0};
 
 static swig_type_info *swig_type_initial[] = {
   &_swigt__p_MBlastHit,
@@ -6257,6 +6260,7 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MDatabank_Index", _wrap_MDatabank_Index},
 {"MRSc::MDatabank_Indices", _wrap_MDatabank_Indices},
 {"MRSc::MDatabank_SuggestCorrection", _wrap_MDatabank_SuggestCorrection},
+{"MRSc::MDatabank_SetStopWords", _wrap_MDatabank_SetStopWords},
 {"MRSc::MDatabank_Store", _wrap_MDatabank_Store},
 {"MRSc::MDatabank_IndexText", _wrap_MDatabank_IndexText},
 {"MRSc::MDatabank_IndexTextAndNumbers", _wrap_MDatabank_IndexTextAndNumbers},
@@ -6269,7 +6273,6 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MDatabank_FlushDocument", _wrap_MDatabank_FlushDocument},
 {"MRSc::MDatabank_SetVersion", _wrap_MDatabank_SetVersion},
 {"MRSc::MDatabank_Finish", _wrap_MDatabank_Finish},
-{"MRSc::MDatabank_RecalcDocWeights", _wrap_MDatabank_RecalcDocWeights},
 {"MRSc::MDatabank_CreateDictionary", _wrap_MDatabank_CreateDictionary},
 {"MRSc::delete_MDatabank", _wrap_delete_MDatabank},
 {"MRSc::MBooleanQuery_Not", _wrap_MBooleanQuery_Not},
@@ -6281,8 +6284,7 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MRankedQuery_AddTerm", _wrap_MRankedQuery_AddTerm},
 {"MRSc::MRankedQuery_MaxReturn_set", _wrap_MRankedQuery_MaxReturn_set},
 {"MRSc::MRankedQuery_MaxReturn_get", _wrap_MRankedQuery_MaxReturn_get},
-{"MRSc::MRankedQuery_Algorithm_set", _wrap_MRankedQuery_Algorithm_set},
-{"MRSc::MRankedQuery_Algorithm_get", _wrap_MRankedQuery_Algorithm_get},
+{"MRSc::MRankedQuery_SetAlgorithm", _wrap_MRankedQuery_SetAlgorithm},
 {"MRSc::MRankedQuery_Perform", _wrap_MRankedQuery_Perform},
 {"MRSc::new_MRankedQuery", _wrap_new_MRankedQuery},
 {"MRSc::delete_MRankedQuery", _wrap_delete_MRankedQuery},

@@ -77,7 +77,7 @@ enum CIndexKind
 };
 
 const uint32
-	kWeightBitCount = 6,
+	kWeightBitCount = 4,
 	kMaxWeight = ((1 << kWeightBitCount) - 1);
 
 const uint32

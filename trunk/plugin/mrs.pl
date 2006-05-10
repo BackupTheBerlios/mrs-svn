@@ -263,7 +263,15 @@ sub Create()
 		or die "Could not create new databank $db: " . MRS::errstr;
 
 	# protect the new born file
-#	chmod 0400, "$data_dir/$cmp_name.cmp" if not $exists;
+	chmod 0400, "$data_dir/$cmp_name.cmp" if not $exists;
+	
+	# get the stop words list
+	
+	my @stopWords = &ReadStopWords();
+	
+print join(", ", @stopWords), "\n";
+
+	$mrs->SetStopWords(\@stopWords);
 	
 	# Now we can create the parser object
 	
@@ -589,4 +597,34 @@ sub Weights()
 	my $m = new MRS::MDatabank($db);
 	
 	$m->RecalcDocWeights($ix);
+}
+
+sub ReadStopWords()
+{
+	my %sw;
+	
+	if (open(SW, "<stop.txt"))
+	{
+		while (my $line = <SW>)
+		{
+			if ($line =~ /^(\S+)/)
+			{
+				foreach my $p (split(m/'/, $1))
+				{
+					my $w = $p;
+					$w =~ s/'.+$//;
+					
+					$sw{$w} = 1;
+				}
+			}
+		}
+		
+		close SW;
+	}
+	else
+	{
+		warn("Could not open stop.txt\n");
+	}
+	
+	return keys %sw;
 }

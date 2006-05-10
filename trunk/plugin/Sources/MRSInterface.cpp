@@ -276,6 +276,7 @@ struct MRankedQueryImp
 {
 	CDatabankBase*				fDatabank;
 	string						fIndex;
+	string						fAlgorithm;
 	auto_ptr<CRankedQuery>		fQuery;
 };
 
@@ -611,6 +612,11 @@ MStringIterator* MDatabank::SuggestCorrection(const string& inWord)
 
 // interface for creating new databanks
 
+void MDatabank::SetStopWords(vector<string> inStopWords)
+{
+	fImpl->GetDB()->SetStopWords(inStopWords);
+}
+
 void MDatabank::Store(const string& inDocument)
 {
 	fImpl->GetDB()->Store(inDocument);
@@ -681,10 +687,10 @@ void MDatabank::Finish(bool inCreateAllTextIndex)
 		fImpl->fSafe->Commit();
 }
 
-void MDatabank::RecalcDocWeights(const string& inIndex)
-{
-	fImpl->GetDB()->RecalculateDocumentWeights(inIndex);
-}
+//void MDatabank::RecalcDocWeights(const string& inIndex)
+//{
+//	fImpl->GetDB()->RecalculateDocumentWeights(inIndex);
+//}
 
 // stupid swig...
 // now we have to pass the indices contatenated as a string, separated by colon
@@ -717,16 +723,13 @@ MRankedQuery* MDatabank::RankedQuery(const string& inIndex)
 
 	imp->fDatabank = fImpl->fDatabank.get();
 	imp->fIndex = inIndex;
+	imp->fAlgorithm = "vector";
 	imp->fQuery.reset(new CRankedQuery);
 
 	MRankedQuery* result = MRankedQuery::Create(imp.release());
 
 	result->MaxReturn = 1000;
 	
-	const char kVectorName[] = "vector";
-	result->Algorithm = new char[strlen(kVectorName) + 1];
-	strcpy(result->Algorithm, kVectorName);
-
 	return result;
 }
 
@@ -1078,6 +1081,11 @@ void MRankedQuery::AddTerm(const string& inTerm, unsigned long inFrequency)
 	fImpl->fQuery->AddTerm(inTerm, inFrequency);
 }
 
+void MRankedQuery::SetAlgorithm(const string& inAlgorithm)
+{
+	fImpl->fAlgorithm = inAlgorithm;
+}
+
 MQueryResults* MRankedQuery::Perform(MBooleanQuery* inMetaQuery)
 {
 	auto_ptr<CDocIterator> metaDocs;
@@ -1086,15 +1094,11 @@ MQueryResults* MRankedQuery::Perform(MBooleanQuery* inMetaQuery)
 	
 	MQueryResults* result = nil;
 
-	string algorithm = "vector";
-	if (Algorithm != nil)
-		algorithm = Algorithm;
-
 	if (inMetaQuery == nil or metaDocs.get() != nil)
 	{
 		auto_ptr<MQueryResultsImp> imp(
 			new MQueryResultsImp(*fImpl->fDatabank, fImpl->fQuery->PerformSearch(
-				*fImpl->fDatabank, fImpl->fIndex, Algorithm, metaDocs.release(),
+				*fImpl->fDatabank, fImpl->fIndex, fImpl->fAlgorithm, metaDocs.release(),
 				MaxReturn)));
 	
 		if (imp->Count(false) > 0)

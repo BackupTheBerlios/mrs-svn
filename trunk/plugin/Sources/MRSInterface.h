@@ -46,7 +46,8 @@
 #include "MObject.h"
 
 class MDatabank;
-typedef std::vector<MDatabank*> MDatabankArray;
+typedef std::vector<MDatabank*> 	MDatabankArray;
+typedef std::vector<std::string>	MStringArray;
 
 std::string errstr();
 
@@ -157,6 +158,8 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	
 	// interface for creating new databanks
 	
+	void				SetStopWords(MStringArray inStopWords);
+	
 	void				Store(const std::string& inDocument);
 	void				IndexText(const std::string& inIndex, const std::string& inText);
 	void				IndexTextAndNumbers(const std::string& inIndex, const std::string& inText);
@@ -174,7 +177,7 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	void				SetVersion(const std::string& inVersion);
 
 	void				Finish(bool inCreateAllTextIndex = false);
-	void				RecalcDocWeights(const std::string& inIndex);
+//	void				RecalcDocWeights(const std::string& inIndex);
 
 	// stupid swig...
 	// now we have to pass the indices contatenated as a string, separated by colon
@@ -203,8 +206,8 @@ class MRankedQuery : public MRSObject<MRankedQuery, struct MRankedQueryImp>
 	void				AddTerm(const std::string& inTerm, unsigned long inFrequency);
 
 	int					MaxReturn;
-//	std::string			Algorithm;
-	char*				Algorithm;
+
+	void				SetAlgorithm(const std::string& inAlgorithm);
 
 	MQueryResults*		Perform(MBooleanQuery* inMetaQuery = NULL);
 };

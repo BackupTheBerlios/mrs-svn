@@ -133,7 +133,7 @@ sub parse
 			{
 				$m->IndexTextAndNumbers('ref', substr($line, 5));
 			}
-			elsif ($fld ne 'CC')
+			elsif ($fld eq 'CC')
 			{
 				if ($line ne $commentLine1 and
 					$line ne $commentLine2 and
@@ -195,17 +195,11 @@ sub raw_files
 	elsif ($db eq 'trembl') {
 		return "gzcat $raw_dir/uniprot_trembl.dat.gz|";
 	}
-	elsif ($db eq 'sp100') {
-		return "$raw_dir/sprot.dat";
-	}
-	elsif ($db eq 'sp200') {
-		return "gzcat $raw_dir/sp200.dat.gz|";
-	}
 	elsif ($db eq 'uniprot') {
 		return ( "gzcat $raw_dir/uniprot_trembl.dat.gz|", "gzcat $raw_dir/uniprot_sprot.dat.gz|");
 	}
 	else {
-		die "unknown db: $db\n";
+		return "gzcat $raw_dir/$db.dat.gz|";
 	}
 		
 #	opendir DIR, $raw_dir;

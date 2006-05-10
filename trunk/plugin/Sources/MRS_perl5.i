@@ -44,7 +44,8 @@ using namespace std;
 
 
 class MDatabank;
-typedef std::vector<MDatabank*> MDatabankArray;
+typedef std::vector<MDatabank*> 	MDatabankArray;
+typedef std::vector<std::string>	MStringArray;
 %}
 
 %typemap(in) MDatabankArray
@@ -77,6 +78,37 @@ typedef std::vector<MDatabank*> MDatabankArray;
 	$1 = a;
 }
 
+%typemap(in) MStringArray
+{
+	if (!SvROK($input))
+		croak("Argument $argnum is not a reference.");
+
+	AV* av = (AV*)SvRV($input);
+
+	if (SvTYPE(av) != SVt_PVAV)
+		croak("$input is not an array.");
+	
+	I32 len = av_len(av) + 1;
+	
+	std::vector<std::string> a;
+	
+	for (int i = 0; i < len; ++i)
+	{
+		SV** tv = av_fetch(av, i, 0);
+		
+		STRLEN len;
+		const char *ptr = SvPV(*tv, len);
+		if (!ptr) {
+		    SWIG_croak("Undefined variable in array.");
+		} else {
+			string s(ptr, len);
+			a.push_back(s);
+		}
+	}
+	
+	$1 = a;
+}
+
 extern std::string gErrStr;
 
 %exception {
@@ -95,8 +127,8 @@ extern std::string gErrStr;
 }
 
 %{
-#include "MRS_swig.h"
+#include "MRSInterface.h"
 %}
 
-%include "MRS_swig.h"
+%include "MRSInterface.h"
 

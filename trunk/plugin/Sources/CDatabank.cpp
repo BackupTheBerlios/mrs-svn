@@ -268,71 +268,16 @@ HUrl CDatabankBase::GetDictionaryFileURL() const
 	return url.GetChild(GetDbName() + ".dict");
 }
 
-void CDatabankBase::RecalculateDocumentWeights(const string& inIndex)
-{
-	if (VERBOSE > 0)
-		cout << "Recalculating document weights for index " << inIndex << "... ";
-	
-	HFile::SafeSaver save(GetWeightFileURL(inIndex));
-	
-	int mode = O_RDWR | O_CREAT | O_BINARY | O_TRUNC;
-	auto_ptr<HStreamBase> file(new HFileStream(save.GetURL(), mode));
-	
-	uint32 docCount = Count();
-	
-	HAutoBuf<float> dwb(new float[docCount]);
-	float* dw = dwb.get();
-	
-	memset(dw, 0, docCount * sizeof(float));
-	
-	auto_ptr<CIteratorBase> keys(GetIteratorForIndex(inIndex));
-	string key;
-	int64 v;
-	
-	while (keys->Next(key, v))
-	{
-		auto_ptr<CDbDocIteratorBase> iter(GetDocWeightIterator(inIndex, key));
-		
-		float idf = iter->GetIDFCorrectionFactor();
-		
-		uint32 doc;
-		uint8 freq;
-
-		while (iter->Next(doc, freq, false))
-		{
-			float wdt = freq * idf;
-			dw[doc] += wdt * wdt;
-		}
-	}
-	
-	for (uint32 d = 0; d < docCount; ++d)
-	{
-		if (dw[d] != 0)
-		{
-			dw[d] = sqrt(dw[d]);
-#if P_LITTLEENDIAN
-			dw[d] = byte_swapper::swap(dw[d]);
-#endif
-		}
-	}
-	
-	file->Write(dw, docCount * sizeof(float));
-	
-	if (VERBOSE > 0)
-		cout << "done" << endl;
-	
-	save.Commit();
-}
-
 CDocWeightArray CDatabankBase::GetDocWeights(const std::string& inIndex)
 {
-	HUrl url = GetWeightFileURL(inIndex);
-	
-	if (not HFile::Exists(url))
-		RecalculateDocumentWeights(inIndex);
-	
-	CDocWeightArray arr(url, Count());
-	return arr;
+	THROW(("GetDocWeights unsupported yet"));
+//	HUrl url = GetWeightFileURL(inIndex);
+//	
+//	if (not HFile::Exists(url))
+//		RecalculateDocumentWeights(inIndex);
+//	
+//	CDocWeightArray arr(url, Count());
+//	return arr;
 }
 
 void CDatabankBase::CreateDictionaryForIndexes(const vector<string>& inIndexNames,
@@ -418,6 +363,12 @@ CDatabank::CDatabank(const HUrl& inUrl, bool inNew)
 		if (fHeader->sig != kHeaderSig)
 			THROW(("Not a mrs data file"));
 		
+		if (fHeader->data_offset == 0 or fHeader->data_size == 0 or
+			fHeader->index_offset == 0 or fHeader->index_size == 0)
+		{
+			THROW(("Invalid mrs data file"));
+		}
+		
 		if (fHeader->info_size > 0)
 		{
 			HStreamView s(*fDataFile, fHeader->info_offset, fHeader->info_size);
@@ -429,6 +380,9 @@ CDatabank::CDatabank(const HUrl& inUrl, bool inNew)
 
 		fDataFile->Seek(fHeader->data_offset, SEEK_SET);
 		(*fDataFile) >> *fDataHeader;
+		
+		if (fDataHeader->count == 0)
+			THROW(("Invalid mrs data file"));
 		
 		fParts = new SDataPart[fDataHeader->count];
 		
@@ -545,7 +499,7 @@ void CDatabank::Finish(bool inCreateAllTextIndex)
 	else if (VERBOSE >= 1)
 		cout << "No ID table created since there is no id index" << endl;
 
-//	fIndexer->FixupDocWeights();
+	fIndexer->FixupDocWeights();
 
 	iter.release();
 
@@ -789,7 +743,7 @@ void CDatabank::Merge(vector<CDatabank*>& inParts)
 	*fDataFile << *fHeader;
 
 	// now fix up the weighted document weights...
-//	fIndexer->FixupDocWeights();
+	fIndexer->FixupDocWeights();
 }
 
 string CDatabank::GetDocument(uint32 inDocNr)
@@ -938,6 +892,11 @@ CIteratorBase* CDatabank::GetIteratorForIndexAndKey(
 	return GetIndexer()->GetIteratorForIndexAndKey(inIndex, inKey);
 }
 
+CDocWeightArray CDatabank::GetDocWeights(const std::string& inIndex)
+{
+	return GetIndexer()->GetDocWeights(inIndex);
+}
+
 CDbDocIteratorBase* CDatabank::GetDocWeightIterator(
 	const string& inIndex, const string& inKey)
 {
@@ -1034,6 +993,11 @@ void CDatabank::PrintInfo()
 #endif
 }
 
+void CDatabank::SetStopWords(const vector<string>& inStopWords)
+{
+	fIndexer->SetStopWords(inStopWords);
+}
+
 void CDatabank::Store(const string& inDocument)
 {
 	fCompressor->AddDocument(inDocument.c_str(), inDocument.length());
@@ -1123,17 +1087,17 @@ CDocIterator* CDatabank::CreateDocIterator(const string& inIndex,
 	return result;
 }
 
-void CDatabank::RecalculateDocumentWeights(const std::string& inIndex)
-{
-	HFile::SafeSaver save(GetWeightFileURL(inIndex));
-	
-	int mode = O_RDWR | O_CREAT | O_BINARY | O_TRUNC;
-	auto_ptr<HStreamBase> file(new HFileStream(save.GetURL(), mode));
-	
-	GetIndexer()->RecalculateDocumentWeights(inIndex, *file.get());
-
-	save.Commit();
-}
+//void CDatabank::RecalculateDocumentWeights(const std::string& inIndex)
+//{
+//	HFile::SafeSaver save(GetWeightFileURL(inIndex));
+//	
+//	int mode = O_RDWR | O_CREAT | O_BINARY | O_TRUNC;
+//	auto_ptr<HStreamBase> file(new HFileStream(save.GetURL(), mode));
+//	
+//	GetIndexer()->RecalculateDocumentWeights(inIndex, *file.get());
+//
+//	save.Commit();
+//}
 
 // DatabankHeader I/O
 
@@ -1820,8 +1784,8 @@ string	CUpdatedDatabank::GetDbName() const
 	return fOriginal->GetDbName() + '_' + CDatabank::GetDbName();
 }
 
-void CUpdatedDatabank::RecalculateDocumentWeights(const std::string& inIndex)
-{
-	CDatabankBase::RecalculateDocumentWeights(inIndex);
-}
+//void CUpdatedDatabank::RecalculateDocumentWeights(const std::string& inIndex)
+//{
+//	CDatabankBase::RecalculateDocumentWeights(inIndex);
+//}
 

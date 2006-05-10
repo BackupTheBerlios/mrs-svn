@@ -90,11 +90,16 @@ class CIndexer
 	CIteratorBase*	GetIteratorForIndex(const std::string& inIndex);
 	CIteratorBase*	GetIteratorForIndexAndKey(const std::string& inIndex, const std::string& inKey);
 	CIndex*			GetIndex(const std::string& inIndex) const;
+	
+	CDocWeightArray	GetDocWeights(const std::string& inIndex);
+	
 	CDbDocIteratorBase*
 					GetDocWeightIterator(const std::string& inIndex, const std::string& inKey);
 	
 	void			PrintInfo();
 	void			DumpIndex(const std::string& inIndex) const;
+
+	void			SetStopWords(const std::vector<std::string>& inStopWords);
 	
 	void			IndexText(const std::string& inIndex, const std::string& inText);
 	void			IndexTextAndNumbers(const std::string& inIndex, const std::string& inText);
@@ -109,8 +114,8 @@ class CIndexer
 
 	void			FlushDoc();
 
-	void			RecalculateDocumentWeights(const std::string& inIndex,
-						HStreamBase& inFile);
+	void			RecalculateDocumentWeights(const std::string& inIndex);
+	void			FixupDocWeights();
 
   private:
 

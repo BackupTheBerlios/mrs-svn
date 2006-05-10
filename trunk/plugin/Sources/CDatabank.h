@@ -148,7 +148,7 @@ class CDatabankBase
 	HUrl				GetWeightFileURL(const std::string& inIndex) const;
 	HUrl				GetDictionaryFileURL() const;
 
-	virtual void		RecalculateDocumentWeights(const std::string& inIndex);
+//	virtual void		RecalculateDocumentWeights(const std::string& inIndex);
 	void				CreateDictionaryForIndexes(
 							const std::vector<std::string>& inIndexNames,
 							uint32 inMinOccurrence, uint32 inMinWordLength);
@@ -191,6 +191,8 @@ class CDatabank : public CDatabankBase
 #endif
 	
 	// for the perl interface
+	void				SetStopWords(const std::vector<std::string>& inStopWords);
+	
 	void				Store(const std::string& inDocument);
 	void				StoreFingerPrint(const std::string& inFingerPrint,
 							const std::string& inThesaurus);
@@ -227,6 +229,9 @@ class CDatabank : public CDatabankBase
 						const std::string& inKey, bool inKeyIsPattern,
 						CQueryOperator inOperator);
 
+	virtual CDocWeightArray
+						GetDocWeights(const std::string& inIndex);
+
 	virtual CDbDocIteratorBase*
 						GetDocWeightIterator(const std::string& inIndex,
 							const std::string& inKey);
@@ -234,7 +239,7 @@ class CDatabank : public CDatabankBase
 	CDocIterator*		GetImpForPattern(const std::string& inIndex,
 							const std::string& inKey);
 
-	virtual void		RecalculateDocumentWeights(const std::string& inIndex);	
+//	virtual void		RecalculateDocumentWeights(const std::string& inIndex);	
 	
 	HStreamBase&	GetDataFile()			{ return *fDataFile; }
 	HUrl			GetDataUrl()			{ return fPath; }
@@ -385,7 +390,7 @@ class CUpdatedDatabank : public CDatabank
 						GetDocWeightIterator(const std::string& inIndex,
 							const std::string& inKey);
 
-	virtual void		RecalculateDocumentWeights(const std::string& inIndex);
+//	virtual void		RecalculateDocumentWeights(const std::string& inIndex);
 
 	virtual std::string	GetDbName() const;
 

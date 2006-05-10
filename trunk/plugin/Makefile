@@ -325,10 +325,10 @@ $(OBJDIR)/%.o: %.cpp
 
 include $(OBJS:%.o=%.d)
 
-MRS_perl5.cpp: Sources/MRSInterface.h Sources/MRS_perl5.i
+Sources/MRS_perl5.cpp: Sources/MRSInterface.h Sources/MRS_perl5.i
 	$(SWIG) $(DEFS) -c++ -perl5 -o Sources/MRS_perl5.cpp -outdir ./ Sources/MRS_perl5.i
 
-MRS_java.cpp: Sources/MRSInterface.h Sources/MRS_java.i
+Sources/MRS_java.cpp: Sources/MRSInterface.h Sources/MRS_java.i
 	mkdir -p Java/nl/ru/cmbi/MRSPlugin
 	$(SWIG) $(DEFS) -c++ -java -o Sources/MRS_java.cpp -outdir Java/nl/ru/cmbi/MRSPlugin -package nl.ru.cmbi.MRSPlugin Sources/MRS_java.i
 

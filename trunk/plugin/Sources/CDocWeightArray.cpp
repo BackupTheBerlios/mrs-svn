@@ -78,6 +78,16 @@ CDocWeightArray::CDocWeightArray(HUrl& inFile, uint32 inCount)
 	fImpl->fRefCount = 1;
 }
 
+CDocWeightArray::CDocWeightArray(HFileStream& inFile, int64 inOffset, uint32 inCount)
+	: fImpl(new CDocWeightArrayImp)
+{
+	fImpl->fFile = nil;
+	fImpl->fMap = new HMMappedFileStream(inFile, inOffset, inCount * sizeof(float));
+	fImpl->fData = static_cast<const float*>(fImpl->fMap->Buffer());
+	fImpl->fCount = inCount;
+	fImpl->fRefCount = 1;
+}
+
 CDocWeightArray::CDocWeightArray(const CDocWeightArray& inOther)
 	: fImpl(inOther.fImpl)
 {

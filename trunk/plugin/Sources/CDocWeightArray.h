@@ -40,11 +40,14 @@
 #define CDOCWEIGHTARRAY_H
 
 class HUrl;
+class HFileStream;
 
 class CDocWeightArray
 {
   public:
 						CDocWeightArray(HUrl& inFile, uint32 inCount);
+						CDocWeightArray(HFileStream& inFile, int64 inOffset,
+							uint32 inCount);
 						CDocWeightArray(const CDocWeightArray& inOther);
 	virtual				~CDocWeightArray();
 
