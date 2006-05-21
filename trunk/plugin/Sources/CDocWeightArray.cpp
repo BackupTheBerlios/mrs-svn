@@ -119,6 +119,6 @@ float CDocWeightArray::operator[](uint32 inDocNr) const
 {
 	if (inDocNr >= fImpl->fCount)
 		THROW(("Index for doc weights (%d) is out of range", inDocNr));
-	return fImpl->fData[inDocNr];
+	return net_swapper::swap(fImpl->fData[inDocNr]);
 }
 
