@@ -1,5 +1,16 @@
-# Makefile voor japie
+# Makefile for MRS. This is a somewhat complex makefile, I know.
 #
+# You can set local options in your make.config file
+# This file will be included by this makefile
+# Options to set in this make.config file are e.g.:
+#
+#	TARGET	- what kind of plugin to build, can be 'perl5' or 'java'
+#	CC		- the c++ compiler to use, must support tr1 though (gcc 4.1 e.g.)
+#	BOOST	- the location of your boost library
+#	SWIG	- your local copy of swig, must be exactly version 1.3.27 
+#	
+# Now you can build debug and non debug versions, default is non-debug
+# but to build a debug version you type 'make DEBUG=1' instead of simply 'make'
 
 OS			= $(shell uname -s)
 HOST		= $(shell uname -n)
@@ -45,30 +56,28 @@ endif
 
 SO_EXT		= .so
 LIBNAME		= libmrs
-VERSION		= 1.2.0
+VERSION		= 2.0
 # DEBUG should be either 1 or 0
 DEBUG		= 0
 DEFINES		= CPU_$(CPU) MINI_H_LIB
-WARNINGS	= -Wall -Wno-multichar
-BOOST		= ../boost_1_33_0/
-RDEFINES	= -DMACOS=0 -DUNIX=1
-LIBS		= z expat m bz2
-LIBPATHS	=  ./Lib/ /usr/local/lib/ /usr/X11R6/lib/
-INCPATHS	= ./Lib/Includes/ ./Lib/X/ ./Lib/ ./Sources/X/
+BOOST		= /usr/include
+LIBS		= z m bz2
+LIBPATHS	=  ./Lib/ /usr/local/lib/
+INCPATHS	= ./Lib/Includes/ ./Lib/X/ ./Lib/
 SYSINCPATHS	= /usr/include ./Lib/loki $(BOOST)
 WARNINGS	=  -Wall -Wno-multichar -Wno-unknown-pragmas -Wno-long-long -Wno-sign-compare
 CFLAGS		= -fsigned-char -g -ffor-scope
 LDFLAGS		= -fdata-sections -g # -ffunction-sections 
-CC			= c++
 OPT			+= -fstrict-aliasing
 
+CC			= c++
 PERL		= perl
+SWIG		= swig
 
 include make.config
 
 SWIG_VERSION	= $(shell $(SWIG) -version | grep Version | sed s'/SWIG Version //')
-
-PERL_CORE	= $(shell $(PERL) -MExtUtils::Embed -e perl_inc)
+PERL_CORE		= $(shell $(PERL) -MExtUtils::Embed -e perl_inc)
 
 ifeq ($(OS),FreeBSD)
 	LIBS		+= 
@@ -95,6 +104,7 @@ ifeq ($(OS),Linux)
 	SHELLLIBS	+= dl pthread
 	DEFINES		+= LINUX
 	LD_SO_FLAG	= -shared
+	LIBPATHS	+= /usr/local/lib64/
 	LDFLAGS		+= -pthread
 	STRIP		= strip -d
 	OPT			+= -O3
@@ -135,7 +145,6 @@ endif
 	LDFLAGS		+= 
 	CFLAGS		+= -force_cpusubtype_ALL
 	OPT			+= -O3 -mcpu=G4 -falign-loops=32
-#	WARNINGS	+= -Wno-long-double
 	CTAGS		= /sw/bin/ctags
 	STRIP		= strip -S
 	JAVA_INC	= -I/System/Library/Frameworks/JavaVM.framework/Versions/1.4.2/Headers/
@@ -146,10 +155,8 @@ ifeq ($(DEBUG),0)
 	OBJDIR	= Obj.NoDebug
 	DEFINES	+= NDEBUG
 else
-#	DBG		+= -g
 	OBJDIR	= Obj.Debug
 	DEFINES	+= DEBUG
-#	LIBS	+= efence
 	LIBNAME	:= $(LIBNAME)d
 endif
 
@@ -300,7 +307,6 @@ dist: FORCE
 
 install: dist
 	cd dist; sudo $(MAKE) install
-
 #	install -m 755 $< /usr/local/bin/mrs
 
 blast: echo_flags lib Sources/mrs_blast.cpp

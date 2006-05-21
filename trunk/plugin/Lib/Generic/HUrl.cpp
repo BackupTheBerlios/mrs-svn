@@ -455,11 +455,7 @@ HErrorCode HUrl::GetSpecifier(HFileSpec& outSpecifier) const
 		return err;
 	}
 	else
-#if MINI_H_LIB
 		return -1;
-#else
-		return pErrLogic;
-#endif
 }
 
 void HUrl::SetSpecifier(const HFileSpec& inSpecifier)

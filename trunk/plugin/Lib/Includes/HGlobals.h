@@ -45,63 +45,11 @@
 #include "HUrl.h"
 #include "HTypes.h"
 
-extern long 				gOSVersion;
 extern unsigned short		gUid;
 extern unsigned short		gGid;
-extern const unsigned long	kCreatorCode;
-extern const unsigned long	kDefaultDocumentType;
-extern const char			kAppName[], kVersionString[];
-extern HUrl					gTempURL, gPrefsURL, gAppURL, gUserURL;
-extern bool					gAntiAliasedText;
 
 extern const std::string	kEmptyString;
 
 extern const char			kHexChars[];
-
-/*
-namespace HBSD {
-extern const socket_t		kInvalidSocket;
-}
-*/
-
-/*
-	These are the colors used in Pepper, but they are usefull
-	for other apps as well.
-*/
-enum {
-	kLowColor,				// background color
-	kSelectionColor,		// background color of selected text
-	kInvisiblesColor,		// color for control/space characters
-	kMarkColor,				// color for the emacs mark
-	kFontColor,				// the regular font color
-	kLineNumberColor,		// color for the line numbers
-	kCurLineColor,			// background color for the current line
-	kRawTextColor,			// color to use for input methods, underline color
-	kConvertedTextColor,	// same, but now for text converted by the input method
-
-	kActiveDocBackColor,	// for themes drawing
-	kInactiveDocBackColor,
-	kActiveDlogBackColor,
-	kInactiveDlogBackColor,
-	
-	kActiveDlogTextColor,
-	kInactiveDlogTextColor,
-	
-	kActiveLineColor,
-	kInactiveLineColor,
-	
-	kOSSelectionColor,		// for the windows selection color
-	kOSSelectionTextColor,
-	kOSInactiveSelectionColor,
-	kOSInactiveSelectionTextColor,
-
-	kLastColor				// used for counting the colors
-};
-
-#ifndef MINI_H_LIB
-extern HColor gColor[kLastColor];
-#endif
-
-void InitHGlobals();
 
 #endif // HGLOBALS_H

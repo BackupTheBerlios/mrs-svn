@@ -49,11 +49,7 @@
 #include "HError.h"
 #include "HUtils.h"
 
-#if MINI_H_LIB
 #define kErrIO "I/O Error in file cache (line %d)"
-#else
-#define kErrIO pErrIO
-#endif
 
 namespace HFileCache
 {

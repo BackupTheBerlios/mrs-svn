@@ -47,28 +47,9 @@
 #include "HUtils.h"
 #include "HDefines.h"
 
-long 				gOSVersion;
-long 				gOSVersionMinor;
-
 unsigned short		gUid;
 unsigned short		gGid;
 
-HUrl				gTempURL, gPrefsURL, gAppURL, gUserURL;
-
-#ifndef MINI_H_LIB
-bool				gAntiAliasedText;
-
-HColor				gColor[kLastColor];
-#endif
-
 const std::string	kEmptyString("");
 const char 			kHexChars[] = "0123456789ABCDEF";
-#if P_IRIX
-const char			__func__[] = "not defined in this compiler";
-#endif
 
-/*
-namespace HBSD {
-const socket_t kInvalidSocket = static_cast<HBSD::socket_t>(-1);
-}
-*/

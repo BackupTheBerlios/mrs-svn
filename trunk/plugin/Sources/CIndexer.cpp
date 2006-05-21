@@ -2307,7 +2307,6 @@ class CIndexIteratorWrapper : public CIteratorWrapper<CIndex>
 
   private:
 	auto_ptr<CIndex>	fIndex;
-
 };
 
 CIteratorBase* CIndexer::GetIteratorForIndex(const string& inIndex)
@@ -2316,7 +2315,10 @@ CIteratorBase* CIndexer::GetIteratorForIndex(const string& inIndex)
 	CIteratorWrapper<CIndex>* result = nil;
 
 	if (indx.get())
+	{
 		result = new CIndexIteratorWrapper(indx.get(), indx->begin());
+		indx.release();
+	}
 	
 	return result;
 }
@@ -2327,7 +2329,10 @@ CIteratorBase* CIndexer::GetIteratorForIndexAndKey(const string& inIndex, const 
 	CIteratorWrapper<CIndex>* result = nil;
 
 	if (indx.get())
+	{
 		result = new CIndexIteratorWrapper(indx.get(), indx->find(inKey));
+		indx.release();
+	}
 	
 	return result;
 }

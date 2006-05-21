@@ -199,15 +199,9 @@ HExtensionSet::Init()
 	HExtensionSet e;
 	swap(e);
 
-#if MINI_H_LIB
 		// and add the default pattern
 	push_back(HFileExt("Text files", "*.txt;*.text"));
 	push_back(HFileExt("All files", "*"));
-#else
-		// and add the default pattern
-	push_back(HFileExt(HStrings::GetIndString(7000, 0), "*.txt;*.text"));
-	push_back(HFileExt(HStrings::GetIndString(7000, 1), "*"));
-#endif
 }
 
 void

@@ -14,12 +14,6 @@
 
 #include "HNativeTypes.h"
 #include "HWinUtils.h"
-#ifndef MINI_H_LIB
-#include "HApplication.h"
-#include "HApplicationImp.h"
-#include "HEncoder.h"
-#include "HPreferences.h"
-#endif
 #include "HUtils.h"
 #include "HDefines.h"
 

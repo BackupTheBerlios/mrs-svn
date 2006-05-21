@@ -51,12 +51,7 @@
 #include <cstdlib>
 #include <cstdarg>
 
-#if MINI_H_LIB
 #include <iostream>
-#else
-//#include "HAlerts.h"
-//#include "HStrings.h"
-#endif
 
 using namespace std;
 
@@ -90,47 +85,11 @@ HError::HError(const char* inMessage, ...)
 #endif
 }
 
-#ifndef MINI_H_LIB
-HError::HError(HErrorCode inErr, const char* inMsg)
-	: fErrCode(inErr)
-	, fInfo(0)
-{
-	string msg = HStrings::GetFormattedErrString(inErr, inMsg ? string(inMsg) : kEmptyString);
-	if (msg.length())
-		copy_to_charbuf(fMessage, msg, sizeof(fMessage));
-	else
-		strncpy(fMessage, inMsg, 256);
-}
-
-HError::HError(HErrorCode inErr, int inInfo)
-	: fErrCode(inErr)
-	, fInfo(inInfo)
-{
-/*#if ! P_WIN
-	if (fErrCode == pErrPosix)
-		snprintf(fMessage, 256, HStrings::GetErrString(pErrPosix).c_str(),
-			strerror(inInfo));
-	else
-	{
-#endif
-*/
-		string msg = HStrings::GetFormattedErrString(inErr, NumToString(inInfo));
-		if (msg.length())
-			copy_to_charbuf(fMessage, msg, sizeof(fMessage));
-		else
-			snprintf(fMessage, 256, "Unknown error %d", inInfo);
-//#if ! P_WIN
-//	}
-//#endif
-}
-#endif
-
 const char* HError::what() const throw()
 {
 	return fMessage;
 }
 
-#if MINI_H_LIB
 void DisplayError(const exception& inErr)
 {
 	if (typeid(inErr) == typeid(HError))
@@ -155,85 +114,6 @@ void ASSERTION_FAILED(char const *inErr, char const *inFile, int inLine)
 }
 #endif
 
-#else
-void DisplayError(const exception& inErr)
-{
-	try
-	{
-		if (typeid(inErr) == typeid(HError))
-			HAlerts::Alert(nil, 205, static_cast<const HError&>(inErr).GetErrorString());
-		else
-			HAlerts::Alert(nil, 205, inErr.what());
-	}
-	catch (...) {}
-}
-
-#if P_DEBUG
-void ReportThrow(const char* inFunc, const char* inFile, int inLine)
-{
-#if P_UNIX
-PRINT(("exception in %s, %s, %d\n", inFunc, inFile, inLine));
-#endif
-
-	if (gOKToThrow)
-		return;
-	
-	static bool sInReport = false;
-	
-	if (sInReport)
-		return;
-	
-	HValueChanger<bool> save(sInReport, true);
-	
-	try
-	{
-		switch (HAlerts::Alert(nil, 500, inFunc, inFile, NumToString(inLine)))
-		{
-			case 2:
-				abort();
-				break;
-			case 3:
-//				::Debugger();
-				int a = 1, b = 0, c = a / b;
-				break;
-		}
-	}
-	catch (...) {}
-}
-
-void ASSERTION_FAILED(char const *inErr, char const *inFile, int inLine)
-{
-#if P_UNIX
-	PRINT(("assertion failed: '%s' at %s, line %d\n", inErr, inFile, inLine));
-#endif
-	
-	static bool sAlreadyOnScreen = false;
-	if (sAlreadyOnScreen)
-		return;
-	HValueChanger<bool> save(sAlreadyOnScreen, true);
-	
-	try
-	{
-		switch (HAlerts::Alert(nil, 501, inErr, inFile, NumToString(inLine)))
-		{
-			case 2:
-				abort();
-				break;
-			case 3:
-#if P_MAC
-				::Debugger();
-#elif P_WIN
-				long l = 0, n = 1;
-				n /= l;
-#endif
-				break;
-		}
-	}
-	catch (...) {}
-}
-
-#endif
-
 #if P_DEBUG
 StOKToThrow::StOKToThrow()
 	: fWasOK(true)
@@ -245,7 +125,5 @@ StOKToThrow::~StOKToThrow()
 {
 	swap(fWasOK, gOKToThrow);
 }
-
-#endif
 
 #endif

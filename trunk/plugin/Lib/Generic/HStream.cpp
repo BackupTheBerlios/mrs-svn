@@ -54,16 +54,9 @@
 #include "HError.h"
 #include "HByteSwap.h"
 
-#ifndef MINI_H_LIB
-#include "HResources.h"
-#else
-
 #ifdef P_DEBUG
 #include <iostream>
 #endif
-
-#endif
-//#include "HStrings.h"
 
 using namespace std;
 
@@ -116,11 +109,7 @@ int64 HStreamBase::Size() const
 
 void HStreamBase::Truncate(int64 /*inSize*/)
 {
-#if MINI_H_LIB
 	THROW(("Truncate called on a stream object"));
-#else
-	THROW((pErrIO));
-#endif
 }
 
 void HStreamBase::SetSwapBytes(bool inSwap)
@@ -218,28 +207,6 @@ HStreamBase& HStreamBase::operator>> (uint64& d)
 	return *this;
 }
 
-#ifndef MINI_H_LIB
-HStreamBase& HStreamBase::operator>>(HRect& rect)
-{
-	int16 l, t, r, b;
-	
-	(*this) >> l >> t >> r >> b;
-	rect.Set(l, t, r, b);
-	return *this;
-}
-#endif
-
-//HStreamBase& HStreamBase::operator>> (char* s)
-//{
-//	string str;
-//	ReadString(str);
-//	if (str.length() > 255)
-//		str.erase(255, str.length() - 255);
-//	str.copy(s, str.length());
-//	s[str.length()] = 0;
-//	return *this;
-//}
-
 HStreamBase& HStreamBase::operator>> (string& s)
 {
 	ReadString(s);
@@ -326,87 +293,6 @@ HStreamBase& HStreamBase::operator<< (string s)
 	WriteString(s);
 	return *this;
 }
-
-#ifndef MINI_H_LIB
-#pragma mark HResourceStream
-
-HResourceStream::HResourceStream(uint32 inType, int inResID)
-	: fType(inType)
-	, fID(inResID)
-{
-	fData = HResources::GetResource(inType, inResID, fSize);
-	if (fData == nil) {
-		PRINT(("Missing resource '%4.4s':%d\n", (char*)&inType, inResID));
-	}
-	ThrowIfNil(fData);
-	fPointer = 0;
-}
-
-HResourceStream::HResourceStream(uint32 inType, const char* inName)
-{
-	fData = HResources::GetNamedResource(inType, inName, fSize);
-	if (fData == nil) {
-		PRINT(("Missing resource '%4.4s':%s\n", (char*)&inType, inName));
-	}
-	ThrowIfNil(fData);
-	fPointer = 0;
-}
-
-int32 HResourceStream::Read(void* inBuffer, uint32 inCount)
-{
-	if (fPointer + inCount > fSize)
-		THROW((pErrResTooShort));
-	
-	memcpy(inBuffer, reinterpret_cast<const char*>(fData) + fPointer,
-		static_cast<uint32>(inCount));
-	fPointer += inCount;
-	
-	return inCount;
-}
-
-void HResourceStream::ReadString(string& outString)
-{
-	HStreamBase::ReadString(outString);
-	HStrings::TranslateString(fType, fID, outString);
-}
-
-int32 HResourceStream::Write(const void* /*inBuffer*/, uint32 /*inCount*/)
-{
-	THROW((pErrResReadOnly));
-	return 0;
-}
-
-int64 HResourceStream::Tell() const
-{
-	return fPointer;
-}
-
-int64 HResourceStream::Seek(int64 inOffset, int inMode)
-{
-	switch (inMode)
-	{
-		case SEEK_SET:
-			fPointer = inOffset;
-			break;
-		case SEEK_END:
-			fPointer = fSize + inOffset;
-			break;
-		case SEEK_CUR:
-			fPointer += inOffset;
-			break;
-		default:
-			assert(false);
-	}
-	
-	return fPointer;
-}
-
-int64 HResourceStream::Size() const
-{
-	return fSize;
-}
-
-#endif
 
 #pragma mark memFullErr
 

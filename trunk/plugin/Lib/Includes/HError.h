@@ -51,37 +51,6 @@
 enum {
 	kNoError				= 0,
 	
-#ifndef MINI_H_LIB
-
-	pError					= 200,
-	pErrIO,
-	pErrResTooShort,
-	pErrResReadOnly,
-	pErrNilPointer,
-	pErrPrefName,
-	pErrPosix,
-	pErrStatus,
-	pErrLogic,
-	pErrCannotRename,
-	pErrFileCorrupt,
-	pXError,
-	pErrLocale,
-	pErrNeedRGB,
-	pErrColormap,
-	pErrDragNotAccepted,
-	pErrFreeType,
-	pErrInvalidButtonBar,
-	pErrExtTooLong,
-	pErrCannotAssocExt,
-	pErrX,
-	pErrCouldNotOpenConnection,
-	pErrSftpProtocolVersion,
-	pErrAuthenticationProtocol,
-	pErrCertificateNotFound,
-	pErrMoveBackupFailed,
-
-#endif
-	
 	pLastHError,
 	pWinError
 };
@@ -89,10 +58,6 @@ enum {
 class HError : public std::exception
 {
   public:
-#ifndef MINI_H_LIB
-				HError(HErrorCode inErr, int inInfo = 0);
-				HError(HErrorCode inErr, const char* inInfo);
-#endif
 				HError(const char* inMessage, ...);
 #if P_WIN
 				HError(unsigned long inErrCode, bool, bool);
@@ -162,32 +127,13 @@ class StOKToThrow
 
 #endif
 
-#ifdef MINI_H_LIB
-#	define ThrowIfNil(p)			do { const void* __p = (p); if (__p == nil) THROW(("Nil pointer")); } while (false)
-#	define ThrowIfPOSIXErr(e)		do { if ((e) < 0) THROW(("Posix error: %s", std::strerror(static_cast<unsigned long>(HFile::HErrno)), true, true)); } while (false)
+#define ThrowIfNil(p)		do { const void* __p = (p); if (__p == nil) THROW(("Nil pointer")); } while (false)
+#define ThrowIfPOSIXErr(e)	do { if ((e) < 0) THROW(("Posix error: %s", std::strerror(static_cast<unsigned long>(HFile::HErrno)), true, true)); } while (false)
 #if P_WIN
-#	define ThrowIfOSErr(e)			do { unsigned long __e = static_cast<unsigned long>(e); if (__e != 0) THROW((__e, true, true)); } while (false)
-#	define ThrowIfFalse(b)			do { if (not (b)) THROW((::GetLastError(), true, true)); } while (false)
+#define ThrowIfOSErr(e)		do { unsigned long __e = static_cast<unsigned long>(e); if (__e != 0) THROW((__e, true, true)); } while (false)
+#define ThrowIfFalse(b)		do { if (not (b)) THROW((::GetLastError(), true, true)); } while (false)
 #endif
-#	define ThrowIf(b)				do { if ((b)) THROW(("Logic error")); } while (false)
-#else
-#	define ThrowIfNil(p)			do { const void* __p = (p); if (__p == nil) THROW((pErrNilPointer)); } while (false)
-#	if P_WIN
-#		define ThrowIfPOSIXErr(e)	do { if ((e) < 0) THROW((static_cast<unsigned long>(HFile::HErrno), true, true)); } while (false)
-#	else
-#		define ThrowIfPOSIXErr(e)	do { if ((e) < 0) THROW((pErrPosix, (long)HFile::HErrno)); } while (false)
-#	endif
-#	define ThrowIf(b)				do { if ((b)) THROW((pErrLogic, 0)); } while (false)
-
-#	if P_MAC
-#		define ThrowIfOSStatus(e)	do { OSStatus __e = (e); if (__e != 0) THROW((pErrStatus, __e)); } while (false)
-#	elif P_UNIX
-#		define ThrowIfXError(e)		do { int __e = (e); if (__e != Success) THROW((pXError, __e)); } while (false)
-#	elif P_WIN
-#		define ThrowIfOSErr(e)		do { unsigned long __e = static_cast<unsigned long>(e); if (__e != 0) THROW((__e, true, true)); } while (false)
-#		define ThrowIfFalse(b)		do { if (not (b)) THROW((::GetLastError(), true, true)); } while (false)
-#	endif
-#endif
+#define ThrowIf(b)			do { if ((b)) THROW(("Logic error")); } while (false)
 
 #if P_DEBUG
 	extern void debug_printf(const char*, ...);
