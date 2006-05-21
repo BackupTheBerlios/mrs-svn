@@ -1766,6 +1766,50 @@ XS(_wrap_MDatabank_GetVersion) {
 }
 
 
+XS(_wrap_MDatabank_GetUUID) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        std::string result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: MDatabank_GetUUID(self);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_GetUUID. Expected _p_MDatabank");
+            }
+        }
+        {
+            try {
+                result = (arg1)->GetUUID();
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        {
+            if (argvi >= items) EXTEND(sp, 1);	// bump stack ptr, if needed
+            char *data = const_cast<char*>((&result)->data());
+            sv_setpvn(ST(argvi) = sv_newmortal(), data, (&result)->size());
+            ++argvi;
+        }
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
 XS(_wrap_MDatabank_DumpInfo) {
     {
         MDatabank *arg1 = (MDatabank *) 0 ;
@@ -6264,6 +6308,7 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MDatabank_Merge", _wrap_MDatabank_Merge},
 {"MRSc::MDatabank_Count", _wrap_MDatabank_Count},
 {"MRSc::MDatabank_GetVersion", _wrap_MDatabank_GetVersion},
+{"MRSc::MDatabank_GetUUID", _wrap_MDatabank_GetUUID},
 {"MRSc::MDatabank_DumpInfo", _wrap_MDatabank_DumpInfo},
 {"MRSc::MDatabank_CountForKey", _wrap_MDatabank_CountForKey},
 {"MRSc::MDatabank_Find", _wrap_MDatabank_Find},

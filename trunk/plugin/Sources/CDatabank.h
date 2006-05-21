@@ -108,6 +108,7 @@ class CDatabankBase
 	
 	virtual uint32		Count() const = 0;
 	virtual std::string	GetVersion() const = 0;
+	virtual std::string	GetUUID() const = 0;
 	virtual void		PrintInfo() = 0;
 //	virtual void		DumpIndex(const std::string& inIndex);
 	virtual CIteratorBase*
@@ -218,6 +219,7 @@ class CDatabank : public CDatabankBase
 	
 	virtual uint32		Count() const;
 	virtual std::string	GetVersion() const;
+	virtual std::string	GetUUID() const;
 	
 	virtual long		GetIndexCount();
 	virtual	void		GetIndexInfo(uint32 inIndexNr, std::string& outCode,
@@ -310,6 +312,7 @@ class CJoinedDatabank : public CDatabankBase
 
 	virtual uint32		Count() const;
 	virtual std::string	GetVersion() const;
+	virtual std::string	GetUUID() const;
 	virtual void		PrintInfo();
 	virtual long		GetIndexCount();
 	virtual	void		GetIndexInfo(uint32 inIndexNr, std::string& outCode,
@@ -366,6 +369,7 @@ class CUpdatedDatabank : public CDatabank
 
 	virtual uint32		Count() const;
 	virtual std::string	GetVersion() const;
+	virtual std::string	GetUUID() const;
 	virtual void		PrintInfo();
 
 	virtual std::string	GetDocument(uint32 inDocNr);

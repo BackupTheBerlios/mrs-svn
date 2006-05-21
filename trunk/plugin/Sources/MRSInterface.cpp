@@ -467,6 +467,11 @@ string MDatabank::GetVersion()
 	return fImpl->fDatabank->GetVersion();
 }
 
+string MDatabank::GetUUID()
+{
+	return fImpl->fDatabank->GetUUID();
+}
+
 void MDatabank::DumpInfo()
 {
 	fImpl->fDatabank->PrintInfo();

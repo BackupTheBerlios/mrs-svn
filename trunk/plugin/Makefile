@@ -287,7 +287,7 @@ clean: FORCE
 dist: FORCE
 	mkdir -p dist/lib
 	$(PERL) -pi.bak -e 's/^.+VERSION.+$$/\t"VERSION"\t\t\t=> "$(VERSION)",/' dist/Makefile.PL
-	cp Sources/MRS.pm $(OUTPUT) dist/lib/
+	cp MRS.pm $(OUTPUT) dist/lib/
 	$(STRIP) dist/lib/$(OUTPUT)
 	echo "MANIFEST" > dist/MANIFEST
 	echo "Makefile.PL" >> dist/MANIFEST

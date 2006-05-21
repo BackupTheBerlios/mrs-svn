@@ -780,6 +780,7 @@ sub printDbInfo($)
 	my $d = new MRS::MDatabank($db) or next;
 	
 	push @rows, $q->Tr($q->td('Name'), $q->td({-style=>"text-align:right;"}, $n));
+	push @rows, $q->Tr($q->td('UUID'), $q->td({-style=>"text-align:right;"}, $d->GetUUID));
 	push @rows, $q->Tr($q->td('Number of records'), $q->td({-style=>"text-align:right;"}, &printNumber($d->Count)));
 	push @rows, $q->Tr($q->td('Parser script'), $q->td({-style=>"text-align:right;"}, $q->a({-href=>"mrs.cgi?parser=$p"}, $p)));
 

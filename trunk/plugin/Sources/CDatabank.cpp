@@ -846,6 +846,13 @@ string CDatabank::GetVersion() const
 	return vers;
 }
 
+string CDatabank::GetUUID() const
+{
+	char suuid[40];
+	uuid_unparse(fHeader->uuid, suuid);
+	return suuid;
+}
+
 string CDatabank::GetDocumentID(uint32 inDocNr) const
 {
 	string result;
@@ -1555,6 +1562,18 @@ string CJoinedDatabank::GetVersion() const
 	return vers;
 }
 
+string CJoinedDatabank::GetUUID() const
+{
+	string uuid;
+	for (uint32 p = 0; p < fPartCount; ++p)
+	{
+		if (p > 0)
+			uuid += '+';
+		uuid += fParts[p].fDb->GetUUID();
+	}
+	return uuid;
+}
+
 string CJoinedDatabank::GetDbName() const
 {
 	string result;
@@ -1763,6 +1782,11 @@ uint32 CUpdatedDatabank::CountDocumentsContainingKey(const string& inIndex, cons
 string CUpdatedDatabank::GetVersion() const
 {
 	return fOriginal->GetVersion() + '|' + CDatabank::GetVersion();
+}
+
+string CUpdatedDatabank::GetUUID() const
+{
+	return fOriginal->GetUUID() + '|' + CDatabank::GetUUID();
 }
 
 CDbDocIteratorBase* CUpdatedDatabank::GetDocWeightIterator(

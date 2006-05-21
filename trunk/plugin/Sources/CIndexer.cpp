@@ -194,7 +194,7 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexPart& inStruct)
 	else if (inStruct.sig == kIndexPartSigV2)
 		inStruct.large_offsets = true;
 	else
-		THROW(("Incompatible index"));
+		THROW(("Incompatible index %4.4s", &inStruct.sig));
 	
 	data >> inStruct.size;
 	data.Read(inStruct.name, sizeof(inStruct.name));
