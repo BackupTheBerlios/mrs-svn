@@ -2483,7 +2483,10 @@ void CWeightAccumulator::Visit(const string& inKey, int64 inValue)
 void CIndexer::RecalculateDocumentWeights(const std::string& inIndex)
 {
 	if (VERBOSE > 0)
+	{
 		cout << "Recalculating document weights for index " << inIndex << "... ";
+		cout.flush();
+	}
 	
 	string index = tolower(inIndex);
 	auto_ptr<CIndex> indx;

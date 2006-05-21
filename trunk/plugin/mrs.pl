@@ -170,7 +170,7 @@ Usage:
         -s      script to use (if other than default for databank)
         -p      part number for this part
         -P      total number of parts
-        -b		max weight bit count (default is 6)
+        -b		max weight bit count (default is 5)
         -v      verbose
 
     mrs merge -d databank -P total [-v]
@@ -227,7 +227,7 @@ sub Create()
 		unless ((defined $partNr) == (defined $partCount));
 	die 'partNr incorrect, should be 1 <= partNr <= total'
 		if (defined $partNr and ($partNr < 1 or $partNr > $partCount));
-	$weight_bit_count = 6 unless defined $weight_bit_count;
+	$weight_bit_count = 5 unless defined $weight_bit_count;
 	
 	# define some globals
 	
