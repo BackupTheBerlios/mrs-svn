@@ -208,6 +208,7 @@ class MRankedQuery : public MRSObject<MRankedQuery, struct MRankedQueryImp>
 	void				AddTerm(const std::string& inTerm, unsigned long inFrequency);
 
 	int					MaxReturn;
+	int					AllTermsRequired;
 
 	void				SetAlgorithm(const std::string& inAlgorithm);
 

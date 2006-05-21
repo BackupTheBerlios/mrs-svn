@@ -4239,6 +4239,60 @@ XS(_wrap_MRankedQuery_MaxReturn_get) {
 }
 
 
+XS(_wrap_MRankedQuery_AllTermsRequired_set) {
+    {
+        MRankedQuery *arg1 = (MRankedQuery *) 0 ;
+        int arg2 ;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 2) || (items > 2)) {
+            SWIG_croak("Usage: MRankedQuery_AllTermsRequired_set(self,AllTermsRequired);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MRankedQuery,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MRankedQuery_AllTermsRequired_set. Expected _p_MRankedQuery");
+            }
+        }
+        arg2 = (int) SvIV(ST(1));
+        if (arg1) (arg1)->AllTermsRequired = arg2;
+        
+        
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MRankedQuery_AllTermsRequired_get) {
+    {
+        MRankedQuery *arg1 = (MRankedQuery *) 0 ;
+        int result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: MRankedQuery_AllTermsRequired_get(self);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MRankedQuery,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MRankedQuery_AllTermsRequired_get. Expected _p_MRankedQuery");
+            }
+        }
+        result = (int) ((arg1)->AllTermsRequired);
+        
+        ST(argvi) = sv_newmortal();
+        sv_setiv(ST(argvi++), (IV) result);
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
 XS(_wrap_MRankedQuery_SetAlgorithm) {
     {
         MRankedQuery *arg1 = (MRankedQuery *) 0 ;
@@ -6346,6 +6400,8 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MRankedQuery_AddTerm", _wrap_MRankedQuery_AddTerm},
 {"MRSc::MRankedQuery_MaxReturn_set", _wrap_MRankedQuery_MaxReturn_set},
 {"MRSc::MRankedQuery_MaxReturn_get", _wrap_MRankedQuery_MaxReturn_get},
+{"MRSc::MRankedQuery_AllTermsRequired_set", _wrap_MRankedQuery_AllTermsRequired_set},
+{"MRSc::MRankedQuery_AllTermsRequired_get", _wrap_MRankedQuery_AllTermsRequired_get},
 {"MRSc::MRankedQuery_SetAlgorithm", _wrap_MRankedQuery_SetAlgorithm},
 {"MRSc::MRankedQuery_Perform", _wrap_MRankedQuery_Perform},
 {"MRSc::new_MRankedQuery", _wrap_new_MRankedQuery},

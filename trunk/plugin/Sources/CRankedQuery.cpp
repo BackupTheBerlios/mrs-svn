@@ -274,7 +274,7 @@ Algorithm& Algorithm::Choose(const string& inName)
 
 CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	const string& inIndex, const std::string& inAlgorithm,
-	CDocIterator* inMetaQuery, uint32 inMaxReturn)
+	CDocIterator* inMetaQuery, uint32 inMaxReturn, bool inAllTermsRequired)
 {
 	Algorithm& alg = Algorithm::Choose(inAlgorithm);
 	
@@ -374,11 +374,10 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	
 	CAccumulator::Iterator* ai;
 	
-	uint32 termCount = fImpl->fTerms.size();
-//	uint32 termCount = 0;
-//
-//	if (inMetaQuery)
-//		termCount = 0;
+	uint32 termCount = 0;
+	
+	if (inAllTermsRequired)
+		termCount = fImpl->fTerms.size();
 	
 	auto_ptr<CDocIterator> rdi(ai = new CAccumulator::Iterator(A, termCount));
 

@@ -57,7 +57,8 @@ class CRankedQuery
 	
 	CDocIterator*	PerformSearch(CDatabankBase& inDatabank,
 						const std::string& inIndex, const std::string& inAlgorithm,
-						CDocIterator* inMetaQuery, uint32 inMaxReturn);
+						CDocIterator* inMetaQuery, uint32 inMaxReturn,
+						bool inAllTermsRequired);
 	
   private:
 					CRankedQuery(const CRankedQuery&);

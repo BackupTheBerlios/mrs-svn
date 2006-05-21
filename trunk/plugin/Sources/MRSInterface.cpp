@@ -734,6 +734,7 @@ MRankedQuery* MDatabank::RankedQuery(const string& inIndex)
 	MRankedQuery* result = MRankedQuery::Create(imp.release());
 
 	result->MaxReturn = 1000;
+	result->AllTermsRequired = false;
 	
 	return result;
 }
@@ -1104,7 +1105,7 @@ MQueryResults* MRankedQuery::Perform(MBooleanQuery* inMetaQuery)
 		auto_ptr<MQueryResultsImp> imp(
 			new MQueryResultsImp(*fImpl->fDatabank, fImpl->fQuery->PerformSearch(
 				*fImpl->fDatabank, fImpl->fIndex, fImpl->fAlgorithm, metaDocs.release(),
-				MaxReturn)));
+				MaxReturn, AllTermsRequired)));
 	
 		if (imp->Count(false) > 0)
 			result = MQueryResults::Create(imp.release());
