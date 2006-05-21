@@ -351,7 +351,7 @@ void VRIterator<T>::Restart()
 {
 	fWeight -= ReadGamma(*this->fBits);
 	
-	assert(fWeight <= kMaxWeight);
+//	assert(fWeight <= kMaxWeight);
 //	assert(fWeight > 0);
 
 	if (fWeight > 0)

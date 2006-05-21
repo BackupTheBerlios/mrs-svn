@@ -383,7 +383,7 @@ bool CDocIntersectionIterator::Next(uint32& ioValue, bool inSkip)
 				next = (*i).fValue - 1;
 		}
 		
-		if (result and inSkip and next < ioValue)
+		if (result /*and inSkip*/ and next < ioValue)
 			result = false;
 		else
 			ioValue = next;
@@ -434,8 +434,7 @@ void CDocIntersectionIterator::PrintHierarchy(int inLevel) const
 		(*i).fIter->PrintHierarchy(inLevel + 1);
 }
 
-CDocNotIterator::CDocNotIterator(
-		CDocIterator* inIter, uint32 inMax)
+CDocNotIterator::CDocNotIterator(CDocIterator* inIter, uint32 inMax)
 	: fIter(inIter)
 	, fCur(0)
 	, fNext(0)
@@ -570,6 +569,47 @@ bool CDocVectorIterator::Next(uint32& ioDoc, float& outFreq, bool inSkip)
 		result = true;
 		ioDoc = fDocs->at(fCur).first;
 		outFreq = fDocs->at(fCur).second;
+		++fCur;
+	}
+	return result;
+}
+
+// ---------------------------------------------------------------------------
+
+CSortDocIterator::CSortDocIterator(CDocIterator* inDocIterator, uint32 inSizeHint)
+	: fCur(0)
+	, fRead(0)
+{
+	auto_ptr<CDocIterator> iter(inDocIterator);
+	
+	if (inDocIterator != nil)
+	{
+		if (inSizeHint)
+			fDocs.reserve(inSizeHint);
+		else
+			fDocs.reserve(iter->Count());
+		
+		uint32 d;
+		while (iter->Next(d, false))
+			fDocs.push_back(d);
+		
+		sort(fDocs.begin(), fDocs.end());
+	}
+}
+	
+bool CSortDocIterator::Next(uint32& ioDoc, bool inSkip)
+{
+	bool result = false;
+	while (not result and fCur < fDocs.size())
+	{
+		if (fDocs[fCur] <= ioDoc and inSkip)
+		{
+			++fCur;
+			continue;
+		}
+		
+		result = true;
+		ioDoc = fDocs[fCur];
 		++fCur;
 	}
 	return result;

@@ -168,19 +168,25 @@ int main(int argc, const char* argv[])
 	}
 	
 	MDatabank mrsDb(db);
+	auto_ptr<MQueryResults> r;
 
-	auto_ptr<MRankedQuery> q(mrsDb.RankedQuery(ix));
-
-	q->SetAlgorithm(alg);
-
-	for (vector<string>::iterator qw = queryWords.begin(); qw != queryWords.end(); ++qw)
-		q->AddTerm(*qw, 1);
+	if (queryWords.size() > 0)
+	{
+		auto_ptr<MRankedQuery> q(mrsDb.RankedQuery(ix));
 	
-	auto_ptr<MBooleanQuery> m;
-	if (filter.length())
-			m.reset(mrsDb.BooleanQuery(filter));
-
-	auto_ptr<MQueryResults> r(q->Perform(m.get()));
+		q->SetAlgorithm(alg);
+	
+		for (vector<string>::iterator qw = queryWords.begin(); qw != queryWords.end(); ++qw)
+			q->AddTerm(*qw, 1);
+		
+		auto_ptr<MBooleanQuery> m;
+		if (filter.length())
+				m.reset(mrsDb.BooleanQuery(filter));
+	
+		r.reset(q->Perform(m.get()));
+	}
+	else if (filter.length() > 0)
+		r.reset(mrsDb.Find(filter, false));
 	
 	if (r.get() != NULL)
 	{

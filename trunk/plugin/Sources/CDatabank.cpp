@@ -280,6 +280,11 @@ CDocWeightArray CDatabankBase::GetDocWeights(const std::string& inIndex)
 //	return arr;
 }
 
+uint32 CDatabankBase::GetMaxWeight() const
+{
+	THROW(("GetMaxWeight unsupported"));
+}
+
 void CDatabankBase::CreateDictionaryForIndexes(const vector<string>& inIndexNames,
 	uint32 inMinOccurrence, uint32 inMinWordLength)
 {
@@ -764,11 +769,7 @@ string CDatabank::GetDocument(uint32 inDocNr)
 
 bool CDatabank::GetDocumentNr(const string& inDocID, uint32& outDocNr) const
 {
-	if (fIndexer == nil)
-		fIndexer = new CIndexer(*fDataFile,
-			fHeader->index_offset, fHeader->index_size);
-	
-	return fIndexer->GetDocumentNr(inDocID, outDocNr);
+	return GetIndexer()->GetDocumentNr(inDocID, outDocNr);
 }
 
 #ifndef NO_BLAST
@@ -857,7 +858,7 @@ string CDatabank::GetDocumentID(uint32 inDocNr) const
 	return result;
 }
 
-CIndexer* CDatabank::GetIndexer()
+CIndexer* CDatabank::GetIndexer() const
 {
 	if (fIndexer == nil)
 		fIndexer = new CIndexer(*fDataFile,
@@ -895,6 +896,11 @@ CIteratorBase* CDatabank::GetIteratorForIndexAndKey(
 CDocWeightArray CDatabank::GetDocWeights(const std::string& inIndex)
 {
 	return GetIndexer()->GetDocWeights(inIndex);
+}
+
+uint32 CDatabank::GetMaxWeight() const
+{
+	return GetIndexer()->GetMaxWeight();
 }
 
 CDbDocIteratorBase* CDatabank::GetDocWeightIterator(
@@ -975,11 +981,7 @@ void CDatabank::PrintInfo()
 		cout << endl;
 	}
 	
-	if (fIndexer == nil)
-		fIndexer = new CIndexer(*fDataFile,
-			fHeader->index_offset, fHeader->index_size);
-
-	fIndexer->PrintInfo();
+	GetIndexer()->PrintInfo();
 	
 	if (fIdTable != nil)
 		fIdTable->PrintInfo();

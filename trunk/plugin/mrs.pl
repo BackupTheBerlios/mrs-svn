@@ -58,11 +58,11 @@ my %opts;
 
 if ($action eq 'create')
 {
-	getopts('d:s:vp:P:', \%opts);
+	getopts('d:s:vp:P:b:', \%opts);
 	
 	my $db = $opts{d} or &Usage();
 	
-	&Create($db, $opts{'s'}, $opts{v}, $opts{p}, $opts{P});
+	&Create($db, $opts{'s'}, $opts{v}, $opts{p}, $opts{P}, $opts{b});
 }
 elsif ($action eq 'merge')
 {
@@ -170,6 +170,7 @@ Usage:
         -s      script to use (if other than default for databank)
         -p      part number for this part
         -P      total number of parts
+        -b		max weight bit count (default is 6)
         -v      verbose
 
     mrs merge -d databank -P total [-v]
@@ -218,7 +219,7 @@ END
 
 sub Create()
 {
-	my ($db, $script, $verbose, $partNr, $partCount) = @_;
+	my ($db, $script, $verbose, $partNr, $partCount, $weight_bit_count) = @_;
 	
 	$script = $db unless defined $script;
 	$verbose = 0 unless defined $verbose;
@@ -226,6 +227,7 @@ sub Create()
 		unless ((defined $partNr) == (defined $partCount));
 	die 'partNr incorrect, should be 1 <= partNr <= total'
 		if (defined $partNr and ($partNr < 1 or $partNr > $partCount));
+	$weight_bit_count = 6 unless defined $weight_bit_count;
 	
 	# define some globals
 	
@@ -252,6 +254,7 @@ sub Create()
 		if defined $parser::COMPRESSION_LEVEL;
 	$MRS::COMPRESSION_DICTIONARY = $parser::COMPRESSION_DICTIONARY
 		if defined $parser::COMPRESSION_DICTIONARY;
+	$MRS::WEIGHT_BIT_COUNT = $weight_bit_count;
 	
 	my $cmp_name = $db;
 	$cmp_name .= $partNr if defined $partNr;

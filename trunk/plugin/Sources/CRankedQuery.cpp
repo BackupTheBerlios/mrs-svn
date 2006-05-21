@@ -279,6 +279,7 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	Algorithm& alg = Algorithm::Choose(inAlgorithm);
 	
 	CDocWeightArray Wd = inDatabank.GetDocWeights(inIndex);
+	const uint32 kMaxWeight = inDatabank.GetMaxWeight();
 	
 	float Wq = 0, Smax = 0;
 
@@ -373,13 +374,17 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	
 	CAccumulator::Iterator* ai;
 	
-//	uint32 termCount = fImpl->fTerms.size();
-	uint32 termCount = 0;
+	uint32 termCount = fImpl->fTerms.size();
+//	uint32 termCount = 0;
+//
+//	if (inMetaQuery)
+//		termCount = 0;
 	
 	auto_ptr<CDocIterator> rdi(ai = new CAccumulator::Iterator(A, termCount));
 
 	if (inMetaQuery)
-		rdi.reset(CDocIntersectionIterator::Create(rdi.release(), inMetaQuery));
+		rdi.reset(CDocIntersectionIterator::Create(
+			new CSortDocIterator(rdi.release()), inMetaQuery));
 	
 	uint32 d = 0;
 	while (rdi->Next(d, false))

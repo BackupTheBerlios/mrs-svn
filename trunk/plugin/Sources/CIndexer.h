@@ -73,7 +73,7 @@ class CIndexer
 						std::vector<CDatabank*>& inParts);
 						
 	uint32			Count() const;
-	
+	uint32			GetMaxWeight() const;	// max weight, depends on weight_bit_count
 
 	long			GetIndexCount() const;
 	void			GetIndexInfo(uint32 inIndexNr, std::string& outCode,

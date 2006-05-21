@@ -65,20 +65,16 @@
 
 enum CIndexKind
 {
-	kTextIndex		= FOUR_CHAR_INLINE('text'),
-	kWeightedIndex	= FOUR_CHAR_INLINE('wtxt'),
-
+	kTextIndex			= FOUR_CHAR_INLINE('text'),
+	kWeightedIndex		= FOUR_CHAR_INLINE('wtxt'),	// old name
+	
 			// unique id, each key points to only one doc
-	kValueIndex		= FOUR_CHAR_INLINE('valu'),
-	kDateIndex		= FOUR_CHAR_INLINE('date'),
+	kValueIndex			= FOUR_CHAR_INLINE('valu'),
+	kDateIndex			= FOUR_CHAR_INLINE('date'),
 	
 			// index containing ascii representation of an integer
-	kNumberIndex	= FOUR_CHAR_INLINE('nmbr')
+	kNumberIndex		= FOUR_CHAR_INLINE('nmbr')
 };
-
-const uint32
-	kWeightBitCount = 4,
-	kMaxWeight = ((1 << kWeightBitCount) - 1);
 
 const uint32
 	kInvalidDocID = std::numeric_limits<uint32>::max();
@@ -99,6 +95,7 @@ extern unsigned int THREADS;
 extern const char* COMPRESSION;
 extern int COMPRESSION_LEVEL;
 extern const char* COMPRESSION_DICTIONARY;
+extern unsigned int WEIGHT_BIT_COUNT;
 extern const char* kFileExtension;
 
 #endif // MRS_H

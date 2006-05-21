@@ -85,8 +85,8 @@ extern std::string gErrStr;
 }
 
 %{
-#include "MRS_swig.h"
+#include "MRSInterface.h"
 %}
 
-%include "MRS_swig.h"
+%include "MRSInterface.h"
 

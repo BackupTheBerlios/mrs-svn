@@ -63,6 +63,7 @@ extern int VERBOSE;
 extern unsigned int THREADS;
 extern const char* COMPRESSION;
 extern int COMPRESSION_LEVEL;
+extern unsigned int WEIGHT_BIT_COUNT;
 extern const char* COMPRESSION_DICTIONARY;
 extern std::string gErrStr;
 

@@ -120,6 +120,7 @@ class CDatabankBase
 							const std::string& inKey);
 	virtual CDocWeightArray
 						GetDocWeights(const std::string& inIndex);
+	virtual uint32		GetMaxWeight() const;
 
 	virtual long		GetIndexCount() = 0;
 	virtual	void		GetIndexInfo(uint32 inIndexNr, std::string& outCode,
@@ -231,6 +232,7 @@ class CDatabank : public CDatabankBase
 
 	virtual CDocWeightArray
 						GetDocWeights(const std::string& inIndex);
+	virtual uint32		GetMaxWeight() const;
 
 	virtual CDbDocIteratorBase*
 						GetDocWeightIterator(const std::string& inIndex,
@@ -243,7 +245,7 @@ class CDatabank : public CDatabankBase
 	
 	HStreamBase&	GetDataFile()			{ return *fDataFile; }
 	HUrl			GetDataUrl()			{ return fPath; }
-	CIndexer*		GetIndexer();
+	CIndexer*		GetIndexer() const;
 #ifndef NO_BLAST
 	CBlastIndex*	GetBlastIndex() const	{ return fBlastIndex; }
 #endif

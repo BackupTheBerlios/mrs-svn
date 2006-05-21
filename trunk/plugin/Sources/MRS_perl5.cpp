@@ -1196,6 +1196,22 @@ SWIGCLASS_STATIC int _wrap_val_COMPRESSION_LEVEL(pTHX_ SV *sv, MAGIC *mg) {
 }
 
 
+SWIGCLASS_STATIC int _wrap_set_WEIGHT_BIT_COUNT(pTHX_ SV* sv, MAGIC *mg) {
+    MAGIC_PPERL
+    mg = mg;
+    WEIGHT_BIT_COUNT = (unsigned int) SvUV(sv);
+    return 1;
+}
+
+
+SWIGCLASS_STATIC int _wrap_val_WEIGHT_BIT_COUNT(pTHX_ SV *sv, MAGIC *mg) {
+    MAGIC_PPERL
+    mg = mg;
+    sv_setuv(sv, (UV) WEIGHT_BIT_COUNT);
+    return 1;
+}
+
+
 SWIGCLASS_STATIC int _wrap_set_COMPRESSION_DICTIONARY(pTHX_ SV* sv, MAGIC *mg) {
     MAGIC_PPERL
     mg = mg;
@@ -6231,6 +6247,7 @@ static swig_variable_info swig_variables[] = {
     { "MRSc::THREADS", MAGIC_CLASS _wrap_set_THREADS, MAGIC_CLASS _wrap_val_THREADS,0 },
     { "MRSc::COMPRESSION", MAGIC_CLASS _wrap_set_COMPRESSION, MAGIC_CLASS _wrap_val_COMPRESSION,0 },
     { "MRSc::COMPRESSION_LEVEL", MAGIC_CLASS _wrap_set_COMPRESSION_LEVEL, MAGIC_CLASS _wrap_val_COMPRESSION_LEVEL,0 },
+    { "MRSc::WEIGHT_BIT_COUNT", MAGIC_CLASS _wrap_set_WEIGHT_BIT_COUNT, MAGIC_CLASS _wrap_val_WEIGHT_BIT_COUNT,0 },
     { "MRSc::COMPRESSION_DICTIONARY", MAGIC_CLASS _wrap_set_COMPRESSION_DICTIONARY, MAGIC_CLASS _wrap_val_COMPRESSION_DICTIONARY,0 },
     { "MRSc::MDatabank_kWildCardString", MAGIC_CLASS swig_magic_readonly, MAGIC_CLASS _wrap_val_MDatabank_kWildCardString,0 },
 {0,0,0,0}

@@ -267,6 +267,21 @@ class CDocVectorIterator : public CDocIterator
 	uint32			fCur, fRead;
 };
 
+class CSortDocIterator : public CDocIterator
+{
+  public:
+					CSortDocIterator(CDocIterator* inDocIterator,
+						uint32 inSizeHint = 0);
+	
+	virtual bool	Next(uint32& ioValue, bool inSkip);
+	virtual uint32	Count() const						{ return fDocs.size(); }
+	virtual uint32	Read() const						{ return fRead; }
+
+  private:
+	std::vector<uint32>	fDocs;
+	uint32				fCur, fRead;
+};
+
 class CDbAllDocIterator : public CDocIterator
 {
   public:

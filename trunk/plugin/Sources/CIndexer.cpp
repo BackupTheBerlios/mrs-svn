@@ -66,6 +66,10 @@
 
 using namespace std;
 
+// Global, settable from the outside
+
+unsigned int WEIGHT_BIT_COUNT = 5;
+
 /*
 	Data structures on disk
 */
@@ -82,10 +86,11 @@ struct SIndexHeader
 	uint32			size;
 	int64			entries;
 	uint32			count;
+	uint32			weight_bit_count;
 };
 
 const uint32
-	kSIndexHeaderSize = 3 * sizeof(uint32) + sizeof(int64);
+	kSIndexHeaderSize = 4 * sizeof(uint32) + sizeof(int64);
 
 struct SIndexPart
 {
@@ -116,7 +121,8 @@ HStreamBase& operator<<(HStreamBase& inData, const SIndexHeader& inStruct)
 	HSwapStream<net_swapper> data(inData);
 	
 	data.Write(&inStruct.sig, sizeof(inStruct.sig));
-	data << kSIndexHeaderSize << inStruct.entries << inStruct.count;
+	data << kSIndexHeaderSize << inStruct.entries
+		 << inStruct.count << inStruct.weight_bit_count;
 	
 	return inData;
 }
@@ -126,10 +132,21 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexHeader& inStruct)
 	HSwapStream<net_swapper> data(inData);
 	
 	data.Read(&inStruct.sig, sizeof(inStruct.sig));
-	data >> inStruct.size >> inStruct.entries >> inStruct.count;
+	data >> inStruct.size >> inStruct.entries >> inStruct.count
+		 >> inStruct.weight_bit_count;
 	
 	if (inStruct.size != kSIndexHeaderSize)
+	{
+		SIndexHeader t = {};
+		memcpy(&t, &inStruct, min(inStruct.size, kSIndexHeaderSize));
+		
+		inStruct = t;
+		
+		if (inStruct.weight_bit_count == 0)
+			inStruct.weight_bit_count = 6;
+		
 		inData.Seek(kSIndexHeaderSize - inStruct.size, SEEK_CUR);
+	}
 	
 	return inData;
 }
@@ -145,6 +162,7 @@ HStreamBase& operator<<(HStreamBase& inData, const SIndexPart& inStruct)
 	data << kSIndexPartSize;
 	data.Write(inStruct.name, sizeof(inStruct.name));
 	data.Write(&inStruct.kind, sizeof(inStruct.kind));
+
 	data << inStruct.bits_offset << inStruct.tree_offset
 		 << inStruct.root << inStruct.entries
 		 << inStruct.weight_offset;
@@ -187,12 +205,13 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexPart& inStruct)
 	
 	if (inStruct.size != kSIndexPartSize)
 	{
+		SIndexPart t = {};
+		memcpy(&t, &inStruct, min(inStruct.size, kSIndexPartSize));
+		inStruct = t;
+		
 		int64 delta = kSIndexPartSize;
 		delta -= inStruct.size;
 		inData.Seek(-delta, SEEK_CUR);
-		
-		if (inStruct.size == kSIndexPartSize - sizeof(int64))
-			inStruct.weight_offset = 0;
 	}
 	
 	return inData;
@@ -399,7 +418,7 @@ class CFullTextIndex
 					CFullTextIndex(const HUrl& inScratch);
 	virtual			~CFullTextIndex();
 	
-	void			ReleaseBuffer();
+	void			ReleaseBuffer(uint32 inWeightBitCount);
 	
 	void			SetStopWords(const vector<string>& inStopWords);
 	bool			IsStopWord(const string& inWord) const
@@ -415,7 +434,7 @@ class CFullTextIndex
 						return lexicon.Store(inWord);
 					}
 
-	void			FlushDoc(uint32 inDocNr);
+	void			FlushDoc(uint32 inDocNr, uint32 inWeightBitCount);
 	
 	void			Merge();
 	
@@ -424,7 +443,7 @@ class CFullTextIndex
 	class CRunEntryIterator
 	{
 	  public:
-						CRunEntryIterator(CFullTextIndex& inIndex);
+						CRunEntryIterator(CFullTextIndex& inIndex, uint32 inWeightBitCount);
 						~CRunEntryIterator();
 		
 		bool			Next(uint32& outDoc, uint32& outTerm, uint32& outIx, uint8& outWeight);
@@ -447,7 +466,7 @@ class CFullTextIndex
 
   private:
 	
-	void			FlushRun();
+	void			FlushRun(uint32 inWeightBitCount);
 
 	struct DocWord
 	{
@@ -485,11 +504,12 @@ class CFullTextIndex
 	
 	struct MergeInfo
 	{
-					MergeInfo(HStreamBase& inFile, int64 inOffset, uint32 inCount)
+					MergeInfo(HStreamBase& inFile, int64 inOffset, uint32 inCount, uint32 inWeightBitCount)
 						: cnt(inCount)
 						, bits(inFile, inOffset)
 						, term(0)
 						, doc(0)
+						, weight_bit_count(inWeightBitCount)
 					{
 						first_doc = ReadGamma(bits) - 1;
 						doc = first_doc;
@@ -507,7 +527,7 @@ class CFullTextIndex
 
 						doc += ReadGamma(bits) - 1;
 						ix = ReadGamma(bits) - 1;
-						weight = ReadBinary<uint8>(bits, kWeightBitCount);
+						weight = ReadBinary<uint8>(bits, weight_bit_count);
 
 						--cnt;
 					}
@@ -519,6 +539,7 @@ class CFullTextIndex
 		uint32		first_doc;
 		uint32		ix;
 		uint8		weight;
+		uint32		weight_bit_count;
 	};
 	
 	struct CompareMergeInfo
@@ -589,14 +610,15 @@ void CFullTextIndex::AddWord(uint8 inIndex, uint32 inWord, uint8 inFrequency)
 	}
 }
 
-void CFullTextIndex::FlushDoc(uint32 inDoc)
+void CFullTextIndex::FlushDoc(uint32 inDoc, uint32 inWeightBitCount)
 {
 	if (buffer_ix + fDocWords.size() >= kBufferEntryCount)
-		FlushRun();
+		FlushRun(inWeightBitCount);
 
 	// normalize the frequencies.
 	
-	uint32 maxFreq = 1;
+	float maxFreq = 1;
+	uint32 kMaxWeight = (1 << inWeightBitCount) - 1;
 	
 	for (DocWords::iterator w = fDocWords.begin(); w != fDocWords.end(); ++w)
 		if (w->freq > maxFreq)
@@ -625,7 +647,7 @@ void CFullTextIndex::FlushDoc(uint32 inDoc)
 	fDocWords.clear();
 }
 
-void CFullTextIndex::FlushRun()
+void CFullTextIndex::FlushRun(uint32 inWeightBitCount)
 {
 	uint32 firstDoc = buffer[0].doc;	// the first doc in this run
 	
@@ -653,9 +675,9 @@ void CFullTextIndex::FlushRun()
 		WriteGamma(bits, buffer[i].ix + 1);
 
 		assert(buffer[i].weight > 0);
-		assert(buffer[i].weight <= kMaxWeight);
+		assert(buffer[i].weight <= ((1 << inWeightBitCount) - 1));
 
-		WriteBinary(bits, buffer[i].weight, kWeightBitCount);
+		WriteBinary(bits, buffer[i].weight, inWeightBitCount);
 		
 		t = buffer[i].term;
 		d = buffer[i].doc;
@@ -666,9 +688,9 @@ void CFullTextIndex::FlushRun()
 	buffer_ix = 0;
 }
 
-void CFullTextIndex::ReleaseBuffer()
+void CFullTextIndex::ReleaseBuffer(uint32 inWeightBitCount)
 {
-	FlushRun();
+	FlushRun(inWeightBitCount);
 	delete[] buffer;
 	buffer = NULL;
 	
@@ -679,7 +701,8 @@ void CFullTextIndex::ReleaseBuffer()
 	}
 }
 
-CFullTextIndex::CRunEntryIterator::CRunEntryIterator(CFullTextIndex& inIndex)
+CFullTextIndex::CRunEntryIterator::CRunEntryIterator(
+		CFullTextIndex& inIndex, uint32 inWeightBitCount)
 	: fIndex(inIndex)
 {
 	fRunCount = fIndex.fRunInfo.size();
@@ -688,7 +711,7 @@ CFullTextIndex::CRunEntryIterator::CRunEntryIterator(CFullTextIndex& inIndex)
 	fEntryCount = 0;
 	for (RunInfoArray::iterator ri = fIndex.fRunInfo.begin(); ri != fIndex.fRunInfo.end(); ++ri)
 	{
-		MergeInfo* mi = new MergeInfo(*fIndex.fScratch, (*ri).offset, (*ri).count);
+		MergeInfo* mi = new MergeInfo(*fIndex.fScratch, (*ri).offset, (*ri).count, inWeightBitCount);
 		fMergeInfo[ri - fIndex.fRunInfo.begin()] = mi;
 		fEntryCount += mi->cnt + 1;
 	}
@@ -751,7 +774,8 @@ class CTextIndexBase : public CIndexBase
   public:
 					CTextIndexBase(CFullTextIndex& inFullTextIndex,
 						const string& inName, uint16 inIndexNr,
-						const HUrl& inScratch, CIndexKind inKind);
+						const HUrl& inScratch, CIndexKind inKind,
+						uint32 inWeightBitCount);
 					~CTextIndexBase();
 	
 	virtual void	AddWord(const string& inWord, uint32 inFrequency);
@@ -771,7 +795,7 @@ class CTextIndexBase : public CIndexBase
 	CFullTextIndex&	fFullTextIndex;
 	uint16			fIndexNr;
 	bool			fEmpty;
-	bool			fWeighted;
+	uint32			fWeightBitCount;
 	
 	// data for the second pass
 	uint32			fLastDoc;
@@ -790,12 +814,12 @@ class CTextIndexBase : public CIndexBase
 
 CTextIndexBase::CTextIndexBase(CFullTextIndex& inFullTextIndex,
 		const string& inName, uint16 inIndexNr, const HUrl& inScratch,
-		CIndexKind inKind)
+		CIndexKind inKind, uint32 inWeightBitCount)
 	: CIndexBase(inName, inKind)
 	, fFullTextIndex(inFullTextIndex)
 	, fIndexNr(inIndexNr)
 	, fEmpty(true)
-	, fWeighted(inKind == kWeightedIndex)
+	, fWeightBitCount(inWeightBitCount)
 	, fLastDoc(0)
 	, fBits(nil)
 	, fDocCount(0)
@@ -845,13 +869,17 @@ void CTextIndexBase::AddDocTerm(uint32 inDoc, uint8 inFrequency)
 
 	WriteGamma(*fBits, d);
 	
-	if (inFrequency < 1)
-		inFrequency = 1;
-	else if (inFrequency >= kMaxWeight)
-		inFrequency = kMaxWeight;
-	
-	if (fWeighted)
-		WriteBinary(*fBits, inFrequency, kWeightBitCount);
+	if (fWeightBitCount > 0)
+	{
+		uint32 kMaxWeight = ((1 << fWeightBitCount) - 1);
+		
+		if (inFrequency < 1)
+			inFrequency = 1;
+		else if (inFrequency >= kMaxWeight)
+			inFrequency = kMaxWeight;
+		
+		WriteBinary(*fBits, inFrequency, fWeightBitCount);
+	}
 	
 	fLastDoc = inDoc;
 	++fDocCount;
@@ -899,7 +927,7 @@ void CTextIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 		
 		COBitStream docBits(*fBitFile);
 
-		if (fWeighted)
+		if (fWeightBitCount > 0)
 		{
 			vector<pair<uint32,uint8> > docs;
 			
@@ -907,20 +935,20 @@ void CTextIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 
 			// first written value is offset by 1, correct here
 			uint32 docNr = ReadGamma(bits) - 1;
-			uint8 weight = ReadBinary<uint8>(bits, kWeightBitCount);
+			uint8 weight = ReadBinary<uint8>(bits, fWeightBitCount);
 			
 			assert(weight > 0);
-			assert(weight <= kMaxWeight);
+//			assert(weight <= kMaxWeight);
 
 			docs.push_back(make_pair(docNr, weight));
 
 			for (uint32 d = 1; d < fDocCount; ++d)
 			{
 				docNr += ReadGamma(bits);
-				weight = ReadBinary<uint8>(bits, kWeightBitCount);
+				weight = ReadBinary<uint8>(bits, fWeightBitCount);
 
 				assert(weight > 0);
-				assert(weight <= kMaxWeight);
+//				assert(weight <= kMaxWeight);
 
 				docs.push_back(make_pair(docNr, weight));
 			}
@@ -1096,7 +1124,7 @@ class CTextIndex : public CTextIndexBase
 
 CTextIndex::CTextIndex(CFullTextIndex& inFullTextIndex,
 		const string& inName, uint16 inIndexNr, const HUrl& inScratch)
-	: CTextIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kTextIndex)
+	: CTextIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kTextIndex, 0)
 {
 }
 
@@ -1105,14 +1133,14 @@ class CWeightedWordIndex : public CTextIndexBase
   public:
 					CWeightedWordIndex(CFullTextIndex& inFullTextIndex,
 						const string& inName, uint16 inIndexNr,
-						const HUrl& inScratch);
+						const HUrl& inScratch, uint32 inWeightBitCount);
 
 	virtual void	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
 };
 
 CWeightedWordIndex::CWeightedWordIndex(CFullTextIndex& inFullTextIndex,
-		const string& inName, uint16 inIndexNr, const HUrl& inScratch)
-	: CTextIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kWeightedIndex)
+		const string& inName, uint16 inIndexNr, const HUrl& inScratch, uint32 inWeightBitCount)
+	: CTextIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kWeightedIndex, inWeightBitCount)
 {
 }
 
@@ -1143,7 +1171,8 @@ class CAllTextIndex : public CWeightedWordIndex
 {
   public:
 					CAllTextIndex(CFullTextIndex& inFullTextIndex,
-						uint16 inIndexNr, const HUrl& inScratch);						
+						uint16 inIndexNr, const HUrl& inScratch,
+						uint32 inWeightBitCount);						
 	
 	virtual void	AddDocTerm(uint32 inDoc, uint8 inFrequency);
 	virtual void	FlushTerm(uint32 inTerm, uint32 inDocCount);
@@ -1154,8 +1183,8 @@ class CAllTextIndex : public CWeightedWordIndex
 };
 
 CAllTextIndex::CAllTextIndex(CFullTextIndex& inFullTextIndex,
-		uint16 inIndexNr, const HUrl& inScratch)
-		: CWeightedWordIndex(inFullTextIndex, "*alltext*", inIndexNr, inScratch)
+		uint16 inIndexNr, const HUrl& inScratch, uint32 inWeightBitCount)
+		: CWeightedWordIndex(inFullTextIndex, "*alltext*", inIndexNr, inScratch, inWeightBitCount)
 	, fDocNr(0)
 	, fFreq(0)
 {
@@ -1194,7 +1223,7 @@ class CDateIndex : public CTextIndexBase
 
 CDateIndex::CDateIndex(CFullTextIndex& inFullTextIndex,
 		const string& inName, uint16 inIndexNr, const HUrl& inScratch)
-	: CTextIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kDateIndex)
+	: CTextIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kDateIndex, 0)
 {
 }
 
@@ -1210,7 +1239,7 @@ class CNumberIndex : public CTextIndexBase
 
 CNumberIndex::CNumberIndex(CFullTextIndex& inFullTextIndex,
 		const string& inName, uint16 inIndexNr, const HUrl& inScratch)
-	: CTextIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kNumberIndex)
+	: CTextIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kNumberIndex, 0)
 {
 }
 
@@ -1236,6 +1265,7 @@ CIndexer::CIndexer(const HUrl& inDb)
 	fHeader->sig = kIndexSig;
 	fHeader->count = 0;
 	fHeader->entries = 0;
+	fHeader->weight_bit_count = WEIGHT_BIT_COUNT;
 }
 
 CIndexer::CIndexer(HStreamBase& inFile, int64 inOffset, int64 inSize)
@@ -1442,7 +1472,8 @@ void CIndexer::IndexWordWithWeight(const string& inIndex, const string& inText, 
 	if (index == NULL)
 	{
 		HUrl url(fDb + '.' + inIndex + "_indx");
-		index = indexes[inIndex] = new CWeightedWordIndex(GetFullTextIndex(), inIndex, fNextTextIndexID++, url);
+		index = indexes[inIndex] = new CWeightedWordIndex(
+			GetFullTextIndex(), inIndex, fNextTextIndexID++, url, fHeader->weight_bit_count);
 	}
 	else if (dynamic_cast<CWeightedWordIndex*>(index) == NULL)
 		THROW(("Inconsistent use of indexes for index %s", inIndex.c_str()));
@@ -1456,9 +1487,10 @@ void CIndexer::IndexWordWithWeight(const string& inIndex, const string& inText, 
 void CIndexer::FlushDoc()
 {
 	if (fFullTextIndex)
-		fFullTextIndex->FlushDoc(fHeader->entries);
+		fFullTextIndex->FlushDoc(fHeader->entries, fHeader->weight_bit_count);
 
 	map<string,CIndexBase*>::iterator indx;
+
 	for (indx = indexes.begin(); indx != indexes.end(); ++indx)
 		(*indx).second->FlushDoc(fHeader->entries);
 		
@@ -1494,7 +1526,7 @@ void CIndexer::CreateIndex(HStreamBase& inFile,
 		fHeader->count += 1; // for our allIndex
 
 	if (fFullTextIndex)
-		fFullTextIndex->ReleaseBuffer();
+		fFullTextIndex->ReleaseBuffer(fHeader->weight_bit_count);
 	
 	outOffset = inFile.Seek(0, SEEK_END);
 	inFile << *fHeader;
@@ -1523,7 +1555,7 @@ void CIndexer::CreateIndex(HStreamBase& inFile,
 	if (inCreateAllTextIndex)
 	{
 		HUrl url(fDb + '.' + "alltext_indx");
-		allIndex = new CAllTextIndex(GetFullTextIndex(), fHeader->count - 1, url);
+		allIndex = new CAllTextIndex(GetFullTextIndex(), fHeader->count - 1, url, fHeader->weight_bit_count);
 	}
 	
 	if (fFullTextIndex)
@@ -1536,7 +1568,7 @@ void CIndexer::CreateIndex(HStreamBase& inFile,
 
 		uint32 iDoc, iTerm, iIx, lTerm = 0, i;
 		uint8 iWeight;
-		CFullTextIndex::CRunEntryIterator iter(*fFullTextIndex);
+		CFullTextIndex::CRunEntryIterator iter(*fFullTextIndex, fHeader->weight_bit_count);
 	
 		// the next loop is very *hot*, make sure it is optimized as much as possible
 		if (iter.Next(iDoc, iTerm, iIx, iWeight))
@@ -2182,8 +2214,9 @@ void CIndexer::PrintInfo()
 	
 	cout << "Index Header ("
 		 << sig[0] << sig[1] << sig[2] << sig[3] << ") " << fHeader->size << " bytes" << endl;
-	cout << "  entries:      " << fHeader->entries << endl;
-	cout << "  count:        " << fHeader->count << endl;
+	cout << "  entries:          " << fHeader->entries << endl;
+	cout << "  count:            " << fHeader->count << endl;
+	cout << "  weight bit count: " << fHeader->weight_bit_count << endl;
 	cout << endl;
 	
 	for (uint32 ix = 0; ix < fHeader->count; ++ix)
@@ -2503,3 +2536,7 @@ void CIndexer::FixupDocWeights()
 	}
 }
 
+uint32 CIndexer::GetMaxWeight() const
+{
+	return ((1 << fHeader->weight_bit_count) - 1);
+}
