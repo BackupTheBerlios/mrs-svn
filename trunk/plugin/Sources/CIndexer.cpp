@@ -2262,6 +2262,7 @@ void CIndexer::PrintInfo()
 		cout << "  tree size:     " << treeSize << endl;
 		cout << "  root:          " << p.root << endl;
 		cout << "  entries:       " << p.entries << endl;
+		cout << "  weight offset: " << p.weight_offset << endl;
 		
 		cout << endl;
 

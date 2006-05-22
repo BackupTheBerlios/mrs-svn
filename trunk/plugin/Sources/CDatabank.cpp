@@ -748,7 +748,7 @@ void CDatabank::Merge(vector<CDatabank*>& inParts)
 	*fDataFile << *fHeader;
 
 	// now fix up the weighted document weights...
-	fIndexer->FixupDocWeights();
+	index.FixupDocWeights();
 }
 
 string CDatabank::GetDocument(uint32 inDocNr)
