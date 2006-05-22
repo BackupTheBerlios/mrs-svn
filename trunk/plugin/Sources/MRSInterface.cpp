@@ -65,6 +65,7 @@
 #include "CBlast.h"
 #endif
 #include "CRankedQuery.h"
+#include "CIterator.h"
 
 #include "CIndex.h"		// for CIndexIterator
 

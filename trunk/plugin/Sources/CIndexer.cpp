@@ -1885,7 +1885,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 
 		uint32 i;
 		int32 count = 0;
-		CJoinedIterator iter;
+		auto_ptr<CJoinedIteratorBase> iter(CJoinedIteratorBase::Create(fParts[ix].kind));
 		
 		for (i = 0; i < md.size(); ++i)
 		{
@@ -1906,7 +1906,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 			md[i].indx = new CIndex(fParts[ix].kind, fParts[ix].large_offsets,
 				*md[i].data, md[i].info[ix].tree_offset, md[i].info[ix].root);
 
-			iter.Append(new CIteratorWrapper<CIndex>(*md[i].indx, count));
+			iter->Append(new CIteratorWrapper<CIndex>(*md[i].indx, count));
 			
 			count += md[i].count;
 		}
@@ -1930,7 +1930,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 		fParts[ix].sig = kIndexPartSig;
 		fParts[ix].large_offsets = false;
 		
-		while (iter.Next(s, v))
+		while (iter->Next(s, v))
 		{
 			if (s == lastS)
 			{

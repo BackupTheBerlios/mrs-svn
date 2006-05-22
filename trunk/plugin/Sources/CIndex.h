@@ -50,7 +50,7 @@
 #include <boost/iterator/iterator_facade.hpp>
 #include <boost/mpl/if.hpp>
 
-#include "CIterator.h"
+//#include "CIterator.h"
 
 class HStreamBase;
 class CIteratorBase;

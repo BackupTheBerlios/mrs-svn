@@ -326,6 +326,10 @@ class CJoinedDatabank : public CDatabankBase
 	virtual CDbDocIteratorBase*
 						GetDocWeightIterator(const std::string& inIndex,
 							const std::string& inKey);
+
+	virtual CDocWeightArray
+						GetDocWeights(const std::string& inIndex);
+	virtual uint32		GetMaxWeight() const;
 	
 	virtual uint32		CountDocumentsContainingKey(const std::string& inIndex,
 							const std::string& inKey);
@@ -395,6 +399,10 @@ class CUpdatedDatabank : public CDatabank
 	virtual CDbDocIteratorBase*
 						GetDocWeightIterator(const std::string& inIndex,
 							const std::string& inKey);
+
+	virtual CDocWeightArray
+						GetDocWeights(const std::string& inIndex);
+	virtual uint32		GetMaxWeight() const;
 
 //	virtual void		RecalculateDocumentWeights(const std::string& inIndex);
 

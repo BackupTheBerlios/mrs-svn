@@ -47,6 +47,7 @@
 
 #include "HStream.h"
 #include "CIndex.h"
+#include "CIterator.h"
 #include <iostream>
 #include <sstream>
 #include "HUtils.h"

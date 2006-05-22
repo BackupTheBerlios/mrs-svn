@@ -314,7 +314,8 @@ blast: echo_flags lib Sources/mrs_blast.cpp
 	@ echo "Done"
 
 query: echo_flags lib Sources/mrs_test.cpp
-	$(CC) $(CFLAGS) -o mrs_query -ILib/Includes Sources/mrs_test.cpp $(LIBNAME) $(LDFLAGS)
+	@ echo "=> "$@
+	@ $(CC) $(CFLAGS) -o mrs_query -ILib/Includes Sources/mrs_test.cpp $(LIBNAME) $(LDFLAGS)
 	@ echo "Done"
 
 tags: FORCE

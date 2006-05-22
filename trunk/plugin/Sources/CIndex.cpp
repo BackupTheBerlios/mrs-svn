@@ -47,6 +47,7 @@
 #include <cstring>
 
 #include "CIndex.h"
+#include "CIterator.h"
 #include "HStream.h"
 #include "CUtils.h"
 #include "HUtils.h"
@@ -1282,7 +1283,10 @@ void CIndexImpT<DD>::Test(CIndex& inIndex)
 	vector<string> keys;
 	
 	for (iterator i = Begin(); i != End(); ++i)
+	{
+		assert(keys.size() == 0 or Compare(keys.back(), i->first) < 0);
 		keys.push_back(i->first);
+	}
 	
 	for (vector<string>::iterator k = keys.begin(); k != keys.end(); ++k)
 	{
@@ -1291,29 +1295,29 @@ void CIndexImpT<DD>::Test(CIndex& inIndex)
 		
 		assert(i != inIndex.end());
 
-//cerr << "test 2" << endl;
-		
-		uint32 n = 0;
-		while (i != inIndex.end())
-			++i, ++n;
-
-		assert(n == (keys.end() - k));
-
-//cerr << "test 3" << endl;
-
-		i = inIndex.find(*k);
-
-		assert(i != inIndex.end());
-
-//cerr << "test 4" << endl;
-		
-		n = 0;
-		while (i != inIndex.begin())
-			--i, ++n;
-		
-		assert(n == (k - keys.begin()));
-
-//cerr << "test 5" << endl;
+////cerr << "test 2" << endl;
+//		
+//		uint32 n = 0;
+//		while (i != inIndex.end())
+//			++i, ++n;
+//
+//		assert(n == (keys.end() - k));
+//
+////cerr << "test 3" << endl;
+//
+//		i = inIndex.find(*k);
+//
+//		assert(i != inIndex.end());
+//
+////cerr << "test 4" << endl;
+//		
+//		n = 0;
+//		while (i != inIndex.begin())
+//			--i, ++n;
+//		
+//		assert(n == (k - keys.begin()));
+//
+////cerr << "test 5" << endl;
 	}
 }
 
@@ -1424,10 +1428,10 @@ CIndex* CIndex::CreateFromIterator(uint32 inIndexKind, bool inLargeOffsets, CIte
 	
 	inFile.Seek(0, SEEK_END);
 	
-//#if P_DEBUG
-//	result->fImpl->Test(*result);
-//	result->Dump();
-//#endif
+#if P_DEBUG
+	result->fImpl->Test(*result);
+	result->Dump();
+#endif
 	
 	return result.release();
 }

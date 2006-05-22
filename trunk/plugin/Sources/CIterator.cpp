@@ -153,70 +153,16 @@ bool CStrUnionIterator::Next(string& outString, int64& outValue)
 	return result;
 }
 
-CJoinedIterator::CJoinedIterator()
+CJoinedIteratorBase* CJoinedIteratorBase::Create(uint32 inKind)
 {
-}
-
-CJoinedIterator::CJoinedIterator(vector<CIteratorBase*>& inIters)
-{
-	vector<CIteratorBase*>::iterator i;
-	for (i = inIters.begin(); i != inIters.end(); ++i)
+	switch (inKind)
 	{
-		CElement e;
-		
-		e.fIter = *i;
-		
-		if ((*i)->Next(e.fSValue, e.fNValue))
-			fItems.push_back(e);
-		else
-			delete *i;
+		case kTextIndex:		return new CJoinedIterator<kTextIndex>();
+		case kDateIndex:		return new CJoinedIterator<kDateIndex>();
+		case kValueIndex:		return new CJoinedIterator<kValueIndex>();
+		case kNumberIndex:		return new CJoinedIterator<kNumberIndex>();
+		case kWeightedIndex:	return new CJoinedIterator<kWeightedIndex>();
+		default:				THROW(("Unsupported index kind: %4.4s", &inKind));
 	}
-	
-	make_heap(fItems.begin(), fItems.end());
 }
 
-CJoinedIterator::~CJoinedIterator()
-{
-	CElementList::iterator e;
-	for (e = fItems.begin(); e != fItems.end(); ++e)
-		delete (*e).fIter;
-}
-
-void CJoinedIterator::Append(CIteratorBase* inIter)
-{
-	CElement e;
-	
-	e.fIter = inIter;
-	
-	if (inIter->Next(e.fSValue, e.fNValue))
-	{
-		fItems.push_back(e);
-		make_heap(fItems.begin(), fItems.end());
-	}
-	else
-		delete inIter;
-}
-	
-bool CJoinedIterator::Next(string& outString, int64& outValue)
-{
-	bool result = false;
-	
-	if (fItems.size() > 0)
-	{
-		pop_heap(fItems.begin(), fItems.end());
-		
-		outString = fItems.back().fSValue;
-		outValue = fItems.back().fNValue;
-		result = true;
-		
-		if (fItems.back().fIter->Next(fItems.back().fSValue, fItems.back().fNValue))
-			push_heap(fItems.begin(), fItems.end());
-		else
-		{
-			delete fItems.back().fIter;
-			fItems.erase(fItems.end() - 1);
-		}
-	}
-
-	return result;
-}

@@ -49,6 +49,11 @@ class CDocWeightArray
 						CDocWeightArray(HFileStream& inFile, int64 inOffset,
 							uint32 inCount);
 						CDocWeightArray(const CDocWeightArray& inOther);
+
+						// this constructor creates a new array
+						// concatenating the two arrays passed in
+						CDocWeightArray(const CDocWeightArray& inOtherA,
+							const CDocWeightArray& inOtherA);
 	virtual				~CDocWeightArray();
 
 	CDocWeightArray&	operator=(const CDocWeightArray& inOther);

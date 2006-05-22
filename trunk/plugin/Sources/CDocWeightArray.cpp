@@ -55,55 +55,146 @@
 
 struct CDocWeightArrayImp
 {
-	~CDocWeightArrayImp()
-	{
-		delete fMap;
-		delete fFile;
-	}
+						CDocWeightArrayImp(uint32 inCount)
+							: fCount(inCount)
+							, fRefCount(1)
+						{
+						}
+
+	virtual				~CDocWeightArrayImp() {}
+
+	void				Reference();
+	void				Release();
+
+	virtual float		at(uint32 inIndex) const = 0;
+
+	uint32				fCount;
+	uint32				fRefCount;
+};
+
+void CDocWeightArrayImp::Reference()
+{
+	++fRefCount;
+}
+
+void CDocWeightArrayImp::Release()
+{
+	if (--fRefCount == 0)
+		delete this;
+}
+
+struct CSimpleDocWeightArrayImp : public CDocWeightArrayImp
+{
+						CSimpleDocWeightArrayImp(HUrl& inFile, uint32 inCount);
+						CSimpleDocWeightArrayImp(HFileStream& inFile,
+							int64 inOffset, uint32 inCount);
+						~CSimpleDocWeightArrayImp();
+
+	virtual float		at(uint32 inIndex) const;
 	
 	HFileStream*		fFile;
 	HMMappedFileStream*	fMap;
 	const float*		fData;
 	uint32				fCount;
-	uint32				fRefCount;
 };
 
-CDocWeightArray::CDocWeightArray(HUrl& inFile, uint32 inCount)
-	: fImpl(new CDocWeightArrayImp)
+CSimpleDocWeightArrayImp::CSimpleDocWeightArrayImp(HUrl& inFile, uint32 inCount)
+	: CDocWeightArrayImp(inCount)
+	, fFile(new HFileStream(inFile, O_RDONLY))
+	, fMap(new HMMappedFileStream(*fFile, 0, inCount * sizeof(float)))
+	, fData(static_cast<const float*>(fMap->Buffer()))
 {
-	fImpl->fFile = new HFileStream(inFile, O_RDONLY);
-	fImpl->fMap = new HMMappedFileStream(*fImpl->fFile, 0, inCount * sizeof(float));
-	fImpl->fData = static_cast<const float*>(fImpl->fMap->Buffer());
-	fImpl->fCount = inCount;
-	fImpl->fRefCount = 1;
+}
+
+CSimpleDocWeightArrayImp::CSimpleDocWeightArrayImp(HFileStream& inFile, int64 inOffset, uint32 inCount)
+	: CDocWeightArrayImp(inCount)
+	, fFile(nil)
+	, fMap(new HMMappedFileStream(inFile, inOffset, inCount * sizeof(float)))
+	, fData(static_cast<const float*>(fMap->Buffer()))
+{
+}
+
+CSimpleDocWeightArrayImp::~CSimpleDocWeightArrayImp()
+{
+	delete fMap;
+	delete fFile;
+}
+
+float CSimpleDocWeightArrayImp::at(uint32 inIndex) const
+{
+	return net_swapper::swap(fData[inIndex]);
+}
+
+struct CJoinedDocWeightArrayImp : public CDocWeightArrayImp
+{
+						CJoinedDocWeightArrayImp(
+							CDocWeightArrayImp* inFirst,
+							CDocWeightArrayImp* inSecond);
+						~CJoinedDocWeightArrayImp();
+
+	virtual float		at(uint32 inIndex) const;
+	
+	CDocWeightArrayImp*	fFirst;
+	CDocWeightArrayImp*	fSecond;
+};
+
+CJoinedDocWeightArrayImp::CJoinedDocWeightArrayImp(
+		CDocWeightArrayImp* inFirst, CDocWeightArrayImp* inSecond)
+	: CDocWeightArrayImp(inFirst->fCount + inSecond->fCount)
+	, fFirst(inFirst)
+	, fSecond(inSecond)
+{
+	fFirst->Reference();
+	fSecond->Reference();
+}
+
+CJoinedDocWeightArrayImp::~CJoinedDocWeightArrayImp()
+{
+	fFirst->Release();
+	fSecond->Release();
+}
+
+float CJoinedDocWeightArrayImp::at(uint32 inIndex) const
+{
+	float result;
+	
+	if (inIndex < fFirst->fCount)
+		result = fFirst->at(inIndex);
+	else
+		result = fSecond->at(inIndex - fFirst->fCount);
+	
+	return result;
+}
+
+CDocWeightArray::CDocWeightArray(HUrl& inFile, uint32 inCount)
+	: fImpl(new CSimpleDocWeightArrayImp(inFile, inCount))
+{
 }
 
 CDocWeightArray::CDocWeightArray(HFileStream& inFile, int64 inOffset, uint32 inCount)
-	: fImpl(new CDocWeightArrayImp)
+	: fImpl(new CSimpleDocWeightArrayImp(inFile, inOffset, inCount))
 {
-	fImpl->fFile = nil;
-	fImpl->fMap = new HMMappedFileStream(inFile, inOffset, inCount * sizeof(float));
-	fImpl->fData = static_cast<const float*>(fImpl->fMap->Buffer());
-	fImpl->fCount = inCount;
-	fImpl->fRefCount = 1;
+}
+
+CDocWeightArray::CDocWeightArray(const CDocWeightArray& inOtherA,
+		const CDocWeightArray& inOtherB)
+	: fImpl(new CJoinedDocWeightArrayImp(inOtherA.fImpl, inOtherB.fImpl))
+{
 }
 
 CDocWeightArray::CDocWeightArray(const CDocWeightArray& inOther)
 	: fImpl(inOther.fImpl)
 {
-	++fImpl->fRefCount;
+	fImpl->Reference();
 }
 
 CDocWeightArray& CDocWeightArray::operator=(const CDocWeightArray& inOther)
 {
 	if (this != &inOther)
 	{
-		if (--fImpl->fRefCount == 0)
-			delete fImpl;
-
+		fImpl->Release();
 		fImpl = inOther.fImpl;
-
-		++fImpl->fRefCount;
+		fImpl->Reference();
 	}
 	
 	return *this;
@@ -111,14 +202,13 @@ CDocWeightArray& CDocWeightArray::operator=(const CDocWeightArray& inOther)
 
 CDocWeightArray::~CDocWeightArray()
 {
-	if (--fImpl->fRefCount == 0)
-		delete fImpl;
+	fImpl->Release();
 }
 
 float CDocWeightArray::operator[](uint32 inDocNr) const
 {
 	if (inDocNr >= fImpl->fCount)
 		THROW(("Index for doc weights (%d) is out of range", inDocNr));
-	return net_swapper::swap(fImpl->fData[inDocNr]);
+	return fImpl->at(inDocNr);
 }
 

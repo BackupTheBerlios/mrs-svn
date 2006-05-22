@@ -45,6 +45,8 @@
 #include <string>
 #include <vector>
 
+#include "HError.h"
+
 #include "CIndex.h"
 
 class CIteratorBase
@@ -147,15 +149,25 @@ class CStrUnionIterator : public CIteratorBase
 	std::vector<CSubIter>	fIterators;
 };
 
-class CJoinedIterator : public CIteratorBase
+class CJoinedIteratorBase : public CIteratorBase
 {
   public:
+
+	virtual void	Append(CIteratorBase* inIter) = 0;
+
+	static CJoinedIteratorBase*	Create(uint32 inKind);
+};
+
+template<uint32 INDEX_TYPE>
+class CJoinedIterator : public CJoinedIteratorBase
+{
+	typedef typename CIndexTraits<INDEX_TYPE>::Comparator			Comparator;
+
+  public:
 					CJoinedIterator();
-					CJoinedIterator(
-						std::vector<CIteratorBase*>& inIters);
 					~CJoinedIterator();
 	
-	void			Append(CIteratorBase* inIter);
+	virtual void	Append(CIteratorBase* inIter);
 
 	virtual bool	Next(std::string& outString, int64& outValue);
 
@@ -163,23 +175,79 @@ class CJoinedIterator : public CIteratorBase
 	
 	struct CElement
 	{
+		typedef typename CJoinedIterator<INDEX_TYPE>::Comparator	Comparator;
+		
 		std::string		fSValue;
 		int64			fNValue;
 		CIteratorBase*	fIter;
 		
 		bool operator<(const CElement& inOther) const
 		{
-#if P_GNU
-			int d = strcmp(fSValue.c_str(), inOther.fSValue.c_str());
-#else
-			int d = fSValue.compare(inOther.fSValue);
-#endif
+			Comparator	comp;
+			int d = comp.Compare(fSValue.c_str(), fSValue.length(),
+				inOther.fSValue.c_str(), inOther.fSValue.length());
 			return d > 0 or d == 0 and fNValue > inOther.fNValue;
 		}
 	};
-	typedef std::vector<CElement>	CElementList;
 
-	CElementList	fItems;
+	typedef std::vector<CElement>				CElementList;
+	typedef typename CElementList::iterator		CElementListIterator;
+
+	CElementList		fItems;
 };
+
+template<uint32 INDEX_TYPE>
+CJoinedIterator<INDEX_TYPE>::CJoinedIterator()
+{
+}
+
+template<uint32 INDEX_TYPE>
+CJoinedIterator<INDEX_TYPE>::~CJoinedIterator()
+{
+	CElementListIterator e;
+	for (e = fItems.begin(); e != fItems.end(); ++e)
+		delete e->fIter;
+}
+
+template<uint32 INDEX_TYPE>
+void CJoinedIterator<INDEX_TYPE>::Append(CIteratorBase* inIter)
+{
+	CElement e;
+	
+	e.fIter = inIter;
+	
+	if (inIter->Next(e.fSValue, e.fNValue))
+	{
+		fItems.push_back(e);
+		make_heap(fItems.begin(), fItems.end());
+	}
+	else
+		delete inIter;
+}
+
+template<uint32 INDEX_TYPE>
+bool CJoinedIterator<INDEX_TYPE>::Next(std::string& outString, int64& outValue)
+{
+	bool result = false;
+	
+	if (fItems.size() > 0)
+	{
+		pop_heap(fItems.begin(), fItems.end());
+		
+		outString = fItems.back().fSValue;
+		outValue = fItems.back().fNValue;
+		result = true;
+		
+		if (fItems.back().fIter->Next(fItems.back().fSValue, fItems.back().fNValue))
+			push_heap(fItems.begin(), fItems.end());
+		else
+		{
+			delete fItems.back().fIter;
+			fItems.erase(fItems.end() - 1);
+		}
+	}
+
+	return result;
+}
 
 #endif // CITERATOR_H
