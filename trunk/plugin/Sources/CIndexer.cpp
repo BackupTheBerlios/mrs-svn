@@ -2056,6 +2056,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 		if (fParts[ix].kind == kWeightedIndex)
 		{
 			HAutoBuf<float> dwb(new float[fHeader->entries]);
+			fParts[ix].weight_offset = outData.Seek(0, SEEK_END);
 			outData.Write(dwb.get(), sizeof(float) * fHeader->entries);
 		}
 		
