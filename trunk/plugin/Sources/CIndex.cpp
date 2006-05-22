@@ -1183,27 +1183,26 @@ typedef list<CTempValue>	CTempValueList;
 template<typename DD>
 void CIndexImpT<DD>::CreateFromIterator(CIteratorBase& inData)
 {
-//cerr << " sizeof(DD) = " << sizeof(DD)
-//	 << " sizeof(V2Entry) = " << sizeof(V2Entry)
-//	 << " sizeof(V2EntryArray) = " << sizeof(V2EntryArray)
-//	 << " kPageSize = " << kPageSize << endl;
-	
 	assert(sizeof(DD) == kPageSize);
 	
 	// first pass, collect the data from the iterator building the leaf pages
 	
-	string k;
+	string k, lk;
 	int64 v;
 	
 	CIndexPage p(fFile, fBaseOffset);
 	CTempValueList up;
 
 	fRoot = p.GetOffset();
-//cerr << "Root = " << fRoot << endl;
 
 	while (inData.Next(k, v))
 	{
-//cerr << "Entry " << k << " with value " << v << endl;
+		if (lk.length() and Compare(k, lk) < 0)
+		{
+			THROW(("Attempt to build an index from unsorted data: '%s' >= '%s' ",
+				k.c_str(), lk.c_str()));
+		}
+		lk = k;
 		
 		if (not p.CanStore(k))
 		{
