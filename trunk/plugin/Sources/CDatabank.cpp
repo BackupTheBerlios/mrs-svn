@@ -654,6 +654,8 @@ void CDatabank::Merge(vector<CDatabank*>& inParts)
 	fHeader->index_offset = fDataFile->Seek(0, SEEK_END);
 	CIndexer index(fPath);
 	index.MergeIndices(*fDataFile, inParts);
+	index.FixupDocWeights();
+
 	fDataFile->Seek(0, SEEK_END);
 	fHeader->index_size = fDataFile->Tell() - fHeader->index_offset;
 
@@ -747,9 +749,6 @@ void CDatabank::Merge(vector<CDatabank*>& inParts)
 	
 	fDataFile->Seek(0, SEEK_SET);
 	*fDataFile << *fHeader;
-
-	// now fix up the weighted document weights...
-	index.FixupDocWeights();
 }
 
 string CDatabank::GetDocument(uint32 inDocNr)
