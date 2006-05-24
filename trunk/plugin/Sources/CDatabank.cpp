@@ -1293,7 +1293,7 @@ CJoinedDatabank::CJoinedDatabank(vector<CDatabankBase*>& inParts)
 	set<string> indexes;
 	string code, type;
 	uint32 count;
-	uint32 maxWeight;
+	uint32 maxWeight = 0;
 
 	for (uint32 ix = 0; ix < fPartCount; ++ix)
 	{

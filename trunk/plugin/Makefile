@@ -56,7 +56,7 @@ endif
 
 SO_EXT		= .so
 LIBNAME		= libmrs
-VERSION		= 2.0
+VERSION		= 2.0.1
 # DEBUG should be either 1 or 0
 DEBUG		= 0
 DEFINES		= CPU_$(CPU) MINI_H_LIB
@@ -106,6 +106,7 @@ ifeq ($(OS),Linux)
 	LD_SO_FLAG	= -shared
 	LIBPATHS	+= /usr/local/lib64/
 	LDFLAGS		+= -pthread
+	LIBS		+= uuid
 	STRIP		= strip -d
 	OPT			+= -O3
 

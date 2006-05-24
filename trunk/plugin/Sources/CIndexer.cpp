@@ -1906,7 +1906,11 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 			md[i].indx = new CIndex(fParts[ix].kind, fParts[ix].large_offsets,
 				*md[i].data, md[i].info[ix].tree_offset, md[i].info[ix].root);
 
-			iter->Append(new CIteratorWrapper<CIndex>(*md[i].indx, count));
+			uint32 delta = 0;
+			if (fParts[ix].kind == kValueIndex)
+				delta = count;
+			
+			iter->Append(new CIteratorWrapper<CIndex>(*md[i].indx, delta), i);
 			
 			count += md[i].count;
 		}
@@ -1924,11 +1928,12 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 //		list<pair<string,uint32> > indx;
 		CMergeIndexBuffer indx(fDb);
 		string s, lastS;
-		int64 v = 0;
 		
 		fParts[ix].entries = 0;
 		fParts[ix].sig = kIndexPartSig;
 		fParts[ix].large_offsets = false;
+		
+		vector<pair<uint32,int64> > v;
 		
 		while (iter->Next(s, v))
 		{
@@ -1947,7 +1952,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 			switch (fParts[ix].kind)
 			{
 				case kValueIndex:
-					indx.push_back(make_pair(s, v));
+					indx.push_back(make_pair(s, v[0].second));
 					break;
 				
 				case kTextIndex:
@@ -1959,16 +1964,19 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					
 					for (i = 0; i < md.size(); ++i)
 					{
-						int64 o;
-
-						if (md[i].info[ix].kind != 0 and md[i].indx->GetValue(s, o))
+						for (uint32 j = 0; j < v.size(); ++j)
 						{
-							CDbDocIterator docIter(*md[i].data,
-								md[i].info[ix].bits_offset + o, md[i].count);
-						
-							uint32 doc;
-							while (docIter.Next(doc, false))
-								docs.push_back(doc + first);
+							if (v[j].first == i)
+							{
+								CDbDocIterator docIter(*md[i].data,
+									md[i].info[ix].bits_offset + v[j].second, md[i].count);
+							
+								uint32 doc;
+								while (docIter.Next(doc, false))
+									docs.push_back(doc + first);
+								
+								break;
+							}
 						}
 
 						first += md[i].count;
@@ -1995,17 +2003,20 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					
 					for (i = 0; i < md.size(); ++i)
 					{
-						int64 o;
-
-						if (md[i].info[ix].kind != 0 and md[i].indx->GetValue(s, o))
+						for (uint32 j = 0; j < v.size(); ++j)
 						{
-							CDbDocWeightIterator docIter(*md[i].data,
-								md[i].info[ix].bits_offset + o, md[i].count);
-						
-							uint32 doc;
-							uint8 weight;
-							while (docIter.Next(doc, weight, false))
-								docs.push_back(make_pair(doc + first, weight));
+							if (v[j].first == i)
+							{
+								CDbDocWeightIterator docIter(*md[i].data,
+									md[i].info[ix].bits_offset + v[j].second, md[i].count);
+							
+								uint32 doc;
+								uint8 weight;
+								while (docIter.Next(doc, weight, false))
+									docs.push_back(make_pair(doc + first, weight));
+								
+								break;
+							}
 						}
 
 						first += md[i].count;
