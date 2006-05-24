@@ -654,7 +654,7 @@ void CDatabank::Merge(vector<CDatabank*>& inParts)
 	fHeader->index_offset = fDataFile->Seek(0, SEEK_END);
 	CIndexer index(fPath);
 	index.MergeIndices(*fDataFile, inParts);
-	index.FixupDocWeights();
+//	index.FixupDocWeights();
 
 	fDataFile->Seek(0, SEEK_END);
 	fHeader->index_size = fDataFile->Tell() - fHeader->index_offset;

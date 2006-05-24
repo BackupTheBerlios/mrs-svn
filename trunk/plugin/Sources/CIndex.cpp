@@ -1429,7 +1429,7 @@ CIndex* CIndex::CreateFromIterator(uint32 inIndexKind, bool inLargeOffsets, CIte
 	
 #if P_DEBUG
 	result->fImpl->Test(*result);
-	result->Dump();
+//	result->Dump();
 #endif
 	
 	return result.release();

@@ -1884,11 +1884,6 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 		}
 
 		uint32 i;
-		
-		// make sure we know the kind
-		for (i = 0; fParts[ix].kind == 0 and i < md.size(); ++i)
-			fParts[ix].kind = md[i].info[ix].kind;
-
 		int32 count = 0;
 		auto_ptr<CJoinedIteratorBase> iter(CJoinedIteratorBase::Create(fParts[ix].kind));
 		
@@ -1900,7 +1895,12 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 				continue;
 			
 			if (fParts[ix].kind != md[i].info[ix].kind)
-				THROW(("Incompatible index types"));
+			{
+				if (fParts[ix].kind == 0)
+					fParts[ix].kind = md[i].info[ix].kind;
+				else
+					THROW(("Incompatible index types"));
+			}
 
 			md[i].data = &inParts[i]->GetDataFile();
 			md[i].indx = new CIndex(fParts[ix].kind, fParts[ix].large_offsets,
@@ -1920,6 +1920,16 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 
 		if (fParts[ix].kind != kValueIndex)
 			bitFile.reset(new HTempFileStream(url));
+
+		HAutoBuf<float> dwb(nil);
+		float* dw;
+		if (fParts[ix].kind == kWeightedIndex)
+		{
+			dwb.reset(new float[fHeader->entries]);
+			dw = dwb.get();
+			
+			memset(dw, 0, sizeof(float) * fHeader->entries);
+		}
 				
 		fParts[ix].tree_offset = outData.Seek(0, SEEK_END);
 		fParts[ix].root = 0;
@@ -2011,9 +2021,17 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 									md[i].info[ix].bits_offset + v[j].second, md[i].count);
 							
 								uint32 doc;
-								uint8 weight;
-								while (docIter.Next(doc, weight, false))
-									docs.push_back(make_pair(doc + first, weight));
+								uint8 freq;
+
+								float idf = docIter.GetIDFCorrectionFactor();
+
+								while (docIter.Next(doc, freq, false))
+								{
+									docs.push_back(make_pair(doc + first, freq));
+
+									float wdt = freq * idf;
+									dw[doc + first] += wdt * wdt;
+								}
 								
 								break;
 							}
@@ -2066,9 +2084,12 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 		// allocate disk space for the doc weight vector, if needed
 		if (fParts[ix].kind == kWeightedIndex)
 		{
-			HAutoBuf<float> dwb(new float[fHeader->entries]);
 			fParts[ix].weight_offset = outData.Seek(0, SEEK_END);
-			outData.Write(dwb.get(), sizeof(float) * fHeader->entries);
+			
+			for (uint32 d = 0; d < fHeader->entries; ++d)
+				dw[d] = net_swapper::swap(sqrt(dw[d]));
+			
+			outData.Write(dw, sizeof(float) * fHeader->entries);
 		}
 		
 		for (i = 0; i < md.size(); ++i)
