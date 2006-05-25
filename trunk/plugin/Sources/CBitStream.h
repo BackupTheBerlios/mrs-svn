@@ -186,13 +186,6 @@ class CBinaryInStream
 	CIBitStream&		fBits;
 };
 
-
-template<class T>
-void CompressArray(COBitStream& inBits, const T& inArray, int64 inMax);
-
-template<class T>
-void DecompressArray(CIBitStream& inBits, T& outArray, int64 inMax);
-
 // inline implementations
 
 inline

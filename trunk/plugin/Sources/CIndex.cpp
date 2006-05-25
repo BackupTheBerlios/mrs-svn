@@ -238,10 +238,13 @@ struct COnDiskDataV2
 	uint32			pp;
 	int32			n;
 	unsigned char	keys[kKeySpace];
-	struct
+	union
 	{
-		int64		value : 40;
-		uint32		p	  : 24;
+		struct {
+			int64	value : 40;
+			uint32	p	  : 24;
+		};
+		int64		d;
 	}				e[1];
 
 	static uint32	PageNrToAddr(uint32 inPageNr)	{ return (inPageNr - 1) * kPageSize; }
@@ -256,10 +259,7 @@ void COnDiskDataV2::SwapBytesNToH()
 	n = byte_swapper::swap(n);
 
 	for (int32 i = 0; i < n; ++i)
-	{
-		e[-i].p = byte_swapper::swap(e[-i].p) >> 24;
-		e[-i].value = byte_swapper::swap(e[-i].value) >> 8;
-	}
+		e[-i].d = byte_swapper::swap(e[-i].d);
 
 	p0 = byte_swapper::swap(p0);
 	pp = byte_swapper::swap(pp);
@@ -268,10 +268,7 @@ void COnDiskDataV2::SwapBytesNToH()
 void COnDiskDataV2::SwapBytesHToN()
 {
 	for (int32 i = 0; i < n; ++i)
-	{
-		e[-i].p = byte_swapper::swap(e[-i].p) >> 24;
-		e[-i].value = byte_swapper::swap(e[-i].value) >> 8;
-	}
+		e[-i].d = byte_swapper::swap(e[-i].d);
 
 	n = byte_swapper::swap(n);
 
@@ -1197,7 +1194,7 @@ void CIndexImpT<DD>::CreateFromIterator(CIteratorBase& inData)
 
 	while (inData.Next(k, v))
 	{
-		if (lk.length() and Compare(k, lk) < 0)
+		if (lk.length() and Compare(k, lk) <= 0)
 		{
 			THROW(("Attempt to build an index from unsorted data: '%s' >= '%s' ",
 				k.c_str(), lk.c_str()));
@@ -1340,7 +1337,7 @@ void CIndexImpT<DD>::Dump(uint32 inPage, uint32 inLevel)
 		
 		p.GetData(i, k, v, c);
 		
-		cout << "ix: " << i << ", p: " << c << ", key: " << k << endl;
+		cout << "ix: " << i << ", p: " << c << ", key: " << k << " v: " << v << endl;
 	}
 
 	if (p.GetP0())
