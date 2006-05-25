@@ -190,12 +190,29 @@ struct COnDiskData
 	unsigned char	keys[kKeySpace];
 	struct
 	{
-		uint32		value;
-		uint32		p;
+		uint32		value_;
+		uint32		p_;
 	} e[1];
 	uint32			p0;
 	uint32			pp;
 	int32			n;
+	
+	uint32			GetValue(int32 inIndex) const
+					{
+						return e[-inIndex].value_;
+					}
+	void			SetValue(int32 inIndex, uint32 inValue)
+					{
+						e[-inIndex].value_ = inValue;
+					}
+	uint32			GetP(int32 inIndex) const
+					{
+						return e[-inIndex].p_;
+					}
+	void			SetP(int32 inIndex, uint32 inP)
+					{
+						e[-inIndex].p_ = inP;
+					}
 	
 	static uint32	PageNrToAddr(uint32 inPageNr)	{ return inPageNr; }
 	static uint32	PageAddrToNr(uint32 inPageAddr)	{ return inPageAddr; }
@@ -210,8 +227,8 @@ void COnDiskData::SwapBytesNToH()
 
 	for (int32 i = 0; i < n; ++i)
 	{
-		e[-i].p = byte_swapper::swap(e[-i].p);
-		e[-i].value = byte_swapper::swap(e[-i].value);
+		e[-i].p_ = byte_swapper::swap(e[-i].p_);
+		e[-i].value_ = byte_swapper::swap(e[-i].value_);
 	}
 
 	p0 = byte_swapper::swap(p0);
@@ -222,8 +239,8 @@ void COnDiskData::SwapBytesHToN()
 {
 	for (int32 i = 0; i < n; ++i)
 	{
-		e[-i].p = byte_swapper::swap(e[-i].p);
-		e[-i].value = byte_swapper::swap(e[-i].value);
+		e[-i].p_ = byte_swapper::swap(e[-i].p_);
+		e[-i].value_ = byte_swapper::swap(e[-i].value_);
 	}
 
 	n = byte_swapper::swap(n);
@@ -246,6 +263,25 @@ struct COnDiskDataV2
 		};
 		int64		d;
 	}				e[1];
+
+	int64			GetValue(int32 inIndex) const
+					{
+						return e[-inIndex].d >> 24;
+					}
+	void			SetValue(int32 inIndex, int64 inValue)
+					{
+						e[-inIndex].d &= 0x0FFFFFFULL;
+						e[-inIndex].d |= inValue << 24;
+					}
+	uint32			GetP(int32 inIndex) const
+					{
+						return e[-inIndex].d & 0x0FFFFFFULL;
+					}
+	void			SetP(int32 inIndex, uint32 inP)
+					{
+						e[-inIndex].d &= ~0x0FFFFFFULL;
+						e[-inIndex].d |= (inP & 0x0FFFFFFULL);
+					}
 
 	static uint32	PageNrToAddr(uint32 inPageNr)	{ return (inPageNr - 1) * kPageSize; }
 	static uint32	PageAddrToNr(uint32 inPageAddr)	{ return (inPageAddr / kPageSize) + 1; }
@@ -443,8 +479,10 @@ void CIndexPage<DD>::GetData(uint32 inIndex, string& outKey, int64& outValue, ui
 	
 	const unsigned char* k = GetKey(inIndex);
 	outKey.assign(reinterpret_cast<const char*>(k) + 1, k[0]);
-	outValue = fData.e[-static_cast<int32>(inIndex)].value;
-	outP = fData.e[-static_cast<int32>(inIndex)].p;
+//	outValue = fData.e[-static_cast<int32>(inIndex)].value;
+//	outP = fData.e[-static_cast<int32>(inIndex)].p;
+	outValue = fData.GetValue(inIndex);
+	outP = fData.GetP(inIndex);
 }
 
 template<typename DD>
@@ -454,7 +492,7 @@ uint32 CIndexPage<DD>::GetP(uint32 inIndex) const
 	if (inIndex >= fData.n)
 		THROW(("Index out of range"));
 	
-	return fData.e[-static_cast<int32>(inIndex)].p;
+	return fData.GetP(inIndex);
 }
 
 template<typename DD>
@@ -464,7 +502,7 @@ uint32 CIndexPage<DD>::GetIndexForP(uint32 inP) const
 
 	while (ix < fData.n)
 	{
-		if (fData.e[-static_cast<int32>(ix)].p == inP)
+		if (fData.GetP(ix) == inP)
 			break;
 		++ix;
 	}
@@ -479,7 +517,7 @@ void CIndexPage<DD>::SetValue(uint32 inIndex, uint32 inValue)
 	if (inIndex >= fData.n)
 		THROW(("Index out of range"));
 	
-	fData.e[-static_cast<int32>(inIndex)].value = inValue;
+	fData.SetValue(inIndex, inValue);
 	fDirty = true;
 }
 
@@ -500,9 +538,9 @@ void CIndexPage<DD>::SetParent(uint32 inParent)
 	
 	for (int32 i = 0; i < fData.n; ++i)
 	{
-		if (fData.e[-i].p != 0)
+		if (fData.GetP(i) != 0)
 		{
-			CIndexPage p(*fFile, fBaseOffset, fData.e[-i].p);
+			CIndexPage p(*fFile, fBaseOffset, fData.GetP(i));
 			p.SetParent(fOffset);
 		}
 	}
@@ -559,8 +597,8 @@ void CIndexPage<DD>::Insert(int32 inIndex, const string& inKey, int64 inValue, u
 	k[0] = static_cast<uint8>(inKey.length());
 	inKey.copy(reinterpret_cast<char*>(k) + 1, inKey.length());
 	
-	fData.e[-static_cast<int32>(inIndex)].value = inValue;
-	fData.e[-static_cast<int32>(inIndex)].p = inP;
+	fData.SetValue(inIndex, inValue);
+	fData.SetP(inIndex, inP);
 	++fData.n;
 
 //#if P_DEBUG
@@ -969,7 +1007,7 @@ void CIndexImpT<DD>::LowerBoundImp(const string& inKey, uint32 inPage, uint32& o
 		
 		uint32 p;
 		if (R >= 0)
-			p = data.e[-R].p;
+			p = data.GetP(R);
 		else
 			p = data.p0;
 
@@ -1013,7 +1051,7 @@ bool CIndexImpT<DD>::GetValue(const string& inKey, int64& outValue) const
 			if (d == 0)
 			{
 				found = true;
-				outValue = data.e[-i].value;
+				outValue = data.GetValue(i);
 				break;
 			}
 			else if (d < 0)
@@ -1023,7 +1061,7 @@ bool CIndexImpT<DD>::GetValue(const string& inKey, int64& outValue) const
 		}
 		
 		if (R >= 0)
-			page = data.e[-R].p;
+			page = data.GetP(R);
 		else
 			page = data.p0;
 	}
@@ -1076,7 +1114,7 @@ void CIndexImpT<DD>::GetValuesForPattern(const string& inKey, vector<uint32>& ou
 		if (R < 0)
 			page = p.GetP0();
 		else
-			page = p.GetData().e[-R].p;
+			page = p.GetData().GetP(R);
 	}
 
 	bool done = false;
