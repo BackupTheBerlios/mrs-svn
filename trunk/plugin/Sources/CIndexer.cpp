@@ -2002,7 +2002,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					COBitStream bits(*bitFile.get());
 					CompressArray(bits, docs, fHeader->entries);
 					
-					indx.push_back(make_pair(s, static_cast<uint32>(offset)));
+					indx.push_back(make_pair(s, offset));
 					break;
 				}
 				
@@ -2050,7 +2050,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					COBitStream bits(*bitFile.get());
 					CompressArray(bits, docs, fHeader->entries);
 					
-					indx.push_back(make_pair(s, static_cast<uint32>(offset)));
+					indx.push_back(make_pair(s, offset));
 					break;
 				}
 			}
