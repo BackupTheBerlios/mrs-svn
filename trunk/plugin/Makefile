@@ -83,7 +83,8 @@ ifeq ($(OS),FreeBSD)
 	LIBS		+= 
 	INCPATHS	+= 
 	SYSINCPATHS	+= /usr/local/include
-	DEFINES		+= HAS_ENDIAN FREEBSD
+	DEFINES		+= HAS_ENDIAN FREEBSD HAVE_SYS_IOCTL_H HAVE_SYS_SOCKIO_H \
+					HAVE_SYS_SOCKET_H HAVE_NETINET_IN_H HAVE_SRANDOM HAVE_NET_IF_DL_H HAVE_SA_LEN
 	LDFLAGS		+= -shared
 	CTAGS		= exctags
 	STRIP		= strip -d
@@ -102,7 +103,8 @@ endif
 
 ifeq ($(OS),Linux)
 	SHELLLIBS	+= dl pthread
-	DEFINES		+= LINUX
+	DEFINES		+= LINUX HAVE_SYS_IOCTL_H HAVE_SYS_SOCKIO_H \
+					HAVE_SYS_SOCKET_H HAVE_NETINET_IN_H HAVE_SRANDOM HAVE_NET_IF_DL_H HAVE_SA_LEN
 	LD_SO_FLAG	= -shared
 	LIBPATHS	+= /usr/local/lib64/
 	LDFLAGS		+= -pthread
@@ -124,7 +126,8 @@ endif
 endif
 
 ifeq ($(CPU),mips)
-	DEFINES		+= IRIX
+	DEFINES		+= IRIX HAVE_SYS_IOCTL_H HAVE_SYS_SOCKIO_H \
+					HAVE_SYS_SOCKET_H HAVE_NETINET_IN_H HAVE_SRANDOM HAVE_NET_IF_DL_H HAVE_SA_LEN
 	SYSINCPATHS += /opt/MIPSpro/MIPSpro/usr/include
 	SYSINCPATHS += /usr/freeware/include /home/cc/hekkel/include
 	LIBPATHS	+= /usr/freeware/lib32 /home/cc/hekkel/lib
@@ -142,7 +145,8 @@ else
 	SO_EXT		:= .bundle
 	LD_SO_FLAG	= -dynamiclib -framework JavaVM -undefined suppress -flat_namespace
 endif
-	DEFINES		+= DARWIN
+	DEFINES		+= DARWIN HAVE_SYS_IOCTL_H HAVE_SYS_SOCKIO_H \
+					HAVE_SYS_SOCKET_H HAVE_NETINET_IN_H HAVE_SRANDOM HAVE_NET_IF_DL_H HAVE_SA_LEN
 	LDFLAGS		+= 
 	CFLAGS		+= -force_cpusubtype_ALL
 	OPT			+= -O3 -mcpu=G4 -falign-loops=32
@@ -215,6 +219,16 @@ Sources = \
 	./Lib/Posix/HUnixFile.cpp \
 	./Lib/Posix/HUnixUtils.cpp \
 	./Lib/loki/SmallObj.cpp \
+	./Lib/uuid/clear.c \
+	./Lib/uuid/compare.c \
+	./Lib/uuid/copy.c \
+	./Lib/uuid/gen_uuid.c \
+	./Lib/uuid/isnull.c \
+	./Lib/uuid/pack.c \
+	./Lib/uuid/parse.c \
+	./Lib/uuid/unpack.c \
+	./Lib/uuid/unparse.c \
+	./Lib/uuid/uuid_time.c \
 	./Sources/CBlast.cpp \
 	./Sources/CBlastIndex.cpp \
 	./Sources/CMatrix.cpp \
@@ -333,6 +347,10 @@ $(OBJDIR)/%.o: %.cpp
 	@ echo "=> "$(@F)
 	@ $(CC) -c $< -o $@ $(INCLUDES) $(CFLAGS)
 
+$(OBJDIR)/%.o: %.c
+	@ echo "=> "$(@F)
+	@ $(CC) -c $< -o $@ $(INCLUDES) $(CFLAGS)
+
 include $(OBJS:%.o=%.d)
 
 ifeq ($(SWIG_VERSION),1.3.27)
@@ -355,6 +373,11 @@ Sources/MRS_java.cpp: Sources/MRSInterface.h Sources/MRS_java.i
 endif
 
 $(OBJDIR)/%.d:%.cpp
+	@ test -d $(OBJDIR) || mkdir $(OBJDIR)
+	@ echo "-> "$(@F)
+	@ $(SHELL) -ec '$(CC) $(DEFS) -M $(INCLUDES) $< | sed '\''s/\(.*\.o\)[ :]*/$(OBJDIR)\/\1 $(@F): /g'\'' > $@'
+
+$(OBJDIR)/%.d:%.c
 	@ test -d $(OBJDIR) || mkdir $(OBJDIR)
 	@ echo "-> "$(@F)
 	@ $(SHELL) -ec '$(CC) $(DEFS) -M $(INCLUDES) $< | sed '\''s/\(.*\.o\)[ :]*/$(OBJDIR)\/\1 $(@F): /g'\'' > $@'
