@@ -1848,6 +1848,56 @@ XS(_wrap_MDatabank_DumpInfo) {
 }
 
 
+XS(_wrap_MDatabank_DumpIndex) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        std::string *arg2 = 0 ;
+        std::string temp2 ;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 2) || (items > 2)) {
+            SWIG_croak("Usage: MDatabank_DumpIndex(self,inIndex);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_DumpIndex. Expected _p_MDatabank");
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(1), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 2 of MDatabank_DumpIndex.");
+            } else {
+                temp2.assign(ptr, len);
+                arg2 = &temp2;
+            }
+        }
+        {
+            try {
+                (arg1)->DumpIndex((std::string const &)*arg2);
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
 XS(_wrap_MDatabank_CountForKey) {
     {
         MDatabank *arg1 = (MDatabank *) 0 ;
@@ -6364,6 +6414,7 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MDatabank_GetVersion", _wrap_MDatabank_GetVersion},
 {"MRSc::MDatabank_GetUUID", _wrap_MDatabank_GetUUID},
 {"MRSc::MDatabank_DumpInfo", _wrap_MDatabank_DumpInfo},
+{"MRSc::MDatabank_DumpIndex", _wrap_MDatabank_DumpIndex},
 {"MRSc::MDatabank_CountForKey", _wrap_MDatabank_CountForKey},
 {"MRSc::MDatabank_Find", _wrap_MDatabank_Find},
 {"MRSc::MDatabank_Match", _wrap_MDatabank_Match},

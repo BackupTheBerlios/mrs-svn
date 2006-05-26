@@ -105,6 +105,7 @@ sub new {
 *GetVersion = *MRSc::MDatabank_GetVersion;
 *GetUUID = *MRSc::MDatabank_GetUUID;
 *DumpInfo = *MRSc::MDatabank_DumpInfo;
+*DumpIndex = *MRSc::MDatabank_DumpIndex;
 *CountForKey = *MRSc::MDatabank_CountForKey;
 *Find = *MRSc::MDatabank_Find;
 *Match = *MRSc::MDatabank_Match;

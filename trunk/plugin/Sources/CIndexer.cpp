@@ -601,7 +601,7 @@ void CFullTextIndex::AddWord(uint8 inIndex, uint32 inWord, uint8 inFrequency)
 	if (fFTIndexCnt < inIndex + 1)
 		fFTIndexCnt = inIndex + 1;
 
-	if (inFrequency > 0)
+	if (inFrequency > 0 and not IsStopWord(inWord))
 	{
 		DocWord w = { inWord, inIndex, inFrequency };
 		
@@ -1174,8 +1174,8 @@ class CAllTextIndex : public CWeightedWordIndex
 						uint16 inIndexNr, const HUrl& inScratch,
 						uint32 inWeightBitCount);						
 	
-	virtual void	AddDocTerm(uint32 inDoc, uint8 inFrequency);
-	virtual void	FlushTerm(uint32 inTerm, uint32 inDocCount);
+//	virtual void	AddDocTerm(uint32 inDoc, uint8 inFrequency);
+//	virtual void	FlushTerm(uint32 inTerm, uint32 inDocCount);
 
   private:
 	uint32			fDocNr;
@@ -1190,28 +1190,28 @@ CAllTextIndex::CAllTextIndex(CFullTextIndex& inFullTextIndex,
 {
 }
 
-void CAllTextIndex::AddDocTerm(uint32 inDoc, uint8 inFrequency)
-{
-	if (inDoc == fDocNr)
-		fFreq += inFrequency;
-	else
-	{
-		CTextIndexBase::AddDocTerm(fDocNr, fFreq);
-		fDocNr = inDoc;
-		fFreq = inFrequency;
-	}
-}
+//void CAllTextIndex::AddDocTerm(uint32 inDoc, uint8 inFrequency)
+//{
+//	if (inDoc == fDocNr)
+//		fFreq += inFrequency;
+//	else
+//	{
+////		CTextIndexBase::AddDocTerm(fDocNr, fFreq);
+//		fDocNr = inDoc;
+//		fFreq = inFrequency;
+//	}
+//}
 
-void CAllTextIndex::FlushTerm(uint32 inTerm, uint32 inDocCount)
-{
-	if (fFreq != 0)
-		CTextIndexBase::AddDocTerm(fDocNr, fFreq);
-
-	fDocNr = 0;
-	fFreq = 0;
-	
-	CTextIndexBase::FlushTerm(inTerm, inDocCount);
-}
+//void CAllTextIndex::FlushTerm(uint32 inTerm, uint32 inDocCount)
+//{
+//	if (fFreq != 0)
+//		CTextIndexBase::AddDocTerm(fDocNr, fFreq);
+//
+//	fDocNr = 0;
+//	fFreq = 0;
+//	
+//	CTextIndexBase::FlushTerm(inTerm, inDocCount);
+//}
 
 class CDateIndex : public CTextIndexBase
 {
@@ -1571,17 +1571,30 @@ void CIndexer::CreateIndex(HStreamBase& inFile,
 			cout.flush();
 		}
 
-		uint32 iDoc, iTerm, iIx, lTerm = 0, i;
-		uint8 iWeight;
+		uint32 iDoc, lDoc, iTerm, iIx, lTerm = 0, i, tFreq;
+		uint8 iFreq;
 		CFullTextIndex::CRunEntryIterator iter(*fFullTextIndex, fHeader->weight_bit_count);
 	
 		// the next loop is very *hot*, make sure it is optimized as much as possible
-		if (iter.Next(iDoc, iTerm, iIx, iWeight))
+		if (iter.Next(iDoc, iTerm, iIx, iFreq))
 		{
 			lTerm = iTerm;
-	
+			lDoc = iDoc;
+			tFreq = iFreq;
+
+			bool isStopWord = fFullTextIndex->IsStopWord(iTerm);
+
 			do
 			{
+				if (allIndex and (lDoc != iDoc or lTerm != iTerm))
+				{
+					if (not isStopWord)
+						allIndex->AddDocTerm(lDoc, tFreq);
+
+					lDoc = iDoc;
+					tFreq = 0;
+				}
+				
 				if (lTerm != iTerm)
 				{
 					for (i = 0; i < textIndexCount; ++i)
@@ -1590,18 +1603,19 @@ void CIndexer::CreateIndex(HStreamBase& inFile,
 							txtIndex[i]->FlushTerm(lTerm, fHeader->entries);
 					}
 					
-					if (allIndex and not allIndex->Empty())
+					if (allIndex and not isStopWord)
 						allIndex->FlushTerm(lTerm, fHeader->entries);
 
 					lTerm = iTerm;
+					tFreq = 0;
+					isStopWord = fFullTextIndex->IsStopWord(iTerm);
 				}
-	
-				txtIndex[iIx]->AddDocTerm(iDoc, iWeight);
 				
-				if (allIndex != nil and not fFullTextIndex->IsStopWord(iTerm))
-					allIndex->AddDocTerm(iDoc, iWeight);
+				txtIndex[iIx]->AddDocTerm(iDoc, iFreq);
+
+				tFreq += iFreq;
 			}
-			while (iter.Next(iDoc, iTerm, iIx, iWeight));
+			while (iter.Next(iDoc, iTerm, iIx, iFreq));
 		}
 	
 		for (i = 0; i < textIndexCount; ++i)
