@@ -103,12 +103,11 @@ endif
 
 ifeq ($(OS),Linux)
 	SHELLLIBS	+= dl pthread
-	DEFINES		+= LINUX HAVE_SYS_IOCTL_H HAVE_SYS_SOCKIO_H \
-					HAVE_SYS_SOCKET_H HAVE_NETINET_IN_H HAVE_SRANDOM HAVE_NET_IF_DL_H HAVE_SA_LEN
+	DEFINES		+= LINUX HAVE_SYS_IOCTL_H \
+					HAVE_SYS_SOCKET_H HAVE_NETINET_IN_H HAVE_SRANDOM HAVE_SA_LEN
 	LD_SO_FLAG	= -shared
 	LIBPATHS	+= /usr/local/lib64/
 	LDFLAGS		+= -pthread
-	LIBS		+= uuid
 	STRIP		= strip -d
 	OPT			+= -O3
 
@@ -175,10 +174,10 @@ endif
 LIBNAME	:= $(LIBNAME).a
 
 ifeq ($(TARGET),java)
-	OUTPUT		= libmrs$(SO_EXT)
+	OUTPUT		?= libmrs$(SO_EXT)
 else
 ifeq ($(TARGET),perl5)
-	OUTPUT		= MRS$(SO_EXT)
+	OUTPUT		?= MRS$(SO_EXT)
 else
 fout
 endif
