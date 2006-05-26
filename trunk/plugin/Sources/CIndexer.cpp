@@ -2066,12 +2066,12 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 			fParts[ix].bits_offset = outData.Seek(0, SEEK_END);
 			
 			char b[10240];
-			uint32 k = bitFile->Size();
+			int64 k = bitFile->Size();
 			bitFile->Seek(0, SEEK_SET);
 			
 			while (k > 0)
 			{
-				uint32 n = k;
+				int64 n = k;
 				if (n > sizeof(b))
 					n = sizeof(b);
 				
