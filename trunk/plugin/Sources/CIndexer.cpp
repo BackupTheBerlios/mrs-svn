@@ -70,6 +70,8 @@ using namespace std;
 
 unsigned int WEIGHT_BIT_COUNT = 5;
 
+const char kAllTextIndexName[] = "__ALL_TEXT__";
+
 /*
 	Data structures on disk
 */
@@ -421,10 +423,6 @@ class CFullTextIndex
 	void			ReleaseBuffer(uint32 inWeightBitCount);
 	
 	void			SetStopWords(const vector<string>& inStopWords);
-	bool			IsStopWord(const string& inWord) const
-					{
-						return fStopWords.count(inWord) > 0;
-					}
 
 	// two versions for AddWord, one works with lexicon's ID's
 	void			AddWord(uint8 inIndex, const string& inWord, uint8 inFrequency);
@@ -462,6 +460,11 @@ class CFullTextIndex
 	int				Compare(uint32 inTermA, uint32 inTermB) const
 					{
 						return lexicon.Compare(inTermA, inTermB);
+					}
+
+	bool			IsStopWord(uint32 inTerm) const
+					{
+						return fStopWords.count(inTerm) > 0;
 					}
 
   private:
@@ -548,7 +551,7 @@ class CFullTextIndex
 				{ return inA->term > inB->term or (inA->term == inB->term and inA->doc > inB->doc); }
 	};
 
-	typedef tr1::unordered_set<string, boost::hash<string> > CHashedSet;
+	typedef tr1::unordered_set<uint32, boost::hash<uint32> > CHashedSet;
 	CHashedSet		fStopWords;
 
 	CLexicon		lexicon;
@@ -580,7 +583,7 @@ void CFullTextIndex::SetStopWords(const vector<string>& inStopWords)
 {
 	fStopWords.clear();
 	for (vector<string>::const_iterator sw = inStopWords.begin(); sw != inStopWords.end(); ++sw)
-		fStopWords.insert(*sw);
+		fStopWords.insert(Store(*sw));
 }
 
 void CFullTextIndex::AddWord(uint8 inIndex, const string& inWord, uint8 inFrequency)
@@ -841,11 +844,8 @@ CTextIndexBase::~CTextIndexBase()
 
 void CTextIndexBase::AddWord(const string& inWord, uint32 inFrequency)
 {
-	if (not fFullTextIndex.IsStopWord(inWord))
-	{
-		fFullTextIndex.AddWord(fIndexNr, inWord, inFrequency);
-		fEmpty = false;
-	}
+	fFullTextIndex.AddWord(fIndexNr, inWord, inFrequency);
+	fEmpty = false;
 }
 
 void CTextIndexBase::FlushDoc(uint32 /*inDocNr*/)
@@ -1184,7 +1184,7 @@ class CAllTextIndex : public CWeightedWordIndex
 
 CAllTextIndex::CAllTextIndex(CFullTextIndex& inFullTextIndex,
 		uint16 inIndexNr, const HUrl& inScratch, uint32 inWeightBitCount)
-		: CWeightedWordIndex(inFullTextIndex, "*alltext*", inIndexNr, inScratch, inWeightBitCount)
+		: CWeightedWordIndex(inFullTextIndex, kAllTextIndexName, inIndexNr, inScratch, inWeightBitCount)
 	, fDocNr(0)
 	, fFreq(0)
 {
@@ -1593,7 +1593,7 @@ void CIndexer::CreateIndex(HStreamBase& inFile,
 	
 				txtIndex[iIx]->AddDocTerm(iDoc, iWeight);
 				
-				if (allIndex != nil)
+				if (allIndex != nil and not fFullTextIndex->IsStopWord(iTerm))
 					allIndex->AddDocTerm(iDoc, iWeight);
 			}
 			while (iter.Next(iDoc, iTerm, iIx, iWeight));
@@ -1922,7 +1922,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 			bitFile.reset(new HTempFileStream(url));
 
 		HAutoBuf<float> dwb(nil);
-		float* dw;
+		float* dw = nil;
 		if (fParts[ix].kind == kWeightedIndex)
 		{
 			dwb.reset(new float[fHeader->entries]);
@@ -1930,7 +1930,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 			
 			memset(dw, 0, sizeof(float) * fHeader->entries);
 		}
-				
+
 		fParts[ix].tree_offset = outData.Seek(0, SEEK_END);
 		fParts[ix].root = 0;
 		fParts[ix].bits_offset = 0;
@@ -2134,10 +2134,12 @@ void CIndexer::GetIndexInfo(uint32 inIndexNr, string& outCode,
 CDocIterator* CIndexer::GetImpForPattern(const string& inIndex,
 	const string& inValue)
 {
+	string index = tolower(inIndex);
+	
 	auto_ptr<CDocIterator> result(nil);
 	
 	uint32 ix = 0;
-	while (ix < fHeader->count and inIndex != fParts[ix].name)
+	while (ix < fHeader->count and index != fParts[ix].name)
 		++ix;
 
 	if (ix == fHeader->count)
@@ -2373,7 +2375,10 @@ CIteratorBase* CIndexer::GetIteratorForIndexAndKey(const string& inIndex, const 
 
 CDocWeightArray CIndexer::GetDocWeights(const std::string& inIndex)
 {
-	string index = tolower(inIndex);
+	string index = inIndex;
+	if (index != kAllTextIndexName)
+		index = tolower(index);
+
 	uint32 ix;
 	
 	for (ix = 0; ix < fHeader->count; ++ix)
@@ -2395,7 +2400,10 @@ CDocWeightArray CIndexer::GetDocWeights(const std::string& inIndex)
 
 CDbDocIteratorBase* CIndexer::GetDocWeightIterator(const string& inIndex, const string& inKey)
 {
-	string index = tolower(inIndex);
+	string index = inIndex;
+	if (index != kAllTextIndexName)
+		index = tolower(index);
+
 	CDbDocIteratorBase* result = nil;
 	
 	for (uint32 ix = 0; result == nil and ix < fHeader->count; ++ix)
@@ -2527,7 +2535,10 @@ void CIndexer::RecalculateDocumentWeights(const std::string& inIndex)
 		cout.flush();
 	}
 	
-	string index = tolower(inIndex);
+	string index = inIndex;
+	if (index != kAllTextIndexName)	
+		index = tolower(index);
+	
 	auto_ptr<CIndex> indx;
 
 	uint32 ix;

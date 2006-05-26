@@ -125,7 +125,7 @@ int main(int argc, const char* argv[])
 	streambuf* outBuf = NULL;
 	vector<string> queryWords;
 
-	ix = "*alltext*";
+	ix = "__ALL_TEXT__";
 
 	int c;
 	while ((c = getopt(argc, const_cast<char**>(argv), "d:o:vq:f:s:i:a:")) != -1)

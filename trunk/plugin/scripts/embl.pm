@@ -89,8 +89,17 @@ sub parse
 
 			if ($line =~ /^ID +(\S+)/o)
 			{
-				$id = $1;
-				$m->IndexValue('id', $id);
+#				$id = $1;
+					
+				my @flds = split(m/;\s*/, $1);
+
+				$m->IndexValue('id', $flds[0]);
+				$flds[1] =~ m/SV (\d+)/ && $m->IndexWord('sv', $1);
+				$m->IndexWord('topology', $flds[2]);
+				$m->IndexWord('mt', $flds[3]);
+				$m->IndexWord('dc', $flds[4]);
+				$m->IndexWord('td', $flds[5]);
+				$flds[6] =~ m/(\d+)/ && $m->IndexNumber('length', $1);
 			}
 			elsif (substr($fld, 0, 1) eq 'R')
 			{
