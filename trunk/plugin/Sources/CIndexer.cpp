@@ -1282,7 +1282,12 @@ CIndexer::CIndexer(HStreamBase& inFile, int64 inOffset, int64 inSize)
 	
 	fParts = new SIndexPart[fHeader->count];
 	for (uint32 i = 0; i < fHeader->count; ++i)
+	{
 		view >> fParts[i];
+		
+		if (strcmp(fParts[i].name, "*alltext*") == 0)
+			strcpy(fParts[i].name, kAllTextIndexName);
+	}
 }
 
 CIndexer::~CIndexer()
@@ -1842,8 +1847,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 		vector<string>::iterator n;
 		for (uint32 i = 0; i < md[ix].info.size(); ++i)
 		{
-			n = find(names.begin(), names.end(),
-					string(md[ix].info[i].name));
+			n = find(names.begin(), names.end(), string(md[ix].info[i].name));
 			assert(n != names.end());
 			if (n != names.end())
 				names.erase(n);
