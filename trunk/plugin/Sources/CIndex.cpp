@@ -850,7 +850,7 @@ struct CIndexImp
 
 #if P_DEBUG
 	virtual void	Test(CIndex& inIndex) = 0;
-	virtual void	Dump(uint32 inPage, uint32 inLevel) = 0;
+	virtual void	Dump(uint32 inPage, uint32 inParent, uint32 inLevel) = 0;
 #endif
 
  	virtual int		Compare(const char* inA, uint32 inLengthA,
@@ -910,7 +910,7 @@ struct CIndexImpT : public CIndexImp
 
 #if P_DEBUG
 	virtual void	Test(CIndex& inIndex);
-	virtual void	Dump(uint32 inPage, uint32 inLevel);
+	virtual void	Dump(uint32 inPage, uint32 inParent, uint32 inLevel);
 #endif
 
   private:
@@ -1356,13 +1356,16 @@ void CIndexImpT<DD>::Test(CIndex& inIndex)
 }
 
 template<typename DD>
-void CIndexImpT<DD>::Dump(uint32 inPage, uint32 inLevel)
+void CIndexImpT<DD>::Dump(uint32 inPage, uint32 inParent, uint32 inLevel)
 {
 	const CIndexPage p(fFile, fBaseOffset, inPage);
 
 	for (uint32 j = 0; j < inLevel; ++j)
 		cout << "\t";
 	cout << "dumping page " << inPage << ", parent = " << p.GetParent() << endl;
+
+	if (inParent != p.GetParent())
+		cout << "!!! Parent is not correct, should be: " << inParent << endl;
 
 	for (uint32 i = 0; i < p.GetN(); ++i)
 	{
@@ -1379,7 +1382,8 @@ void CIndexImpT<DD>::Dump(uint32 inPage, uint32 inLevel)
 	}
 
 	if (p.GetP0())
-		Dump(p.GetP0(), inLevel + 1);
+	
+		Dump(p.GetP0(), inPage, inLevel + 1);
 	
 	for (uint32 i = 0; i < p.GetN(); ++i)
 	{
@@ -1390,7 +1394,7 @@ void CIndexImpT<DD>::Dump(uint32 inPage, uint32 inLevel)
 		p.GetData(i, k, v, c);
 		
 		if (c != 0)
-			Dump(c, inLevel + 1);
+			Dump(c, inPage, inLevel + 1);
 	}
 
 	cout << endl;
@@ -1614,7 +1618,7 @@ CIndex::iterator CIndex::upper_bound(const string& inKey)
 #if P_DEBUG
 void CIndex::Dump() const
 {
-	fImpl->Dump(fImpl->GetRoot(), 0);
+	fImpl->Dump(fImpl->GetRoot(), 0, 0);
 }
 #endif
 

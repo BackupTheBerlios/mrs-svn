@@ -136,6 +136,7 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	std::string			GetVersion();
 	std::string			GetUUID();
 	void				DumpInfo();
+	void				DumpIndex(const std::string& inIndex);
 	
 	long				CountForKey(const std::string& inIndex, const std::string& inKey) const;
 

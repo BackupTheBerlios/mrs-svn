@@ -477,6 +477,10 @@ void MDatabank::DumpInfo()
 {
 	fImpl->fDatabank->PrintInfo();
 }
+void MDatabank::DumpIndex(const string& inIndex)
+{
+	fImpl->GetDB()->DumpIndex(inIndex);
+}
 
 long MDatabank::CountForKey(const string& inIndex, const string& inKey) const
 {
