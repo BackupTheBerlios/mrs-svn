@@ -2421,6 +2421,7 @@ CDbDocIteratorBase* CIndexer::GetDocWeightIterator(const string& inIndex, const 
 		int64 value;
 		if (indx->GetValue(inKey, value))
 			result = new CDbDocWeightIterator(*fFile, fParts[ix].bits_offset + value, fHeader->entries);
+
 		break;
 	}
 
@@ -2462,16 +2463,9 @@ void CIndexer::DumpIndex(const string& inIndex) const
 #if P_DEBUG
 	index->Dump();
 #else
-//	for (CIndex::iterator i = index->begin(); i != index->end(); ++i)
-//		cout << i->first << endl;
-
-	CIndex::iterator i = index->end();
-	
-	while (i != index->begin())
-	{
-		--i;
-		cout << i->first << endl;
-	}
+	CIndex::iterator end = index->end();
+	for (CIndex::iterator i = index->begin(); i != end; ++i)
+		cout << i->first << '\t' << i->second << endl;
 #endif
 }
 
