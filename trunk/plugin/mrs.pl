@@ -38,12 +38,12 @@
 use strict;
 use English;
 use Time::HiRes qw(usleep ualarm gettimeofday tv_interval);
-#use Sys::Proctitle;
-use MRS;
+use Sys::Proctitle;
+use MRSd;
 
 #BEGIN {
 #	require "./MRS.pm";
-#	import MRS::errstr;
+#	import MRSd::errstr;
 #}
 
 use Getopt::Std;
@@ -58,11 +58,11 @@ my %opts;
 
 if ($action eq 'create')
 {
-	getopts('d:s:vp:P:b:', \%opts);
+	getopts('d:s:vp:P:b:w:', \%opts);
 	
 	my $db = $opts{d} or &Usage();
 	
-	&Create($db, $opts{'s'}, $opts{v}, $opts{p}, $opts{P}, $opts{b});
+	&Create($db, $opts{'s'}, $opts{v}, $opts{p}, $opts{P}, $opts{b}, $opts{w});
 }
 elsif ($action eq 'merge')
 {
@@ -171,6 +171,7 @@ Usage:
         -p      part number for this part
         -P      total number of parts
         -b		max weight bit count (default is 5)
+        -w      stopword file to use
         -v      verbose
 
     mrs merge -d databank -P total [-v]
@@ -219,7 +220,7 @@ END
 
 sub Create()
 {
-	my ($db, $script, $verbose, $partNr, $partCount, $weight_bit_count) = @_;
+	my ($db, $script, $verbose, $partNr, $partCount, $weight_bit_count, $stopwordsfile) = @_;
 	
 	$script = $db unless defined $script;
 	$verbose = 0 unless defined $verbose;
@@ -247,14 +248,14 @@ sub Create()
 	
 	# Set the MRS globals before creating an MRS object
 	
-	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
-	$MRS::COMPRESSION = $parser::COMPRESSION
+	$MRSd::VERBOSE = $verbose;	# increase to get more diagnostic output
+	$MRSd::COMPRESSION = $parser::COMPRESSION
 		if defined $parser::COMPRESSION;
-	$MRS::COMPRESSION_LEVEL = $parser::COMPRESSION_LEVEL
+	$MRSd::COMPRESSION_LEVEL = $parser::COMPRESSION_LEVEL
 		if defined $parser::COMPRESSION_LEVEL;
-	$MRS::COMPRESSION_DICTIONARY = $parser::COMPRESSION_DICTIONARY
+	$MRSd::COMPRESSION_DICTIONARY = $parser::COMPRESSION_DICTIONARY
 		if defined $parser::COMPRESSION_DICTIONARY;
-	$MRS::WEIGHT_BIT_COUNT = $weight_bit_count;
+	$MRSd::WEIGHT_BIT_COUNT = $weight_bit_count;
 	
 	my $cmp_name = $db;
 	$cmp_name .= $partNr if defined $partNr;
@@ -262,18 +263,20 @@ sub Create()
 	my $fileName = "$data_dir/$cmp_name.cmp";
 	my $exists = -f $fileName;
 	
-	my $mrs = MRS::MDatabank::Create($fileName)
-		or die "Could not create new databank $db: " . MRS::errstr;
+	my $mrs = MRSd::MDatabank::Create($fileName)
+		or die "Could not create new databank $db: " . &MRSd::errstr();
 
 	# protect the new born file
 	chmod 0400, "$data_dir/$cmp_name.cmp" if not $exists;
 	
 	# get the stop words list
 	
-	my @stopWords = &ReadStopWords();
+	if (defined $stopwordsfile)
+	{
+		my @stopWords = &ReadStopWords($stopwordsfile);
+		$mrs->SetStopWords(\@stopWords);
+	}
 
-	$mrs->SetStopWords(\@stopWords);
-	
 	# Now we can create the parser object
 	
 	my $p = new $parser(mrs => $mrs);
@@ -322,8 +325,8 @@ sub Create()
 	
 	foreach my $r (@raw_files)
 	{
-#		Sys::Proctitle::setproctitle(
-#			sprintf("[%d/%d] MRS: '%s'", $n++, $m, $r));
+		Sys::Proctitle::setproctitle(
+			sprintf("[%d/%d] MRS: '%s'", $n++, $m, $r));
 		
 		print "$r\n" if $verbose;
 		open IN, $r;
@@ -341,7 +344,7 @@ sub Merge()
 	my ($db, $verbose, $cnt) = @_;
 	
 	$verbose = 0 unless defined $verbose;
-	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
+	$MRSd::VERBOSE = $verbose;	# increase to get more diagnostic output
 
 	# define some globals
 	
@@ -351,13 +354,13 @@ sub Merge()
 	my @parts;
 	foreach my $n (1 .. $cnt)
 	{
-		my $part = new MRS::MDatabank("$db$n.cmp")
-			or die "Could not find part $n: " . MRS::errstr . "\n";
+		my $part = new MRSd::MDatabank("$db$n.cmp")
+			or die "Could not find part $n: " . &MRSd::errstr() . "\n";
 		
 		push @parts, $part;
 	}
 	
-	MRS::MDatabank::Merge("$data_dir/$db.cmp", \@parts);
+	MRSd::MDatabank::Merge("$data_dir/$db.cmp", \@parts);
 }
 
 sub Query()
@@ -365,9 +368,9 @@ sub Query()
 	my ($db, $verbose, $q, $r) = @_;
 	
 	$verbose = 0 unless defined $verbose;
-	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
+	$MRSd::VERBOSE = $verbose;	# increase to get more diagnostic output
 	
-	my $d = new MRS::MDatabank($db);
+	my $d = new MRSd::MDatabank($db);
 	
 #	my $s = $d->Find($q, 1);
 	
@@ -400,9 +403,9 @@ sub Entry()
 	my ($db, $entry, $verbose) = @_;
 	
 	$verbose = 0 unless defined $verbose;
-	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
+	$MRSd::VERBOSE = $verbose;	# increase to get more diagnostic output
 	
-	my $d = new MRS::MDatabank($db);
+	my $d = new MRSd::MDatabank($db);
 	
 	print $d->Get($entry) . "\n\n";
 }
@@ -412,7 +415,7 @@ sub Blast()
 	my ($db, $verbose, $q, $i) = @_;
 	
 	$verbose = 0 unless defined $verbose;
-	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
+	$MRSd::VERBOSE = $verbose;	# increase to get more diagnostic output
 	
 	open INPUT, "<$i";
 	my $line = <INPUT>;
@@ -427,7 +430,7 @@ sub Blast()
 	}
 	close INPUT;
 
-	my $d = new MRS::MDatabank($db);
+	my $d = new MRSd::MDatabank($db);
 	my ($s, $hits, $hsps);
 	
 	if ($q)
@@ -465,9 +468,9 @@ sub Info()
 {
 	my ($db, $verbose) = @_;
 	
-	$MRS::VERBOSE = $verbose;
+	$MRSd::VERBOSE = $verbose;
 	
-	my $m = new MRS::MDatabank($db);
+	my $m = new MRSd::MDatabank($db);
 
 	my %index_types = (
 		'text' => 'Text',
@@ -505,9 +508,10 @@ $name,             $type,   $entries
 sub Dump()
 {
 	my ($db, $ix, $min_occurrence, $no_leading_digit, $min_wordlength) = @_;
-	my $m = new MRS::MDatabank($db);
+	my $m = new MRSd::MDatabank($db);
 
-#	$m->DumpIndex($ix);
+	$m->DumpIndex($ix);
+exit;
 
 	$min_occurrence = 1 unless defined $min_occurrence;
 	$no_leading_digit = 0 unless defined $no_leading_digit;
@@ -551,13 +555,13 @@ $count, $key
 sub Dict()
 {
 	my ($db, $ix, $min_occurrence, $min_wordlength, $verbose) = @_;
-	my $m = new MRS::MDatabank($db);
+	my $m = new MRSd::MDatabank($db);
 	
 	$min_occurrence = 1 unless defined $min_occurrence;
 	$min_wordlength = 1 unless defined $min_wordlength;
 	
 	$verbose = 0 unless defined $verbose;
-	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
+	$MRSd::VERBOSE = $verbose;	# increase to get more diagnostic output
 
 	$m->CreateDictionary($ix, $min_occurrence, $min_wordlength);
 }
@@ -567,9 +571,9 @@ sub SpellCheck()
 	my ($db, $kw, $verbose) = @_;
 
 	$verbose = 0 unless defined $verbose;
-	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
+	$MRSd::VERBOSE = $verbose;	# increase to get more diagnostic output
 
-	my $m = new MRS::MDatabank($db);
+	my $m = new MRSd::MDatabank($db);
 	
 	if (my $i = $m->SuggestCorrection($kw))
 	{
@@ -583,7 +587,7 @@ sub SpellCheck()
 sub Version()
 {
 	my $db = shift;
-	my $m = new MRS::MDatabank($db);
+	my $m = new MRSd::MDatabank($db);
 
 	print $m->GetVersion() . "\n";
 }
@@ -593,18 +597,19 @@ sub Weights()
 	my ($db, $verbose, $ix) = @_;
 		
 	$verbose = 0 unless defined $verbose;
-	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
+	$MRSd::VERBOSE = $verbose;	# increase to get more diagnostic output
 
-	my $m = new MRS::MDatabank($db);
+	my $m = new MRSd::MDatabank($db);
 	
 	$m->RecalcDocWeights($ix);
 }
 
 sub ReadStopWords()
 {
+	my $stopwordsfile = shift;
 	my %sw;
 	
-	if (open(SW, "<stop.txt"))
+	if (open(SW, "<$stopwordsfile"))
 	{
 		while (my $line = <SW>)
 		{
