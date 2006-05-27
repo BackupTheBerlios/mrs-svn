@@ -211,8 +211,8 @@ bool CTokenizer<M>::GetToken(EntryText& outToken, bool& outWord, bool& outNumber
 	using namespace std;
 
 	bool result = true;
-	bool hasDot = false;
-	bool hasHyphen = false;
+	int32 dots = 0;
+	int32 hyphens = 0;
 
 	t = ts = outToken;
 	
@@ -284,7 +284,7 @@ bool CTokenizer<M>::GetToken(EntryText& outToken, bool& outWord, bool& outNumber
 			case 14:
 				if (isalnum(c) or c == '_')
 				{
-					hasDot = true;
+					++dots;
 					state = 13;
 				}
 				else
@@ -358,7 +358,7 @@ bool CTokenizer<M>::GetToken(EntryText& outToken, bool& outWord, bool& outNumber
 				}
 				else
 				{
-					hasHyphen = true;
+					++hyphens;
 					state = 21;
 				}
 				break;
@@ -396,9 +396,10 @@ bool CTokenizer<M>::GetToken(EntryText& outToken, bool& outWord, bool& outNumber
 			outNumber = false;
 			outWord = true;
 			
-			if (hasDot or hasHyphen)
+	// words with just one hypen and no dots are split
+			if (hyphens == 1 and dots == 0)
 			{
-				for (; ts < t and *ts != '.' and *ts != '-'; ++ts)
+				for (; ts < t and /**ts != '.' and*/ *ts != '-'; ++ts)
 					;
 				
 				for (char* d = t - 1; d > ts; --d)

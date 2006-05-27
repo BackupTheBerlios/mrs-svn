@@ -376,7 +376,8 @@ void CValueIndex::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPa
 	outInfo.tree_offset = inDataFile.Size();
 	
 	CIteratorWrapper<map<string,uint32,CValueLess> > iter(fIndex);
-	auto_ptr<CIndex> n(CIndex::CreateFromIterator(kValueIndex, false, iter, inDataFile));
+	auto_ptr<CIndex> n(CIndex::CreateFromIterator(kValueIndex, kCIndexVersionV1, iter, inDataFile));
+	inDataFile.Seek(0, SEEK_END);
 
 	outInfo.root = n->GetRoot();
 	outInfo.entries = n->GetCount();
@@ -1097,6 +1098,7 @@ void CTextIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SInde
 
 	CFullTextIterator iter(fFullTextIndex, lexicon);
 	auto_ptr<CIndex> indx(CIndex::CreateFromIterator(fKind, outInfo.index_version, iter, inDataFile));
+	inDataFile.Seek(0, SEEK_END);
 
 	outInfo.root = indx->GetRoot();
 	outInfo.entries = lexicon.size();
@@ -2023,6 +2025,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 		CIteratorWrapper<CMergeIndexBuffer> mapIter(indx);
 		auto_ptr<CIndex> indxOnDisk(CIndex::CreateFromIterator(fParts[ix].kind,
 			fParts[ix].index_version, mapIter, outData));
+		outData.Seek(0, SEEK_END);
 		fParts[ix].root = indxOnDisk->GetRoot();
 		
 		if (fParts[ix].kind != kValueIndex)

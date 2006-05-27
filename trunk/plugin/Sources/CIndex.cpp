@@ -191,7 +191,7 @@ const uint32
 
 struct COnDiskDataV0
 {
-	unsigned char	keys[kKeySpace];
+	unsigned char	keys[kKeySpace + sizeof(uint32)];
 	struct
 	{
 		uint32		value_;
@@ -1611,15 +1611,11 @@ CIndex::~CIndex()
 }
 
 // copy creates a compacted copy
-CIndex* CIndex::CreateFromIterator(uint32 inIndexKind, bool inLargeOffsets, CIteratorBase& inData, HStreamBase& inFile)
+CIndex* CIndex::CreateFromIterator(uint32 inIndexKind, CIndexVersion inVersion, CIteratorBase& inData, HStreamBase& inFile)
 {
 	int64 offset = inFile.Seek(0, SEEK_END);
 
-	CIndexVersion v = kCIndexVersionV1;
-	if (inLargeOffsets)
-		v = kCIndexVersionV2;
-
-	auto_ptr<CIndex> result(new CIndex(inIndexKind, v, inFile, offset, 0));
+	auto_ptr<CIndex> result(new CIndex(inIndexKind, inVersion, inFile, offset, 0));
 	result->fImpl->CreateFromIterator(inData);
 	
 	inFile.Seek(0, SEEK_END);
@@ -2063,6 +2059,12 @@ void iterator_imp_t<COnDiskDataV0>::decrement()
 	p.Load(*fFile, fBaseOffset, fPage);
 	uint32 c;
 	p.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
+}
+
+template<>
+iterator_imp* iterator_imp_t<COnDiskDataV0>::clone() const
+{
+	return new iterator_imp_t(*this);
 }
 
 // ---------------------------------------------------------------------------

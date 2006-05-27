@@ -125,7 +125,7 @@ class CIndex
 						~CIndex();
 	
 						// CreateFromIterator creates a compacted tree from sorted data
-	static CIndex*		CreateFromIterator(uint32 inIndexKind, bool inLargeOffsets, CIteratorBase& inData, HStreamBase& inFile);
+	static CIndex*		CreateFromIterator(uint32 inIndexKind, CIndexVersion inVersion, CIteratorBase& inData, HStreamBase& inFile);
 
 						// access data
 						// first GetValue will return an int64

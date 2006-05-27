@@ -271,8 +271,6 @@ sub Create()
 	# get the stop words list
 	
 	my @stopWords = &ReadStopWords();
-	
-print join(", ", @stopWords), "\n";
 
 	$mrs->SetStopWords(\@stopWords);
 	
