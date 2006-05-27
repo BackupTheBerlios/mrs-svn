@@ -178,6 +178,8 @@ int CompareKeyNumber(const char* inA, uint32 inLengthA, const char* inB, uint32 
 // 
 //  The on disk data. Don't change this... it will break backwards compatibility
 // 
+//	There are already 3 versions of MRS in the wild with different BTree layouts
+//	We will try to support all of them.
 
 const uint32
 	kPageSize = 2048,
@@ -185,7 +187,73 @@ const uint32
 	kKeySpace = kPageSize - kEntrySize - 3 * sizeof(uint32),
 	kMaxKeySize = (kKeySpace / 4 > 255 ? 255 : kKeySpace / 4);
 
-struct COnDiskData
+//	The MRS 1.0 version of the BTree
+
+struct COnDiskDataV0
+{
+	unsigned char	keys[kKeySpace];
+	struct
+	{
+		uint32		value_;
+		uint32		p_;
+	} e[1];
+	uint32			p0;
+	int32			n;
+	
+	uint32			GetValue(int32 inIndex) const
+					{
+						return e[-inIndex].value_;
+					}
+	void			SetValue(int32 inIndex, uint32 inValue)
+					{
+						e[-inIndex].value_ = inValue;
+					}
+	uint32			GetP(int32 inIndex) const
+					{
+						return e[-inIndex].p_;
+					}
+	void			SetP(int32 inIndex, uint32 inP)
+					{
+						e[-inIndex].p_ = inP;
+					}
+	
+	static uint32	PageNrToAddr(uint32 inPageNr)	{ return inPageNr; }
+	static uint32	PageAddrToNr(uint32 inPageAddr)	{ return inPageAddr; }
+
+	void			SwapBytesHToN();
+	void			SwapBytesNToH();
+};
+
+void COnDiskDataV0::SwapBytesNToH()
+{
+	n = byte_swapper::swap(n);
+
+	for (int32 i = 0; i < n; ++i)
+	{
+		e[-i].p_ = byte_swapper::swap(e[-i].p_);
+		e[-i].value_ = byte_swapper::swap(e[-i].value_);
+	}
+
+	p0 = byte_swapper::swap(p0);
+}
+
+void COnDiskDataV0::SwapBytesHToN()
+{
+	for (int32 i = 0; i < n; ++i)
+	{
+		e[-i].p_ = byte_swapper::swap(e[-i].p_);
+		e[-i].value_ = byte_swapper::swap(e[-i].value_);
+	}
+
+	n = byte_swapper::swap(n);
+
+	p0 = byte_swapper::swap(p0);
+}
+
+//	The MRS 2.0 version of the BTree, used for indices with a bits 
+//	section size smaller than 4 Gb.
+
+struct COnDiskDataV1
 {
 	unsigned char	keys[kKeySpace];
 	struct
@@ -221,7 +289,7 @@ struct COnDiskData
 	void			SwapBytesNToH();
 };
 
-void COnDiskData::SwapBytesNToH()
+void COnDiskDataV1::SwapBytesNToH()
 {
 	n = byte_swapper::swap(n);
 
@@ -235,7 +303,7 @@ void COnDiskData::SwapBytesNToH()
 	pp = byte_swapper::swap(pp);
 }
 
-void COnDiskData::SwapBytesHToN()
+void COnDiskDataV1::SwapBytesHToN()
 {
 	for (int32 i = 0; i < n; ++i)
 	{
@@ -248,6 +316,9 @@ void COnDiskData::SwapBytesHToN()
 	p0 = byte_swapper::swap(p0);
 	pp = byte_swapper::swap(pp);
 }
+
+//	The MRS 2.0 version of the BTree, used for indices with a bits 
+//	section size larger than 4 Gb.
 
 struct COnDiskDataV2
 {
@@ -372,6 +443,14 @@ class CIndexPage
 	uint32					fOffset;
 	bool					fDirty;
 };
+
+template<>
+uint32 CIndexPage<COnDiskDataV0>::GetParent() const
+{
+	assert(false);
+	THROW(("GetParent is not valid for this index version"));
+	return 0;
+}
 
 template<typename DD>
 CIndexPage<DD>::CIndexPage()
@@ -544,6 +623,11 @@ void CIndexPage<DD>::SetParent(uint32 inParent)
 			p.SetParent(fOffset);
 		}
 	}
+}
+
+template<>
+void CIndexPage<COnDiskDataV0>::SetParent(uint32 inParent)
+{
 }
 
 template<typename DD>
@@ -806,6 +890,8 @@ struct iterator_imp_t : public iterator_imp
 
 						iterator_imp_t(HStreamBase& inFile, int64 inOffset,
 							uint32 inPage, uint32 inPageIndex);
+						iterator_imp_t(HStreamBase& inFile, int64 inOffset,
+							uint32 inRoot, bool inBegin);
 						iterator_imp_t(const iterator_imp_t& inOther);
 
 	virtual void		increment();
@@ -813,7 +899,29 @@ struct iterator_imp_t : public iterator_imp
 
 	virtual iterator_imp*
 						clone() const;
+
+	std::stack<uint32>	fStack;
 };
+
+//// specialisation for the old format
+//
+//template<>
+//struct iterator_imp_t<COnDiskDataV0> : public iterator_imp
+//{
+//	typedef COnDiskDataV0				COnDiskData;
+//	typedef CIndexPage<COnDiskDataV0>	CIndexPage;
+//
+//						iterator_imp_t(HStreamBase& inFile, int64 inOffset,
+//							uint32 inRoot, bool inBegin);
+//						iterator_imp_t(const iterator_imp_t& inOther);
+//
+//	virtual void		increment();
+//	virtual void		decrement();
+//
+//	virtual iterator_imp*
+//						clone() const;
+//
+//};
 
 // ---------------------------------------------------------------------------
 // 
@@ -940,7 +1048,13 @@ CIndex::iterator CIndexImpT<DD>::Begin()
 	if (pp == 0)
 		THROW(("Empty index"));
 	
-	return iterator(new iterator_imp_t<DD>(fFile, fBaseOffset, pp, 0));
+	return iterator(new iterator_imp_t<DD>(fFile, fBaseOffset, pp, uint32(0)));
+}
+
+template<>
+CIndex::iterator CIndexImpT<COnDiskDataV0>::Begin()
+{
+	return iterator(new iterator_imp_t<COnDiskDataV0>(fFile, fBaseOffset, fRoot, true));
 }
 
 template<typename DD>
@@ -948,6 +1062,12 @@ CIndex::iterator CIndexImpT<DD>::End()
 {
 	CIndexPage p(fFile, fBaseOffset, fRoot);
 	return iterator(new iterator_imp_t<DD>(fFile, fBaseOffset, fRoot, p.GetN()));
+}
+
+template<>
+CIndex::iterator CIndexImpT<COnDiskDataV0>::End()
+{
+	return iterator(new iterator_imp_t<COnDiskDataV0>(fFile, fBaseOffset, fRoot, false));
 }
 
 template<typename DD>
@@ -1024,6 +1144,12 @@ CIndex::iterator CIndexImpT<DD>::LowerBound(const string& inKey)
 	LowerBoundImp(inKey, fRoot, page, index);
 	
 	return iterator(new iterator_imp_t<DD>(fFile, fBaseOffset, page, index));
+}
+
+template<>
+CIndex::iterator CIndexImpT<COnDiskDataV0>::LowerBound(const string& inKey)
+{
+	THROW(("Operation not supported on this index version"));
 }
 
 template<typename DD>
@@ -1424,7 +1550,7 @@ int CNumberIndexImp<DD>::Compare(const char* inA, uint32 inLengthA,
 // ---------------------------------------------------------------------------
 
 // normal constructor for an exisiting index on disk
-CIndex::CIndex(uint32 inKind, bool inLargeOffsets, HStreamBase& inFile, int64 inOffset, uint32 inRoot)
+CIndex::CIndex(uint32 inKind, CIndexVersion inVersion, HStreamBase& inFile, int64 inOffset, uint32 inRoot)
 {
 	switch (inKind)
 	{
@@ -1432,17 +1558,45 @@ CIndex::CIndex(uint32 inKind, bool inLargeOffsets, HStreamBase& inFile, int64 in
 		case kDateIndex:
 		case kValueIndex:
 		case kWeightedIndex:
-			if (inLargeOffsets)
-				fImpl = new CIndexImpT<COnDiskDataV2>(inKind, inFile, inOffset, inRoot);
-			else
-				fImpl = new CIndexImpT<COnDiskData>(inKind, inFile, inOffset, inRoot);
+			switch (inVersion)
+			{
+				case kCIndexVersionV0:
+					fImpl = new CIndexImpT<COnDiskDataV0>(inKind, inFile, inOffset, inRoot);
+					break;
+
+				case kCIndexVersionV1:	
+					fImpl = new CIndexImpT<COnDiskDataV1>(inKind, inFile, inOffset, inRoot);
+					break;
+				
+				case kCIndexVersionV2:
+					fImpl = new CIndexImpT<COnDiskDataV2>(inKind, inFile, inOffset, inRoot);
+					break;
+
+				default:
+					THROW(("Invalid index version"));
+					break;
+			}
 			break;
 		
 		case kNumberIndex:
-			if (inLargeOffsets)
-				fImpl = new CNumberIndexImp<COnDiskDataV2>(inKind, inFile, inOffset, inRoot);
-			else
-				fImpl = new CNumberIndexImp<COnDiskData>(inKind, inFile, inOffset, inRoot);
+			switch (inVersion)
+			{
+				case kCIndexVersionV0:
+					fImpl = new CNumberIndexImp<COnDiskDataV0>(inKind, inFile, inOffset, inRoot);
+					break;
+
+				case kCIndexVersionV1:	
+					fImpl = new CNumberIndexImp<COnDiskDataV1>(inKind, inFile, inOffset, inRoot);
+					break;
+				
+				case kCIndexVersionV2:
+					fImpl = new CNumberIndexImp<COnDiskDataV2>(inKind, inFile, inOffset, inRoot);
+					break;
+
+				default:
+					THROW(("Invalid index version"));
+					break;
+			}
 			break;
 		
 		default:
@@ -1461,7 +1615,11 @@ CIndex* CIndex::CreateFromIterator(uint32 inIndexKind, bool inLargeOffsets, CIte
 {
 	int64 offset = inFile.Seek(0, SEEK_END);
 
-	auto_ptr<CIndex> result(new CIndex(inIndexKind, inLargeOffsets, inFile, offset, 0));
+	CIndexVersion v = kCIndexVersionV1;
+	if (inLargeOffsets)
+		v = kCIndexVersionV2;
+
+	auto_ptr<CIndex> result(new CIndex(inIndexKind, v, inFile, offset, 0));
 	result->fImpl->CreateFromIterator(inData);
 	
 	inFile.Seek(0, SEEK_END);
@@ -1748,6 +1906,163 @@ template<typename DD>
 iterator_imp* iterator_imp_t<DD>::clone() const
 {
 	return new iterator_imp_t(*fFile, fBaseOffset, fPage, fPageIndex);
+}
+
+// ---------------------------------------------------------------------------
+// Iterator specialisations for the old version of the BTree
+
+template<>
+iterator_imp_t<COnDiskDataV0>::iterator_imp_t(HStreamBase& inFile, int64 inOffset,
+		uint32 inRoot, bool inBegin)
+	: iterator_imp(inFile, inOffset, inRoot, 0)
+{
+	if (inBegin)
+	{
+		uint32 page = inRoot;
+		uint32 pp = 0;
+		
+		while (page != 0)
+		{
+			fStack.push(page);
+			
+			pp = page;
+			CIndexPage p(*fFile, fBaseOffset, page);
+			page = p.GetP0();
+		}
+		
+		if (pp == 0)
+			THROW(("Empty index"));
+		
+		fPage = fStack.top();
+		fStack.pop();
+
+		fPageIndex = 0;
+		
+		CIndexPage p(*fFile, fBaseOffset, fPage);
+		uint32 c;
+		p.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
+	}
+	else
+	{
+		CIndexPage p(*fFile, fBaseOffset, fPage);
+		fPageIndex = p.GetN();
+	}
+}
+
+template<>
+iterator_imp_t<COnDiskDataV0>::iterator_imp_t(const iterator_imp_t& inOther)
+	: iterator_imp(inOther)
+	, fStack(inOther.fStack)
+{
+}
+
+template<>
+void iterator_imp_t<COnDiskDataV0>::increment()
+{
+	CIndexPage p(*fFile, fBaseOffset, fPage);
+	bool valid = true;
+
+	if (p.GetP(fPageIndex)) // current entry has a p, decent
+	{
+		fStack.push(fPage);
+		
+		fPage = p.GetP(fPageIndex);
+		fPageIndex = 0;
+
+		p.Load(*fFile, fBaseOffset, fPage);
+		
+		while (p.GetP0())
+		{
+			fStack.push(fPage);
+			
+			fPage = p.GetP0();
+			p.Load(*fFile, fBaseOffset, fPage);
+		}
+	}
+	else
+	{
+		++fPageIndex;
+
+		while (fPageIndex >= p.GetN() and not fStack.empty())	// do we have a parent?
+		{
+			p.Load(*fFile, fBaseOffset, fStack.top());
+			fStack.pop();
+
+			if (p.GetP0() == fPage)
+				fPageIndex = 0;
+			else
+				fPageIndex = p.GetIndexForP(fPage) + 1;
+
+			fPage = p.GetOffset();
+		}
+		
+		valid = (fPageIndex < p.GetN());
+	}
+	
+	if (valid)
+	{
+		uint32 c;
+		p.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
+	}
+}
+
+template<>
+void iterator_imp_t<COnDiskDataV0>::decrement()
+{
+	CIndexPage p(*fFile, fBaseOffset, fPage);
+
+	uint32 dp = 0;
+
+	if (fPageIndex == 0)		// beginning of page
+	{
+		if (p.GetP0())			// see if we need to decent down p0 first
+			dp = p.GetP0();
+		else
+		{
+			uint32 np = fPage;		// tricky, see if we can find a page upwards
+			uint32 nx = fPageIndex;	// where we hit an index > 0. If not we're at
+									// the far left and thus Begin()
+			
+			stack<uint32> ps(fStack);
+			
+			while (not ps.empty())
+			{
+				p.Load(*fFile, fBaseOffset, ps.top());
+				ps.pop();
+				
+				if (np == p.GetP0())
+				{
+					np = p.GetOffset();
+					nx = 0;
+				}
+				else
+				{
+					fPageIndex = p.GetIndexForP(np);
+					fPage = p.GetOffset();
+					fStack = ps;
+					break;
+				}
+			}
+		}
+	}
+	else
+	{
+		--fPageIndex;
+		dp = p.GetP(fPageIndex);
+	}
+	
+	while (dp)
+	{
+		p.Load(*fFile, fBaseOffset, dp);
+		fStack.push(fPage);
+		fPage = dp;
+		fPageIndex = p.GetN() - 1;
+		dp = p.GetP(fPageIndex);
+	}
+	
+	p.Load(*fFile, fBaseOffset, fPage);
+	uint32 c;
+	p.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
 }
 
 // ---------------------------------------------------------------------------

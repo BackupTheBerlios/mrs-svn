@@ -107,11 +107,12 @@ struct SIndexPart
 	int64			weight_offset;
 	
 	// members that are implictly part of the above
-	bool			large_offsets;
+	CIndexVersion	index_version;
 };
 
 const uint32
-	kSIndexPartSize = 5 * sizeof(uint32) + 3 * sizeof(int64) + 16;
+	kSIndexPartSize = 5 * sizeof(uint32) + 3 * sizeof(int64) + 16,
+	kSIndexPartSizeV0 = 5 * sizeof(uint32) + 2 * sizeof(int64) + 16;
 
 HStreamBase& operator<<(HStreamBase& inData, const SIndexHeader& inStruct);
 HStreamBase& operator>>(HStreamBase& inData, SIndexHeader& inStruct);
@@ -134,21 +135,12 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexHeader& inStruct)
 	HSwapStream<net_swapper> data(inData);
 	
 	data.Read(&inStruct.sig, sizeof(inStruct.sig));
-	data >> inStruct.size >> inStruct.entries >> inStruct.count
-		 >> inStruct.weight_bit_count;
+	data >> inStruct.size >> inStruct.entries >> inStruct.count;
 	
-	if (inStruct.size != kSIndexHeaderSize)
-	{
-		SIndexHeader t = {};
-		memcpy(&t, &inStruct, min(inStruct.size, kSIndexHeaderSize));
-		
-		inStruct = t;
-		
-		if (inStruct.weight_bit_count == 0)
-			inStruct.weight_bit_count = 6;
-		
-		inData.Seek(kSIndexHeaderSize - inStruct.size, SEEK_CUR);
-	}
+	if (inStruct.size >= kSIndexHeaderSize)
+		data >> inStruct.weight_bit_count;
+	else
+		inStruct.weight_bit_count = 6;
 	
 	return inData;
 }
@@ -158,7 +150,8 @@ HStreamBase& operator<<(HStreamBase& inData, const SIndexPart& inStruct)
 	HSwapStream<net_swapper> data(inData);
 	
 	if (inStruct.sig != 0)
-		assert((inStruct.sig == kIndexPartSig and inStruct.large_offsets == false) or (inStruct.sig == kIndexPartSigV2 and inStruct.large_offsets == true));
+		assert((inStruct.sig == kIndexPartSig and inStruct.index_version == kCIndexVersionV1) or
+			   (inStruct.sig == kIndexPartSigV2 and inStruct.index_version == kCIndexVersionV2));
 	
 	data.Write(&inStruct.sig, sizeof(inStruct.sig));
 	data << kSIndexPartSize;
@@ -177,6 +170,7 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexPart& inStruct)
 	HSwapStream<net_swapper> data(inData);
 	
 	data.Read(&inStruct.sig, sizeof(inStruct.sig));
+	data >> inStruct.size;
 
 	// backward compatibility code from here ...
 	
@@ -192,29 +186,26 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexPart& inStruct)
 	// ... to here.
 	
 	if (inStruct.sig == kIndexPartSig)
-		inStruct.large_offsets = false;
+	{
+		if (inStruct.size == kSIndexPartSizeV0)
+			inStruct.index_version = kCIndexVersionV0;
+		else
+			inStruct.index_version = kCIndexVersionV1;
+	}
 	else if (inStruct.sig == kIndexPartSigV2)
-		inStruct.large_offsets = true;
+		inStruct.index_version = kCIndexVersionV2;
 	else
 		THROW(("Incompatible index %4.4s", &inStruct.sig));
 	
-	data >> inStruct.size;
 	data.Read(inStruct.name, sizeof(inStruct.name));
 	data.Read(&inStruct.kind, sizeof(inStruct.kind));
 	data >> inStruct.bits_offset >> inStruct.tree_offset
-		 >> inStruct.root >> inStruct.entries
-		 >> inStruct.weight_offset;
+		 >> inStruct.root >> inStruct.entries;
 	
-	if (inStruct.size != kSIndexPartSize)
-	{
-		SIndexPart t = {};
-		memcpy(&t, &inStruct, min(inStruct.size, kSIndexPartSize));
-		inStruct = t;
-		
-		int64 delta = kSIndexPartSize;
-		delta -= inStruct.size;
-		inData.Seek(-delta, SEEK_CUR);
-	}
+	inStruct.weight_offset = 0;
+	
+	if (inStruct.size >= kSIndexPartSize)
+		data >> inStruct.weight_offset;
 	
 	return inData;
 }
@@ -379,7 +370,7 @@ void CValueIndex::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPa
 	}
 
 	outInfo.sig = kIndexPartSig;
-	outInfo.large_offsets = false;
+	outInfo.index_version = kCIndexVersionV1;
 	fName.copy(outInfo.name, 15);
 	outInfo.kind = fKind;
 	outInfo.tree_offset = inDataFile.Size();
@@ -1052,16 +1043,16 @@ void CTextIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SInde
 	outInfo.kind = fKind;
 	outInfo.bits_offset = inDataFile.Seek(0, SEEK_END);
 
-	outInfo.large_offsets = false;
+	outInfo.index_version = kCIndexVersionV1;
 #if P_DEBUG
 	outInfo.sig = kIndexPartSigV2;
-	outInfo.large_offsets = true;
+	outInfo.index_version = kCIndexVersionV2;
 #endif
 	
 	if (fBitFile->Size() >= numeric_limits<uint32>::max())
 	{
 		outInfo.sig = kIndexPartSigV2;
-		outInfo.large_offsets = true;
+		outInfo.index_version = kCIndexVersionV2;
 	}
 	
 	// copy the bits to the data file
@@ -1105,7 +1096,7 @@ void CTextIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SInde
 	sort(lexicon.begin(), lexicon.end(), SortLex(fFullTextIndex, this));
 
 	CFullTextIterator iter(fFullTextIndex, lexicon);
-	auto_ptr<CIndex> indx(CIndex::CreateFromIterator(fKind, outInfo.large_offsets, iter, inDataFile));
+	auto_ptr<CIndex> indx(CIndex::CreateFromIterator(fKind, outInfo.index_version, iter, inDataFile));
 
 	outInfo.root = indx->GetRoot();
 	outInfo.entries = lexicon.size();
@@ -1166,52 +1157,6 @@ void CWeightedWordIndex::Write(HStreamBase& inDataFile, uint32 inDocCount, SInde
 		k -= n;
 	}
 }
-
-class CAllTextIndex : public CWeightedWordIndex
-{
-  public:
-					CAllTextIndex(CFullTextIndex& inFullTextIndex,
-						uint16 inIndexNr, const HUrl& inScratch,
-						uint32 inWeightBitCount);						
-	
-//	virtual void	AddDocTerm(uint32 inDoc, uint8 inFrequency);
-//	virtual void	FlushTerm(uint32 inTerm, uint32 inDocCount);
-
-  private:
-	uint32			fDocNr;
-	uint32			fFreq;
-};
-
-CAllTextIndex::CAllTextIndex(CFullTextIndex& inFullTextIndex,
-		uint16 inIndexNr, const HUrl& inScratch, uint32 inWeightBitCount)
-		: CWeightedWordIndex(inFullTextIndex, kAllTextIndexName, inIndexNr, inScratch, inWeightBitCount)
-	, fDocNr(0)
-	, fFreq(0)
-{
-}
-
-//void CAllTextIndex::AddDocTerm(uint32 inDoc, uint8 inFrequency)
-//{
-//	if (inDoc == fDocNr)
-//		fFreq += inFrequency;
-//	else
-//	{
-////		CTextIndexBase::AddDocTerm(fDocNr, fFreq);
-//		fDocNr = inDoc;
-//		fFreq = inFrequency;
-//	}
-//}
-
-//void CAllTextIndex::FlushTerm(uint32 inTerm, uint32 inDocCount)
-//{
-//	if (fFreq != 0)
-//		CTextIndexBase::AddDocTerm(fDocNr, fFreq);
-//
-//	fDocNr = 0;
-//	fFreq = 0;
-//	
-//	CTextIndexBase::FlushTerm(inTerm, inDocCount);
-//}
 
 class CDateIndex : public CTextIndexBase
 {
@@ -1560,7 +1505,8 @@ void CIndexer::CreateIndex(HStreamBase& inFile,
 	if (inCreateAllTextIndex)
 	{
 		HUrl url(fDb + '.' + "alltext_indx");
-		allIndex = new CAllTextIndex(GetFullTextIndex(), fHeader->count - 1, url, fHeader->weight_bit_count);
+		allIndex = new CWeightedWordIndex(GetFullTextIndex(), kAllTextIndexName,
+							fHeader->count - 1, url, fHeader->weight_bit_count);
 	}
 	
 	if (fFullTextIndex)
@@ -1921,7 +1867,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 			}
 
 			md[i].data = &inParts[i]->GetDataFile();
-			md[i].indx = new CIndex(fParts[ix].kind, fParts[ix].large_offsets,
+			md[i].indx = new CIndex(fParts[ix].kind, fParts[ix].index_version,
 				*md[i].data, md[i].info[ix].tree_offset, md[i].info[ix].root);
 
 			uint32 delta = 0;
@@ -1959,7 +1905,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 		
 		fParts[ix].entries = 0;
 		fParts[ix].sig = kIndexPartSig;
-		fParts[ix].large_offsets = false;
+		fParts[ix].index_version = kCIndexVersionV1;
 		
 		vector<pair<uint32,int64> > v;
 		
@@ -2014,7 +1960,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					if (offset > numeric_limits<uint32>::max())
 					{
 						fParts[ix].sig = kIndexPartSigV2;
-						fParts[ix].large_offsets = true;
+						fParts[ix].index_version = kCIndexVersionV2;
 					}
 
 					COBitStream bits(*bitFile.get());
@@ -2062,7 +2008,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					if (offset > numeric_limits<uint32>::max())
 					{
 						fParts[ix].sig = kIndexPartSigV2;
-						fParts[ix].large_offsets = true;
+						fParts[ix].index_version = kCIndexVersionV2;
 					}
 
 					COBitStream bits(*bitFile.get());
@@ -2076,7 +2022,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 		
 		CIteratorWrapper<CMergeIndexBuffer> mapIter(indx);
 		auto_ptr<CIndex> indxOnDisk(CIndex::CreateFromIterator(fParts[ix].kind,
-			fParts[ix].large_offsets, mapIter, outData));
+			fParts[ix].index_version, mapIter, outData));
 		fParts[ix].root = indxOnDisk->GetRoot();
 		
 		if (fParts[ix].kind != kValueIndex)
@@ -2163,7 +2109,7 @@ CDocIterator* CIndexer::GetImpForPattern(const string& inIndex,
 	if (ix == fHeader->count)
 		THROW(("Index '%s' not found", inIndex.c_str()));
 
-	auto_ptr<CIndex> indx(new CIndex(fParts[ix].kind, fParts[ix].large_offsets,
+	auto_ptr<CIndex> indx(new CIndex(fParts[ix].kind, fParts[ix].index_version,
 		*fFile, fParts[ix].tree_offset, fParts[ix].root));
 
 	vector<uint32> values;
@@ -2214,7 +2160,7 @@ CDocIterator* CIndexer::CreateDocIterator(const string& inIndex, const string& i
 			if (fParts[ix].kind == kTextIndex)
 				THROW(("Cannot search with a relational operator on a fulltext index"));
 			
-			auto_ptr<CIndex> indx(new CIndex(fParts[ix].kind, fParts[ix].large_offsets,
+			auto_ptr<CIndex> indx(new CIndex(fParts[ix].kind, fParts[ix].index_version,
 				*fFile, fParts[ix].tree_offset, fParts[ix].root));
 
 			vector<uint32> values;
@@ -2238,7 +2184,7 @@ CDocIterator* CIndexer::CreateDocIterator(const string& inIndex, const string& i
 		}
 		else
 		{
-			auto_ptr<CIndex> indx(new CIndex(fParts[ix].kind, fParts[ix].large_offsets,
+			auto_ptr<CIndex> indx(new CIndex(fParts[ix].kind, fParts[ix].index_version,
 				*fFile, fParts[ix].tree_offset, fParts[ix].root));
 		
 			int64 value;
@@ -2317,35 +2263,6 @@ void CIndexer::PrintInfo()
 		cout << "  weight offset: " << p.weight_offset << endl;
 		
 		cout << endl;
-
-#if 0 //P_DEBUG
-		if (p.kind == kWeightedIndex)
-		{
-			auto_ptr<CIndex> indx(new CIndex(p.kind, *fFile, p.tree_offset, p.root));
-			
-			for (CIndex::iterator v = indx->begin(); v != indx->end(); ++v)
-			{
-				cout << v->first << ": ";
-				
-				CDbDocWeightIterator iter(*fFile, p.bits_offset + v->second, fHeader->entries);
-				
-				uint32 k = iter.Count();
-
-				uint32 d;
-				uint8 r;
-				
-				while (iter.Next(d, r, false))
-				{
-					--k;
-					cout << d << "-" << static_cast<uint32>(r) << " ";
-				}
-				
-				cout << endl;
-
-				assert(k == 0);
-			}
-		}
-#endif
 	}
 }
 
@@ -2429,7 +2346,7 @@ CDbDocIteratorBase* CIndexer::GetDocWeightIterator(const string& inIndex, const 
 		if (index != fParts[ix].name)
 			continue;
 
-		auto_ptr<CIndex> indx(new CIndex(fParts[ix].kind, fParts[ix].large_offsets,
+		auto_ptr<CIndex> indx(new CIndex(fParts[ix].kind, fParts[ix].index_version,
 			*fFile, fParts[ix].tree_offset, fParts[ix].root));
 
 		int64 value;
@@ -2452,7 +2369,7 @@ CIndex* CIndexer::GetIndex(const string& inIndex) const
 		if (index != fParts[ix].name)
 			continue;
 
-		result = new CIndex(fParts[ix].kind, fParts[ix].large_offsets,
+		result = new CIndex(fParts[ix].kind, fParts[ix].index_version,
 			*fFile, fParts[ix].tree_offset, fParts[ix].root);
 	}
 	
@@ -2559,7 +2476,7 @@ void CIndexer::RecalculateDocumentWeights(const std::string& inIndex)
 		if (index != fParts[ix].name)
 			continue;
 
-		indx.reset(new CIndex(fParts[ix].kind, fParts[ix].large_offsets,
+		indx.reset(new CIndex(fParts[ix].kind, fParts[ix].index_version,
 			*fFile, fParts[ix].tree_offset, fParts[ix].root));
 		break;
 	}

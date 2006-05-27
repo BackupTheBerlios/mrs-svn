@@ -109,12 +109,19 @@ typedef CIndexTraits<kWeightedIndex>::less	CWeightedLess;
 
 // ---------------------------------------------------------------------------
 
+enum CIndexVersion
+{
+	kCIndexVersionV0,
+	kCIndexVersionV1,
+	kCIndexVersionV2
+};
+
 class CIndex
 {
   public:
 
 						// normal constructor for an exisiting index on disk
-						CIndex(uint32 inIndexKind, bool inLargeOffsets, HStreamBase& inFile, int64 inOffset, uint32 inRoot);
+						CIndex(uint32 inIndexKind, CIndexVersion inVersion, HStreamBase& inFile, int64 inOffset, uint32 inRoot);
 						~CIndex();
 	
 						// CreateFromIterator creates a compacted tree from sorted data
