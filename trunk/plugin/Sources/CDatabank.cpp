@@ -485,8 +485,8 @@ void CDatabank::Finish(bool inCreateAllTextIndex)
 	fIndexer = nil;
 	fIndexer = GetIndexer();
 
-	auto_ptr<CIteratorBase> iter(fIndexer->GetIteratorForIndex("id"));
-	if (iter.get() != nil)
+	auto_ptr<CIndex> idIndex(fIndexer->GetIndex("id"));
+	if (idIndex.get() != nil)
 	{
 		if (VERBOSE >= 1)
 		{
@@ -496,18 +496,18 @@ void CDatabank::Finish(bool inCreateAllTextIndex)
 	
 		fDataFile->Seek(0, SEEK_END);
 		fHeader->id_offset = fDataFile->Tell();
-		CIdTable::Create(*fDataFile, *iter.get(), fHeader->entries);
+		CIdTable::Create(*fDataFile, *idIndex.get(), fHeader->entries);
 		fHeader->id_size = fDataFile->Tell() - fHeader->id_offset;
 
 		if (VERBOSE >= 1)
 			cout << "done" << endl;
+
+		idIndex.release();
 	}
 	else if (VERBOSE >= 1)
 		cout << "No ID table created since there is no id index" << endl;
 
 	fIndexer->FixupDocWeights();
-
-	iter.release();
 
 	delete fIndexer;
 	fIndexer = nil;
@@ -658,8 +658,8 @@ void CDatabank::Merge(vector<CDatabank*>& inParts)
 	fDataFile->Seek(0, SEEK_END);
 	fHeader->index_size = fDataFile->Tell() - fHeader->index_offset;
 
-	auto_ptr<CIteratorBase> iter(index.GetIteratorForIndex("id"));
-	if (iter.get() != nil)
+	auto_ptr<CIndex> idIndex(index.GetIndex("id"));
+	if (idIndex.get() != nil)
 	{
 		if (VERBOSE >= 1)
 		{
@@ -669,14 +669,14 @@ void CDatabank::Merge(vector<CDatabank*>& inParts)
 		
 		fDataFile->Seek(0, SEEK_END);
 		fHeader->id_offset = fDataFile->Tell();
-		CIdTable::Create(*fDataFile, *iter.get(), fHeader->entries);
+		CIdTable::Create(*fDataFile, *idIndex.get(), fHeader->entries);
 		fDataFile->Seek(0, SEEK_END);
 		fHeader->id_size = fDataFile->Tell() - fHeader->id_offset;
 
 		if (VERBOSE >= 1)
 			cout << "done" << endl;
 		
-		iter.release();
+		idIndex.release();
 	}
 	else if (VERBOSE >= 1)
 		cout << "No ID table created since there is no id index" << endl;

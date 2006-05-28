@@ -45,7 +45,7 @@
 #include <string>
 
 class HStreamBase;
-class CIteratorBase;
+class CIndex;
 
 class CIdTable
 {
@@ -54,8 +54,7 @@ class CIdTable
 						int64 inSize);
 	virtual			~CIdTable();
 	
-	static void		Create(HStreamBase& inFile, CIteratorBase& inData,
-						uint32 inDocCount);
+	static void		Create(HStreamBase& inFile, CIndex& inIndex, uint32 inDocCount);
 
 	std::string		GetID(uint32 inDocNr);
 	

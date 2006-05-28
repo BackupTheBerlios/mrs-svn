@@ -176,52 +176,66 @@ string CIdTable::GetID(uint32 inDocNr)
 	return result;
 }
 
-void CIdTable::Create(HStreamBase& inFile, CIteratorBase& inData,
-	uint32 inDocCount)
+struct CIdTableHelper
+{
+	CLexicon	data;
+	uint32		docCount;
+	uint32*		idMap;
+	uint32		n;
+	
+				CIdTableHelper(uint32 inDocCount)
+					: docCount(inDocCount)
+					, idMap(new uint32[docCount])
+					, n(0)
+				{
+					memset(idMap, ~0, sizeof(uint32) * docCount);
+				}
+	
+				~CIdTableHelper()
+				{
+					delete[] idMap;
+				}
+	
+	void		Visit(const std::string& inKey, int64 inValue)
+				{
+					assert(inValue < docCount);
+
+					if (inValue >= docCount)
+						THROW(("Error creating ID table: v(%d) >= inDocCount(%d)", inValue, docCount));
+					
+					idMap[inValue] = data.Store(inKey);
+					++n;
+				}
+};
+
+void CIdTable::Create(HStreamBase& inFile, CIndex& inIndex, uint32 inDocCount)
 {
 	// Build the table in memory, let's pray it fits...
 	
 	try
 	{
-		CLexicon data;
-		HAutoBuf<uint32> idMap(new uint32[inDocCount]);
+		CIdTableHelper	helper(inDocCount);
+		inIndex.Visit(&helper, &CIdTableHelper::Visit);
 		
-		memset(idMap.get(), ~0, sizeof(uint32) * inDocCount);
-		
-		string id;
-		int64 v;
-		uint32 n = 0, i;
-		
-		while (inData.Next(id, v))
-		{
-			assert(v < inDocCount);
-			
-			if (v >= inDocCount)
-				THROW(("Error creating ID table: v(%d) >= inDocCount(%d)", v, inDocCount));
-			
-			idMap[v] = data.Store(id);
-			++n;
-		}
-
 		if (VERBOSE >= 1)
 		{
-			cout << "n: " << n << ", docs: " << inDocCount << endl;
+			cout << "n: " << helper.n << ", docs: " << inDocCount << endl;
 			cout.flush();
 		}
 
-		if (n != inDocCount)
+		if (helper.n != inDocCount)
 		{
-			cerr << "Number of entries in the id index (" << n
+			cerr << "Number of entries in the id index (" << helper.n
 				 << ") does not equal the number of documents (" << inDocCount
 				 << "), this is an error" << endl;
 			
-			for (i = 0; i < inDocCount; ++i)
+			for (uint32 i = 0; i < inDocCount; ++i)
 			{
-				if (static_cast<int32>(idMap[i]) == -1)
+				if (static_cast<int32>(helper.idMap[i]) == -1)
 				{
 					stringstream s;
 					s << '#' << i;
-					idMap[i] = data.Store(s.str());
+					helper.idMap[i] = helper.data.Store(s.str());
 					
 					cerr << "Adding id: " << s.str() << endl;
 				}
@@ -233,9 +247,9 @@ void CIdTable::Create(HStreamBase& inFile, CIteratorBase& inData,
 		p.count = 0;
 		p.offset[0] = kIdPageSize - sizeof(uint32) * 3;
 
-		for (i = 0; i < n; ++i)
+		for (uint32 i = 0; i < helper.n; ++i)
 		{
-			id = data.GetString(idMap[i]);
+			string id = helper.data.GetString(helper.idMap[i]);
 			if (not p.Store(id))
 			{
 				uint32 first = p.first + p.count;
