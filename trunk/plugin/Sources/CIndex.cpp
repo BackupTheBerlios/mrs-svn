@@ -1493,19 +1493,19 @@ void CIndexImpT<DD>::Dump(uint32 inPage, uint32 inParent, uint32 inLevel)
 	if (inParent != p.GetParent())
 		cout << "!!! Parent is not correct, should be: " << inParent << endl;
 
-	for (uint32 i = 0; i < p.GetN(); ++i)
-	{
-		for (uint32 j = 0; j < inLevel; ++j)
-			cout << "\t";
-		
-		string k;
-		int64 v;
-		uint32 c;
-		
-		p.GetData(i, k, v, c);
-		
-		cout << "ix: " << i << ", p: " << c << ", key: " << k << " v: " << v << endl;
-	}
+//	for (uint32 i = 0; i < p.GetN(); ++i)
+//	{
+//		for (uint32 j = 0; j < inLevel; ++j)
+//			cout << "\t";
+//		
+//		string k;
+//		int64 v;
+//		uint32 c;
+//		
+//		p.GetData(i, k, v, c);
+//		
+//		cout << "ix: " << i << ", p: " << c << ", key: " << k << " v: " << v << endl;
+//	}
 
 	if (p.GetP0())
 	

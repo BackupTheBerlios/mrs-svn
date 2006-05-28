@@ -1869,7 +1869,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 			}
 
 			md[i].data = &inParts[i]->GetDataFile();
-			md[i].indx = new CIndex(fParts[ix].kind, fParts[ix].index_version,
+			md[i].indx = new CIndex(fParts[ix].kind, md[i].info[ix].index_version,
 				*md[i].data, md[i].info[ix].tree_offset, md[i].info[ix].root);
 
 			uint32 delta = 0;
@@ -1903,7 +1903,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 		
 //		list<pair<string,uint32> > indx;
 		CMergeIndexBuffer indx(fDb);
-		string s, lastS;
+		string s;
 		
 		fParts[ix].entries = 0;
 		fParts[ix].sig = kIndexPartSig;
@@ -1913,15 +1913,11 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 		
 		while (iter->Next(s, v))
 		{
-			if (s == lastS)
+			if (fParts[ix].kind == kValueIndex and v.size() > 1)
 			{
-				if (fParts[ix].kind == kValueIndex)
-					THROW(("Attempt to enter duplicate key '%s' in index '%s'",
-						s.c_str(), fParts[ix].name));
-				continue;
+				THROW(("Attempt to enter duplicate key '%s' in index '%s'",
+					s.c_str(), fParts[ix].name));
 			}
-
-			lastS = s;
 
 			++fParts[ix].entries;
 			
@@ -2364,7 +2360,10 @@ CDbDocIteratorBase* CIndexer::GetDocWeightIterator(const string& inIndex, const 
 
 CIndex* CIndexer::GetIndex(const string& inIndex) const
 {
-	string index = tolower(inIndex);
+	string index = inIndex;
+	if (index != kAllTextIndexName)
+		index = tolower(index);
+	
 	CIndex* result = nil;
 
 	for (uint32 ix = 0; result == nil and ix < fHeader->count; ++ix)

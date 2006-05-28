@@ -654,7 +654,6 @@ void CDatabank::Merge(vector<CDatabank*>& inParts)
 	fHeader->index_offset = fDataFile->Seek(0, SEEK_END);
 	CIndexer index(fPath);
 	index.MergeIndices(*fDataFile, inParts);
-//	index.FixupDocWeights();
 
 	fDataFile->Seek(0, SEEK_END);
 	fHeader->index_size = fDataFile->Tell() - fHeader->index_offset;
@@ -1692,8 +1691,8 @@ class CUpdateIterator : public CDbDocIteratorBase
 	virtual bool		Next(uint32& ioDoc, bool inSkip);
 	virtual bool		Next(uint32& ioDoc, uint8& outRank, bool inSkip);
 
-	virtual uint32		Count() const		{ return fOriginal->Count(); }
-	virtual uint32		Read() const		{ return fOriginal->Read(); }
+	virtual uint32		Count() const		{ return fOriginal ? fOriginal->Count() : 0; }
+	virtual uint32		Read() const		{ return fOriginal ? fOriginal->Read() : 0; }
 
   protected:	
 	CDatabankBase*		fDb;
