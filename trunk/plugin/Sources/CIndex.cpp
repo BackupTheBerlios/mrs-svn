@@ -1360,7 +1360,7 @@ void CIndexImpT<DD>::CreateFromIterator(CIteratorBase& inData)
 	{
 		if (lk.length() and Compare(k, lk) <= 0)
 		{
-			THROW(("Attempt to build an index from unsorted data: '%s' >= '%s' ",
+			THROW(("Attempt to build an index from unsorted data: '%s' <= '%s' ",
 				k.c_str(), lk.c_str()));
 		}
 		lk = k;

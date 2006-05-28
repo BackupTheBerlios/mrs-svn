@@ -1628,10 +1628,32 @@ struct CCompareIndexInfo
 };
 
 // the next class is needed because we run out of memory with huge indices.
+// profiling revealed this code to be quite performance critical, so we
+// use a similar storage mechanism as in the BTree.
+// Again, to save space and bandwidth we optimize a bit. This limits
+// the value that can be stored to 44 bits, the same maximum as used in the
+// BTree structure
+
+#if P_DEBUG
+const uint32 kMergeIndexBufferPageSize = 1024;			// 1 kb pages
+#else
+const uint32 kMergeIndexBufferPageSize = 1024 * 1024;	// 1 Mb pages
+#endif
 
 class CMergeIndexBuffer
 {
 	typedef pair<string,int64>	value_type;
+	
+	struct CMergeIndexBufferPage
+	{
+		int32			n;
+		char			s[kMergeIndexBufferPageSize - sizeof(int64) - sizeof(uint32)];
+		int64			e[1];
+		
+		void			SetData(int32 inIndex, const string& inString, int64 inValue);
+		void			GetData(int32 inIndex, string& outString, int64& outValue) const;
+		bool			CanStore(const string& inString) const;
+	};
 	
   public:
 						CMergeIndexBuffer(const string& inBaseUrl);
@@ -1656,66 +1678,112 @@ class CMergeIndexBuffer
 		bool			equal(const iterator& inOther) const;
 		reference		dereference() const;
 
-		void			read();
-		
 		HStreamBase*	fFile;
-		int64			fOffset;
+		int64			fFileOffset;
+		int32			fIndex;
+		CMergeIndexBufferPage
+						fPage;
 		value_type		fCurrent;
 	};
 	
-	iterator			begin()			{ if (fBufferIndx) FlushBuffer(); return iterator(fFile, 0); }
-	iterator			end()			{ if (fBufferIndx) FlushBuffer(); return iterator(fFile, fFile.Size()); }
+	iterator			begin()			{ if (fBufferIndex > 0) FlushBuffer(); return iterator(*fFile, 0); }
+	iterator			end()			{ if (fBufferIndex > 0) FlushBuffer(); return iterator(*fFile, fFile->Size()); }
 	
   private:	
 
 	void				FlushBuffer();
 
-	static const uint32	kBufferSize;
-	HTempFileStream		fFile;
-	value_type*			fBuffer;
-	uint32				fBufferIndx;
+	HUrl					fURL;
+	HFileStream*			fFile;
+	int32					fBufferIndex;
+	CMergeIndexBufferPage	fBufferPage;
 };
 
-const uint32 CMergeIndexBuffer::kBufferSize = 1024;
-
 CMergeIndexBuffer::CMergeIndexBuffer(const string& inBaseUrl)
-	: fFile(HUrl(inBaseUrl + "_merge_indx"))
-	, fBuffer(new value_type[kBufferSize])
-	, fBufferIndx(0)
-{	
+	: fURL(inBaseUrl + "_merge_indx")
+	, fFile(new HFileStream(fURL, O_RDWR | O_TRUNC | O_CREAT))
+	, fBufferIndex(0)
+{
+	assert(sizeof(CMergeIndexBufferPage) == kMergeIndexBufferPageSize);
+	fBufferPage.n = 0;
+	fBufferPage.e[0] = 0;
 }
 
 CMergeIndexBuffer::~CMergeIndexBuffer()
 {
-	delete[] fBuffer;
+	delete fFile;
+	HFile::Unlink(fURL);
 }
 
 void CMergeIndexBuffer::push_back(const value_type& inValue)
 {
-	if (fBufferIndx >= kBufferSize)
+	if (not fBufferPage.CanStore(inValue.first))
 		FlushBuffer();
 	
-	fBuffer[fBufferIndx] = inValue;
-	++fBufferIndx;
+	fBufferPage.SetData(fBufferIndex++, inValue.first, inValue.second);
 }
 
 void CMergeIndexBuffer::FlushBuffer()
 {
-	for (uint32 ix = 0; ix < fBufferIndx; ++ix)
-		fFile << fBuffer[ix].first << fBuffer[ix].second;
-	fBufferIndx = 0;
+	fFile->Write(&fBufferPage, kMergeIndexBufferPageSize);
+	
+	fBufferPage.n = 0;
+	fBufferIndex = 0;
+}
+
+void CMergeIndexBuffer::CMergeIndexBufferPage::SetData(int32 inIndex, const string& inString, int64 inValue)
+{
+	uint32 sLen = inString.length();
+	uint32 sOffset = static_cast<uint32>(e[-inIndex] & 0x0FFFFFFULL);
+	
+	assert(n == inIndex);
+	assert(sOffset < kMergeIndexBufferPageSize);
+	
+	inString.copy(s + sOffset, sLen);
+	
+	e[-inIndex] = sOffset | (inValue << 24);
+	e[-inIndex - 1] = sOffset + sLen;
+
+	++n;
+}
+
+void CMergeIndexBuffer::CMergeIndexBufferPage::GetData(int32 inIndex, string& outString, int64& outValue) const
+{
+	assert(inIndex >= 0 and inIndex < n);
+	
+	uint32 sOffset = static_cast<uint32>(e[-inIndex] & 0x0FFFFFFULL);
+	uint32 sLen = static_cast<uint32>(e[-inIndex - 1] & 0x0FFFFFFULL) - sOffset;
+	outString.assign(s + sOffset, sLen);
+	outValue = e[-inIndex] >> 24;
+}
+
+bool CMergeIndexBuffer::CMergeIndexBufferPage::CanStore(const string& inString) const
+{
+	int32 free = kMergeIndexBufferPageSize;
+	free -= (n + 2) * sizeof(int64) + sizeof(uint32) + static_cast<uint32>(e[-n] & 0x0FFFFFFULL);
+	
+	return free > static_cast<int32>(inString.length() + sizeof(int64));
 }
 
 CMergeIndexBuffer::iterator::iterator(HStreamBase& inFile, int64 inOffset)
 	: fFile(&inFile)
-	, fOffset(inOffset)
+	, fFileOffset(inOffset)
+	, fIndex(0)
 {
-	read();
+	if (fFileOffset < fFile->Size())
+		fFile->PRead(&fPage, kMergeIndexBufferPageSize, fFileOffset);
+	else
+		fPage.n = 0;
+	
+	if (fIndex < fPage.n)
+		fPage.GetData(fIndex, fCurrent.first, fCurrent.second);
 }
 
 CMergeIndexBuffer::iterator::iterator(const iterator& inOther)
 	: fFile(inOther.fFile)
-	, fOffset(inOther.fOffset)
+	, fFileOffset(inOther.fFileOffset)
+	, fIndex(inOther.fIndex)
+	, fPage(inOther.fPage)
 	, fCurrent(inOther.fCurrent)
 {
 }
@@ -1723,40 +1791,40 @@ CMergeIndexBuffer::iterator::iterator(const iterator& inOther)
 CMergeIndexBuffer::iterator& CMergeIndexBuffer::iterator::operator=(const iterator& inOther)
 {
 	fFile = inOther.fFile;
-	fOffset = inOther.fOffset;
+	fFileOffset = inOther.fFileOffset;
+	fIndex = inOther.fIndex;
+	fPage = inOther.fPage;
 	fCurrent = inOther.fCurrent;
 	return *this;
 }
 
 void CMergeIndexBuffer::iterator::increment()
 {
-	if (fCurrent.first.length() == 0)
-		read();
+	if (++fIndex >= fPage.n)
+	{
+		fFileOffset += kMergeIndexBufferPageSize;
 
-	fOffset += fCurrent.first.length() + 1 + sizeof(fCurrent.second);
-
-	read();
+		if (fFileOffset < fFile->Size())
+			fFile->PRead(&fPage, kMergeIndexBufferPageSize, fFileOffset);
+		else
+			fPage.n = 0;
+		
+		fIndex = 0;
+	}
+	
+	if (fPage.n > 0)
+		fPage.GetData(fIndex, fCurrent.first, fCurrent.second);
 }
 
 bool CMergeIndexBuffer::iterator::equal(const iterator& inOther) const
 {
-	return this == &inOther or (fFile == inOther.fFile and fOffset == inOther.fOffset);
+	return this == &inOther or
+		(fFile == inOther.fFile and fFileOffset == inOther.fFileOffset and fIndex == inOther.fIndex);
 }
 
 CMergeIndexBuffer::iterator::reference CMergeIndexBuffer::iterator::dereference() const
 {
 	return fCurrent;
-}
-
-void CMergeIndexBuffer::iterator::read()
-{
-	if (fOffset < fFile->Size())
-	{
-		fFile->Seek(fOffset, SEEK_SET);
-		(*fFile) >> fCurrent.first >> fCurrent.second;
-	}
-	else
-		fCurrent.first.clear();
 }
 
 // dang... the next function is nasty....
