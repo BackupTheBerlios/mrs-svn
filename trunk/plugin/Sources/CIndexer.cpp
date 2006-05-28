@@ -1919,6 +1919,10 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 
 		uint32 i;
 		int32 count = 0;
+
+		for (i = 0; fParts[ix].kind == 0 and i < md.size(); ++i)
+			fParts[ix].kind = md[i].info[ix].kind;
+		
 		auto_ptr<CJoinedIteratorBase> iter(CJoinedIteratorBase::Create(fParts[ix].kind));
 		
 		for (i = 0; i < md.size(); ++i)
@@ -1929,12 +1933,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 				continue;
 			
 			if (fParts[ix].kind != md[i].info[ix].kind)
-			{
-				if (fParts[ix].kind == 0)
-					fParts[ix].kind = md[i].info[ix].kind;
-				else
-					THROW(("Incompatible index types"));
-			}
+				THROW(("Incompatible index types"));
 
 			md[i].data = &inParts[i]->GetDataFile();
 			md[i].indx = new CIndex(fParts[ix].kind, md[i].info[ix].index_version,
