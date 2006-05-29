@@ -48,9 +48,9 @@
 using namespace std;
 
 const int
-	kSmallBufferSize = 0x010000,	// 65k
-	kMinFreeSpaceInBlock = 8;		// If the free space is less than this tresh hold
-									// we consider the block full
+	kSmallBufferSize = 8 * 1024 * 1024,	// 8 Mb blocks
+	kMinFreeSpaceInBlock = 8;			// If the free space is less than this tresh hold
+										// we consider the block full
 
 
 struct CTextTableBlock
