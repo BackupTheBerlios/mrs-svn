@@ -510,7 +510,7 @@ void CIndexPage<DD>::Allocate()
 	memset(&fData, 0, kPageSize);
 
 	fFile->Seek(0, SEEK_END);
-	fOffset = DD::PageAddrToNr(static_cast<uint32>(fFile->Tell() - fBaseOffset));
+	fOffset = DD::PageAddrToNr(fFile->Tell() - fBaseOffset);
 	if (fOffset == 0) // avoid returning a zero address!!!
 	{
 		char c = 0xff;
