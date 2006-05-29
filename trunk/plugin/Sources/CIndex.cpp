@@ -354,8 +354,8 @@ struct COnDiskDataV2
 						e[-inIndex].d |= (inP & 0x0FFFFFFULL);
 					}
 
-	static uint32	PageNrToAddr(uint32 inPageNr)	{ return (inPageNr - 1) * kPageSize; }
-	static uint32	PageAddrToNr(uint32 inPageAddr)	{ return (inPageAddr / kPageSize) + 1; }
+	static int64	PageNrToAddr(uint32 inPageNr)	{ return static_cast<int64>(inPageNr - 1) * kPageSize; }
+	static uint32	PageAddrToNr(int64 inPageAddr)	{ return static_cast<uint32>(inPageAddr / kPageSize) + 1; }
 
 	void			SwapBytesHToN();
 	void			SwapBytesNToH();
@@ -901,6 +901,7 @@ struct iterator_imp_t : public iterator_imp
 						clone() const;
 
 	std::stack<uint32>	fStack;
+	CIndexPage			fDiskPage;
 };
 
 //// specialisation for the old format
@@ -1785,12 +1786,11 @@ template<typename DD>
 iterator_imp_t<DD>::iterator_imp_t(HStreamBase& inFile, int64 inOffset,
 		uint32 inPage, uint32 inPageIndex)
 	: iterator_imp(inFile, inOffset, inPage, inPageIndex)
+	, fDiskPage(*fFile, fBaseOffset, fPage)
 {
-	CIndexPage p(*fFile, fBaseOffset, fPage);
 	uint32 c;
-
-	if (fPageIndex < p.GetN())
-		p.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
+	if (fPageIndex < fDiskPage.GetN())
+		fDiskPage.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
 }
 
 template<typename DD>
@@ -1802,78 +1802,75 @@ iterator_imp_t<DD>::iterator_imp_t(const iterator_imp_t& inOther)
 template<typename DD>
 void iterator_imp_t<DD>::increment()
 {
-	CIndexPage p(*fFile, fBaseOffset, fPage);
 	bool valid = true;
-
-	if (p.GetP(fPageIndex)) // current entry has a p, decent
+	
+	if (fDiskPage.GetP(fPageIndex)) // current entry has a p, decent
 	{
-		fPage = p.GetP(fPageIndex);
+		fPage = fDiskPage.GetP(fPageIndex);
 		fPageIndex = 0;
 
-		p.Load(*fFile, fBaseOffset, fPage);
+		fDiskPage.Load(*fFile, fBaseOffset, fPage);
 		
-		while (p.GetP0())
+		while (fDiskPage.GetP0())
 		{
-			fPage = p.GetP0();
-			p.Load(*fFile, fBaseOffset, fPage);
+			fPage = fDiskPage.GetP0();
+			fDiskPage.Load(*fFile, fBaseOffset, fPage);
 		}
 	}
 	else
 	{
 		++fPageIndex;
 
-		while (fPageIndex >= p.GetN() and p.GetParent())	// do we have a parent?
+		while (fPageIndex >= fDiskPage.GetN() and fDiskPage.GetParent())	// do we have a parent?
 		{
-			p.Load(*fFile, fBaseOffset, p.GetParent());
+			fDiskPage.Load(*fFile, fBaseOffset, fDiskPage.GetParent());
 
-			if (p.GetP0() == fPage)
+			if (fDiskPage.GetP0() == fPage)
 				fPageIndex = 0;
 			else
-				fPageIndex = p.GetIndexForP(fPage) + 1;
+				fPageIndex = fDiskPage.GetIndexForP(fPage) + 1;
 
-			fPage = p.GetOffset();
+			fPage = fDiskPage.GetOffset();
 		}
 		
-		valid = (fPageIndex < p.GetN());
+		valid = (fPageIndex < fDiskPage.GetN());
 	}
 	
 	if (valid)
 	{
 		uint32 c;
-		p.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
+		fDiskPage.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
 	}
 }
 
 template<typename DD>
 void iterator_imp_t<DD>::decrement()
 {
-	CIndexPage p(*fFile, fBaseOffset, fPage);
-
 	uint32 dp = 0;
 
 	if (fPageIndex == 0)		// beginning of page
 	{
-		if (p.GetP0())			// see if we need to decent down p0 first
-			dp = p.GetP0();
+		if (fDiskPage.GetP0())			// see if we need to decent down p0 first
+			dp = fDiskPage.GetP0();
 		else
 		{
 			uint32 np = fPage;		// tricky, see if we can find a page upwards
 			uint32 nx = fPageIndex;	// where we hit an index > 0. If not we're at
 									// the far left and thus Begin()
 			
-			while (p.GetParent())
+			while (fDiskPage.GetParent())
 			{
-				p.Load(*fFile, fBaseOffset, p.GetParent());
+				fDiskPage.Load(*fFile, fBaseOffset, fDiskPage.GetParent());
 				
-				if (np == p.GetP0())
+				if (np == fDiskPage.GetP0())
 				{
-					np = p.GetOffset();
+					np = fDiskPage.GetOffset();
 					nx = 0;
 				}
 				else
 				{
-					fPageIndex = p.GetIndexForP(np);
-					fPage = p.GetOffset();
+					fPageIndex = fDiskPage.GetIndexForP(np);
+					fPage = fDiskPage.GetOffset();
 					break;
 				}
 			}
@@ -1882,20 +1879,20 @@ void iterator_imp_t<DD>::decrement()
 	else
 	{
 		--fPageIndex;
-		dp = p.GetP(fPageIndex);
+		dp = fDiskPage.GetP(fPageIndex);
 	}
 	
 	while (dp)
 	{
-		p.Load(*fFile, fBaseOffset, dp);
+		fDiskPage.Load(*fFile, fBaseOffset, dp);
 		fPage = dp;
-		fPageIndex = p.GetN() - 1;
-		dp = p.GetP(fPageIndex);
+		fPageIndex = fDiskPage.GetN() - 1;
+		dp = fDiskPage.GetP(fPageIndex);
 	}
 	
-	p.Load(*fFile, fBaseOffset, fPage);
+	fDiskPage.Load(*fFile, fBaseOffset, fPage);
 	uint32 c;
-	p.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
+	fDiskPage.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
 }
 
 template<typename DD>
@@ -1922,8 +1919,8 @@ iterator_imp_t<COnDiskDataV0>::iterator_imp_t(HStreamBase& inFile, int64 inOffse
 			fStack.push(page);
 			
 			pp = page;
-			CIndexPage p(*fFile, fBaseOffset, page);
-			page = p.GetP0();
+			fDiskPage.Load(*fFile, fBaseOffset, page);
+			page = fDiskPage.GetP0();
 		}
 		
 		if (pp == 0)
@@ -1934,14 +1931,14 @@ iterator_imp_t<COnDiskDataV0>::iterator_imp_t(HStreamBase& inFile, int64 inOffse
 
 		fPageIndex = 0;
 		
-		CIndexPage p(*fFile, fBaseOffset, fPage);
+		fDiskPage.Load(*fFile, fBaseOffset, fPage);
 		uint32 c;
-		p.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
+		fDiskPage.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
 	}
 	else
 	{
-		CIndexPage p(*fFile, fBaseOffset, fPage);
-		fPageIndex = p.GetN();
+		fDiskPage.Load(*fFile, fBaseOffset, fPage);
+		fPageIndex = fDiskPage.GetN();
 	}
 }
 
@@ -1955,64 +1952,61 @@ iterator_imp_t<COnDiskDataV0>::iterator_imp_t(const iterator_imp_t& inOther)
 template<>
 void iterator_imp_t<COnDiskDataV0>::increment()
 {
-	CIndexPage p(*fFile, fBaseOffset, fPage);
 	bool valid = true;
 
-	if (p.GetP(fPageIndex)) // current entry has a p, decent
+	if (fDiskPage.GetP(fPageIndex)) // current entry has a p, decent
 	{
 		fStack.push(fPage);
 		
-		fPage = p.GetP(fPageIndex);
+		fPage = fDiskPage.GetP(fPageIndex);
 		fPageIndex = 0;
 
-		p.Load(*fFile, fBaseOffset, fPage);
+		fDiskPage.Load(*fFile, fBaseOffset, fPage);
 		
-		while (p.GetP0())
+		while (fDiskPage.GetP0())
 		{
 			fStack.push(fPage);
 			
-			fPage = p.GetP0();
-			p.Load(*fFile, fBaseOffset, fPage);
+			fPage = fDiskPage.GetP0();
+			fDiskPage.Load(*fFile, fBaseOffset, fPage);
 		}
 	}
 	else
 	{
 		++fPageIndex;
 
-		while (fPageIndex >= p.GetN() and not fStack.empty())	// do we have a parent?
+		while (fPageIndex >= fDiskPage.GetN() and not fStack.empty())	// do we have a parent?
 		{
-			p.Load(*fFile, fBaseOffset, fStack.top());
+			fDiskPage.Load(*fFile, fBaseOffset, fStack.top());
 			fStack.pop();
 
-			if (p.GetP0() == fPage)
+			if (fDiskPage.GetP0() == fPage)
 				fPageIndex = 0;
 			else
-				fPageIndex = p.GetIndexForP(fPage) + 1;
+				fPageIndex = fDiskPage.GetIndexForP(fPage) + 1;
 
-			fPage = p.GetOffset();
+			fPage = fDiskPage.GetOffset();
 		}
 		
-		valid = (fPageIndex < p.GetN());
+		valid = (fPageIndex < fDiskPage.GetN());
 	}
 	
 	if (valid)
 	{
 		uint32 c;
-		p.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
+		fDiskPage.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
 	}
 }
 
 template<>
 void iterator_imp_t<COnDiskDataV0>::decrement()
 {
-	CIndexPage p(*fFile, fBaseOffset, fPage);
-
 	uint32 dp = 0;
 
 	if (fPageIndex == 0)		// beginning of page
 	{
-		if (p.GetP0())			// see if we need to decent down p0 first
-			dp = p.GetP0();
+		if (fDiskPage.GetP0())			// see if we need to decent down p0 first
+			dp = fDiskPage.GetP0();
 		else
 		{
 			uint32 np = fPage;		// tricky, see if we can find a page upwards
@@ -2023,18 +2017,18 @@ void iterator_imp_t<COnDiskDataV0>::decrement()
 			
 			while (not ps.empty())
 			{
-				p.Load(*fFile, fBaseOffset, ps.top());
+				fDiskPage.Load(*fFile, fBaseOffset, ps.top());
 				ps.pop();
 				
-				if (np == p.GetP0())
+				if (np == fDiskPage.GetP0())
 				{
-					np = p.GetOffset();
+					np = fDiskPage.GetOffset();
 					nx = 0;
 				}
 				else
 				{
-					fPageIndex = p.GetIndexForP(np);
-					fPage = p.GetOffset();
+					fPageIndex = fDiskPage.GetIndexForP(np);
+					fPage = fDiskPage.GetOffset();
 					fStack = ps;
 					break;
 				}
@@ -2044,21 +2038,21 @@ void iterator_imp_t<COnDiskDataV0>::decrement()
 	else
 	{
 		--fPageIndex;
-		dp = p.GetP(fPageIndex);
+		dp = fDiskPage.GetP(fPageIndex);
 	}
 	
 	while (dp)
 	{
-		p.Load(*fFile, fBaseOffset, dp);
+		fDiskPage.Load(*fFile, fBaseOffset, dp);
 		fStack.push(fPage);
 		fPage = dp;
-		fPageIndex = p.GetN() - 1;
-		dp = p.GetP(fPageIndex);
+		fPageIndex = fDiskPage.GetN() - 1;
+		dp = fDiskPage.GetP(fPageIndex);
 	}
 	
-	p.Load(*fFile, fBaseOffset, fPage);
+	fDiskPage.Load(*fFile, fBaseOffset, fPage);
 	uint32 c;
-	p.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
+	fDiskPage.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
 }
 
 template<>

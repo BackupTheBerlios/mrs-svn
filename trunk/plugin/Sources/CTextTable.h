@@ -53,6 +53,8 @@ class CTextTable
 	virtual				~CTextTable();
 	
 	const char*			Store(const char* inText);
+	const char*			Store(const std::string& inText)
+							{ return Store(inText.c_str()); }
 	void				Reset();
 	
 	uint32				TotalSize()		{ return size; }

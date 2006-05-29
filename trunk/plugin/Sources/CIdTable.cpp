@@ -44,6 +44,7 @@
 #include "CIdTable.h"
 #include "CLexicon.h"
 #include "CBitStream.h"
+#include "CTextTable.h"
 
 #include "HStream.h"
 #include "CIndex.h"
@@ -178,34 +179,34 @@ string CIdTable::GetID(uint32 inDocNr)
 
 struct CIdTableHelper
 {
-	CLexicon	data;
-	uint32		docCount;
-	uint32*		idMap;
-	uint32		n;
+	CTextTable		data;
+	uint32			docCount;
+	const char**	map;
+	uint32			n;
 	
-				CIdTableHelper(uint32 inDocCount)
-					: docCount(inDocCount)
-					, idMap(new uint32[docCount])
-					, n(0)
-				{
-					memset(idMap, ~0, sizeof(uint32) * docCount);
-				}
+					CIdTableHelper(uint32 inDocCount)
+						: docCount(inDocCount)
+						, map(new const char*[docCount])
+						, n(0)
+					{
+						memset(map, ~0, sizeof(const char*) * docCount);
+					}
+		
+					~CIdTableHelper()
+					{
+						delete[] map;
+					}
+		
+	void			Visit(const std::string& inKey, int64 inValue)
+					{
+						assert(inValue < docCount);
 	
-				~CIdTableHelper()
-				{
-					delete[] idMap;
-				}
-	
-	void		Visit(const std::string& inKey, int64 inValue)
-				{
-					assert(inValue < docCount);
-
-					if (inValue >= docCount)
-						THROW(("Error creating ID table: v(%d) >= inDocCount(%d)", inValue, docCount));
-					
-					idMap[inValue] = data.Store(inKey);
-					++n;
-				}
+						if (inValue >= docCount)
+							THROW(("Error creating ID table: v(%d) >= inDocCount(%d)", inValue, docCount));
+						
+						map[inValue] = data.Store(inKey.c_str());
+						++n;
+					}
 };
 
 void CIdTable::Create(HStreamBase& inFile, CIndex& inIndex, uint32 inDocCount)
@@ -231,11 +232,11 @@ void CIdTable::Create(HStreamBase& inFile, CIndex& inIndex, uint32 inDocCount)
 			
 			for (uint32 i = 0; i < inDocCount; ++i)
 			{
-				if (static_cast<int32>(helper.idMap[i]) == -1)
+				if (helper.map[i] == nil)
 				{
 					stringstream s;
 					s << '#' << i;
-					helper.idMap[i] = helper.data.Store(s.str());
+					helper.map[i] = helper.data.Store(s.str().c_str());
 					
 					cerr << "Adding id: " << s.str() << endl;
 				}
@@ -249,7 +250,7 @@ void CIdTable::Create(HStreamBase& inFile, CIndex& inIndex, uint32 inDocCount)
 
 		for (uint32 i = 0; i < helper.n; ++i)
 		{
-			string id = helper.data.GetString(helper.idMap[i]);
+			string id = helper.map[i];
 			if (not p.Store(id))
 			{
 				uint32 first = p.first + p.count;
