@@ -89,6 +89,7 @@ struct CDocScore
 						{ return fRank > inOther.fRank; }
 };
 
+#if 0
 class CAccumulator
 {
 	friend class Iterator;
@@ -203,6 +204,127 @@ bool CAccumulator::Iterator::Next(uint32& ioDoc, bool inSkip)
 	
 	return result;
 }
+#else
+class CAccumulator
+{
+	friend class Iterator;
+	friend struct ItemRef;
+
+	struct Item
+	{
+		float			value;
+		uint32			count;
+		
+						Item() : value(0), count(0) {}
+	};
+
+  public:
+
+	struct ItemRef
+	{
+		friend class CAccumulator;
+		
+		float		operator+=(float inValue)
+					{
+						if (fItem->count == 0)
+							++fA.fHitCount;
+						
+						fItem->value += inValue;
+						fItem->count += 1;
+
+						return fItem->value;
+					}
+
+					operator float() const
+					{
+						return fItem->value;
+					}
+		
+		uint32		Count() const;
+
+	  private:
+
+					ItemRef(CAccumulator& inAccumulator, Item inData[], uint32 inDocNr)
+						: fItem(inData + inDocNr)
+						, fA(inAccumulator) {}
+					ItemRef(const ItemRef&);
+					ItemRef();
+		ItemRef&	operator=(const ItemRef&);
+
+		Item*			fItem;
+		CAccumulator&	fA;
+	};
+	
+					CAccumulator(uint32 inDocumentCount)
+						: fData(new Item[inDocumentCount])
+						, fDocCount(inDocumentCount)
+						, fHitCount(0)
+					{
+						memset(fData, 0, sizeof(Item) * inDocumentCount);
+					}
+
+	virtual			~CAccumulator()
+					{
+						delete fData;
+					}
+	
+	ItemRef			operator[](uint32 inDocNr)				{ return ItemRef(*this, fData, inDocNr); }
+	
+	class Iterator : public CDocIterator
+	{
+	  public:
+					Iterator(CAccumulator& inAccumulator, uint32 inTermCount)
+						: fData(inAccumulator.fData)
+						, fDocCount(inAccumulator.fDocCount)
+						, fHitCount(inAccumulator.fHitCount)
+						, fCurrent(0)
+						, fRead(0)
+						, fTermCount(inTermCount) {}
+		
+		virtual bool	Next(uint32& ioDoc, bool inSkip);
+		virtual uint32	Count() const						{ return fHitCount; }
+		virtual uint32	Read() const						{ return fRead; }
+		const Item&		GetItem() const						{ return fData[fCurrent]; }
+	
+	  private:
+		Item*			fData;
+		uint32			fDocCount;
+		uint32			fHitCount;
+		uint32			fCurrent;
+		uint32			fRead;
+		uint32			fTermCount;
+	};
+	
+  private:
+	Item*				fData;
+	uint32				fDocCount;
+	uint32				fHitCount;
+};
+
+bool CAccumulator::Iterator::Next(uint32& ioDoc, bool inSkip)
+{
+	bool result = false;
+
+	while (fRead < fHitCount and fCurrent < fDocCount)
+	{
+		if ((fData[fCurrent].count == 0) or
+			(inSkip and fCurrent < ioDoc) or
+			(fTermCount and fData[fCurrent].count != fTermCount))
+		{
+			++fCurrent;
+			continue;
+		}
+		
+		result = true;
+		ioDoc = fCurrent;
+		++fCurrent;
+
+		break;
+	}
+	
+	return result;
+}
+#endif
 
 CRankedQuery::CRankedQuery()
 	: fImpl(new CRankedQueryImp)
@@ -315,7 +437,8 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	if (maxCount > 100000)
 		maxCount = 100000;
 
-	CAccumulator A(maxCount);
+//	CAccumulator A(maxCount);
+	CAccumulator A(inDatabank.Count());
 
 	for (uint32 tx = 0; tx < fImpl->fTerms.size(); ++tx)
 	{
@@ -385,14 +508,15 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 		rdi.reset(CDocIntersectionIterator::Create(
 			new CSortDocIterator(rdi.release()), inMetaQuery));
 	
-	uint32 d = 0;
+	uint32 d = 0, n = 0;
+	
 	while (rdi->Next(d, false))
 	{
 		CDocScore ds;
 		ds.fRank = alg(A[d], Wd[d], Wq);
 		ds.fDocNr = d;
 		
-		if (docs.size() >= inMaxReturn)
+		if (n >= inMaxReturn)
 		{
 			if (ds.fRank > docs.front().fRank)
 			{
@@ -405,6 +529,7 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 		{
 			docs.push_back(ds);
 			push_heap(docs.begin(), docs.end(), greater<CDocScore>());
+			++n;
 		}
 	}
 	

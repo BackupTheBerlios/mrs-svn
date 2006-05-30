@@ -56,7 +56,8 @@ enum {
 	kHuffWordCompressed = FOUR_CHAR_INLINE('mrsh'),
 	kbzLibCompressed = FOUR_CHAR_INLINE('mrsb'),
 	kInvalidData = FOUR_CHAR_INLINE('zero'),
-	kMergedData = FOUR_CHAR_INLINE('mrsm')
+	kMergedData = FOUR_CHAR_INLINE('mrsm'),
+	kLinkedData = FOUR_CHAR_INLINE('link')
 };
 
 class CCompressor

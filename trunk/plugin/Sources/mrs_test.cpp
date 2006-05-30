@@ -193,7 +193,7 @@ int main(int argc, const char* argv[])
 		int n = 10;
 		const char* id;
 		while (n-- > 0 and (id = r->Next()) != NULL)
-			cout << id << endl;
+			cout << id << '\t' << r->Score() << endl;
 	}
 	else
 		cout << "No hits found" << endl;

@@ -54,7 +54,8 @@ class CCArray;
 class CDecompressor
 {
   public:
-						CDecompressor(HStreamBase& inFile, uint32 inKind,
+						CDecompressor(const HUrl& inDb,
+							HStreamBase& inFile, uint32 inKind,
 							int64 inDataOffset, int64 inDataSize,
 							int64 inTableOffset, int64 inTableSize);
 						~CDecompressor();
@@ -64,30 +65,17 @@ class CDecompressor
 	void				CopyData(HStreamBase& outData, uint32& outKind,
 							int64& outDataOffset, int64& outDataSize,
 							int64& outTableOffset, int64& outTableSize);
-	
-	struct iterator
-	{
-						iterator(CDecompressor& inData);
-		bool			Next(std::string& outDoc);
 
-	  private:
-		CDecompressor&	data;
-		uint32			doc_nr;
-		int64			doc_offset;
-	};
+	void				LinkData(const std::string& inDataFileName,
+							const std::string& inDataFileUUID,
+							HStreamBase& outData, uint32& outKind,
+							int64& outDataOffset, int64& outDataSize,
+							int64& outTableOffset, int64& outTableSize);
 	
   private:
-	friend struct iterator;
-	friend struct iterator_imp;
 
 	struct CDecompressorImp*	fImpl;
-	CCArray<int64>*				fDocIndex;
 	uint32						fKind;
-	HStreamBase&				fFile;
-	int64						fDataOffset, fDataSize;
-	int64						fTableOffset, fTableSize;
-	int64						fMaxOffset;
-	uint32						fDictLength;
 };
 
 #endif // CDECOMPRESS_H

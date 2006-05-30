@@ -167,7 +167,7 @@ class CDatabank : public CDatabankBase
 					
 						~CDatabank();
 
-	void				Merge(std::vector<CDatabank*>& inParts);
+	void				Merge(std::vector<CDatabank*>& inParts, bool inCopyData);
 	virtual void		DumpIndex(const std::string& inIndex);
 	virtual CIteratorBase*
 						GetIteratorForIndex(const std::string& inIndex);

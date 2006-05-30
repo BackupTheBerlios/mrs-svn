@@ -130,7 +130,7 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 						MDatabank(const std::string& inName);
 
 	static MDatabank*	Create(const std::string& inPath);
-	static void			Merge(const std::string& inPath, MDatabankArray inDbs);
+	static void			Merge(const std::string& inPath, MDatabankArray inDbs, bool inCopyData);
 
 	long				Count();
 	std::string			GetVersion();

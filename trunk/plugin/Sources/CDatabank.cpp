@@ -560,7 +560,7 @@ void CDatabank::Finish(bool inCreateAllTextIndex)
 		cout << "Datafile closed" << endl;
 }
 
-void CDatabank::Merge(vector<CDatabank*>& inParts)
+void CDatabank::Merge(vector<CDatabank*>& inParts, bool inCopyData)
 {
 	if (fReadOnly)
 	{
@@ -623,9 +623,20 @@ void CDatabank::Merge(vector<CDatabank*>& inParts)
 			if ((*d)->fParts[ix].kind == 0)
 				continue;
 			
-			(*d)->GetDecompressor(ix)->CopyData(*fDataFile, fParts[part].kind,
-				fParts[part].data_offset, fParts[part].data_size,
-				fParts[part].table_offset, fParts[part].table_size);
+			if (inCopyData)
+			{
+				(*d)->GetDecompressor(ix)->CopyData(*fDataFile, fParts[part].kind,
+					fParts[part].data_offset, fParts[part].data_size,
+					fParts[part].table_offset, fParts[part].table_size);
+			}
+			else
+			{
+				(*d)->GetDecompressor(ix)->LinkData(
+					(*d)->GetDataUrl().GetFileName(), (*d)->GetUUID(),
+					*fDataFile, fParts[part].kind,
+					fParts[part].data_offset, fParts[part].data_size,
+					fParts[part].table_offset, fParts[part].table_size);
+			}
 
 			fParts[part].count = (*d)->fParts[ix].count;
 			fParts[part].sig = kPartSig;
@@ -814,7 +825,7 @@ CDecompressor* CDatabank::GetDecompressor(uint32 inPartNr)
 	if (fDataParts[inPartNr].fDecompressor == nil)
 	{
 		fDataParts[inPartNr].fDecompressor =
-			new CDecompressor(*fDataFile, fParts[inPartNr].kind,
+			new CDecompressor(fPath, *fDataFile, fParts[inPartNr].kind,
 				fParts[inPartNr].data_offset, fParts[inPartNr].data_size,
 				fParts[inPartNr].table_offset, fParts[inPartNr].table_size);
 	}
@@ -1625,7 +1636,7 @@ CUpdatedDatabank::~CUpdatedDatabank()
 string CUpdatedDatabank::GetDocument(uint32 inDocNr)
 {
 	if (inDocNr >= CDatabank::Count())
-		return fOriginal->GetDocument(inDocNr - Count());
+		return fOriginal->GetDocument(inDocNr - CDatabank::Count());
 	else
 		return CDatabank::GetDocument(inDocNr);
 }
@@ -1814,8 +1825,9 @@ CDbDocIteratorBase* CUpdatedDatabank::GetDocWeightIterator(
 		THROW(("Update databank does not contain an id index"));
 
 	CDbDocIteratorBase* a = CDatabank::GetDocWeightIterator(inIndex, inKey);
-	CDbDocIteratorBase* b = new CUpdateIterator<CDbDocIteratorBase>(fOriginal, omit,
-		fOriginal->GetDocWeightIterator(inIndex, inKey));
+	CDbDocIteratorBase* b = fOriginal->GetDocWeightIterator(inIndex, inKey);
+//	CDbDocIteratorBase* b = new CUpdateIterator<CDbDocIteratorBase>(fOriginal, omit,
+//		fOriginal->GetDocWeightIterator(inIndex, inKey));
 	
 	return new CMergedDbDocIterator(b, CDatabank::Count(), CDatabank::Count(),
 		a, 0, fOriginal->Count());

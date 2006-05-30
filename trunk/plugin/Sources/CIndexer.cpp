@@ -49,6 +49,7 @@
 #include <sstream>
 #include <tr1/unordered_set>
 #include <boost/functional/hash/hash.hpp>
+#include <boost/ptr_container/ptr_vector.hpp>
 #include "HFile.h"
 #include "HUtils.h"
 #include "HError.h"
@@ -2040,33 +2041,39 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					vector<pair<uint32,uint8> > docs;
 					uint32 first = 0;
 					
+					boost::ptr_vector<CDbDocWeightIterator>	docIters;
+					uint32 count = 0;
+
 					for (i = 0; i < md.size(); ++i)
 					{
 						for (uint32 j = 0; j < v.size(); ++j)
 						{
 							if (v[j].first == i)
 							{
-								CDbDocWeightIterator docIter(*md[i].data,
-									md[i].info[ix].bits_offset + v[j].second, md[i].count);
-							
-								uint32 doc;
-								uint8 freq;
-
-								float idf = docIter.GetIDFCorrectionFactor();
-
-								while (docIter.Next(doc, freq, false))
-								{
-									docs.push_back(make_pair(doc + first, freq));
-
-									float wdt = freq * idf;
-									dw[doc + first] += wdt * wdt;
-								}
-								
+								docIters.push_back(new CDbDocWeightIterator(*md[i].data,
+									md[i].info[ix].bits_offset + v[j].second, md[i].count,
+									first));
+								count += docIters.back().Count();
 								break;
 							}
 						}
-
 						first += md[i].count;
+					}
+					
+					float idf = log(1.0 + static_cast<double>(fHeader->entries) / count);
+
+					for (i = 0; i < docIters.size(); ++i)
+					{
+						uint32 doc;
+						uint8 freq;
+
+						while (docIters[i].Next(doc, freq, false))
+						{
+							docs.push_back(make_pair(doc, freq));
+
+							float wdt = freq * idf;
+							dw[doc] += wdt * wdt;
+						}
 					}
 					
 					int64 offset = bitFile->Seek(0, SEEK_END);
@@ -2296,7 +2303,7 @@ void CIndexer::PrintInfo()
 		cout << "  name:          " << p.name << endl;
 		
 		int64 nextOffset = fOffset + fSize;
-		uint32 treeSize, bitsSize;
+		int64 treeSize, bitsSize;
 		
 		if (ix < fHeader->count - 1)
 		{

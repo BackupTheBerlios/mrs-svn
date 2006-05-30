@@ -10,9 +10,10 @@
 
 template<typename T>
 CDbDocIteratorBaseT<T>::CDbDocIteratorBaseT(HStreamBase& inData,
-		int64 inOffset, int64 inMax)
+		int64 inOffset, int64 inMax, uint32 inDelta)
 	: fBits(inData, inOffset)
 	, fIter(fBits, inMax)
+	, fDelta(inDelta)
 {
 	using namespace std;
 
@@ -27,9 +28,9 @@ bool CDbDocIteratorBaseT<T>::Next(uint32& ioDoc, bool inSkip)
 
 	while (not done and fIter.Next())
 	{
-		uint32 v = fIter.Value();
+		uint32 v = fDelta + fIter.Value();
 
-		if (v > ioDoc or v == 0 or not inSkip)
+		if (v > ioDoc or v == fDelta or not inSkip)
 		{
 			ioDoc = v;
 			done = true;
@@ -47,10 +48,10 @@ bool CDbDocIteratorBaseT<T>::Next(uint32& ioDoc, uint8& ioWeight, bool inSkip)
 
 	while (not done and fIter.Next())
 	{
-		uint32 v = fIter.Value();
+		uint32 v = fDelta + fIter.Value();
 		uint32 r = fIter.Weight();
 
-		if (v > ioDoc or v == 0 or not inSkip)
+		if (v > ioDoc or v == fDelta or not inSkip)
 		{
 			ioDoc = v;
 			ioWeight = r;
