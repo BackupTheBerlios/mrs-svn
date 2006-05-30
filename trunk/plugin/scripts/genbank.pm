@@ -60,7 +60,7 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my ($doc, $m, $done, $field, $prot);
+	my ($doc, $id, $m, $done, $field, $prot);
 	
 	$done = 0;
 	$m = $self->{mrs};
@@ -85,6 +85,7 @@ sub parse
 
 			$doc = undef;
 			$field = undef;
+			$id = undef;
 			$done = 0;
 		}
 		elsif (not $done)
@@ -168,9 +169,31 @@ sub parse
 			{
 				my $text = substr($line, 12);
 
-				if ($field eq 'locus' and $text =~ /^(\S+)(\s+\d+ (aa|bp)?.+)/o)
+				if ($field eq 'accession')
 				{
-					$m->IndexValue('id', $1);
+					my @acc = split(/\s/, $text);
+					
+					if (scalar @acc >= 1)
+					{
+						if (not defined $id)
+						{
+							$id = $acc[0];
+							$m->IndexValue('id', $id);
+						}
+						
+						foreach my $acc (@acc)
+						{
+							$m->IndexText('accession', $acc);
+						}
+					}
+					else
+					{
+						warn "no accessions?\n" unless ();
+					}
+				}
+				elsif ($field eq 'locus' and $text =~ /^(\S+)(\s+\d+ (aa|bp)?.+)/o)
+				{
+#					$m->IndexValue('id', $1);
 					$m->IndexText('locus', $2);
 					$prot = $3 eq 'aa';
 				}
@@ -200,6 +223,34 @@ sub parse
 			}
 		}
 	}
+}
+
+sub version
+{
+	my ($self, $raw_dir, $db) = @_;
+	
+	my $vers;
+	
+	if ($db eq 'genbank_release')
+	{
+		open RELDATE, "<$raw_dir/README.genbank";
+		
+		while (my $line = <RELDATE>)
+		{
+			if ($line =~ /GenBank Flat File Release/) {
+				$vers = $line;
+				last;
+			}
+		}
+		
+		close RELDATE;
+	}
+
+	die "Unknown db: $db" unless defined $vers;
+
+	chomp($vers);
+
+	return $vers;
 }
 
 sub raw_files

@@ -140,6 +140,33 @@ sub parse
 	}
 }
 
+sub version
+{
+	my ($self, $raw_dir, $db) = @_;
+	my $vers;
+	
+	if ($db eq 'embl_release')
+	{
+		open RELNOTES, "<$raw_dir/relnotes.txt";
+		
+		while (my $line = <RELNOTES>)
+		{
+			if ($line =~ /^\s+(Release\s+(\d+).+)/) {
+				$vers = $1;
+				last;
+			}
+		}
+
+		close RELNOTES;
+	}
+
+	die "Unknown db: $db" unless defined $vers;
+
+	chomp($vers);
+
+	return $vers;
+}
+
 sub raw_files
 {
 	my ($self, $raw_dir) = @_;
@@ -148,7 +175,7 @@ sub raw_files
 	my @result = grep { -e "$raw_dir/$_" and $_ =~ /\.dat\.gz$/ } readdir DIR;
 	closedir DIR;
 	
-	return map { "gunzip -c $raw_dir/$_ |" } @result;
+	return map { "gunzip -c $raw_dir/$_ |" } sort @result;
 }
 
 1;

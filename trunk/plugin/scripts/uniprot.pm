@@ -170,7 +170,7 @@ sub version
 			$vers = $line;
 			last;
 		}
-		elsif ($db eq 'sp100' and $line =~ /Swiss-Prot/) {
+		elsif ($db eq 'uniprot' and $line =~ /Swiss-Prot/) {
 			$vers = $line;
 			last;
 		}

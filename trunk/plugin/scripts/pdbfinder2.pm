@@ -95,14 +95,34 @@ sub parse
 			{
 				$state = 1;
 			}
-			elsif ($line =~ /^\s*(.+?)\s*:(.*)/)
+			elsif ($line =~ /^\s*(.+?)\s*:\s*(.*)/)
 			{
-				$line = $2;
+				my ($key, $value) = (lc $1, $2);
+				
+				if ($key eq 'date')
+				{
+					$m->IndexDate('date', $value);
+				}
+				elsif ($key eq 't-nres-nucl' or
+					$key eq 't-nres-prot' or
+					$key eq 't-water-mols' or 
+					$key eq 'het-groups')
+				{
+					$m->IndexNumber($key, $value);
+				}
+				elsif ($key eq 'resolution' or
+					$key eq 'r-factor' or
+					$key eq 'free-r')
+				{
+					$m->IndexNumber($key, $value * 1000.0);
+				}
+				else
+				{
+					$value =~ s/(\w)\.(?=\w)/$1. /og
+						if ($key eq 'author');
 
-				$line =~ s/(\w)\.(?=\w)/$1. /og
-					if ($1 eq 'Author');
-
-				$m->IndexText('text', $line);
+					$m->IndexText($key, $value);
+				}
 			}
 		}
 	}

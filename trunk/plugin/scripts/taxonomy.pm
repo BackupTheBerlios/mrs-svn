@@ -40,6 +40,8 @@
 package taxonomy::parser;
 
 use strict;
+use POSIX qw(strftime);
+use File::stat;
 
 my $count = 0;
 
@@ -98,6 +100,16 @@ sub parse
 			}
 		}
 	}
+}
+
+sub version
+{
+	my ($self, $raw_dir, $db) = @_;
+	
+	my $file_date = stat("$raw_dir/taxonomy.dat")->mtime;
+	my $vers = strftime("%d-%b-%Y, %H:%M:%S", localtime($file_date));	
+
+	return $vers;
 }
 
 sub raw_files

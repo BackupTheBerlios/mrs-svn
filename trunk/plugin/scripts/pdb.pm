@@ -124,11 +124,12 @@ sub parse
 			{
 				my ($fld, $text) = ($1, $3);
 
-				if ($fld eq 'ATOM')
-				{
-					$state = 2;
-				}
-				elsif ($fld eq 'TITLE')
+#				if ($fld eq 'ATOM')
+#				{
+#					$state = 2;
+#				}
+#				els
+				if ($fld eq 'TITLE')
 				{
 					$m->IndexText('title', $text);
 				}
@@ -153,17 +154,19 @@ sub parse
 					
 					$m->IndexText('remark', $text);
 				}
-				elsif ($fld eq 'SEQRES' and $text =~ /([A-Z])?\s+\d+\s+(.+)/)
+				elsif ($fld eq 'SEQRES')
 				{
-					my $chain_id = $1;
-					my $s = $2;
+					my $chain_id = substr($line, 11, 1);
+					my $s = substr($line, 19, 52);
 					
 					if (defined $seq_chain_id and
 						defined $chain_id and
 						$chain_id ne $seq_chain_id and
 						defined $sequence)
 					{
-						$seq{$seq_chain_id} = $sequence;
+						if (length($sequence) > 2) {
+							$seq{$seq_chain_id} = $sequence;
+						}
 						$sequence = undef;
 					}
 
@@ -173,7 +176,7 @@ sub parse
 					{
 						if (length($aa) == 3 and defined $aa_map{$aa})
 						{
-							$sequence = "" unless $sequence;
+							$sequence = "" unless defined $sequence;
 							$sequence .= $aa_map{$aa};
 						}
 					}
@@ -194,7 +197,7 @@ sub parse
 	{
 		$m->Store($doc);
 		
-		foreach my $ch (keys %seq)
+		foreach my $ch (sort keys %seq)
 		{
 			$m->AddSequence($seq{$ch});
 			delete $seq{$ch};

@@ -104,7 +104,7 @@ sub parse
 			}
 			elsif ($line =~ /^(.+?)\s*:(.*)/)
 			{
-				$m->IndexText($1, $2);
+				$m->IndexText(lc($1), $2);
 			}
 		}
 	}

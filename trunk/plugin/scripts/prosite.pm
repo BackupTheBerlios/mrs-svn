@@ -85,8 +85,6 @@ sub parse
 		{
 			die "No ID specified\n" unless defined $id;
 
-#print "ID: $id\n";
-
 			$m->Store($doc);
 			$m->FlushDocument;
 
@@ -100,8 +98,6 @@ sub parse
 
 			if ($fld eq 'ID' and $value =~ /^([A-Z0-9_]+)/o)
 			{
-print "\nCOAE\n\n" if $1 eq 'COAE';
-
 				die "Double ID: $id <=> $1\n" if defined $id;
 				$id = $1;
 				die "ID too short" unless length($id);

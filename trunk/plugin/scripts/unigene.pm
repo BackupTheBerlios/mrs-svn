@@ -77,6 +77,8 @@ sub parse
 
 		if ($line eq '//')
 		{
+			die "No ID specified for unigene record!\n"
+				unless defined $id;
 			$m->Store($doc);
 			$m->FlushDocument;
 
