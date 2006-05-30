@@ -258,7 +258,7 @@ sub Create()
 	$MRS::WEIGHT_BIT_COUNT = $weight_bit_count;
 	
 	my $cmp_name = $db;
-	$cmp_name .= $partNr if defined $partNr;
+	$cmp_name .= "-$partNr" if defined $partNr;
 
 	my $fileName = "$data_dir/$cmp_name.cmp";
 	my $exists = -f $fileName;
@@ -354,7 +354,7 @@ sub Merge()
 	my @parts;
 	foreach my $n (1 .. $cnt)
 	{
-		my $part = new MRS::MDatabank("$db$n.cmp")
+		my $part = new MRS::MDatabank("$db-$n.cmp")
 			or die "Could not find part $n: " . &MRS::errstr() . "\n";
 		
 		push @parts, $part;

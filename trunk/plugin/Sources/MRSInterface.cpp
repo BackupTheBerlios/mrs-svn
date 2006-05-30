@@ -452,7 +452,7 @@ void MDatabank::Merge(const string& inName, MDatabankArray inDbs, bool inCopyDat
 		dbs.push_back(d->fImpl->GetDB());
 	}
 	
-	dynamic_cast<CDatabank*>(result->GetDB())->Merge(dbs, bool inCopyData);
+	dynamic_cast<CDatabank*>(result->GetDB())->Merge(dbs, inCopyData);
 
 	if (result->fSafe.get())
 		result->fSafe->Commit();
