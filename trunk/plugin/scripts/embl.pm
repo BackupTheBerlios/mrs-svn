@@ -83,23 +83,26 @@ sub parse
 			$id = undef;
 			$doc = undef;
 		}
-		elsif ($line =~ /^([A-Z]{2}) {3}/o)
+		elsif ($line =~ /^([A-Z]{2}) {3}(.+)/o)
 		{
 			my $fld = $1;
+			my $text = $2;
 
-			if ($line =~ /^ID +(\S+)/o)
+			if ($fld eq 'ID')
 			{
-#				$id = $1;
-					
-				my @flds = split(m/;\s*/, $1);
-
-				$m->IndexValue('id', $flds[0]);
-				$flds[1] =~ m/SV (\d+)/ && $m->IndexWord('sv', $1);
-				$m->IndexWord('topology', $flds[2]);
-				$m->IndexWord('mt', $flds[3]);
-				$m->IndexWord('dc', $flds[4]);
-				$m->IndexWord('td', $flds[5]);
-				$flds[6] =~ m/(\d+)/ && $m->IndexNumber('length', $1);
+				$text =~ m/(\S+)/ or warn "No ID found in $text?!?!?\n";
+				$id = $1;
+				$m->IndexValue('id', $id);
+				
+#				my @flds = split(m/;\s*/, $text);
+#
+#				$m->IndexValue('id', $flds[0]);
+#				$flds[1] =~ m/SV (\d+)/ && $m->IndexWord('sv', $1);
+#				$m->IndexWord('topology', $flds[2]);
+#				$m->IndexWord('mt', $flds[3]);
+#				$m->IndexWord('dc', $flds[4]);
+#				$m->IndexWord('td', $flds[5]);
+#				$flds[6] =~ m/(\d+)/ && $m->IndexNumber('length', $1);
 			}
 			elsif (substr($fld, 0, 1) eq 'R')
 			{
@@ -109,7 +112,7 @@ sub parse
 			{
 				# avoid indexing the sequences in the translation feature
 				
-				if ($line =~ m|/([^=]+)="(.+)"|)
+				if ($text =~ m|/([^=]+)="(.+)"|)
 				{
 					$m->IndexText('ft', $2) if ($1 ne 'translation');
 				}
@@ -129,7 +132,7 @@ sub parse
 					}
 				}
 			}			
-			elsif ($fld ne 'SQ' and $fld ne 'XX')
+			elsif ($fld ne 'SQ' and $fld ne 'XX' and $fld ne 'SV')
 			{
 				$m->IndexText(lc($fld), substr($line, 5));
 			}
