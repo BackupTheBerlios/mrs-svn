@@ -106,6 +106,7 @@ sub new {
 *GetUUID = *MRSc::MDatabank_GetUUID;
 *DumpInfo = *MRSc::MDatabank_DumpInfo;
 *DumpIndex = *MRSc::MDatabank_DumpIndex;
+*PrefetchDocWeights = *MRSc::MDatabank_PrefetchDocWeights;
 *CountForKey = *MRSc::MDatabank_CountForKey;
 *Find = *MRSc::MDatabank_Find;
 *Match = *MRSc::MDatabank_Match;

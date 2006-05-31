@@ -66,12 +66,12 @@ if ($action eq 'create')
 }
 elsif ($action eq 'merge')
 {
-	getopts('d:P:v', \%opts);
+	getopts('d:P:lv', \%opts);
 
 	my $db = $opts{d} or &Usage();
 	my $cnt = $opts{P} or &Usage();
 	
-	&Merge($db, $opts{v}, $cnt);
+	&Merge($db, $opts{v}, $cnt, $opts{l});
 }
 elsif ($action eq 'weights')
 {
@@ -178,6 +178,7 @@ Usage:
     
         -d      databank name
         -P      total number of parts
+        -l      link data instead of copying it
         -v      verbose
 
     mrs blast -d databank [-q 'mrs query'] [-v] -i query_file
@@ -341,7 +342,7 @@ sub Create()
 
 sub Merge()
 {
-	my ($db, $verbose, $cnt) = @_;
+	my ($db, $verbose, $cnt, $link) = @_;
 	
 	$verbose = 0 unless defined $verbose;
 	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
@@ -360,7 +361,7 @@ sub Merge()
 		push @parts, $part;
 	}
 	
-	MRS::MDatabank::Merge("$data_dir/$db.cmp", \@parts);
+	MRS::MDatabank::Merge("$data_dir/$db.cmp", \@parts, not $link);
 }
 
 sub Query()

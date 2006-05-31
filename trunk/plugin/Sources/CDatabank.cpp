@@ -332,7 +332,8 @@ CDatabank::CDatabank(const HUrl& inUrl, bool inNew)
 	{
 		int mode = O_RDWR | O_CREAT | O_BINARY | O_TRUNC;
 		
-		fDataFile = new HBufferedFileStream(fPath, mode);
+//		fDataFile = new HBufferedFileStream(fPath, mode);
+		fDataFile = new HFileStream(fPath, mode);
 		
 		fHeader->sig = kHeaderSig;
 		
@@ -566,7 +567,8 @@ void CDatabank::Merge(vector<CDatabank*>& inParts, bool inCopyData)
 	{
 		delete fDataFile;
 		int mode = O_RDWR | O_CREAT | O_BINARY | O_TRUNC;
-		fDataFile = new HBufferedFileStream(fPath, mode);
+//		fDataFile = new HBufferedFileStream(fPath, mode);
+		fDataFile = new HFileStream(fPath, mode);
 	}
 
 	fDataFile->Seek(0, SEEK_SET);

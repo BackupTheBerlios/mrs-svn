@@ -1207,6 +1207,7 @@ CIndexer::CIndexer(const HUrl& inDb)
 	, fFile(nil)
 	, fHeader(new SIndexHeader)
 	, fParts(nil)
+	, fDocWeights(nil)
 	, fOffset(0)
 	, fSize(0)
 {
@@ -1236,10 +1237,17 @@ CIndexer::CIndexer(HStreamBase& inFile, int64 inOffset, int64 inSize)
 		if (strcmp(fParts[i].name, "*alltext*") == 0)
 			strcpy(fParts[i].name, kAllTextIndexName);
 	}
+
+	fDocWeights = new CDocWeightArray*[fHeader->count];
+	memset(fDocWeights, 0, sizeof(CDocWeightArray*) * fHeader->count);
 }
 
 CIndexer::~CIndexer()
 {
+	for (uint32 i = 0; i < fHeader->count; ++i)
+		delete fDocWeights[i];
+	delete[] fDocWeights;
+
 	delete fHeader;
 	delete[] fParts;
 	
@@ -1282,7 +1290,7 @@ void CIndexer::IndexText(const string& inIndex, const string& inText, bool inInd
 		for (c = s; *c; ++c)
 			*c = static_cast<char>(tolower(*c));
 
-		if (c - s < kMaxKeySize)
+		if (c - s <= kMaxKeySize)
 			index->AddWord(s);
 	}
 }
@@ -1310,6 +1318,9 @@ void CIndexer::IndexWord(const string& inIndex, const string& inText)
 		}
 		else if (dynamic_cast<CTextIndex*>(index) == NULL)
 			THROW(("Inconsistent use of indexes for index %s", inIndex.c_str()));
+
+		if (inText.length() > kMaxKeySize)
+			THROW(("Data error: length of key too long (%s)", inText.c_str()));
 	
 		index->AddWord(inText);
 	}
@@ -1413,7 +1424,7 @@ void CIndexer::IndexValue(const string& inIndex, const string& inText)
 	else if (dynamic_cast<CValueIndex*>(index) == NULL)
 		THROW(("Inconsistent use of indexes for index %s", inIndex.c_str()));
 
-	if (inText.length() >= kMaxKeySize)
+	if (inText.length() > kMaxKeySize)
 		THROW(("Data error: length of unique key too long (%s)", inText.c_str()));
 
 	index->AddWord(inText);
@@ -1431,7 +1442,7 @@ void CIndexer::IndexWordWithWeight(const string& inIndex, const string& inText, 
 	else if (dynamic_cast<CWeightedWordIndex*>(index) == NULL)
 		THROW(("Inconsistent use of indexes for index %s", inIndex.c_str()));
 
-	if (inText.length() >= kMaxKeySize)
+	if (inText.length() > kMaxKeySize)
 		THROW(("Data error: length of unique key too long (%s)", inText.c_str()));
 
 	index->AddWord(inText, inFrequency);
@@ -2397,13 +2408,20 @@ CDocWeightArray CIndexer::GetDocWeights(const std::string& inIndex)
 	
 	if (ix >= fHeader->count)
 		THROW(("No document weight vector found for index %s", inIndex.c_str()));
-
-	HFileStream* file = dynamic_cast<HFileStream*>(fFile);
-	if (file == nil)
-		THROW(("Stream should be a file in GetDocWeights"));
-
-	CDocWeightArray arr(*file, fParts[ix].weight_offset, fHeader->entries);
-	return arr;
+	
+	if (fDocWeights == nil)
+		fDocWeights = new CDocWeightArray*[fHeader->count];
+	
+	if (fDocWeights[ix] == nil)
+	{
+		HFileStream* file = dynamic_cast<HFileStream*>(fFile);
+		if (file == nil)
+			THROW(("Stream should be a file in GetDocWeights"));
+	
+		fDocWeights[ix] = new CDocWeightArray(*file, fParts[ix].weight_offset, fHeader->entries);
+	}
+	
+	return *fDocWeights[ix];
 }
 
 CDbDocIteratorBase* CIndexer::GetDocWeightIterator(const string& inIndex, const string& inKey)

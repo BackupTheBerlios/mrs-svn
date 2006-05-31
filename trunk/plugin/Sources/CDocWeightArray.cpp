@@ -67,6 +67,7 @@ struct CDocWeightArrayImp
 	void				Release();
 
 	virtual float		at(uint32 inIndex) const = 0;
+	virtual void		Prefetch() {}
 
 	uint32				fCount;
 	uint32				fRefCount;
@@ -91,11 +92,11 @@ struct CSimpleDocWeightArrayImp : public CDocWeightArrayImp
 						~CSimpleDocWeightArrayImp();
 
 	virtual float		at(uint32 inIndex) const;
+	virtual void		Prefetch();
 	
 	HFileStream*		fFile;
 	HMMappedFileStream*	fMap;
 	const float*		fData;
-	uint32				fCount;
 };
 
 CSimpleDocWeightArrayImp::CSimpleDocWeightArrayImp(HUrl& inFile, uint32 inCount)
@@ -116,13 +117,27 @@ CSimpleDocWeightArrayImp::CSimpleDocWeightArrayImp(HFileStream& inFile, int64 in
 
 CSimpleDocWeightArrayImp::~CSimpleDocWeightArrayImp()
 {
-	delete fMap;
+	if (fMap)
+		delete fMap;
+	else
+		delete[] fData;
+	
 	delete fFile;
 }
 
 float CSimpleDocWeightArrayImp::at(uint32 inIndex) const
 {
 	return net_swapper::swap(fData[inIndex]);
+}
+
+void CSimpleDocWeightArrayImp::Prefetch()
+{
+	float* tmp = new float[fCount];
+	memcpy(tmp, fData, sizeof(float) * fCount);
+	fData = tmp;
+
+	delete fMap;
+	fMap = nil;
 }
 
 struct CJoinedDocWeightArrayImp : public CDocWeightArrayImp
@@ -212,3 +227,7 @@ float CDocWeightArray::operator[](uint32 inDocNr) const
 	return fImpl->at(inDocNr);
 }
 
+void CDocWeightArray::Prefetch()
+{
+	fImpl->Prefetch();
+}

@@ -138,6 +138,8 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	void				DumpInfo();
 	void				DumpIndex(const std::string& inIndex);
 	
+	void				PrefetchDocWeights(const std::string& inIndex);
+	
 	long				CountForKey(const std::string& inIndex, const std::string& inKey) const;
 
 	MQueryResults*		Find(const std::string& inQuery, bool inAutoWildcard = true);

@@ -66,6 +66,7 @@
 #endif
 #include "CRankedQuery.h"
 #include "CIterator.h"
+#include "CDocWeightArray.h"
 
 #include "CIndex.h"		// for CIndexIterator
 
@@ -477,9 +478,16 @@ void MDatabank::DumpInfo()
 {
 	fImpl->fDatabank->PrintInfo();
 }
+
 void MDatabank::DumpIndex(const string& inIndex)
 {
 	fImpl->GetDB()->DumpIndex(inIndex);
+}
+
+void MDatabank::PrefetchDocWeights(const string& inIndex)
+{
+	CDocWeightArray a(fImpl->fDatabank->GetDocWeights(inIndex));
+	a.Prefetch();
 }
 
 long MDatabank::CountForKey(const string& inIndex, const string& inKey) const

@@ -56,6 +56,8 @@ class CDocWeightArray
 							const CDocWeightArray& inOtherA);
 	virtual				~CDocWeightArray();
 
+	void				Prefetch();
+
 	CDocWeightArray&	operator=(const CDocWeightArray& inOther);
 
 	float				operator[](uint32 inDocNr) const;

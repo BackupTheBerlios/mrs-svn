@@ -1613,12 +1613,13 @@ XS(_wrap_MDatabank_Merge) {
     {
         std::string *arg1 = 0 ;
         SwigValueWrapper<std::vector<MDatabank * > > arg2 ;
+        bool arg3 ;
         std::string temp1 ;
         int argvi = 0;
         dXSARGS;
         
-        if ((items < 2) || (items > 2)) {
-            SWIG_croak("Usage: MDatabank_Merge(inPath,inDbs);");
+        if ((items < 3) || (items > 3)) {
+            SWIG_croak("Usage: MDatabank_Merge(inPath,inDbs,inCopyData);");
         }
         {
             STRLEN len;
@@ -1658,9 +1659,10 @@ XS(_wrap_MDatabank_Merge) {
             
             arg2 = a;
         }
+        arg3 = SvIV(ST(2)) ? true : false;
         {
             try {
-                MDatabank::Merge((std::string const &)*arg1,arg2);
+                MDatabank::Merge((std::string const &)*arg1,arg2,arg3);
                 
             }
             
@@ -1877,6 +1879,56 @@ XS(_wrap_MDatabank_DumpIndex) {
         {
             try {
                 (arg1)->DumpIndex((std::string const &)*arg2);
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MDatabank_PrefetchDocWeights) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        std::string *arg2 = 0 ;
+        std::string temp2 ;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 2) || (items > 2)) {
+            SWIG_croak("Usage: MDatabank_PrefetchDocWeights(self,inIndex);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_PrefetchDocWeights. Expected _p_MDatabank");
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(1), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 2 of MDatabank_PrefetchDocWeights.");
+            } else {
+                temp2.assign(ptr, len);
+                arg2 = &temp2;
+            }
+        }
+        {
+            try {
+                (arg1)->PrefetchDocWeights((std::string const &)*arg2);
                 
             }
             
@@ -6415,6 +6467,7 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MDatabank_GetUUID", _wrap_MDatabank_GetUUID},
 {"MRSc::MDatabank_DumpInfo", _wrap_MDatabank_DumpInfo},
 {"MRSc::MDatabank_DumpIndex", _wrap_MDatabank_DumpIndex},
+{"MRSc::MDatabank_PrefetchDocWeights", _wrap_MDatabank_PrefetchDocWeights},
 {"MRSc::MDatabank_CountForKey", _wrap_MDatabank_CountForKey},
 {"MRSc::MDatabank_Find", _wrap_MDatabank_Find},
 {"MRSc::MDatabank_Match", _wrap_MDatabank_Match},

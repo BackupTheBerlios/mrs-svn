@@ -1359,6 +1359,12 @@ void CIndexImpT<DD>::CreateFromIterator(CIteratorBase& inData)
 
 	while (inData.Next(k, v))
 	{
+		if (k.length() > kMaxKeySize)
+		{
+			THROW(("Attempt to enter key with length larger than %d in index, this key will be skipped\n'%s'",
+				kMaxKeySize, k.c_str()));
+		}
+		
 		if (lk.length() and Compare(k, lk) <= 0)
 		{
 			THROW(("Attempt to build an index from unsorted data: '%s' <= '%s' ",

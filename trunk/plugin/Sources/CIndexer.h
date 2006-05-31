@@ -133,6 +133,7 @@ class CIndexer
 	HStreamBase*					fFile;
 	struct SIndexHeader*			fHeader;
 	struct SIndexPart*				fParts;
+	CDocWeightArray**				fDocWeights;
 	
 	// for statistics
 	int64							fOffset;
