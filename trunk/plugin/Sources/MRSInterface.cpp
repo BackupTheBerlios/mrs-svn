@@ -51,6 +51,9 @@
 #include <sstream>
 #include <bzlib.h>
 
+#include <sys/times.h>
+#include <sys/resource.h>
+
 #include <cstdlib>
 
 #include "HError.h"
@@ -89,6 +92,35 @@ string errstr()
 	return gErrStr;
 }
 
+ostream& operator<<(ostream& inStream, const struct timeval& t)
+{
+	uint32 hours = t.tv_sec / 3600;
+	uint32 minutes = ((t.tv_sec % 3600) / 60);
+	uint32 seconds = t.tv_sec % 60;
+	
+	uint32 milliseconds = t.tv_usec / 1000;
+	
+	inStream << hours << ':'
+			 << setw(2) << setfill('0') << minutes << ':'
+			 << setw(2) << setfill('0') << seconds << '.'
+			 << setw(3) << setfill('0') << milliseconds;
+	
+	return inStream;
+}
+
+static void PrintStatistics()
+{
+	struct rusage ru = {} ;
+	
+	if (getrusage(RUSAGE_SELF, &ru) < 0)
+		cerr << "Error calling getrusage" << endl;
+	
+	cout << "Total time user:    " << ru.ru_utime << endl;
+	cout << "Total time system:  " << ru.ru_stime << endl;
+	cout << "I/O operations in:  " << ru.ru_inblock << endl;
+	cout << "I/O operations out: " << ru.ru_oublock << endl;
+}	
+	
 // ---------------------------------------------------------------------------
 //
 //  struct MDatabankImp
@@ -457,6 +489,10 @@ void MDatabank::Merge(const string& inName, MDatabankArray inDbs, bool inCopyDat
 
 	if (result->fSafe.get())
 		result->fSafe->Commit();
+
+	// And now print out some statistics, if wanted of course
+	if (VERBOSE)
+		PrintStatistics();
 }
 
 long MDatabank::Count()
@@ -703,6 +739,10 @@ void MDatabank::Finish(bool inCreateAllTextIndex)
 	
 	if (fImpl->fSafe.get())
 		fImpl->fSafe->Commit();
+
+	// And now print out some statistics, if wanted of course
+	if (VERBOSE)
+		PrintStatistics();
 }
 
 //void MDatabank::RecalcDocWeights(const string& inIndex)

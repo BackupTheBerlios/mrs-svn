@@ -1244,9 +1244,12 @@ CIndexer::CIndexer(HStreamBase& inFile, int64 inOffset, int64 inSize)
 
 CIndexer::~CIndexer()
 {
-	for (uint32 i = 0; i < fHeader->count; ++i)
-		delete fDocWeights[i];
-	delete[] fDocWeights;
+	if (fDocWeights != nil)
+	{
+		for (uint32 i = 0; i < fHeader->count; ++i)
+			delete fDocWeights[i];
+		delete[] fDocWeights;
+	}
 
 	delete fHeader;
 	delete[] fParts;
