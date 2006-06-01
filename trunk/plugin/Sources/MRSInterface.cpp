@@ -108,6 +108,32 @@ ostream& operator<<(ostream& inStream, const struct timeval& t)
 	return inStream;
 }
 
+class CStopwatch
+{
+  public:
+			CStopwatch(double& ioAccumulator);
+			~CStopwatch();
+
+  private:
+	double&			fAccumulator;
+	struct rusage	fStartTime;
+};
+
+CStopwatch::CStopwatch(double& ioAccumulator)
+	: fAccumulator(ioAccumulator)
+{
+	getrusage(RUSAGE_SELF, &fStartTime);
+}
+
+CStopwatch::~CStopwatch()
+{
+	struct rusage stop;
+	getrusage(RUSAGE_SELF, &stop);
+	
+	fAccumulator += (stop.ru_utime.tv_sec - fStartTime.ru_utime.tv_sec);
+	fAccumulator += 0.000001 * (stop.ru_utime.tv_usec - fStartTime.ru_utime.tv_usec);
+}
+
 static void PrintStatistics()
 {
 	struct rusage ru = {} ;
@@ -142,9 +168,16 @@ struct MDatabankImp
 						fDatabank.reset(nil);
 					}
 
+	void			PrintCreateStatistics();
+
 	auto_ptr<CDatabankBase>		fDatabank;
 	auto_ptr<HFile::SafeSaver>	fSafe;
 	string						fScratch;		// used to return const char* 
+
+	double						fStoreTime;		// statitistics
+	double						fFlushTime;
+	double						fIndexTime;
+	double						fFinishTime;
 };
 
 // ---------------------------------------------------------------------------
@@ -322,6 +355,10 @@ struct MRankedQueryImp
 const char MDatabank::kWildCardString[] = "*";
 
 MDatabankImp::MDatabankImp(const string& inDatabank, bool inNew)
+	: fStoreTime(0)
+	, fFlushTime(0)
+	, fIndexTime(0)
+	, fFinishTime(0)
 {
 	if (inNew)
 	{
@@ -452,6 +489,33 @@ MDatabankImp::MDatabankImp(const string& inDatabank, bool inNew)
 		}
 		while (databank.length() != 0);
 	}
+}
+
+void MDatabankImp::PrintCreateStatistics()
+{
+	cout << "Time spent on" << endl;
+
+	struct timeval t;
+	
+	t.tv_sec = static_cast<uint32>(fStoreTime);
+	t.tv_usec = static_cast<uint32>(fStoreTime * 1000000.0) % 1000000;
+	
+	cout << "Storing data:       " << t << endl;
+
+	t.tv_sec = static_cast<uint32>(fFlushTime);
+	t.tv_usec = static_cast<uint32>(fFlushTime * 1000000.0) % 1000000;
+	
+	cout << "Flushing data:      " << t << endl;
+
+	t.tv_sec = static_cast<uint32>(fIndexTime);
+	t.tv_usec = static_cast<uint32>(fIndexTime * 1000000.0) % 1000000;
+	
+	cout << "Indexing data:      " << t << endl;
+
+	t.tv_sec = static_cast<uint32>(fFinishTime);
+	t.tv_usec = static_cast<uint32>(fFinishTime * 1000000.0) % 1000000;
+	
+	cout << "Writing indices:    " << t << endl;
 }
 
 MDatabank::MDatabank()
@@ -673,76 +737,94 @@ void MDatabank::SetStopWords(vector<string> inStopWords)
 
 void MDatabank::Store(const string& inDocument)
 {
+	CStopwatch sw(fImpl->fStoreTime);
 	fImpl->GetDB()->Store(inDocument);
 }
 
 void MDatabank::IndexText(const string& inIndex, const string& inText)
 {
+	CStopwatch sw(fImpl->fIndexTime);
 	fImpl->GetDB()->IndexText(inIndex, inText);
 }
 
 void MDatabank::IndexTextAndNumbers(const string& inIndex, const string& inText)
 {
+	CStopwatch sw(fImpl->fIndexTime);
 	fImpl->GetDB()->IndexTextAndNumbers(inIndex, inText);
 }
 
 void MDatabank::IndexWord(const string& inIndex, const string& inText)
 {
+	CStopwatch sw(fImpl->fIndexTime);
 	fImpl->GetDB()->IndexWord(inIndex, inText);
 }
 
 void MDatabank::IndexValue(const string& inIndex, const string& inText)
 {
+	CStopwatch sw(fImpl->fIndexTime);
 	fImpl->GetDB()->IndexValue(inIndex, inText);
 }
 
 void MDatabank::IndexWordWithWeight(const string& inIndex,
 	const string& inText, unsigned long inFrequency)
 {
+	CStopwatch sw(fImpl->fIndexTime);
 	fImpl->GetDB()->IndexWordWithWeight(inIndex, inText, inFrequency);
 }
 
 void MDatabank::IndexDate(const string& inIndex, const string& inText)
 {
+	CStopwatch sw(fImpl->fIndexTime);
 	fImpl->GetDB()->IndexDate(inIndex, inText);
 }
 
 void MDatabank::IndexNumber(const string& inIndex, const string& inText)
 {
+	CStopwatch sw(fImpl->fIndexTime);
 	fImpl->GetDB()->IndexNumber(inIndex, inText);
 }
 
 #ifndef NO_BLAST
 void MDatabank::AddSequence(const string& inSequence)
 {
+	CStopwatch sw(fImpl->fStoreTime);
 	fImpl->GetDB()->AddSequence(inSequence);
 }
 #endif
 
 void MDatabank::FlushDocument()
 {
+	CStopwatch sw(fImpl->fFlushTime);
 	fImpl->GetDB()->FlushDocument();
 }
 
 void MDatabank::SetVersion(const string& inVersion)
 {
+	CStopwatch sw(fImpl->fStoreTime);
 	fImpl->GetDB()->SetVersion(inVersion);
 }
 
 void MDatabank::Finish(bool inCreateAllTextIndex)
 {
-	fImpl->GetDB()->Finish(inCreateAllTextIndex);
-	
-	HFileCache::Flush();
-	
-	fImpl->Close();
-	
-	if (fImpl->fSafe.get())
-		fImpl->fSafe->Commit();
+	{
+		CStopwatch sw(fImpl->fFinishTime);
+
+		fImpl->GetDB()->Finish(inCreateAllTextIndex);
+		
+		HFileCache::Flush();
+		
+		fImpl->Close();
+		
+		if (fImpl->fSafe.get())
+			fImpl->fSafe->Commit();
+	}
 
 	// And now print out some statistics, if wanted of course
 	if (VERBOSE)
+	{
 		PrintStatistics();
+		fImpl->PrintCreateStatistics();
+	}
 }
 
 //void MDatabank::RecalcDocWeights(const string& inIndex)
