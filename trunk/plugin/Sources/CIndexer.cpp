@@ -1675,6 +1675,8 @@ class CMergeIndexBuffer
 						~CMergeIndexBuffer();
 
 	void				push_back(const value_type& inData);
+	
+	int64				GuessTreeSize() const			{ return fFile->Size() + 2 * fCount * sizeof(uint32); }
 
 	struct iterator : public boost::iterator_facade<iterator,
 		const value_type, boost::forward_traversal_tag>
@@ -1712,12 +1714,14 @@ class CMergeIndexBuffer
 	HFileStream*			fFile;
 	int32					fBufferIndex;
 	CMergeIndexBufferPage	fBufferPage;
+	uint32					fCount;
 };
 
 CMergeIndexBuffer::CMergeIndexBuffer(const string& inBaseUrl)
 	: fURL(inBaseUrl + "_merge_indx")
 	, fFile(new HFileStream(fURL, O_RDWR | O_TRUNC | O_CREAT))
 	, fBufferIndex(0)
+	, fCount(0)
 {
 	assert(sizeof(CMergeIndexBufferPage) == kMergeIndexBufferPageSize);
 	fBufferPage.n = 0;
@@ -1736,6 +1740,7 @@ void CMergeIndexBuffer::push_back(const value_type& inValue)
 		FlushBuffer();
 	
 	fBufferPage.SetData(fBufferIndex++, inValue.first, inValue.second);
+	++fCount;
 }
 
 void CMergeIndexBuffer::FlushBuffer()
@@ -2107,6 +2112,13 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 		}
 		
 		CIteratorWrapper<CMergeIndexBuffer> mapIter(indx);
+
+		if (indx.GuessTreeSize() > numeric_limits<int32>::max())
+		{
+			fParts[ix].sig = kIndexPartSigV2;
+			fParts[ix].index_version = kCIndexVersionV2;
+		}
+
 		auto_ptr<CIndex> indxOnDisk(CIndex::CreateFromIterator(fParts[ix].kind,
 			fParts[ix].index_version, mapIter, outData));
 		outData.Seek(0, SEEK_END);
