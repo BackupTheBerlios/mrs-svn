@@ -42,8 +42,6 @@
 #ifndef CIDTABLE_H
 #define CIDTABLE_H
 
-#include <string>
-
 class HStreamBase;
 class CIndex;
 
