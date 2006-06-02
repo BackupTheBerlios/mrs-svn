@@ -2013,10 +2013,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 		while (iter->Next(s, v))
 		{
 			if (fParts[ix].kind == kValueIndex and v.size() > 1)
-			{
-				THROW(("Attempt to enter duplicate key '%s' in index '%s'",
-					s.c_str(), fParts[ix].name));
-			}
+				cerr << "Duplicate key '" << s << "' in index '" << fParts[ix].name)) << '\'' << endl;
 
 			++fParts[ix].entries;
 			

@@ -53,7 +53,7 @@
 #include "HStream.h"
 #include "HUtils.h"
 #include "zlib.h"
-#include <uuid/uuid.h>
+#include "uuid/uuid.h"
 
 #include "CDatabank.h"
 #include "CCompress.h"

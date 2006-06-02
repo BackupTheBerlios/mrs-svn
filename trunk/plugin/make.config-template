@@ -1,3 +1,4 @@
 SWIG = /opt/local/bin/swig
 TARGET=perl5
 BOOST=/opt/local/include
+# NO_BLAST=1	# define to strip out blast code

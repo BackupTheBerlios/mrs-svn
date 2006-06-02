@@ -154,6 +154,10 @@ endif
 	JAVA_INC	= -I/System/Library/Frameworks/JavaVM.framework/Versions/1.4.2/Headers/
 endif
 
+ifneq($(NO_BLAST),1)
+DEFINES			+= NO_BLAST
+endif
+
 ifeq ($(DEBUG),0)
 	CFLAGS	+= $(OPT)
 	OBJDIR	= Obj.NoDebug
@@ -227,11 +231,16 @@ Sources = \
 	./Lib/uuid/parse.c \
 	./Lib/uuid/unpack.c \
 	./Lib/uuid/unparse.c \
-	./Lib/uuid/uuid_time.c \
+	./Lib/uuid/uuid_time.c
+
+
+ifneq($(NO_BLAST),1)
+Sources +=
 	./Sources/CBlast.cpp \
 	./Sources/CBlastIndex.cpp \
 	./Sources/CMatrix.cpp \
 	./Sources/CNCBI.cpp \
+endif
 
 define SOURCES
 	$(Sources)
