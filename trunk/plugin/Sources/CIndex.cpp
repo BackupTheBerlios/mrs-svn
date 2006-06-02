@@ -1412,35 +1412,23 @@ void CIndexImpT<DD>::Test(CIndex& inIndex)
 	
 	for (vector<string>::iterator k = keys.begin(); k != keys.end(); ++k)
 	{
-//cerr << "testing " << *k << endl;
 		iterator i = inIndex.find(*k);
 		
 		assert(i != inIndex.end());
-
-////cerr << "test 2" << endl;
-//		
-//		uint32 n = 0;
-//		while (i != inIndex.end())
-//			++i, ++n;
-//
-//		assert(n == (keys.end() - k));
-//
-////cerr << "test 3" << endl;
-//
-//		i = inIndex.find(*k);
-//
-//		assert(i != inIndex.end());
-//
-////cerr << "test 4" << endl;
-//		
-//		n = 0;
-//		while (i != inIndex.begin())
-//			--i, ++n;
-//		
-//		assert(n == (k - keys.begin()));
-//
-////cerr << "test 5" << endl;
+		assert(i->first == *k);
 	}
+	
+	uint32 cnt = inIndex.GetCount(), n = 0;
+	for (iterator i = inIndex.begin(), end(inIndex.end()); i != end; ++i, ++n)
+		;
+
+	assert(n == cnt);
+	
+	n = 0;
+	for (iterator i = inIndex.end(), begin(inIndex.begin()); i != begin; --i, ++n)
+		;
+
+	assert(n == cnt);
 }
 
 template<typename DD>

@@ -149,12 +149,12 @@ endif
 	LDFLAGS		+= 
 	CFLAGS		+= -force_cpusubtype_ALL
 	OPT			+= -O3 -mcpu=G4 -falign-loops=32
-	CTAGS		= /sw/bin/ctags
+	CTAGS		= /opt/local/bin/ctags
 	STRIP		= strip -S
 	JAVA_INC	= -I/System/Library/Frameworks/JavaVM.framework/Versions/1.4.2/Headers/
 endif
 
-ifneq($(NO_BLAST),1)
+ifeq ($(NO_BLAST),1)
 DEFINES			+= NO_BLAST
 endif
 
@@ -233,13 +233,12 @@ Sources = \
 	./Lib/uuid/unparse.c \
 	./Lib/uuid/uuid_time.c
 
-
-ifneq($(NO_BLAST),1)
-Sources +=
+ifneq ($(NO_BLAST),1)
+Sources += \
 	./Sources/CBlast.cpp \
 	./Sources/CBlastIndex.cpp \
 	./Sources/CMatrix.cpp \
-	./Sources/CNCBI.cpp \
+	./Sources/CNCBI.cpp
 endif
 
 define SOURCES
