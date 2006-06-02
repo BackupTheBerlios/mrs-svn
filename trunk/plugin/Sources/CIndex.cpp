@@ -1305,8 +1305,12 @@ void CIndexImpT<DD>::CreateFromIterator(CIteratorBase& inData)
 
 	fRoot = p.GetOffset();
 
+	uint32 n = 0;
+
 	while (inData.Next(k, v))
 	{
+		++n;
+		
 		if (k.length() > kMaxKeySize)
 		{
 			THROW(("Attempt to enter key with length larger than %d in index, this key will be skipped\n'%s'",
@@ -1337,6 +1341,9 @@ void CIndexImpT<DD>::CreateFromIterator(CIteratorBase& inData)
 		else
 			p.Insert(p.GetN(), k, v, 0);
 	}
+	
+	if (VERBOSE >= 1)
+		cout << " (" << n << ')';
 	
 	// next passes, iterate over the up list to create new next-higher level pages
 	while (up.size())
