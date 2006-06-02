@@ -189,7 +189,7 @@ struct CIdTableHelper
 						, map(new const char*[docCount])
 						, n(0)
 					{
-						memset(map, ~0, sizeof(const char*) * docCount);
+						memset(map, 0, sizeof(const char*) * docCount);
 					}
 		
 					~CIdTableHelper()
@@ -203,6 +203,10 @@ struct CIdTableHelper
 	
 						if (inValue >= docCount)
 							THROW(("Error creating ID table: v(%d) >= inDocCount(%d)", inValue, docCount));
+						
+						if (map[inValue] != nil)
+							THROW(("Error creating ID table: duplicate id for document %d (%s <=> %s)",
+								inValue, map[inValue], inKey.c_str()));
 						
 						map[inValue] = data.Store(inKey.c_str());
 						++n;

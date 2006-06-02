@@ -821,39 +821,44 @@ struct iterator_imp
 {
 	virtual				~iterator_imp() {}
 	
-						iterator_imp(HStreamBase& inFile, int64 inOffset,
-							uint32 inPage, uint32 inPageIndex);
+						iterator_imp(HStreamBase& inFile, int64 inOffset, uint32 inRoot);
 						iterator_imp(const iterator_imp& inOther);
+						
+	virtual void		begin() = 0;
+	virtual void		end() = 0;
+	virtual void		walk_down_path(const stack<uint32>& inPath, uint32 inIndex) = 0;
 
 	virtual void		increment() = 0;
 	virtual void		decrement() = 0;
 	
 	virtual iterator_imp*
 						clone() const = 0;
-
+	
 	bool				equal(const iterator_imp& inOther) const;
 	const pair<string,int64>&
 						dereference() const;
 
 	HStreamBase*		fFile;
 	int64				fBaseOffset;
+	uint32				fRoot;
 	uint32				fPage;
 	uint32				fPageIndex;
 	pair<string,int64>	fCurrent;
 };
 
-iterator_imp::iterator_imp(HStreamBase& inFile, int64 inOffset,
-		uint32 inPage, uint32 inPageIndex)
+iterator_imp::iterator_imp(HStreamBase& inFile, int64 inOffset, uint32 inRoot)
 	: fFile(&inFile)
 	, fBaseOffset(inOffset)
-	, fPage(inPage)
-	, fPageIndex(inPageIndex)
+	, fRoot(inRoot)
+	, fPage(0)
+	, fPageIndex(0)
 {
 }
 
 iterator_imp::iterator_imp(const iterator_imp& inOther)
 	: fFile(inOther.fFile)
 	, fBaseOffset(inOther.fBaseOffset)
+	, fRoot(inOther.fRoot)
 	, fPage(inOther.fPage)
 	, fPageIndex(inOther.fPageIndex)
 	, fCurrent(inOther.fCurrent)
@@ -865,8 +870,13 @@ bool iterator_imp::equal(const iterator_imp& inOther) const
 	assert(fFile == inOther.fFile);
 	assert(fBaseOffset == inOther.fBaseOffset);
 
+//cout << "Comparing: " << endl;
+//cout << "\tpage: " << fPage << " <=> " << inOther.fPage << endl;
+//cout << "\tindx: " << fPageIndex << " <=> " << fPageIndex << endl;
+
 	return
 		fFile == inOther.fFile and fBaseOffset == inOther.fBaseOffset and
+		fRoot == inOther.fRoot and
 		fPage == inOther.fPage and fPageIndex == inOther.fPageIndex;
 }
 
@@ -888,41 +898,21 @@ struct iterator_imp_t : public iterator_imp
 	typedef DD				COnDiskData;
 	typedef CIndexPage<DD>	CIndexPage;
 
-						iterator_imp_t(HStreamBase& inFile, int64 inOffset,
-							uint32 inPage, uint32 inPageIndex);
-						iterator_imp_t(HStreamBase& inFile, int64 inOffset,
-							uint32 inRoot, bool inBegin);
-						iterator_imp_t(const iterator_imp_t& inOther);
+							iterator_imp_t(HStreamBase& inFile, int64 inOffset, uint32 inRoot);
+							iterator_imp_t(const iterator_imp_t& inOther);
 
-	virtual void		increment();
-	virtual void		decrement();
+	virtual void			begin();
+	virtual void			end();
+	virtual void			walk_down_path(const stack<uint32>& inPath, uint32 inIndex);
 
-	virtual iterator_imp*
-						clone() const;
+	virtual iterator_imp*	clone() const;
 
-	std::stack<uint32>	fStack;
-	CIndexPage			fDiskPage;
+	virtual void			increment();
+	virtual void			decrement();
+
+	stack<uint32>			fStack;
+	CIndexPage				fDiskPage;
 };
-
-//// specialisation for the old format
-//
-//template<>
-//struct iterator_imp_t<COnDiskDataV0> : public iterator_imp
-//{
-//	typedef COnDiskDataV0				COnDiskData;
-//	typedef CIndexPage<COnDiskDataV0>	CIndexPage;
-//
-//						iterator_imp_t(HStreamBase& inFile, int64 inOffset,
-//							uint32 inRoot, bool inBegin);
-//						iterator_imp_t(const iterator_imp_t& inOther);
-//
-//	virtual void		increment();
-//	virtual void		decrement();
-//
-//	virtual iterator_imp*
-//						clone() const;
-//
-//};
 
 // ---------------------------------------------------------------------------
 // 
@@ -1024,7 +1014,7 @@ struct CIndexImpT : public CIndexImp
 
   private:
 
-	void			LowerBoundImp(const string& inKey, uint32 inPage, uint32& outPage, uint32& outIndex);
+	void			LowerBoundImp(const string& inKey, uint32 inPage, stack<uint32>& outPages, uint32& outIndex);
 };
 
 template<typename DD>
@@ -1036,46 +1026,26 @@ CIndexImpT<DD>::CIndexImpT(uint32 inKind, HStreamBase& inFile, int64 inOffset, u
 template<typename DD>
 CIndex::iterator CIndexImpT<DD>::Begin()
 {
-	uint32 page = fRoot;
-	uint32 pp = 0;
-	
-	while (page != 0)
-	{
-		pp = page;
-		CIndexPage p(fFile, fBaseOffset, page);
-		page = p.GetP0();
-	}
-	
-	if (pp == 0)
-		THROW(("Empty index"));
-	
-	return iterator(new iterator_imp_t<DD>(fFile, fBaseOffset, pp, uint32(0)));
-}
-
-template<>
-CIndex::iterator CIndexImpT<COnDiskDataV0>::Begin()
-{
-	return iterator(new iterator_imp_t<COnDiskDataV0>(fFile, fBaseOffset, fRoot, true));
+	auto_ptr<iterator_imp> result(new iterator_imp_t<DD>(fFile, fBaseOffset, fRoot));
+	result->begin();
+	return result.release();
 }
 
 template<typename DD>
 CIndex::iterator CIndexImpT<DD>::End()
 {
-	CIndexPage p(fFile, fBaseOffset, fRoot);
-	return iterator(new iterator_imp_t<DD>(fFile, fBaseOffset, fRoot, p.GetN()));
-}
-
-template<>
-CIndex::iterator CIndexImpT<COnDiskDataV0>::End()
-{
-	return iterator(new iterator_imp_t<COnDiskDataV0>(fFile, fBaseOffset, fRoot, false));
+	auto_ptr<iterator_imp> result(new iterator_imp_t<DD>(fFile, fBaseOffset, fRoot));
+	result->end();
+	return result.release();
 }
 
 template<typename DD>
-void CIndexImpT<DD>::LowerBoundImp(const string& inKey, uint32 inPage, uint32& outPage, uint32& outIndex)
+void CIndexImpT<DD>::LowerBoundImp(const string& inKey, uint32 inPage, stack<uint32>& outPages, uint32& outIndex)
 {
 	if (inPage == 0)
 		return;
+
+	outPages.push(inPage);
 
 	const CIndexPage p(fFile, fBaseOffset, inPage);
 	const COnDiskData& data = p.GetData();
@@ -1094,7 +1064,6 @@ void CIndexImpT<DD>::LowerBoundImp(const string& inKey, uint32 inPage, uint32& o
 		if (d == 0)
 		{
 			found = true;
-			outPage = inPage;
 			outIndex = i;
 			break;
 		}
@@ -1106,25 +1075,7 @@ void CIndexImpT<DD>::LowerBoundImp(const string& inKey, uint32 inPage, uint32& o
 	
 	if (not found)
 	{
-		// init the outPage and inIndex to End() if needed
-		
-		if (inPage == fRoot)
-		{
-			outPage = inPage;
-			outIndex = data.n;
-		}
-		
-		// suppose we're looking for a key that's larger than the last entry.
-		// In that case we need to return the same value as End(). This means
-		// we have to be careful, the outPage and outIndex have been inited to
-		// the values for End() so we override them only if the key is actually
-		// smaller than our largest value, i.e. R < N;
-		
-		if (R < static_cast<int32>(data.n))
-		{
-			outPage = inPage;
-			outIndex = static_cast<uint32>(R + 1);
-		}
+		outIndex = static_cast<uint32>(R + 1);
 		
 		uint32 p;
 		if (R >= 0)
@@ -1133,24 +1084,21 @@ void CIndexImpT<DD>::LowerBoundImp(const string& inKey, uint32 inPage, uint32& o
 			p = data.p0;
 
 		if (p != 0)
-			LowerBoundImp(inKey, p, outPage, outIndex);
+			LowerBoundImp(inKey, p, outPages, outIndex);
 	}
 }
 
 template<typename DD>
 CIndex::iterator CIndexImpT<DD>::LowerBound(const string& inKey)
 {
-	uint32 page = 0, index = 0;
+	uint32 index = 0;
+	stack<uint32> pages;
 
-	LowerBoundImp(inKey, fRoot, page, index);
+	LowerBoundImp(inKey, fRoot, pages, index);
 	
-	return iterator(new iterator_imp_t<DD>(fFile, fBaseOffset, page, index));
-}
-
-template<>
-CIndex::iterator CIndexImpT<COnDiskDataV0>::LowerBound(const string& inKey)
-{
-	THROW(("Operation not supported on this index version"));
+	auto_ptr<iterator_imp> result(new iterator_imp_t<DD>(fFile, fBaseOffset, fRoot));
+	result->walk_down_path(pages, index);
+	return result.release();
 }
 
 template<typename DD>
@@ -1789,174 +1737,77 @@ void CIndex::Dump() const
 //
 
 template<typename DD>
-iterator_imp_t<DD>::iterator_imp_t(HStreamBase& inFile, int64 inOffset,
-		uint32 inPage, uint32 inPageIndex)
-	: iterator_imp(inFile, inOffset, inPage, inPageIndex)
-	, fDiskPage(*fFile, fBaseOffset, fPage)
+iterator_imp_t<DD>::iterator_imp_t(HStreamBase& inFile, int64 inOffset, uint32 inRoot)
+	: iterator_imp(inFile, inOffset, inRoot)
 {
-	uint32 c;
-	if (fPageIndex < fDiskPage.GetN())
-		fDiskPage.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
 }
 
 template<typename DD>
 iterator_imp_t<DD>::iterator_imp_t(const iterator_imp_t& inOther)
 	: iterator_imp(inOther)
+	, fStack(inOther.fStack)
+	, fDiskPage(inOther.fDiskPage)
 {
 }
 
 template<typename DD>
-void iterator_imp_t<DD>::increment()
+void iterator_imp_t<DD>::begin()
 {
-	bool valid = true;
-	
-	if (fDiskPage.GetP(fPageIndex)) // current entry has a p, decent
-	{
-		fPage = fDiskPage.GetP(fPageIndex);
-		fPageIndex = 0;
-
-		fDiskPage.Load(*fFile, fBaseOffset, fPage);
-		
-		while (fDiskPage.GetP0())
-		{
-			fPage = fDiskPage.GetP0();
-			fDiskPage.Load(*fFile, fBaseOffset, fPage);
-		}
-	}
-	else
-	{
-		++fPageIndex;
-
-		while (fPageIndex >= fDiskPage.GetN() and fDiskPage.GetParent())	// do we have a parent?
-		{
-			fDiskPage.Load(*fFile, fBaseOffset, fDiskPage.GetParent());
-
-			if (fDiskPage.GetP0() == fPage)
-				fPageIndex = 0;
-			else
-				fPageIndex = fDiskPage.GetIndexForP(fPage) + 1;
-
-			fPage = fDiskPage.GetOffset();
-		}
-		
-		valid = (fPageIndex < fDiskPage.GetN());
-	}
-	
-	if (valid)
-	{
-		uint32 c;
-		fDiskPage.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
-	}
-}
-
-template<typename DD>
-void iterator_imp_t<DD>::decrement()
-{
-	uint32 dp = 0;
-
-	if (fPageIndex == 0)		// beginning of page
-	{
-		if (fDiskPage.GetP0())			// see if we need to decent down p0 first
-			dp = fDiskPage.GetP0();
-		else
-		{
-			uint32 np = fPage;		// tricky, see if we can find a page upwards
-			uint32 nx = fPageIndex;	// where we hit an index > 0. If not we're at
-									// the far left and thus Begin()
-			
-			while (fDiskPage.GetParent())
-			{
-				fDiskPage.Load(*fFile, fBaseOffset, fDiskPage.GetParent());
-				
-				if (np == fDiskPage.GetP0())
-				{
-					np = fDiskPage.GetOffset();
-					nx = 0;
-				}
-				else
-				{
-					fPageIndex = fDiskPage.GetIndexForP(np);
-					fPage = fDiskPage.GetOffset();
-					break;
-				}
-			}
-		}
-	}
-	else
-	{
-		--fPageIndex;
-		dp = fDiskPage.GetP(fPageIndex);
-	}
-	
-	while (dp)
-	{
-		fDiskPage.Load(*fFile, fBaseOffset, dp);
-		fPage = dp;
-		fPageIndex = fDiskPage.GetN() - 1;
-		dp = fDiskPage.GetP(fPageIndex);
-	}
-	
+	fPage = fRoot;
 	fDiskPage.Load(*fFile, fBaseOffset, fPage);
-	uint32 c;
-	fDiskPage.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
-}
+	fPageIndex = 0;
 
-template<typename DD>
-iterator_imp* iterator_imp_t<DD>::clone() const
-{
-	return new iterator_imp_t(*fFile, fBaseOffset, fPage, fPageIndex);
-}
-
-// ---------------------------------------------------------------------------
-// Iterator specialisations for the old version of the BTree
-
-template<>
-iterator_imp_t<COnDiskDataV0>::iterator_imp_t(HStreamBase& inFile, int64 inOffset,
-		uint32 inRoot, bool inBegin)
-	: iterator_imp(inFile, inOffset, inRoot, 0)
-{
-	if (inBegin)
+	while (fDiskPage.GetP0() != 0)
 	{
-		uint32 page = inRoot;
-		uint32 pp = 0;
-		
-		while (page != 0)
-		{
-			fStack.push(page);
-			
-			pp = page;
-			fDiskPage.Load(*fFile, fBaseOffset, page);
-			page = fDiskPage.GetP0();
-		}
-		
-		if (pp == 0)
-			THROW(("Empty index"));
-		
-		fPage = fStack.top();
-		fStack.pop();
-
-		fPageIndex = 0;
-		
+		fStack.push(fPage);
+		fPage = fDiskPage.GetP0();
 		fDiskPage.Load(*fFile, fBaseOffset, fPage);
+	}
+
+	if (fPageIndex < fDiskPage.GetN())
+	{
 		uint32 c;
 		fDiskPage.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
 	}
-	else
+}
+
+template<typename DD>
+void iterator_imp_t<DD>::end()
+{
+	fPage = fRoot;
+	fDiskPage.Load(*fFile, fBaseOffset, fPage);
+	fPageIndex = fDiskPage.GetN();
+
+	while (fDiskPage.GetP(fPageIndex - 1) != 0)
 	{
+		fStack.push(fPage);
+		fPage = fDiskPage.GetP(fPageIndex - 1);
 		fDiskPage.Load(*fFile, fBaseOffset, fPage);
 		fPageIndex = fDiskPage.GetN();
 	}
 }
 
-template<>
-iterator_imp_t<COnDiskDataV0>::iterator_imp_t(const iterator_imp_t& inOther)
-	: iterator_imp(inOther)
-	, fStack(inOther.fStack)
+template<typename DD>
+void iterator_imp_t<DD>::walk_down_path(const stack<uint32>& inPages, uint32 inIndex)
 {
+	assert(not inPages.empty());
+	
+	fStack = inPages;
+	fPage = fStack.top();
+	fStack.pop();
+	fPageIndex = inIndex;
+	
+	fDiskPage.Load(*fFile, fBaseOffset, fPage);
+	
+	if (fPageIndex < fDiskPage.GetN())
+	{
+		uint32 c;
+		fDiskPage.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
+	}
 }
 
-template<>
-void iterator_imp_t<COnDiskDataV0>::increment()
+template<typename DD>
+void iterator_imp_t<DD>::increment()
 {
 	bool valid = true;
 
@@ -1980,21 +1831,24 @@ void iterator_imp_t<COnDiskDataV0>::increment()
 	else
 	{
 		++fPageIndex;
-
-		while (fPageIndex >= fDiskPage.GetN() and not fStack.empty())	// do we have a parent?
-		{
-			fDiskPage.Load(*fFile, fBaseOffset, fStack.top());
-			fStack.pop();
-
-			if (fDiskPage.GetP0() == fPage)
-				fPageIndex = 0;
-			else
-				fPageIndex = fDiskPage.GetIndexForP(fPage) + 1;
-
-			fPage = fDiskPage.GetOffset();
-		}
 		
-		valid = (fPageIndex < fDiskPage.GetN());
+		if (fPageIndex >= fDiskPage.GetN())		// we're running off this page
+		{										// see if there's a page right to us
+			while (fPageIndex >= fDiskPage.GetN() and not fStack.empty())
+			{
+				fDiskPage.Load(*fFile, fBaseOffset, fStack.top());
+				fStack.pop();
+				
+				if (fDiskPage.GetP0() == fPage)
+					fPageIndex = 0;
+				else
+					fPageIndex = fDiskPage.GetIndexForP(fPage) + 1;
+				
+				fPage = fDiskPage.GetOffset();
+			}
+			
+			valid = fPageIndex < fDiskPage.GetN();
+		}
 	}
 	
 	if (valid)
@@ -2002,10 +1856,12 @@ void iterator_imp_t<COnDiskDataV0>::increment()
 		uint32 c;
 		fDiskPage.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
 	}
+	else
+		end();
 }
 
-template<>
-void iterator_imp_t<COnDiskDataV0>::decrement()
+template<typename DD>
+void iterator_imp_t<DD>::decrement()
 {
 	uint32 dp = 0;
 
@@ -2061,10 +1917,10 @@ void iterator_imp_t<COnDiskDataV0>::decrement()
 	fDiskPage.GetData(fPageIndex, fCurrent.first, fCurrent.second, c);
 }
 
-template<>
-iterator_imp* iterator_imp_t<COnDiskDataV0>::clone() const
+template<typename DD>
+iterator_imp* iterator_imp_t<DD>::clone() const
 {
-	return new iterator_imp_t(*this);
+	return new iterator_imp_t<DD>(*this);
 }
 
 // ---------------------------------------------------------------------------
