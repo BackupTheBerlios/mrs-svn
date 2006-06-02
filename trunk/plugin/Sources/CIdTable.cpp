@@ -220,7 +220,10 @@ void CIdTable::Create(HStreamBase& inFile, CIndex& inIndex, uint32 inDocCount)
 	try
 	{
 		CIdTableHelper	helper(inDocCount);
-		inIndex.Visit(&helper, &CIdTableHelper::Visit);
+//		inIndex.Visit(&helper, &CIdTableHelper::Visit);
+		
+		for (CIndex::iterator iter(inIndex.begin()), end(inIndex.end()); iter != end; ++iter)
+			helper.Visit(iter->first, iter->second);
 		
 		if (VERBOSE >= 1)
 		{

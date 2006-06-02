@@ -1683,12 +1683,6 @@ class CMergeIndexBuffer
 						iterator(const iterator& inOther);
 		iterator&		operator=(const iterator& inOther);
 		
-						~iterator()
-						{
-							if (fCount != 0)
-								cerr << "deleted iterator with fCount == " << fCount << endl;
-						}
-		
 	  private:
 		friend class boost::iterator_core_access;
 		friend class CMergeIndexBuffer;
