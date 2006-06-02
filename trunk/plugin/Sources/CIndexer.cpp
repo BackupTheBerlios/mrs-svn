@@ -1683,11 +1683,17 @@ class CMergeIndexBuffer
 						iterator(const iterator& inOther);
 		iterator&		operator=(const iterator& inOther);
 		
+						~iterator()
+						{
+							if (fCount != 0)
+								cerr << "deleted iterator with fCount == " << fCount << endl;
+						}
+		
 	  private:
 		friend class boost::iterator_core_access;
 		friend class CMergeIndexBuffer;
 
-						iterator(HStreamBase& inFile, uint32 inCount, int64 inOffset);
+						iterator(HStreamBase& inFile, uint32 inCount);
 	
 		void			increment();
 		void			decrement() { assert(false); }
@@ -1703,8 +1709,8 @@ class CMergeIndexBuffer
 		uint32			fCount;
 	};
 	
-	iterator			begin()			{ if (fBufferPage.n > 0) FlushBuffer(); return iterator(*fFile, fCount, 0); }
-	iterator			end()			{ if (fBufferPage.n > 0) FlushBuffer(); return iterator(*fFile, 0, fFile->Size()); }
+	iterator			begin()			{ if (fBufferPage.n > 0) FlushBuffer(); return iterator(*fFile, fCount); }
+	iterator			end()			{ if (fBufferPage.n > 0) FlushBuffer(); return iterator(*fFile, 0); }
 	
   private:	
 
@@ -1789,13 +1795,13 @@ void CMergeIndexBuffer::CMergeIndexBufferPage::GetData(int32 inIndex, string& ou
 	outValue = e[-inIndex] >> 24;
 }
 
-CMergeIndexBuffer::iterator::iterator(HStreamBase& inFile, uint32 inCount, int64 inOffset)
+CMergeIndexBuffer::iterator::iterator(HStreamBase& inFile, uint32 inCount)
 	: fFile(&inFile)
-	, fFileOffset(inOffset)
+	, fFileOffset(0)
 	, fIndex(0)
 	, fCount(inCount)
 {
-	if (fFileOffset < fFile->Size())
+	if (fCount > 0)
 		fFile->PRead(&fPage, kMergeIndexBufferPageSize, fFileOffset);
 	else
 		fPage.n = 0;
@@ -1808,9 +1814,9 @@ CMergeIndexBuffer::iterator::iterator(const iterator& inOther)
 	: fFile(inOther.fFile)
 	, fFileOffset(inOther.fFileOffset)
 	, fIndex(inOther.fIndex)
-	, fCount(inOther.fCount)
 	, fPage(inOther.fPage)
 	, fCurrent(inOther.fCurrent)
+	, fCount(inOther.fCount)
 {
 }
 
