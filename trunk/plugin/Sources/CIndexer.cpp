@@ -271,7 +271,7 @@ class CIndexBase
 	
 	virtual void	AddWord(const string& inWord, uint32 inFrequency = 1) = 0;
 	virtual void	FlushDoc(uint32 inDocNr) = 0;
-	virtual void	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo) = 0;
+	virtual bool	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo) = 0;
 
 	virtual bool	Empty() const = 0;
 	
@@ -308,7 +308,7 @@ class CValueIndex : public CIndexBase
 	
 	virtual void	AddWord(const string& inWord, uint32 inFrequency);
 	virtual void	FlushDoc(uint32 inDocNr);
-	virtual void	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
+	virtual bool	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
 	
 	virtual bool	Empty() const			{ return false; }
 
@@ -362,8 +362,11 @@ void CValueIndex::FlushDoc(uint32 inDocNr)
 	}
 }
 
-void CValueIndex::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPart& outInfo)
+bool CValueIndex::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPart& outInfo)
 {
+	if (fIndex.size() == 0)
+		return false;
+	
 	if (VERBOSE >= 1)
 	{
 		cout << endl << "Writing index '" << fName << "'... ";
@@ -385,6 +388,8 @@ void CValueIndex::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPa
 
 	if (VERBOSE >= 1)
 		cout << "done" << endl << "Wrote " << outInfo.entries << " entries." << endl;
+	
+	return true;
 }
 
 struct LexEntry
@@ -780,7 +785,7 @@ class CTextIndexBase : public CIndexBase
 	virtual void	AddDocTerm(uint32 inDoc, uint8 inFrequency);
 	virtual void	FlushTerm(uint32 inTerm, uint32 inDocCount);
 	
-	virtual void	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
+	virtual bool	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
 
 					// NOTE: empty is overloaded (i.e. used for two purposes)
 	virtual bool	Empty() const			{ return fEmpty; }
@@ -1032,8 +1037,11 @@ bool CFullTextIterator::Next(string& outKey, int64& outValue)
 	return result;
 }
 
-void CTextIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPart& outInfo)
+bool CTextIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPart& outInfo)
 {
+	if (fRawIndex == nil)	// shortcut in case we didn't collect any data
+		return false;
+	
 	if (VERBOSE >= 1)
 	{
 		cout << endl << "Writing index '" << fName << "' nr: " << fIndexNr << "... ";
@@ -1106,6 +1114,8 @@ void CTextIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SInde
 	
 	if (VERBOSE >= 1)
 		cout << "done" << endl << "Wrote " << lexicon.size() << " entries." << endl;
+	
+	return true;
 }
 
 class CTextIndex : public CTextIndexBase
@@ -1129,7 +1139,7 @@ class CWeightedWordIndex : public CTextIndexBase
 						const string& inName, uint16 inIndexNr,
 						const HUrl& inScratch, uint32 inWeightBitCount);
 
-	virtual void	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
+	virtual bool	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
 };
 
 CWeightedWordIndex::CWeightedWordIndex(CFullTextIndex& inFullTextIndex,
@@ -1138,9 +1148,10 @@ CWeightedWordIndex::CWeightedWordIndex(CFullTextIndex& inFullTextIndex,
 {
 }
 
-void CWeightedWordIndex::Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo)
+bool CWeightedWordIndex::Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo)
 {
-	CTextIndexBase::Write(inDataFile, inDocCount, outInfo);
+	if (not CTextIndexBase::Write(inDataFile, inDocCount, outInfo))
+		return false;
 	
 	outInfo.weight_offset = inDataFile.Seek(0, SEEK_END);
 	
@@ -1159,6 +1170,8 @@ void CWeightedWordIndex::Write(HStreamBase& inDataFile, uint32 inDocCount, SInde
 		inDataFile.Write(b.get(), n);
 		k -= n;
 	}
+	
+	return true;
 }
 
 class CDateIndex : public CTextIndexBase
@@ -1599,7 +1612,11 @@ void CIndexer::CreateIndex(HStreamBase& inFile,
 	{
 		if ((*indx).second != nil)
 		{
-			(*indx).second->Write(inFile, fHeader->entries, fParts[ix++]);
+			if ((*indx).second->Write(inFile, fHeader->entries, fParts[ix]))
+				++ix;
+			else
+				--fHeader->count;
+
 			delete (*indx).second;
 		}
 	}
@@ -1612,7 +1629,10 @@ void CIndexer::CreateIndex(HStreamBase& inFile,
 	
 	outSize = inFile.Seek(0, SEEK_END) - outOffset;
 	
-	inFile.Seek(outOffset + kSIndexHeaderSize, SEEK_SET);
+	inFile.Seek(outOffset, SEEK_SET);
+
+	inFile << *fHeader;
+
 	for (ix = 0; ix < fHeader->count; ++ix)
 		inFile << fParts[ix];
 }
