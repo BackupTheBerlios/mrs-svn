@@ -344,6 +344,8 @@ struct MRankedQueryImp
 	CDatabankBase*				fDatabank;
 	string						fIndex;
 	string						fAlgorithm;
+	bool						fAllTermsRequired;
+	int							fMaxReturn;
 	auto_ptr<CRankedQuery>		fQuery;
 };
 
@@ -865,12 +867,11 @@ MRankedQuery* MDatabank::RankedQuery(const string& inIndex)
 	imp->fIndex = inIndex;
 	imp->fAlgorithm = "vector";
 	imp->fQuery.reset(new CRankedQuery);
+	imp->fMaxReturn = 1000;
+	imp->fAllTermsRequired = false;
 
 	MRankedQuery* result = MRankedQuery::Create(imp.release());
 
-	result->MaxReturn = 1000;
-	result->AllTermsRequired = false;
-	
 	return result;
 }
 
@@ -1227,6 +1228,16 @@ void MRankedQuery::SetAlgorithm(const string& inAlgorithm)
 	fImpl->fAlgorithm = inAlgorithm;
 }
 
+void MRankedQuery::SetMaxReturn(int inMaxReturn)
+{
+	fImpl->fMaxReturn = inMaxReturn;
+}
+
+void MRankedQuery::SetAllTermsRequired(bool inAllTermsRequired)
+{
+	fImpl->fAllTermsRequired = inAllTermsRequired;
+}
+
 MQueryResults* MRankedQuery::Perform(MBooleanQuery* inMetaQuery)
 {
 	auto_ptr<CDocIterator> metaDocs;
@@ -1240,7 +1251,7 @@ MQueryResults* MRankedQuery::Perform(MBooleanQuery* inMetaQuery)
 		auto_ptr<MQueryResultsImp> imp(
 			new MQueryResultsImp(*fImpl->fDatabank, fImpl->fQuery->PerformSearch(
 				*fImpl->fDatabank, fImpl->fIndex, fImpl->fAlgorithm, metaDocs.release(),
-				MaxReturn, AllTermsRequired)));
+				fImpl->fMaxReturn, fImpl->fAllTermsRequired)));
 	
 		if (imp->Count(false) > 0)
 			result = MQueryResults::Create(imp.release());

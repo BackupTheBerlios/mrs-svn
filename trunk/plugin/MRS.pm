@@ -204,10 +204,8 @@ package MRS::MRankedQuery;
 %OWNER = ();
 %ITERATORS = ();
 *AddTerm = *MRSc::MRankedQuery_AddTerm;
-*swig_MaxReturn_get = *MRSc::MRankedQuery_MaxReturn_get;
-*swig_MaxReturn_set = *MRSc::MRankedQuery_MaxReturn_set;
-*swig_AllTermsRequired_get = *MRSc::MRankedQuery_AllTermsRequired_get;
-*swig_AllTermsRequired_set = *MRSc::MRankedQuery_AllTermsRequired_set;
+*SetAllTermsRequired = *MRSc::MRankedQuery_SetAllTermsRequired;
+*SetMaxReturn = *MRSc::MRankedQuery_SetMaxReturn;
 *SetAlgorithm = *MRSc::MRankedQuery_SetAlgorithm;
 *Perform = *MRSc::MRankedQuery_Perform;
 sub new {

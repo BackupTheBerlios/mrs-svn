@@ -477,6 +477,7 @@ sub Info()
 		'text' => 'Text',
 		'valu' => 'Value',
 		'date' => 'Date',
+		'nmbr' => 'Number',
 		'wtxt' => 'Weighted',
 	);
 

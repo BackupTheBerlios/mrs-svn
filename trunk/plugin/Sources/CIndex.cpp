@@ -1342,7 +1342,6 @@ void CIndexImpT<DD>::CreateFromIterator(CIteratorBase& inData)
 			p.Insert(p.GetN(), k, v, 0);
 	}
 	
-	bool firstPass = true;
 	// next passes, iterate over the up list to create new next-higher level pages
 	while (up.size())
 	{
@@ -1351,18 +1350,16 @@ void CIndexImpT<DD>::CreateFromIterator(CIteratorBase& inData)
 		// in that case, p is still this empty page and up.back().pageRight is
 		// the pointer to it. Reset the pointer and reuse the page.
 
-		if (firstPass and p.GetN() == 0)
+		if (p.GetN() == 0)
 		{
 			assert(up.back().pageRight = p.GetOffset());
-			up.back().pageRight = 0;
+			up.back().pageRight = p.GetData().p0;
 		}
 		else
 			p.Allocate();
-		
-		firstPass = false;
 
 		fRoot = p.GetOffset();
-		
+
 		p.GetData().p0 = up.front().pageLeft;
 		
 		CTempValueList nextUp;

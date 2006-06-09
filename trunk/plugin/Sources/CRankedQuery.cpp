@@ -403,7 +403,7 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	CDocWeightArray Wd = inDatabank.GetDocWeights(inIndex);
 	const uint32 kMaxWeight = inDatabank.GetMaxWeight();
 	
-	float Wq = 0, Smax = 0;
+	float Wq = 0, Smax = 0, termCount = 0;
 
 	// normalize the term frequencies.
 	
@@ -467,6 +467,8 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 		if (t.iter.get() == nil)
 			continue;
 
+		++termCount;
+
 		float idf = t.iter->GetIDFCorrectionFactor();
 		float wq = idf * t.weight;
 
@@ -497,10 +499,8 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	
 	CAccumulator::Iterator* ai;
 	
-	uint32 termCount = 0;
-	
-	if (inAllTermsRequired)
-		termCount = fImpl->fTerms.size();
+	if (not inAllTermsRequired)
+		termCount = 0;
 	
 	auto_ptr<CDocIterator> rdi(ai = new CAccumulator::Iterator(A, termCount));
 

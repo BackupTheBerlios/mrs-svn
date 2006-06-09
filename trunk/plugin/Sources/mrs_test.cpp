@@ -175,6 +175,7 @@ int main(int argc, const char* argv[])
 		auto_ptr<MRankedQuery> q(mrsDb.RankedQuery(ix));
 	
 		q->SetAlgorithm(alg);
+		q->SetAllTermsRequired(1);
 	
 		for (vector<string>::iterator qw = queryWords.begin(); qw != queryWords.end(); ++qw)
 			q->AddTerm(*qw, 1);

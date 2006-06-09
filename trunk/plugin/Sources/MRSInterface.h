@@ -210,9 +210,11 @@ class MRankedQuery : public MRSObject<MRankedQuery, struct MRankedQueryImp>
   public:
 	void				AddTerm(const std::string& inTerm, unsigned long inFrequency);
 
-	int					MaxReturn;
-	int					AllTermsRequired;
+//	int					MaxReturn;
+//	int					AllTermsRequired;
 
+	void				SetAllTermsRequired(bool inRequired);
+	void				SetMaxReturn(int inMaxReturn);
 	void				SetAlgorithm(const std::string& inAlgorithm);
 
 	MQueryResults*		Perform(MBooleanQuery* inMetaQuery = NULL);
