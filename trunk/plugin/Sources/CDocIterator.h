@@ -87,6 +87,7 @@ class CDocDeltaIterator : public CDocIterator
 class CDbDocIteratorBase : public CDocIterator
 {
   public:
+	virtual bool	Next(uint32& ioDoc, bool inSkip) = 0;
 	virtual bool	Next(uint32& ioDoc, uint8& ioRank, bool inSkip) = 0;
 
 	virtual float	GetIDFCorrectionFactor() const			{ return fIDFCorrectionFactor; }
@@ -97,11 +98,11 @@ class CDbDocIteratorBase : public CDocIterator
 	float			fIDFCorrectionFactor;
 };
 
-template<typename T>
+template<typename T, uint32 K>
 class CDbDocIteratorBaseT : public CDbDocIteratorBase
 {
-	typedef typename	CValuePairCompression::ValuePairTraitsTypeFactory<T>::type		traits;
-	typedef typename	CValuePairCompression::ValuePairTraitsTypeFactory<T>::iterator	IterType;
+	typedef typename	CValuePairCompression::ValuePairTraitsTypeFactory<T,K>::type		traits;
+	typedef typename	CValuePairCompression::ValuePairTraitsTypeFactory<T,K>::iterator	IterType;
 	
   public:
 					CDbDocIteratorBaseT(HStreamBase& inData,
@@ -121,8 +122,17 @@ class CDbDocIteratorBaseT : public CDbDocIteratorBase
 	uint32			fDelta;
 };
 
-typedef CDbDocIteratorBaseT<uint32>						CDbDocIterator;
-typedef CDbDocIteratorBaseT<std::pair<uint32,uint8> >	CDbDocWeightIterator;
+typedef CDbDocIteratorBaseT<uint32, kAC_GolombCode>						CDbDocIteratorGC;
+typedef CDbDocIteratorBaseT<std::pair<uint32,uint8>, kAC_GolombCode>	CDbDocWeightIteratorGC;
+
+typedef CDbDocIteratorBaseT<uint32, kAC_SelectorCode>					CDbDocIteratorSC;
+typedef CDbDocIteratorBaseT<std::pair<uint32,uint8>, kAC_SelectorCode>	CDbDocWeightIteratorSC;
+
+CDbDocIteratorBase*
+CreateDbDocIterator(HStreamBase& inData, int64 inOffset, int64 inMax, uint32 inDelta, uint32 inKind);
+
+CDbDocIteratorBase*
+CreateDbDocWeightIterator(HStreamBase& inData, int64 inOffset, int64 inMax, uint32 inDelta, uint32 inKind);
 
 class CMergedDbDocIterator : public CDbDocIteratorBase
 {

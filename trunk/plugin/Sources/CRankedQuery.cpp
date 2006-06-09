@@ -403,7 +403,8 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	CDocWeightArray Wd = inDatabank.GetDocWeights(inIndex);
 	const uint32 kMaxWeight = inDatabank.GetMaxWeight();
 	
-	float Wq = 0, Smax = 0, termCount = 0;
+	float Wq = 0, Smax = 0;
+	uint32 termCount = 0;
 
 	// normalize the term frequencies.
 	

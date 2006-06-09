@@ -3,44 +3,12 @@
 	Created Thursday February 09 2006 09:36:27
 */
 
-/*-
- * Copyright (c) 2005
- *      CMBI, Radboud University Nijmegen. All rights reserved.
- *
- * This code is derived from software contributed by Maarten L. Hekkelman
- * and Hekkelman Programmatuur b.v.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the Radboud University
- *        Nijmegen and its contributors.
- * 4. Neither the name of Radboud University nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE RADBOUD UNIVERSITY AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE UNIVERSITY OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
- 
 #ifndef CVALUEPAIRARRAY_H
 #define CVALUEPAIRARRAY_H
+
+#if P_DEBUG
+#include <iostream>
+#endif
 
 #if P_GNU
 #include "CBitStream.h"
@@ -49,7 +17,13 @@ class COBitStream;
 class CIBitStream;
 #endif
 
-#include <boost/type_traits/is_pod.hpp>
+#include "HError.h"
+#include <boost/type_traits/is_integral.hpp>
+
+enum CArrayCompressionKind {
+	kAC_GolombCode		= FOUR_CHAR_INLINE('golo'),
+	kAC_SelectorCode	= FOUR_CHAR_INLINE('sel1')
+};
 
 //	Rationale:
 //
@@ -75,8 +49,173 @@ struct WeightGreater
 						{ return inA.second > inB.second or (inA.second == inB.second and inA.first < inB.first); }
 };
 
+struct CSelector
+{
+	int		databits;
+	int		span;
+};
+
+const CSelector kSelectors[16] = {
+	{  0, 1 },
+	{ -3, 1 },
+	{ -2, 1 }, { -2, 1 },
+	{ -1, 1 }, { -1, 2 }, { -1, 4 },
+	{  0, 1 }, {  0, 2 }, {  0, 4 },
+	{  1, 1 }, {  1, 2 }, {  1, 4 },
+	{  2, 1 }, {  2, 2 },
+	{  3, 1 }
+};
+
+inline uint32 Select(uint32 inBitsNeeded[], uint32 inCount, int32 inWidth, int32 inMaxWidth,
+	const CSelector inSelectors[])
+{
+	uint32 result = 0;
+	int32 c = inBitsNeeded[0] - inMaxWidth;
+	
+	for (uint32 i = 1; i < 16; ++i)
+	{
+		if (inSelectors[i].span > inCount)
+			continue;
+		
+		int32 w = inWidth + inSelectors[i].databits;
+		
+		if (w > inMaxWidth or w < 0)
+			continue;
+		
+		bool fits = true;
+		int32 waste = 0;
+		
+		switch (inSelectors[i].span)
+		{
+			case 4:
+				fits = fits and inBitsNeeded[3] <= w;
+				waste += w - inBitsNeeded[3];
+			case 3:
+				fits = fits and inBitsNeeded[2] <= w;
+				waste += w - inBitsNeeded[2];
+			case 2:
+				fits = fits and inBitsNeeded[1] <= w;
+				waste += w - inBitsNeeded[1];
+			case 1:
+				fits = fits and inBitsNeeded[0] <= w;
+				waste += w - inBitsNeeded[0];
+		}
+		
+		if (fits == false)
+			continue;
+		
+		int32 n = (inSelectors[i].span - 1) * 4 - waste;
+		
+		if (n > c)
+		{
+			result = i;
+			c = n;
+		}
+	}
+	
+	return result;
+}
+
+template<class T>
+inline void Shift(T& ioIterator, int64& ioLast, uint32& outDelta, uint32& outWidth)
+{
+	int64 next = *ioIterator++;
+	assert(next > ioLast);
+	
+	outDelta = next - ioLast - 1;
+	ioLast = next;
+	
+	uint32 v = outDelta;
+	outWidth = 0;
+	while (v > 0)
+	{
+		v >>= 1;
+		++outWidth;
+	}
+}
+
 template<typename T>
-void CompressSimpleArray(COBitStream& inBits, std::vector<T>& inArray, int64 inMax)
+void CompressSimpleArraySelector(COBitStream& inBits, std::vector<T>& inArray, int64 inMax)
+{
+	uint32 cnt = inArray.size();
+
+	WriteGamma(inBits, cnt);
+
+//std::cout << "Writing array with " << cnt << " elements:" << std::endl;
+//for (uint32 i = 0; i < cnt; ++i)
+//	std::cout << ' ' << inArray[i];
+//std::cout << std::endl;
+	
+	int32 maxWidth = 0;
+	int64 v = inMax;
+	while (v > 0)
+	{
+		v >>= 1;
+		++maxWidth;
+	}
+	
+	int32 width = maxWidth;
+	int64 last = -1;
+	
+	uint32 bn[4];
+	uint32 dv[4];
+	uint32 bc = 0;
+	typename std::vector<T>::iterator a = inArray.begin();
+	typename std::vector<T>::iterator e = inArray.end();
+	
+	while (a != e or bc > 0)
+	{
+//if (bc > 0)
+//{
+//std::cout << "array now contains:" << std::endl;
+//
+//for (uint32 i = 0; i < bc; ++i)
+//std::cout << "           dv: " << dv[i] << ", bn: " << bn[i] << std::endl;
+//}
+//
+		while (bc < 4 and a != e)
+		{
+			Shift(a, last, dv[bc], bn[bc]);
+//std::cout << "shifted " << bc << ", dv: " << dv[bc] << ", bn: " << bn[bc] << std::endl;
+			++bc;
+		}
+		
+		uint32 s = Select(bn, bc, width, maxWidth, kSelectors);
+
+		if (s == 0)
+			width = maxWidth;
+		else
+			width += kSelectors[s].databits;
+
+		uint32 n = kSelectors[s].span;
+		
+		WriteBinary(inBits, s, 4);
+//std::cout << "Selector " << s << " width: " << width << " values:";
+		if (width > 0)
+		{
+			for (uint32 i = 0; i < n; ++i)
+			{
+//std::cout << ' ' << dv[i];
+				WriteBinary(inBits, dv[i], width);
+			}
+		}
+//std::cout << std::endl;
+		
+		bc -= n;
+
+		if (bc > 0)
+		{
+			for (uint32 i = 0; i < (4 - n); ++i)
+			{
+				bn[i] = bn[i + n];
+				dv[i] = dv[i + n];
+			}
+		}
+	}
+}
+
+template<typename T>
+void CompressSimpleArrayGolomb(COBitStream& inBits, std::vector<T>& inArray, int64 inMax)
 {
 	uint32 cnt = inArray.size();
 	int32 b = CalculateB(inMax, cnt);
@@ -138,13 +277,27 @@ struct ValuePairTraitsPOD
 	typedef 			T								value_type;
 	typedef 			void							rank_type;
 
-	static void			CompressArray(COBitStream& inBits, std::vector<T>& inArray, int64 inMax);
+	static void			CompressArray(COBitStream& inBits,
+							std::vector<T>& inArray, int64 inMax, uint32 inKind);
 };
 
 template<typename T>
-void ValuePairTraitsPOD<T>::CompressArray(COBitStream& inBits, std::vector<T>& inArray, int64 inMax)
+void ValuePairTraitsPOD<T>::CompressArray(COBitStream& inBits,
+	std::vector<T>& inArray, int64 inMax, uint32 inKind)
 {
-	CompressSimpleArray<T>(inBits, inArray, inMax);
+	switch (inKind)
+	{
+		case kAC_GolombCode:
+			CompressSimpleArrayGolomb(inBits, inArray, inMax);
+			break;
+		
+		case kAC_SelectorCode:
+			CompressSimpleArraySelector(inBits, inArray, inMax);
+			break;
+		
+		default:
+			THROW(("Unsupported array compression algorithm: %4.4s", &inKind));
+	}
 }
 
 template<typename T>
@@ -157,11 +310,13 @@ struct ValuePairTraitsPair
 	typedef typename	T::first_type					value_type;
 	typedef typename	T::second_type					rank_type;
 
-	static void			CompressArray(COBitStream& inBits, std::vector<T>& inArray, int64 inMax);
+	static void			CompressArray(COBitStream& inBits, std::vector<T>& inArray, int64 inMax,
+							uint32 inKind);
 };
 
 template<typename T>
-void ValuePairTraitsPair<T>::CompressArray(COBitStream& inBits, std::vector<T>& inArray, int64 inMax)
+void ValuePairTraitsPair<T>::CompressArray(COBitStream& inBits, std::vector<T>& inArray,
+	int64 inMax, uint32 inKind)
 {
 	WriteGamma(inBits, inArray.size());
 
@@ -190,7 +345,21 @@ void ValuePairTraitsPair<T>::CompressArray(COBitStream& inBits, std::vector<T>& 
 			uint8 d = lastWeight - w;
 			if (d > 0)	// skip the first since it has been written already
 				WriteGamma(inBits, d);
-			CompressSimpleArray(inBits, values, inMax);
+				
+			switch (inKind)
+			{
+				case kAC_GolombCode:
+					CompressSimpleArrayGolomb(inBits, values, inMax);
+					break;
+				
+				case kAC_SelectorCode:
+					CompressSimpleArraySelector(inBits, values, inMax);
+					break;
+				
+				default:
+					THROW(("Unsupported array compression algorithm: %4.4s", &inKind));
+			}
+		
 			values.clear();
 			lastWeight = w;
 		}
@@ -199,14 +368,65 @@ void ValuePairTraitsPair<T>::CompressArray(COBitStream& inBits, std::vector<T>& 
 
 // an iterator type for compressed value/rank pairs
 
-template<typename T>
+template<typename T, uint32 K>
 class IteratorBase
 {
+};
+
+template<typename T>
+class IteratorBase<T, kAC_GolombCode>
+{
   public:
-					IteratorBase(CIBitStream& inData, int64 inMax);
+					IteratorBase(CIBitStream& inData, int64 inMax)
+						: fBits(&inData)
+						, fCount(0)
+						, fRead(0)
+						, fValue(-1)
+						, fMax(inMax)
+					{
+						Reset();
+					}
+
 	virtual			~IteratorBase() {}
 
-	virtual bool	Next();
+	virtual bool	Next()
+					{
+						bool done = false;
+					
+						if (fRead < fCount)
+						{
+							int32 q = 0;
+							int32 r = 0;
+							
+							if (fBits->next_bit())
+							{
+								q = 1;
+								while (fBits->next_bit())
+									++q;
+							}
+							
+							if (b > 1)
+							{
+								for (int e = 0; e < n - 1; ++e)
+									r = (r << 1) | fBits->next_bit();
+								
+								if (r >= g)
+								{
+									r = (r << 1) | fBits->next_bit();
+									r -= g;
+								}
+							}
+							
+							int32 d = r + q * b + 1;
+							
+							fValue += d;
+							++fRead;
+							
+							done = true;
+						}
+					
+						return done;
+					}
 	
 	T				Value() const					{ return static_cast<T>(fValue); }
 	virtual uint32	Weight() const					{ return 1; }
@@ -215,12 +435,35 @@ class IteratorBase
 	virtual uint32	Read() const					{ return fRead; }
 
   protected:
-					IteratorBase(CIBitStream& inData, int64 inMax, bool);
+					IteratorBase(CIBitStream& inData, int64 inMax, bool)
+						: fBits(&inData)
+						, fCount(0)
+						, fRead(0)
+						, fValue(-1)
+						, fMax(inMax)
+					{
+					}
 
 					IteratorBase(const IteratorBase& inOther);
 	IteratorBase&		operator=(const IteratorBase& inOther);
 
-	void			Reset();
+	void			Reset()
+					{
+						fValue = -1;
+						fCount = ReadGamma(*fBits);
+						fRead = 0;
+					
+						b = CalculateB(fMax, fCount);
+						n = 0;
+						g = 1;
+						
+						while (g < b)
+						{
+							++n;
+							g <<= 1;
+						}
+						g -= b;
+					}
 
 	CIBitStream*	fBits;
 	uint32			fCount;
@@ -232,90 +475,114 @@ class IteratorBase
 };
 
 template<typename T>
-IteratorBase<T>::IteratorBase(CIBitStream& inData, int64 inMax)
-	: fBits(&inData)
-	, fRead(0)
-	, fValue(-1)
-	, fMax(inMax)
+class IteratorBase<T, kAC_SelectorCode>
 {
-	Reset();
-}
+  public:
+					IteratorBase(CIBitStream& inData, int64 inMax)
+						: fBits(&inData)
+						, fRead(0)
+						, fValue(-1)
+						, fMax(inMax)
+					{
+						int64 v = fMax;
+						fMaxWidth = 0;
+						while (v > 0)
+						{
+							v >>= 1;
+							++fMaxWidth;
+						}
 
-template<typename T>
-IteratorBase<T>::IteratorBase(CIBitStream& inData, int64 inMax, bool)
-	: fBits(&inData)
-	, fRead(0)
-	, fValue(-1)
-	, fMax(inMax)
-{
-}
+						Reset();
+					}
 
-template<typename T>
-void IteratorBase<T>::Reset()
-{
-	fValue = -1;
-	fCount = ReadGamma(*fBits);
-	fRead = 0;
-	b = CalculateB(fMax, fCount);
-	n = 0;
-	g = 1;
+	virtual			~IteratorBase() {}
+
+	virtual bool	Next()
+					{
+						bool done = false;
+					
+						if (fRead < fCount)
+						{
+							if (fSpan == 0)
+							{
+								uint32 selector = ReadBinary<uint32>(*fBits, 4);
+								fSpan = kSelectors[selector].span;
+								
+								if (selector == 0)
+									fWidth = fMaxWidth;
+								else
+									fWidth += kSelectors[selector].databits;
+					//std::cout << "Read selector " << selector << ", width now " << fWidth << " and span " << fSpan << std::endl;
+							}
+					
+							if (fWidth > 0)
+								fValue += ReadBinary<int64>(*fBits, fWidth);
+							fValue += 1;
+					
+					//std::cout << "Value " << fValue << std::endl;
+					
+							--fSpan;
+							++fRead;
+							
+							done = true;
+						}
+					
+						return done;
+					}
 	
-	while (g < b)
-	{
-		++n;
-		g <<= 1;
-	}
-	g -= b;
-}
+	T				Value() const					{ return static_cast<T>(fValue); }
+	virtual uint32	Weight() const					{ return 1; }
+	
+	virtual uint32	Count() const					{ return fCount; }
+	virtual uint32	Read() const					{ return fRead; }
 
-template<typename T>
-bool IteratorBase<T>::Next()
+  protected:
+					IteratorBase(CIBitStream& inData, int64 inMax, bool)
+						: fBits(&inData)
+						, fRead(0)
+						, fValue(-1)
+						, fMax(inMax)
+					{
+						int64 v = fMax;
+						fMaxWidth = 0;
+						while (v > 0)
+						{
+							v >>= 1;
+							++fMaxWidth;
+						}
+					}
+
+					IteratorBase(const IteratorBase& inOther);
+	IteratorBase&		operator=(const IteratorBase& inOther);
+
+	void			Reset()
+					{
+						fValue = -1;
+						fCount = ReadGamma(*fBits);
+						fRead = 0;
+						fSpan = 0;
+						fWidth = fMaxWidth;
+					}
+
+	CIBitStream*	fBits;
+	uint32			fCount;
+	uint32			fRead;
+	int32			fWidth;
+	int32			fMaxWidth;
+	int64			fSpan;
+
+	int64			fValue;
+	int64			fMax;
+};
+
+template<typename T, uint32 K>
+class VRIterator : public IteratorBase<typename ValuePairTraitsPair<T>::value_type, K>
 {
-	bool done = false;
+	typedef IteratorBase<typename ValuePairTraitsPair<T>::value_type, K>	base_type;
 
-	if (fRead < fCount)
-	{
-		int32 q = 0;
-		int32 r = 0;
-		
-		if (fBits->next_bit())
-		{
-			q = 1;
-			while (fBits->next_bit())
-				++q;
-		}
-		
-		if (b > 1)
-		{
-			for (int e = 0; e < n - 1; ++e)
-				r = (r << 1) | fBits->next_bit();
-			
-			if (r >= g)
-			{
-				r = (r << 1) | fBits->next_bit();
-				r -= g;
-			}
-		}
-		
-		int32 d = r + q * b + 1;
-		
-		fValue += d;
-		++fRead;
-		
-		done = true;
-	}
-
-	return done;
-}
-
-template<typename T>
-class VRIterator : public IteratorBase<typename ValuePairTraitsPair<T>::value_type>
-{
-	typedef IteratorBase<typename ValuePairTraitsPair<T>::value_type>	base_type;
-
-	typedef				ValuePairTraitsPair<T>	traits;
-	typedef typename	traits::value_type		value_type;
-	typedef typename	traits::rank_type		rank_type;
+	typedef				ValuePairTraitsPair<T>		traits;
+	typedef typename	traits::value_type			value_type;
+	typedef typename	traits::rank_type			rank_type;
 	
   public:
 					VRIterator(CIBitStream& inData, int64 inMax)
@@ -346,13 +613,13 @@ class VRIterator : public IteratorBase<typename ValuePairTraitsPair<T>::value_ty
 	uint32			fWeight;
 };
 
-template<typename T>
-void VRIterator<T>::Restart()
+template<typename T, uint32 K>
+void VRIterator<T, K>::Restart()
 {
 	fWeight -= ReadGamma(*this->fBits);
 	
 //	assert(fWeight <= kMaxWeight);
-//	assert(fWeight > 0);
+	assert(fWeight > 0);
 
 	if (fWeight > 0)
 		this->Reset();
@@ -362,54 +629,69 @@ void VRIterator<T>::Restart()
 	assert(this->fCount <= fTotalCount - fTotalRead);
 }
 
-template<typename T>
-bool VRIterator<T>::Next()
+template<typename T, uint32 K>
+bool VRIterator<T, K>::Next()
 {
 	bool done = false;
 	
 	while (not done and fWeight > 0 and fTotalRead < fTotalCount)
 	{
-		done = base_type::Next();
-
-		if (not done)
-			Restart();
-		else
+		if (base_type::Next())
+		{
 			++fTotalRead;
+			done = true;
+		}
+		else
+			Restart();
 	}
 	
 	return done;
 }
 
-template<typename T, bool>
+template<typename T, uint32 K, bool>
 struct ValuePairTraitsTypeFactoryBase
 {
 	typedef	ValuePairTraitsPOD<T>	type;
-	typedef IteratorBase<T>			iterator;
+	typedef IteratorBase<T,K>		iterator;
 };
 
-template<typename T>
-struct ValuePairTraitsTypeFactoryBase<T, false>
+template<typename T, uint32 K>
+struct ValuePairTraitsTypeFactoryBase<T, K, false>
 {
 	typedef	ValuePairTraitsPair<T>	type;
-	typedef VRIterator<T>			iterator;
+	typedef VRIterator<T,K>			iterator;
 };
 
-template<typename T>
-struct ValuePairTraitsTypeFactory : public ValuePairTraitsTypeFactoryBase<T, boost::is_pod<T>::value>
+template<typename T, uint32 K>
+struct ValuePairTraitsTypeFactory : public ValuePairTraitsTypeFactoryBase<T, K, boost::is_integral<T>::value>
 {
 };
 
 }
 
 template<typename T>
-void CompressArray(COBitStream& inBits, T& inArray, int64 inMax)
+void CompressArray(COBitStream& inBits, T& inArray, int64 inMax, uint32 inKind)
 {
 	using namespace		CValuePairCompression;
 
 	typedef typename	T::value_type										vector_value_type;
-	typedef typename	ValuePairTraitsTypeFactory<vector_value_type>::type	traits;
+	
+	switch (inKind)
+	{
+		case kAC_GolombCode:
+		{
+			typedef typename	ValuePairTraitsTypeFactory<vector_value_type,kAC_GolombCode>::type	traits;
+			traits::CompressArray(inBits, inArray, inMax, inKind);
+			break;
+		}
 
-	traits::CompressArray(inBits, inArray, inMax);
+		case kAC_SelectorCode:
+		{
+			typedef typename	ValuePairTraitsTypeFactory<vector_value_type,kAC_SelectorCode>::type traits;
+			traits::CompressArray(inBits, inArray, inMax, inKind);
+			break;
+		}
+	}
 }
 
 #endif // CVALUEPAIRARRAY_H

@@ -90,10 +90,11 @@ struct SIndexHeader
 	int64			entries;
 	uint32			count;
 	uint32			weight_bit_count;
+	uint32			array_compression_kind;
 };
 
 const uint32
-	kSIndexHeaderSize = 4 * sizeof(uint32) + sizeof(int64);
+	kSIndexHeaderSize = 5 * sizeof(uint32) + sizeof(int64);
 
 struct SIndexPart
 {
@@ -126,7 +127,8 @@ HStreamBase& operator<<(HStreamBase& inData, const SIndexHeader& inStruct)
 	
 	data.Write(&inStruct.sig, sizeof(inStruct.sig));
 	data << kSIndexHeaderSize << inStruct.entries
-		 << inStruct.count << inStruct.weight_bit_count;
+		 << inStruct.count << inStruct.weight_bit_count
+		 << inStruct.array_compression_kind;
 	
 	return inData;
 }
@@ -138,10 +140,15 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexHeader& inStruct)
 	data.Read(&inStruct.sig, sizeof(inStruct.sig));
 	data >> inStruct.size >> inStruct.entries >> inStruct.count;
 	
-	if (inStruct.size >= kSIndexHeaderSize)
+	if (inStruct.size >= kSIndexHeaderSize - sizeof(uint32))
 		data >> inStruct.weight_bit_count;
 	else
 		inStruct.weight_bit_count = 6;
+
+	if (inStruct.size >= kSIndexHeaderSize)
+		data >> inStruct.array_compression_kind;
+	else
+		inStruct.array_compression_kind = kAC_GolombCode;
 	
 	return inData;
 }
@@ -153,7 +160,7 @@ HStreamBase& operator<<(HStreamBase& inData, const SIndexPart& inStruct)
 	if (inStruct.sig != 0)
 		assert((inStruct.sig == kIndexPartSig and inStruct.index_version == kCIndexVersionV1) or
 			   (inStruct.sig == kIndexPartSigV2 and inStruct.index_version == kCIndexVersionV2));
-	
+
 	data.Write(&inStruct.sig, sizeof(inStruct.sig));
 	data << kSIndexPartSize;
 	data.Write(inStruct.name, sizeof(inStruct.name));
@@ -174,7 +181,7 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexPart& inStruct)
 	data >> inStruct.size;
 
 	// backward compatibility code from here ...
-	
+
 	const uint32
 		kIndexPartSigV1old = FOUR_CHAR_INLINE('indP'),
 		kIndexPartSigV2old = FOUR_CHAR_INLINE('InDP');
@@ -215,7 +222,7 @@ class CMergeWeightedDocInfo
 {
   public:
 					CMergeWeightedDocInfo(uint32 inDocDelta,
-							CDbDocWeightIterator* inIterator)
+							CDbDocIteratorBase* inIterator)
 						: fDelta(inDocDelta)
 						, fIter(inIterator)
 					{
@@ -249,7 +256,7 @@ class CMergeWeightedDocInfo
 	
   private:
 	uint32			fDelta;
-	CDbDocWeightIterator*	fIter;
+	CDbDocIteratorBase*	fIter;
 	uint32			fDocNr;
 	uint8			fWeight;
 };
@@ -951,7 +958,7 @@ void CTextIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 				docs.push_back(make_pair(docNr, weight));
 			}
 
-			CompressArray(docBits, docs, inDocCount);
+			CompressArray(docBits, docs, inDocCount, kAC_SelectorCode);
 		}
 		else
 		{
@@ -969,7 +976,7 @@ void CTextIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 				docs.push_back(docNr);
 			}
 
-			CompressArray(docBits, docs, inDocCount);
+			CompressArray(docBits, docs, inDocCount, kAC_SelectorCode);
 		}
 
 		docBits.sync();
@@ -1228,6 +1235,7 @@ CIndexer::CIndexer(const HUrl& inDb)
 	fHeader->count = 0;
 	fHeader->entries = 0;
 	fHeader->weight_bit_count = WEIGHT_BIT_COUNT;
+	fHeader->array_compression_kind = kAC_SelectorCode;
 }
 
 CIndexer::CIndexer(HStreamBase& inFile, int64 inOffset, int64 inSize)
@@ -1648,6 +1656,7 @@ struct CMergeData
 
 	vector<SIndexPart>	info;
 	uint32				count;
+	uint32				array_compression_kind;
 	
 	// cached data:
 	CIndex*				indx;
@@ -1906,6 +1915,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 		for (ix = 0; ix < index->fHeader->count; ++ix)
 			m.info.push_back(index->fParts[ix]);
 		m.count = index->fHeader->entries;
+		m.array_compression_kind = index->fHeader->array_compression_kind;
 
 		md.push_back(m);
 	}
@@ -2056,11 +2066,12 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 						{
 							if (v[j].first == i)
 							{
-								CDbDocIterator docIter(*md[i].data,
-									md[i].info[ix].bits_offset + v[j].second, md[i].count);
+								auto_ptr<CDbDocIteratorBase> docIter(
+									CreateDbDocIterator(md[i].array_compression_kind, *md[i].data,
+										md[i].info[ix].bits_offset + v[j].second, md[i].count));
 							
 								uint32 doc;
-								while (docIter.Next(doc, false))
+								while (docIter->Next(doc, false))
 									docs.push_back(doc + first);
 								
 								break;
@@ -2078,7 +2089,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					}
 
 					COBitStream bits(*bitFile.get());
-					CompressArray(bits, docs, fHeader->entries);
+					CompressArray(bits, docs, fHeader->entries, kAC_SelectorCode);
 					
 					indx.push_back(make_pair(s, offset));
 					break;
@@ -2089,7 +2100,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					vector<pair<uint32,uint8> > docs;
 					uint32 first = 0;
 					
-					boost::ptr_vector<CDbDocWeightIterator>	docIters;
+					boost::ptr_vector<CDbDocIteratorBase>	docIters;
 					uint32 count = 0;
 
 					for (i = 0; i < md.size(); ++i)
@@ -2098,9 +2109,10 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 						{
 							if (v[j].first == i)
 							{
-								docIters.push_back(new CDbDocWeightIterator(*md[i].data,
-									md[i].info[ix].bits_offset + v[j].second, md[i].count,
+								docIters.push_back(CreateDbDocWeightIterator(md[i].array_compression_kind,
+									*md[i].data, md[i].info[ix].bits_offset + v[j].second, md[i].count,
 									first));
+
 								count += docIters.back().Count();
 								break;
 							}
@@ -2132,7 +2144,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					}
 
 					COBitStream bits(*bitFile.get());
-					CompressArray(bits, docs, fHeader->entries);
+					CompressArray(bits, docs, fHeader->entries, kAC_SelectorCode);
 					
 					indx.push_back(make_pair(s, offset));
 					break;
@@ -2255,7 +2267,7 @@ CDocIterator* CIndexer::GetImpForPattern(const string& inIndex,
 		else if (fParts[ix].kind == kTextIndex or fParts[ix].kind == kDateIndex or fParts[ix].kind == kNumberIndex)
 		{
 			for (vector<uint32>::iterator i = values.begin(); i != values.end(); ++i)
-				ixs.push_back(new CDbDocIterator(*fFile,
+				ixs.push_back(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
 					fParts[ix].bits_offset + *i, fHeader->entries));
 		}
 		
@@ -2305,7 +2317,7 @@ CDocIterator* CIndexer::CreateDocIterator(const string& inIndex, const string& i
 				else// if (or fParts[ix].kind == kDateIndex or fParts[ix].kind == kNumberIndex)
 				{
 					for (vector<uint32>::iterator i = values.begin(); i != values.end(); ++i)
-						iters.push_back(new CDbDocIterator(*fFile,
+						iters.push_back(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
 							fParts[ix].bits_offset + *i, fHeader->entries));
 				}
 			}
@@ -2321,7 +2333,7 @@ CDocIterator* CIndexer::CreateDocIterator(const string& inIndex, const string& i
 				if (fParts[ix].kind == kValueIndex)
 					iters.push_back(new CDocNrIterator(value));
 				else if (fParts[ix].kind == kTextIndex or fParts[ix].kind == kDateIndex or fParts[ix].kind == kNumberIndex)
-					iters.push_back(new CDbDocIterator(*fFile,
+					iters.push_back(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
 						fParts[ix].bits_offset + value, fHeader->entries));
 			}
 		}
@@ -2341,9 +2353,14 @@ void CIndexer::PrintInfo()
 	
 	cout << "Index Header ("
 		 << sig[0] << sig[1] << sig[2] << sig[3] << ") " << fHeader->size << " bytes" << endl;
-	cout << "  entries:          " << fHeader->entries << endl;
-	cout << "  count:            " << fHeader->count << endl;
-	cout << "  weight bit count: " << fHeader->weight_bit_count << endl;
+	cout << "  entries:           " << fHeader->entries << endl;
+	cout << "  count:             " << fHeader->count << endl;
+	cout << "  weight bit count:  " << fHeader->weight_bit_count << endl;
+	
+	char ck[5] = { 0 };
+	snprintf(ck, sizeof(ck), "%4.4s", reinterpret_cast<const char*>(&fHeader->array_compression_kind));
+	
+	cout << "  array compression: " << ck << endl;
 	cout << endl;
 	
 	for (uint32 ix = 0; ix < fHeader->count; ++ix)
@@ -2486,7 +2503,8 @@ CDbDocIteratorBase* CIndexer::GetDocWeightIterator(const string& inIndex, const 
 
 		int64 value;
 		if (indx->GetValue(inKey, value))
-			result = new CDbDocWeightIterator(*fFile, fParts[ix].bits_offset + value, fHeader->entries);
+			result = CreateDbDocWeightIterator(fHeader->array_compression_kind,
+				*fFile, fParts[ix].bits_offset + value, fHeader->entries);
 
 		break;
 	}
@@ -2562,9 +2580,10 @@ bool CIndexer::GetDocumentNr(const string& inDocumentID, uint32& outDocNr)
 class CWeightAccumulator
 {
   public:
-					CWeightAccumulator(HStreamBase& inFile,
+					CWeightAccumulator(uint32 inKind, HStreamBase& inFile,
 							float inWeights[], uint32 inDocCount)
-						: fFile(inFile)
+						: fKind(inKind)
+						, fFile(inFile)
 						, fWeights(inWeights)
 						, fDocCount(inDocCount)
 					{
@@ -2573,6 +2592,7 @@ class CWeightAccumulator
 	void			Visit(const string& inKey, int64 inValue);
 
   private:
+	uint32			fKind;
 	HStreamBase&	fFile;
 	float*			fWeights;
 	uint32			fDocCount;
@@ -2580,14 +2600,14 @@ class CWeightAccumulator
 
 void CWeightAccumulator::Visit(const string& inKey, int64 inValue)
 {
-	CDbDocWeightIterator iter(fFile, inValue, fDocCount);
+	auto_ptr<CDbDocIteratorBase> iter(CreateDbDocWeightIterator(fKind, fFile, inValue, fDocCount));
 	
-	float idf = iter.GetIDFCorrectionFactor();
+	float idf = iter->GetIDFCorrectionFactor();
 	
 	uint32 doc;
 	uint8 freq;
 
-	while (iter.Next(doc, freq, false))
+	while (iter->Next(doc, freq, false))
 	{
 		float wdt = freq * idf;
 		fWeights[doc] += wdt * wdt;
@@ -2632,7 +2652,7 @@ void CIndexer::RecalculateDocumentWeights(const std::string& inIndex)
 	int64 bitsOffset = fParts[ix].bits_offset;
 	
 	HStreamView bits(*fFile, bitsOffset, fFile->Size() - bitsOffset);
-	CWeightAccumulator accu(bits, dw, docCount);
+	CWeightAccumulator accu(fHeader->array_compression_kind, bits, dw, docCount);
 	indx->Visit(&accu, &CWeightAccumulator::Visit);
 	
 	for (uint32 d = 0; d < docCount; ++d)
