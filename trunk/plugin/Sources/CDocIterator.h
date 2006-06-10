@@ -107,6 +107,7 @@ class CDbDocIteratorBaseT : public CDbDocIteratorBase
   public:
 					CDbDocIteratorBaseT(HStreamBase& inData,
 						int64 inOffset, int64 inMax, uint32 inDelta = 0);
+					CDbDocIteratorBaseT(const char* inData, int64 inMax, uint32 inDelta = 0);
 
 	virtual bool	Next(uint32& ioDoc, bool inSkip);
 	virtual bool	Next(uint32& ioDoc, uint8& ioRank, bool inSkip);

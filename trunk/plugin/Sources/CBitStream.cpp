@@ -45,6 +45,8 @@
 #include <cstring>
 #include <cmath>
 #include <limits>
+#include <iostream>
+
 #include "HError.h"
 
 #include "CBitStream.h"
@@ -236,7 +238,7 @@ struct file_CIBitStream_imp : public CIBitStream_imp
 	
 	HStreamBase&	data;
 	int64			offset;
-	char			buffer[kBitBufferSize];
+	char			buffer[kBitBufferExtend];
 	uint32			buffer_size;
 	char*			buffer_ptr;
 };
@@ -267,13 +269,18 @@ file_CIBitStream_imp::file_CIBitStream_imp(HStreamBase& inData,
 
 void file_CIBitStream_imp::read()
 {
-	buffer_size = kBitBufferSize;
+	if (buffer_size == 0)				// avoid reading excess bytes in the first call
+		buffer_size = kBitBufferSize;
+	else
+		buffer_size = kBitBufferExtend;
+
 	if (buffer_size > size)
 		buffer_size = size;
-	
+
 	int32 r = data.PRead(buffer, buffer_size, offset);
 	if (r < 0)
 		THROW(("IO Error in reading bits"));
+
 	buffer_size = r;
 	buffer_ptr = buffer;
 }

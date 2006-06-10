@@ -21,6 +21,17 @@ CDbDocIteratorBaseT<T,K>::CDbDocIteratorBaseT(HStreamBase& inData,
 }
 
 template<typename T, uint32 K>
+CDbDocIteratorBaseT<T,K>::CDbDocIteratorBaseT(const char* inData, int64 inMax, uint32 inDelta)
+	: fBits(inData, std::numeric_limits<uint32>::max())
+	, fIter(fBits, inMax)
+	, fDelta(inDelta)
+{
+	using namespace std;
+
+	fIDFCorrectionFactor = log(1.0 + static_cast<double>(inMax) / fIter.Count());
+}
+
+template<typename T, uint32 K>
 inline
 bool CDbDocIteratorBaseT<T,K>::Next(uint32& ioDoc, bool inSkip)
 {
