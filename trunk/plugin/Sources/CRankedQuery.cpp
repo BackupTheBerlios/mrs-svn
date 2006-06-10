@@ -169,7 +169,9 @@ class CAccumulator
 	class Iterator : public CDocIterator
 	{
 	  public:
-						Iterator(CAccumulator& inAccumulator, uint32 inTermCount);
+						Iterator(CAccumulator& inAccumulator, uint32 inTermCount,
+							bool inSortDocs);
+						~Iterator();
 		
 		virtual bool	Next(uint32& ioDoc, bool inSkip);
 		virtual uint32	Count() const						{ return fHitCount; }
@@ -192,7 +194,7 @@ class CAccumulator
 	uint32				fHitCount;
 };
 
-CAccumulator::Iterator::Iterator(CAccumulator& inAccumulator, uint32 inTermCount)
+CAccumulator::Iterator::Iterator(CAccumulator& inAccumulator, uint32 inTermCount, bool inSortDocs)
 	: fDocs(new uint32[inAccumulator.fHitCount])
 	, fData(inAccumulator.fData)
 	, fDocCount(inAccumulator.fDocCount)
@@ -213,7 +215,13 @@ CAccumulator::Iterator::Iterator(CAccumulator& inAccumulator, uint32 inTermCount
 	
 	assert(item == nil);
 	
-	sort(fDocs, fDocs + fHitCount);
+	if (inSortDocs)
+		sort(fDocs, fDocs + fHitCount);
+}
+
+CAccumulator::Iterator::~Iterator()
+{
+	delete[] fDocs;
 }
 
 bool CAccumulator::Iterator::Next(uint32& ioDoc, bool inSkip)
@@ -416,7 +424,7 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	if (not inAllTermsRequired)
 		termCount = 0;
 	
-	auto_ptr<CDocIterator> rdi(ai = new CAccumulator::Iterator(A, termCount));
+	auto_ptr<CDocIterator> rdi(ai = new CAccumulator::Iterator(A, termCount, inMetaQuery != nil));
 
 	if (inMetaQuery)
 		rdi.reset(CDocIntersectionIterator::Create(
