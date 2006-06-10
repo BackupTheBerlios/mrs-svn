@@ -57,6 +57,10 @@
 
 using namespace std;
 
+#ifndef USE_ARRAY_ACCUMULATOR
+#define USE_ARRAY_ACCUMULATOR	0
+#endif
+
 struct Term
 {
 	string							key;
@@ -89,122 +93,7 @@ struct CDocScore
 						{ return fRank > inOther.fRank; }
 };
 
-#if 0
-class CAccumulator
-{
-	friend class Iterator;
-
-	struct Item
-	{
-		float			value;
-		uint32			count;
-		
-						Item() : value(0), count(0) {}
-	};
-	
-	typedef tr1::unordered_map<uint32,Item,boost::hash<uint32> >	DataMap;
-
-  public:
-
-	struct ItemRef
-	{
-		friend class CAccumulator;
-		
-		float		operator+=(float inValue)
-					{
-						if (fItem == fData.end())
-							fItem = fData.insert(make_pair(fDocNr, Item())).first;
-
-						fItem->second.value += inValue;
-						fItem->second.count += 1;
-
-						return fItem->second.value;
-					}
-
-					operator float() const
-					{
-						float result = 0.f;
-						if (fItem != fData.end())
-							result = fItem->second.value;
-						return result;
-					}
-		
-		uint32		Count() const;
-
-	  private:
-
-					ItemRef(DataMap& inData, uint32 inDocNr)
-						: fData(inData)
-						, fDocNr(inDocNr)
-						, fItem(fData.find(fDocNr)) {}
-					ItemRef(const ItemRef&);
-					ItemRef();
-		ItemRef&	operator=(const ItemRef&);
-
-		DataMap&			fData;
-		uint32				fDocNr;
-		DataMap::iterator	fItem;
-	};
-	
-					CAccumulator(uint32 inBucketSize) : fData(inBucketSize) {}
-	virtual			~CAccumulator() {}
-	
-	ItemRef			operator[](uint32 inDocNr)				{ return ItemRef(fData, inDocNr); }
-	
-	class Iterator : public CDocIterator
-	{
-	  public:
-					Iterator(CAccumulator& inAccumulator, uint32 inTermCount)
-						: fData(inAccumulator.fData)
-						, fIter(fData.begin())
-						, fRead(0)
-						, fTermCount(inTermCount) {}
-		
-		virtual bool	Next(uint32& ioDoc, bool inSkip);
-		virtual uint32	Count() const						{ return fData.size(); }
-		virtual uint32	Read() const						{ return fRead; }
-		const Item&		GetItem() const						{ return fItem; }
-	
-	  private:
-		DataMap&			fData;
-		DataMap::iterator	fIter;
-		uint32				fRead;
-		uint32				fTermCount;
-		Item				fItem;
-	};
-	
-  private:
-	DataMap				fData;
-};
-
-bool CAccumulator::Iterator::Next(uint32& ioDoc, bool inSkip)
-{
-	bool result = false;
-
-	while (fIter != fData.end())
-	{
-		if (inSkip and fIter->first < ioDoc)
-		{
-			++fIter;
-			continue;
-		}
-		
-		if (fTermCount and fIter->second.count != fTermCount)
-		{
-			++fIter;
-			continue;
-		}
-		
-		result = true;
-		ioDoc = fIter->first;
-		fItem = fIter->second;
-		++fIter;
-		break;
-	}
-	
-	return result;
-}
-#else
+#if USE_ARRAY_ACCUMULATOR
 class CAccumulator
 {
 	friend class Iterator;
@@ -324,6 +213,121 @@ bool CAccumulator::Iterator::Next(uint32& ioDoc, bool inSkip)
 	
 	return result;
 }
+#else
+class CAccumulator
+{
+	friend class Iterator;
+
+	struct Item
+	{
+		float			value;
+		uint32			count;
+		
+						Item() : value(0), count(0) {}
+	};
+	
+	typedef tr1::unordered_map<uint32,Item,boost::hash<uint32> >	DataMap;
+
+  public:
+
+	struct ItemRef
+	{
+		friend class CAccumulator;
+		
+		float		operator+=(float inValue)
+					{
+						if (fItem == fData.end())
+							fItem = fData.insert(make_pair(fDocNr, Item())).first;
+
+						fItem->second.value += inValue;
+						fItem->second.count += 1;
+
+						return fItem->second.value;
+					}
+
+					operator float() const
+					{
+						float result = 0.f;
+						if (fItem != fData.end())
+							result = fItem->second.value;
+						return result;
+					}
+		
+		uint32		Count() const;
+
+	  private:
+
+					ItemRef(DataMap& inData, uint32 inDocNr)
+						: fData(inData)
+						, fDocNr(inDocNr)
+						, fItem(fData.find(fDocNr)) {}
+					ItemRef(const ItemRef&);
+					ItemRef();
+		ItemRef&	operator=(const ItemRef&);
+
+		DataMap&			fData;
+		uint32				fDocNr;
+		DataMap::iterator	fItem;
+	};
+	
+					CAccumulator(uint32 inBucketSize) : fData(inBucketSize) {}
+	virtual			~CAccumulator() {}
+	
+	ItemRef			operator[](uint32 inDocNr)				{ return ItemRef(fData, inDocNr); }
+	
+	class Iterator : public CDocIterator
+	{
+	  public:
+					Iterator(CAccumulator& inAccumulator, uint32 inTermCount)
+						: fData(inAccumulator.fData)
+						, fIter(fData.begin())
+						, fRead(0)
+						, fTermCount(inTermCount) {}
+		
+		virtual bool	Next(uint32& ioDoc, bool inSkip);
+		virtual uint32	Count() const						{ return fData.size(); }
+		virtual uint32	Read() const						{ return fRead; }
+		const Item&		GetItem() const						{ return fItem; }
+	
+	  private:
+		DataMap&			fData;
+		DataMap::iterator	fIter;
+		uint32				fRead;
+		uint32				fTermCount;
+		Item				fItem;
+	};
+	
+  private:
+	DataMap				fData;
+};
+
+bool CAccumulator::Iterator::Next(uint32& ioDoc, bool inSkip)
+{
+	bool result = false;
+
+	while (fIter != fData.end())
+	{
+		if (inSkip and fIter->first < ioDoc)
+		{
+			++fIter;
+			continue;
+		}
+		
+		if (fTermCount and fIter->second.count != fTermCount)
+		{
+			++fIter;
+			continue;
+		}
+		
+		result = true;
+		ioDoc = fIter->first;
+		fItem = fIter->second;
+		++fIter;
+		break;
+	}
+	
+	return result;
+}
 #endif
 
 CRankedQuery::CRankedQuery()
@@ -438,8 +442,11 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	if (maxCount > 100000)
 		maxCount = 100000;
 
-//	CAccumulator A(maxCount);
+#if USE_ARRAY_ACCUMULATOR
 	CAccumulator A(inDatabank.Count());
+#else
+	CAccumulator A(maxCount);
+#endif
 
 	for (uint32 tx = 0; tx < fImpl->fTerms.size(); ++tx)
 	{
