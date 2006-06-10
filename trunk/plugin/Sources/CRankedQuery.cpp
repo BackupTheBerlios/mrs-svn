@@ -45,8 +45,6 @@
 #include "HUtils.h"
 #include <iostream>
 #include "HError.h"
-#include <tr1/unordered_map>
-#include <boost/functional/hash/hash.hpp>
 
 #include <boost/ptr_container/ptr_vector.hpp>
 
@@ -56,10 +54,6 @@
 #include "CDocWeightArray.h"
 
 using namespace std;
-
-#ifndef USE_ARRAY_ACCUMULATOR
-#define USE_ARRAY_ACCUMULATOR	0
-#endif
 
 struct Term
 {
@@ -93,7 +87,6 @@ struct CDocScore
 						{ return fRank > inOther.fRank; }
 };
 
-#if USE_ARRAY_ACCUMULATOR
 class CAccumulator
 {
 	friend class Iterator;
@@ -103,8 +96,7 @@ class CAccumulator
 	{
 		float			value;
 		uint32			count;
-		
-						Item() : value(0), count(0) {}
+		Item*			next;
 	};
 
   public:
@@ -116,7 +108,11 @@ class CAccumulator
 		float		operator+=(float inValue)
 					{
 						if (fItem->count == 0)
+						{
+							fItem->next = fA.fFirst;
+							fA.fFirst = fItem;
 							++fA.fHitCount;
+						}
 						
 						fItem->value += inValue;
 						fItem->count += 1;
@@ -144,17 +140,28 @@ class CAccumulator
 		CAccumulator&	fA;
 	};
 	
+	// HA!
+	//
+	// This code proved to be quite performance sensitive. I did a 'new Item[]'
+	// first and Item had a constructor that set the data to 0. Took 1.5 seconds
+	// on a fast Xeon for genbank_release. Too slow. Then I removed the constructor
+	// and added a call to memset, made no difference.
+	// Then I remembered that physical memory is only allocated when needed, and so
+	// I decided to try calloc. That will allocate a memory page and zero it when needed,
+	// often we don't need all of it. The result is that the construction of the CAccumulator
+	// object now takes less than a milli second. Duh...
+	
 					CAccumulator(uint32 inDocumentCount)
-						: fData(new Item[inDocumentCount])
+						: fData(static_cast<Item*>(calloc(sizeof(Item), inDocumentCount)))
+						, fFirst(nil)
 						, fDocCount(inDocumentCount)
 						, fHitCount(0)
 					{
-						memset(fData, 0, sizeof(Item) * inDocumentCount);
 					}
 
 	virtual			~CAccumulator()
 					{
-						delete fData;
+						free(fData);
 					}
 	
 	ItemRef			operator[](uint32 inDocNr)				{ return ItemRef(*this, fData, inDocNr); }
@@ -162,173 +169,76 @@ class CAccumulator
 	class Iterator : public CDocIterator
 	{
 	  public:
-					Iterator(CAccumulator& inAccumulator, uint32 inTermCount)
-						: fData(inAccumulator.fData)
-						, fDocCount(inAccumulator.fDocCount)
-						, fHitCount(inAccumulator.fHitCount)
-						, fCurrent(0)
-						, fRead(0)
-						, fTermCount(inTermCount) {}
+						Iterator(CAccumulator& inAccumulator, uint32 inTermCount);
 		
 		virtual bool	Next(uint32& ioDoc, bool inSkip);
 		virtual uint32	Count() const						{ return fHitCount; }
-		virtual uint32	Read() const						{ return fRead; }
-		const Item&		GetItem() const						{ return fData[fCurrent]; }
+		virtual uint32	Read() const						{ return fCurrent; }
+		const Item&		GetItem() const						{ return fData[fDocs[fCurrent]]; }
 	
 	  private:
+		uint32*			fDocs;
 		Item*			fData;
 		uint32			fDocCount;
 		uint32			fHitCount;
 		uint32			fCurrent;
-		uint32			fRead;
 		uint32			fTermCount;
 	};
 	
   private:
 	Item*				fData;
+	Item*				fFirst;
 	uint32				fDocCount;
 	uint32				fHitCount;
 };
 
+CAccumulator::Iterator::Iterator(CAccumulator& inAccumulator, uint32 inTermCount)
+	: fDocs(new uint32[inAccumulator.fHitCount])
+	, fData(inAccumulator.fData)
+	, fDocCount(inAccumulator.fDocCount)
+	, fHitCount(inAccumulator.fHitCount)
+	, fCurrent(0)
+	, fTermCount(inTermCount)
+{
+	Item* item = inAccumulator.fFirst;
+	
+	for (uint32 i = 0; i < fHitCount; ++i)
+	{
+		assert(item != nil);
+
+		fDocs[i] = item - fData;
+
+		item = item->next;
+	}
+	
+	assert(item == nil);
+	
+	sort(fDocs, fDocs + fHitCount);
+}
+
 bool CAccumulator::Iterator::Next(uint32& ioDoc, bool inSkip)
 {
 	bool result = false;
 
-	while (fRead < fHitCount and fCurrent < fDocCount)
+	while (fCurrent < fHitCount)
 	{
-		if ((fData[fCurrent].count == 0) or
-			(inSkip and fCurrent < ioDoc) or
-			(fTermCount and fData[fCurrent].count != fTermCount))
-		{
-			++fCurrent;
-			continue;
-		}
-		
-		result = true;
-		ioDoc = fCurrent;
+		uint32 doc = fDocs[fCurrent];
 		++fCurrent;
-
-		break;
-	}
-	
-	return result;
-}
-#else
-class CAccumulator
-{
-	friend class Iterator;
-
-	struct Item
-	{
-		float			value;
-		uint32			count;
 		
-						Item() : value(0), count(0) {}
-	};
-	
-	typedef tr1::unordered_map<uint32,Item,boost::hash<uint32> >	DataMap;
-
-  public:
-
-	struct ItemRef
-	{
-		friend class CAccumulator;
-		
-		float		operator+=(float inValue)
-					{
-						if (fItem == fData.end())
-							fItem = fData.insert(make_pair(fDocNr, Item())).first;
-
-						fItem->second.value += inValue;
-						fItem->second.count += 1;
-
-						return fItem->second.value;
-					}
-
-					operator float() const
-					{
-						float result = 0.f;
-						if (fItem != fData.end())
-							result = fItem->second.value;
-						return result;
-					}
-		
-		uint32		Count() const;
-
-	  private:
-
-					ItemRef(DataMap& inData, uint32 inDocNr)
-						: fData(inData)
-						, fDocNr(inDocNr)
-						, fItem(fData.find(fDocNr)) {}
-					ItemRef(const ItemRef&);
-					ItemRef();
-		ItemRef&	operator=(const ItemRef&);
-
-		DataMap&			fData;
-		uint32				fDocNr;
-		DataMap::iterator	fItem;
-	};
-	
-					CAccumulator(uint32 inBucketSize) : fData(inBucketSize) {}
-	virtual			~CAccumulator() {}
-	
-	ItemRef			operator[](uint32 inDocNr)				{ return ItemRef(fData, inDocNr); }
-	
-	class Iterator : public CDocIterator
-	{
-	  public:
-					Iterator(CAccumulator& inAccumulator, uint32 inTermCount)
-						: fData(inAccumulator.fData)
-						, fIter(fData.begin())
-						, fRead(0)
-						, fTermCount(inTermCount) {}
-		
-		virtual bool	Next(uint32& ioDoc, bool inSkip);
-		virtual uint32	Count() const						{ return fData.size(); }
-		virtual uint32	Read() const						{ return fRead; }
-		const Item&		GetItem() const						{ return fItem; }
-	
-	  private:
-		DataMap&			fData;
-		DataMap::iterator	fIter;
-		uint32				fRead;
-		uint32				fTermCount;
-		Item				fItem;
-	};
-	
-  private:
-	DataMap				fData;
-};
-
-bool CAccumulator::Iterator::Next(uint32& ioDoc, bool inSkip)
-{
-	bool result = false;
-
-	while (fIter != fData.end())
-	{
-		if (inSkip and fIter->first < ioDoc)
+		if ((inSkip and doc < ioDoc) or
+			(fTermCount != 0 and fData[doc].count != fTermCount))
 		{
-			++fIter;
-			continue;
-		}
-		
-		if (fTermCount and fIter->second.count != fTermCount)
-		{
-			++fIter;
 			continue;
 		}
 		
 		result = true;
-		ioDoc = fIter->first;
-		fItem = fIter->second;
-		++fIter;
+		ioDoc = doc;
+
 		break;
 	}
 	
 	return result;
 }
-#endif
 
 CRankedQuery::CRankedQuery()
 	: fImpl(new CRankedQueryImp)
@@ -442,11 +352,7 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	if (maxCount > 100000)
 		maxCount = 100000;
 
-#if USE_ARRAY_ACCUMULATOR
 	CAccumulator A(inDatabank.Count());
-#else
-	CAccumulator A(maxCount);
-#endif
 
 	for (uint32 tx = 0; tx < fImpl->fTerms.size(); ++tx)
 	{
