@@ -129,12 +129,6 @@ typedef CDbDocIteratorBaseT<std::pair<uint32,uint8>, kAC_GolombCode>	CDbDocWeigh
 typedef CDbDocIteratorBaseT<uint32, kAC_SelectorCode>					CDbDocIteratorSC;
 typedef CDbDocIteratorBaseT<std::pair<uint32,uint8>, kAC_SelectorCode>	CDbDocWeightIteratorSC;
 
-CDbDocIteratorBase*
-CreateDbDocIterator(HStreamBase& inData, int64 inOffset, int64 inMax, uint32 inDelta, uint32 inKind);
-
-CDbDocIteratorBase*
-CreateDbDocWeightIterator(HStreamBase& inData, int64 inOffset, int64 inMax, uint32 inDelta, uint32 inKind);
-
 class CMergedDbDocIterator : public CDbDocIteratorBase
 {
   public:

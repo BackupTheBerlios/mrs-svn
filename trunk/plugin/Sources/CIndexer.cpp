@@ -41,13 +41,26 @@
  
 #include "MRS.h"
 
+#ifndef USE_TR1
+#if P_GNU
+#warning("USE_TR1 is not defined, reverting to use __gnu_cxx::hash_set (add HAVE_TR1=1 to make.config if you want to use tr1)")
+#else
+#pragma warning("USE_TR1 is not defined, reverting to use std::set")
+#endif
+#define	USE_TR1 0
+#endif
+
 #include <list>
 #include <set>
 #include <iostream>
 #include <limits>
 #include <ctime>
 #include <sstream>
+#if USE_TR1
 #include <tr1/unordered_set>
+#elif P_GNU
+#include <ext/hash_set>
+#endif
 #include <boost/functional/hash/hash.hpp>
 #include <boost/ptr_container/ptr_vector.hpp>
 #include "HFile.h"
@@ -556,7 +569,14 @@ class CFullTextIndex
 				{ return inA->term > inB->term or (inA->term == inB->term and inA->doc > inB->doc); }
 	};
 
-	typedef tr1::unordered_set<uint32, boost::hash<uint32> > CHashedSet;
+#if USE_TR1
+	typedef tr1::unordered_set<uint32, boost::hash<uint32> >	CHashedSet;
+#elif P_GNU
+	typedef __gnu_cxx::hash_set<uint32>							CHashedSet;
+#else
+	typedef set<uint32>											CHashedSet;
+#endif
+
 	CHashedSet		fStopWords;
 
 	CLexicon		lexicon;
@@ -606,7 +626,7 @@ void CFullTextIndex::AddWord(uint8 inIndex, uint32 inWord, uint8 inFrequency)
 	if (fFTIndexCnt < inIndex + 1)
 		fFTIndexCnt = inIndex + 1;
 
-	if (inFrequency > 0 and not IsStopWord(inWord))
+	if (inFrequency > 0 /*and not IsStopWord(inWord)*/)
 	{
 		DocWord w = { inWord, inIndex, inFrequency };
 		
@@ -2129,6 +2149,9 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 
 						while (docIters[i].Next(doc, freq, false))
 						{
+							if (doc >= fHeader->entries)	// debug code added since we have a problem in an index
+								THROW(("Corrupt index %s for key %s", fParts[ix].name, s.c_str()));
+							
 							docs.push_back(make_pair(doc, freq));
 
 							float wdt = freq * idf;

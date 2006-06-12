@@ -367,11 +367,14 @@ uint32 ReadGamma(CIBitStream& ioBits)
 	uint32 v1 = 1;
 	int32 e = 0;
 	
-	while (ioBits.next_bit())
+	while (ioBits.next_bit() and v1 != 0)
 	{
 		v1 <<= 1;
 		++e;
 	}
+	
+	if (v1 == 0)
+		THROW(("incorrect gamma encoding detected"));
 	
 	int32 v2 = 0;
 	while (e-- > 0)

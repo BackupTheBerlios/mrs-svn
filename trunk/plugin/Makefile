@@ -76,6 +76,10 @@ SWIG		= swig
 
 include make.config
 
+ifeq ($(HAVE_TR1),1)
+DEFINES		+= USE_TR1
+endif
+
 SWIG_VERSION	= $(shell $(SWIG) -version | grep Version | sed s'/SWIG Version //')
 PERL_CORE		= $(shell $(PERL) -MExtUtils::Embed -e perl_inc)
 
