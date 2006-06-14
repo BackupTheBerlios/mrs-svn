@@ -2151,7 +2151,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 						{
 							if (doc >= fHeader->entries)	// debug code added since we have a problem in an index
 								THROW(("Corrupt index %s for key %s", fParts[ix].name, s.c_str()));
-							
+
 							docs.push_back(make_pair(doc, freq));
 
 							float wdt = freq * idf;
@@ -2702,4 +2702,158 @@ void CIndexer::FixupDocWeights()
 uint32 CIndexer::GetMaxWeight() const
 {
 	return ((1 << fHeader->weight_bit_count) - 1);
+}
+
+struct CIndexTester
+{
+					CIndexTester(uint32 inKind, HStreamBase& inFile, uint32 inDocCount, uint32 inIxCount)
+						: fKind(inKind)
+						, fFile(inFile)
+						, fDocCount(inDocCount)
+						, fCount(0)
+						, fIxCount(inIxCount)
+						, fTick(inIxCount / 60)
+					{
+					}
+	
+	void			VisitValue(const string& inKey, int64 inValue);
+	void			VisitSimple(const string& inKey, int64 inValue);
+	void			VisitWeighted(const string& inKey, int64 inValue);
+
+	uint32			fKind;
+	HStreamBase&	fFile;
+	uint32			fDocCount;
+	uint32			fCount;
+	uint32			fIxCount;
+	uint32			fTick;
+};
+
+void CIndexTester::VisitValue(const string& inKey, int64 inValue)
+{
+	if (inValue >= fDocCount)
+		cerr << "key: " << inKey << " value: " << inValue << " <= out of range" << endl;
+	
+	if (++fCount > fDocCount)
+		cerr << "Too many index entries" << endl;
+	
+	if (fTick > 0 and (fCount % fTick) == 0)
+	{
+		cout << ".";
+		cout.flush();
+	}
+}
+
+void CIndexTester::VisitSimple(const string& inKey, int64 inValue)
+{
+	++fCount;
+
+	if (fTick > 0 and (fCount % fTick) == 0)
+	{
+		cout << ".";
+		cout.flush();
+	}
+
+	if (fCount > fIxCount)
+	{
+		cerr << "Too many entries in index" << endl;
+		fCount = 0;
+	}
+
+	auto_ptr<CDbDocIteratorBase> iter(CreateDbDocIterator(fKind, fFile, inValue, fDocCount));
+
+	uint32 doc;
+	uint32 cnt = iter->Count(), n = 0;
+
+	while (iter->Next(doc, false))
+	{
+		if (doc >= fDocCount)
+		{
+			cerr << "key: " << inKey << " value: " << inValue << " doc: " << doc << " <= out of range" << endl;
+			break;
+		}
+		
+		if (++n > cnt)
+		{
+			cerr << "key: " << inKey << " value: " << inValue << " n: " << n << " too many entries in posting list, cnt: " << cnt << endl;
+			break;
+		}
+	}
+}
+
+void CIndexTester::VisitWeighted(const string& inKey, int64 inValue)
+{
+	++fCount;
+
+	if (fTick > 0 and (fCount % fTick) == 0)
+	{
+		cout << ".";
+		cout.flush();
+	}
+
+	if (fCount > fIxCount)
+	{
+		cerr << "Too many entries in index" << endl;
+		fCount = 0;
+	}
+
+	auto_ptr<CDbDocIteratorBase> iter(CreateDbDocWeightIterator(fKind, fFile, inValue, fDocCount));
+	
+	uint32 doc;
+	uint8 freq;
+	uint32 cnt = iter->Count(), n = 0;
+
+	while (iter->Next(doc, freq, false))
+	{
+		if (doc >= fDocCount)
+		{
+			cerr << "key: " << inKey << " value: " << inValue << " doc: " << doc << " <= out of range" << endl;
+			break;
+		}
+
+		if (freq == 0)
+		{
+			cerr << "key: " << inKey << " value: " << inValue << " zero frequency" << endl;
+			break;
+		}
+
+		if (++n > cnt)
+		{
+			cerr << "key: " << inKey << " value: " << inValue << " n: " << n << " too many entries in posting list, cnt: " << cnt << endl;
+			break;
+		}
+	}
+}
+
+void CIndexer::Test()
+{
+	uint32 ix;
+	for (ix = 0; ix < fHeader->count; ++ix)
+	{
+		cout << "Testing index " << fParts[ix].name << endl;
+		
+		auto_ptr<CIndex> indx(new CIndex(fParts[ix].kind, fParts[ix].index_version,
+			*fFile, fParts[ix].tree_offset, fParts[ix].root));
+
+		int64 bitsOffset = fParts[ix].bits_offset;
+		HStreamView bits(*fFile, fParts[ix].bits_offset, fFile->Size() - bitsOffset);
+
+		CIndexTester tester(fHeader->array_compression_kind, bits, fHeader->entries, fParts[ix].entries);
+
+		switch (fParts[ix].kind)
+		{
+			case kValueIndex:
+				indx->Visit(&tester, &CIndexTester::VisitValue);
+				break;
+
+			case kWeightedIndex:
+				indx->Visit(&tester, &CIndexTester::VisitWeighted);
+				break;
+
+			default:
+				indx->Visit(&tester, &CIndexTester::VisitSimple);
+				break;
+		}
+		
+		cout << " done" << endl;
+	}
 }

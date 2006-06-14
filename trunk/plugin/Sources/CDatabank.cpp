@@ -119,6 +119,7 @@ struct SDataPart
 	int64			table_size;
 	uint32			count;			// number of entries in this part
 	uint32			kind;			// compression kind
+	int64			raw_data_size;	// size of raw document data
 };
 
 struct SBlastIndexHeader
@@ -953,22 +954,30 @@ void CDatabank::PrintInfo()
 	char suuid[40];
 	uuid_unparse(fHeader->uuid, suuid);
 
+	int64 rawDataSize = 0;
+	for (uint32 ix = 0; ix < fDataHeader->count; ++ix)
+		rawDataSize += fParts[ix].raw_data_size;
+
 	cout << "Header:" << endl;
-	cout << "  signature:    " << sig[0] << sig[1] << sig[2] << sig[3] << endl;
-	cout << "  uuid:         " << suuid << endl;
-	cout << "  size:         " << fHeader->size << endl;
-	cout << "  entries:      " << fHeader->entries << endl;
-	cout << "  data offset:  " << fHeader->data_offset << endl;
-	cout << "  data size:    " << fHeader->data_size << endl;
-	cout << "  index offset: " << fHeader->index_offset << endl;
-	cout << "  index size:   " << fHeader->index_size << endl;
-	cout << "  info offset:  " << fHeader->info_offset << endl;
-	cout << "  info size:    " << fHeader->info_size << endl;
-	cout << "  id offset:    " << fHeader->id_offset << endl;
-	cout << "  id size:      " << fHeader->id_size << endl;
+	cout << "  signature:     " << sig[0] << sig[1] << sig[2] << sig[3] << endl;
+	cout << "  uuid:          " << suuid << endl;
+	cout << "  size:          " << fHeader->size << endl;
+	cout << "  entries:       " << fHeader->entries << endl;
+	cout << "  data offset:   " << fHeader->data_offset << endl;
+	cout << "  data size:     " << fHeader->data_size << endl;
+
+	if (rawDataSize != 0)
+		cout << "  raw data size: " << rawDataSize << endl;
+		
+	cout << "  index offset:  " << fHeader->index_offset << endl;
+	cout << "  index size:    " << fHeader->index_size << endl;
+	cout << "  info offset:   " << fHeader->info_offset << endl;
+	cout << "  info size:     " << fHeader->info_size << endl;
+	cout << "  id offset:     " << fHeader->id_offset << endl;
+	cout << "  id size:       " << fHeader->id_size << endl;
 #ifndef NO_BLAST
-	cout << "  blast offset: " << fHeader->blast_ix_offset << endl;
-	cout << "  blast size:   " << fHeader->blast_ix_size << endl;
+	cout << "  blast offset:  " << fHeader->blast_ix_offset << endl;
+	cout << "  blast size:    " << fHeader->blast_ix_size << endl;
 #endif
 	cout << endl;
 	
@@ -994,6 +1003,9 @@ void CDatabank::PrintInfo()
 		cout << "  table offset: " << p.table_offset << endl;
 		cout << "  table size:   " << p.table_size << endl;
 		cout << "  count:        " << p.count << endl;
+		
+		if (p.raw_data_size != 0)
+			cout << "  raw data: " << p.raw_data_size << endl;
 
 		sig = reinterpret_cast<const char*>(&p.kind);
 		cout << "  compression:  " << sig[0] << sig[1] << sig[2] << sig[3] << endl;
@@ -1023,6 +1035,7 @@ void CDatabank::Store(const string& inDocument)
 {
 	fCompressor->AddDocument(inDocument.c_str(), inDocument.length());
 	++fHeader->entries;
+	fParts[0].raw_data_size += inDocument.length();
 }
 
 void CDatabank::IndexText(const string& inIndex, const string& inText)
@@ -1215,6 +1228,7 @@ HStreamBase& operator<<(HStreamBase& inData, SDataPart& inStruct)
 		<< inStruct.table_offset << inStruct.table_size
 		<< inStruct.count;
 	data.Write(&inStruct.kind, sizeof(inStruct.kind));
+	data << inStruct.raw_data_size;
 	
 	return inData;
 }
@@ -1231,6 +1245,11 @@ HStreamBase& operator>>(HStreamBase& inData, SDataPart& inStruct)
 		>> inStruct.table_offset >> inStruct.table_size
 		>> inStruct.count;
 	data.Read(&inStruct.kind, sizeof(inStruct.kind));
+	
+	if (inStruct.size >= sizeof(inStruct))
+		data >> inStruct.raw_data_size;
+	else
+		inStruct.raw_data_size = 0;
 	
 	if (inStruct.size != sizeof(inStruct))
 		inData.Seek(offset + inStruct.size, SEEK_SET);

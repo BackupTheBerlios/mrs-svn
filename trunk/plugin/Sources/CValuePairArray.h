@@ -20,11 +20,6 @@ class CIBitStream;
 #include "HError.h"
 #include <boost/type_traits/is_integral.hpp>
 
-enum CArrayCompressionKind {
-	kAC_GolombCode		= FOUR_CHAR_INLINE('golo'),
-	kAC_SelectorCode	= FOUR_CHAR_INLINE('sel1')
-};
-
 //	Rationale:
 //
 //	We want to concentrate the code for writing golomb code compressed arrays
@@ -38,6 +33,19 @@ enum CArrayCompressionKind {
 //	same attribute values as a regular compressed array. The attribute value
 //	is stored before these arrays as differences from the previous attribute
 //	value.
+//
+//	The original version of MRS used Golomb code compression solely. However,
+//	a recent article by Vo Ngoc Anh and Alistair Moffat called 'Index compression
+//	using Fixed Binary Codewords' showed that big improvements can be attained
+//	using another compressions algorithm. The gain in decompression speed is
+//	about 20% however, surprisingly the gain in compression ratio in the typical
+//	bioinformatics databank results in MRS files that are typically 10 to 20%
+//	smaller.
+
+enum CArrayCompressionKind {
+	kAC_GolombCode		= FOUR_CHAR_INLINE('golo'),
+	kAC_SelectorCode	= FOUR_CHAR_INLINE('sel1')
+};
 
 namespace CValuePairCompression
 {
