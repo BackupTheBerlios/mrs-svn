@@ -642,6 +642,7 @@ void CDatabank::Merge(vector<CDatabank*>& inParts, bool inCopyData)
 			}
 
 			fParts[part].count = (*d)->fParts[ix].count;
+			fParts[part].raw_data_size = (*d)->fParts[ix].raw_data_size;
 			fParts[part].sig = kPartSig;
 
 			++part;
