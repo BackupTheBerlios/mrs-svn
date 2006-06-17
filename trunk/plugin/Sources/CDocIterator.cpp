@@ -906,13 +906,11 @@ bool CDbJoinedIterator::Next(uint32& ioDoc, uint8& outRank, bool inSkip)
 		++fRead;
 		
 		if (fIterators.size() > 1)
-		{
 			pop_heap(fIterators.begin(), fIterators.end(), greater<CSubIter>());
 			
-			result = true;
-			ioDoc = fIterators.back().fDocNr;
-			outRank = fIterators.back().fRank;
-		}
+		result = true;
+		ioDoc = fIterators.back().fDocNr;
+		outRank = fIterators.back().fRank;
 		
 		uint32 v;
 		uint8 r;
