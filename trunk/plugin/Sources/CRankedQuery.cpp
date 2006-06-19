@@ -204,16 +204,36 @@ CAccumulator::Iterator::Iterator(CAccumulator& inAccumulator, uint32 inTermCount
 {
 	Item* item = inAccumulator.fFirst;
 	
-	for (uint32 i = 0; i < fHitCount; ++i)
+	if (inTermCount != 0)
 	{
-		assert(item != nil);
+		uint32 i = 0;
 
-		fDocs[i] = item - fData;
-
-		item = item->next;
+		while (item != nil)
+		{
+			if (item->count == inTermCount)
+			{
+				fDocs[i] = item - fData;
+				++i;
+			}
+			
+			item = item->next;
+		}
+		
+		fHitCount = i;
 	}
+	else
+	{
+		for (uint32 i = 0; i < fHitCount; ++i)
+		{
+			assert(item != nil);
 	
-	assert(item == nil);
+			fDocs[i] = item - fData;
+	
+			item = item->next;
+		}
+		
+		assert(item == nil);
+	}
 	
 	if (inSortDocs)
 		sort(fDocs, fDocs + fHitCount);
@@ -233,11 +253,8 @@ bool CAccumulator::Iterator::Next(uint32& ioDoc, bool inSkip)
 		uint32 doc = fDocs[fCurrent];
 		++fCurrent;
 		
-		if ((inSkip and doc < ioDoc) or
-			(fTermCount != 0 and fData[doc].count != fTermCount))
-		{
+		if (inSkip and doc < ioDoc)
 			continue;
-		}
 		
 		result = true;
 		ioDoc = doc;
