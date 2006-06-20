@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 # 
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.
@@ -37,6 +37,7 @@
 
 use strict;
 use English;
+use warnings;
 use Time::HiRes qw(usleep ualarm gettimeofday tv_interval);
 #use Sys::Proctitle;
 use MRS;
@@ -469,7 +470,7 @@ sub Info()
 {
 	my ($db, $verbose) = @_;
 	
-	$MRS::VERBOSE = $verbose;
+	$MRS::VERBOSE = $verbose if defined $verbose;
 	
 	my $m = new MRS::MDatabank($db);
 

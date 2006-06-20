@@ -67,21 +67,6 @@ void error(const char* msg, ...)
 	exit(1);
 }
 
-static bool OptArgIsTrue(int inOption, const char* inOptArg)
-{
-	bool result = true;
-	
-	if (inOptArg != NULL)
-	{
-		if (strlen(inOptArg) != 1)
-			error("argument to option %c should either be T or F", inOption);
-		
-		result = toupper(*inOptArg) == 'T';
-	}
-	
-	return result;
-}
-
 void usage()
 {
 	exit(1);

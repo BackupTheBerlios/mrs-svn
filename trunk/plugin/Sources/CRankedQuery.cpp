@@ -340,7 +340,7 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	Algorithm& alg = Algorithm::Choose(inAlgorithm);
 	
 	CDocWeightArray Wd = inDatabank.GetDocWeights(inIndex);
-	const uint32 kMaxWeight = inDatabank.GetMaxWeight();
+	const uint32 maxWeight = inDatabank.GetMaxWeight();
 	
 	float Wq = 0, Smax = 0;
 	uint32 termCount = 0;
@@ -352,30 +352,19 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 		if (t->weight > maxTermFreq)
 			maxTermFreq = t->weight;
 
-	uint32 maxCount = 1000;
-
 	// create the iterators and sort them by decreasing rank
 	for (TermVector::iterator t = fImpl->fTerms.begin(); t != fImpl->fTerms.end(); ++t)
 	{
-		t->weight = static_cast<uint32>(kMaxWeight * (static_cast<float>(t->weight) / maxTermFreq));
+		t->weight = static_cast<uint32>(maxWeight * (static_cast<float>(t->weight) / maxTermFreq));
 		
 		t->iter.reset(inDatabank.GetDocWeightIterator(inIndex, t->key));
 		if (t->iter.get() != nil)
-		{
 			t->w = t->iter->Weight() * t->iter->GetIDFCorrectionFactor() * t->weight;
-			
-			uint32 cnt = t->iter->Count();
-			if (cnt > maxCount)
-				maxCount = cnt;
-		}
 		else
 			t->w = 0;
 	}
 	
 	fImpl->fTerms.sort(greater<Term>());
-
-	if (maxCount > 100000)
-		maxCount = 100000;
 
 	CAccumulator A(inDatabank.Count());
 
@@ -436,12 +425,10 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	vector<CDocScore> docs;
 	docs.reserve(inMaxReturn);		// << return the top maxReturn documents
 	
-	CAccumulator::Iterator* ai;
-	
 	if (not inAllTermsRequired)
 		termCount = 0;
 	
-	auto_ptr<CDocIterator> rdi(ai = new CAccumulator::Iterator(A, termCount, inMetaQuery != nil));
+	auto_ptr<CDocIterator> rdi(new CAccumulator::Iterator(A, termCount, inMetaQuery != nil));
 
 	if (inMetaQuery)
 		rdi.reset(CDocIntersectionIterator::Create(
