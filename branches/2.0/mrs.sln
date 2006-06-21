@@ -1,0 +1,48 @@
+Microsoft Visual Studio Solution File, Format Version 8.00
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PerlPlugin", "VCProjects\PerlPlugin\PerlPlugin.vcproj", "{4E50A8B1-0C7A-4774-BF53-BB662154CE5A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{7402FAE5-F9BF-42DE-ABF0-503F8B7FDDF8} = {7402FAE5-F9BF-42DE-ABF0-503F8B7FDDF8}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "JavaPlugin", "VCProjects\JavaPlugin\JavaPlugin.vcproj", "{5A7C2D61-CC5E-4ABA-8E3E-396438D7CBB7}"
+	ProjectSection(ProjectDependencies) = postProject
+		{7402FAE5-F9BF-42DE-ABF0-503F8B7FDDF8} = {7402FAE5-F9BF-42DE-ABF0-503F8B7FDDF8}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MrsLib", "VCProjects\MrsLib\MrsLib.vcproj", "{7402FAE5-F9BF-42DE-ABF0-503F8B7FDDF8}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "QueryTester", "VCProjects\QueryTester\QueryTester.vcproj", "{504EEB7B-F2A3-466E-9D16-FE416A352600}"
+	ProjectSection(ProjectDependencies) = postProject
+		{7402FAE5-F9BF-42DE-ABF0-503F8B7FDDF8} = {7402FAE5-F9BF-42DE-ABF0-503F8B7FDDF8}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfiguration) = preSolution
+		Debug = Debug
+		Release = Release
+	EndGlobalSection
+	GlobalSection(ProjectConfiguration) = postSolution
+		{4E50A8B1-0C7A-4774-BF53-BB662154CE5A}.Debug.ActiveCfg = Debug|Win32
+		{4E50A8B1-0C7A-4774-BF53-BB662154CE5A}.Debug.Build.0 = Debug|Win32
+		{4E50A8B1-0C7A-4774-BF53-BB662154CE5A}.Release.ActiveCfg = Release|Win32
+		{4E50A8B1-0C7A-4774-BF53-BB662154CE5A}.Release.Build.0 = Release|Win32
+		{5A7C2D61-CC5E-4ABA-8E3E-396438D7CBB7}.Debug.ActiveCfg = Debug|Win32
+		{5A7C2D61-CC5E-4ABA-8E3E-396438D7CBB7}.Debug.Build.0 = Debug|Win32
+		{5A7C2D61-CC5E-4ABA-8E3E-396438D7CBB7}.Release.ActiveCfg = Release|Win32
+		{5A7C2D61-CC5E-4ABA-8E3E-396438D7CBB7}.Release.Build.0 = Release|Win32
+		{7402FAE5-F9BF-42DE-ABF0-503F8B7FDDF8}.Debug.ActiveCfg = Debug|Win32
+		{7402FAE5-F9BF-42DE-ABF0-503F8B7FDDF8}.Debug.Build.0 = Debug|Win32
+		{7402FAE5-F9BF-42DE-ABF0-503F8B7FDDF8}.Release.ActiveCfg = Release|Win32
+		{7402FAE5-F9BF-42DE-ABF0-503F8B7FDDF8}.Release.Build.0 = Release|Win32
+		{504EEB7B-F2A3-466E-9D16-FE416A352600}.Debug.ActiveCfg = Debug|Win32
+		{504EEB7B-F2A3-466E-9D16-FE416A352600}.Debug.Build.0 = Debug|Win32
+		{504EEB7B-F2A3-466E-9D16-FE416A352600}.Release.ActiveCfg = Release|Win32
+		{504EEB7B-F2A3-466E-9D16-FE416A352600}.Release.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+	EndGlobalSection
+	GlobalSection(ExtensibilityAddIns) = postSolution
+	EndGlobalSection
+EndGlobal

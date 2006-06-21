@@ -1,0 +1,5 @@
+SWIG		= /opt/local/bin/swig
+TARGET		= perl5
+BOOST		= /opt/local/include
+HAVE_TR1	= 1	# if you have the tr1 headers, set to 0 in case of errors
+# NO_BLAST	= 1	# define to strip out blast code

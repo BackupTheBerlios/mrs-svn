@@ -1,0 +1,88 @@
+# Directory containing MRS data files:
+
+$mrs_data = '/mnt/homec/staf/maarten/data/mrs/';
+
+# databases presented to the user:
+
+@dbs = (
+	'all' => {
+		name => 'All Databanks',
+		filter => 'default'
+	},
+	'uniprot' => {
+		name => 'Protein (UniProt)',
+		filter => 'embl'
+	},
+	'embl_release|embl_updates',
+		name => 'Nucleotide (EMBL)',
+		filter => 'embl'
+	},
+	'dbest' => {
+		name => 'dbEST',
+		filter => 'dbest'
+	},
+	'pdb' => {
+		name => 'PDB',
+		filter => 'default'
+	},
+	'pdbfinder2' => {
+		name => 'PDB Finder 2',
+		filter => 'default'
+	},
+	'omim' => {
+		name => 'OMIM',
+		filter => 'omim'
+	},
+	'locuslink' => {
+		name => 'LocusLink',
+		filter => 'default'
+	},
+	'refseq_release|refseq_updates',
+		name => 'REFSEQ',
+		filter => 'genbank'
+	},
+	'genbank_release',
+		name => 'Genbank',
+		filter => 'genbank'
+	},
+	'dssp' => {
+		name => 'DSSP',
+		filter => 'default'
+	},
+	'hssp' => {
+		name => 'HSSP',
+		filter => 'hssp'
+	},
+	'unigene' => {
+		name => 'Unigene',
+		filter => 'default'
+	},
+	'uniseq' => {
+		name => 'UniSeq',
+		filter => 'default'
+	},
+	'uniuniq' => {
+		name => 'UniUnique',
+		filter => 'default'
+	},
+	'ligand-compound' => {
+		name => 'KEGG Ligand Compound',
+		filter => 'default'
+	},
+	'ligand-enzyme' => {
+		name => 'KEGG Ligand Enzyme',
+		filter => 'default'
+	},
+	'ligand-glycan' => {
+		name => 'KEGG Ligand Glycan',
+		filter => 'default'
+	},
+	'ligand-reaction' => {
+		name => 'KEGG Ligand Reaction',
+		filter => 'default'
+	},
+	'taxonomy' => {
+		name => 'Taxonomy',
+		filter => 'default'
+	},
+);

@@ -1,0 +1,224 @@
+
+${MRSLIBS:%=$(MRSDIR)%-1.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-1.cmp=%} -p 1 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-2.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-2.cmp=%} -p 2 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-3.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-3.cmp=%} -p 3 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-4.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-4.cmp=%} -p 4 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-5.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-5.cmp=%} -p 5 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-6.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-6.cmp=%} -p 6 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-7.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-7.cmp=%} -p 7 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-8.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-8.cmp=%} -p 8 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-9.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-9.cmp=%} -p 9 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-10.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-10.cmp=%} -p 10 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-11.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-11.cmp=%} -p 11 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-12.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-12.cmp=%} -p 12 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-13.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-13.cmp=%} -p 13 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-14.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-14.cmp=%} -p 14 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-15.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-15.cmp=%} -p 15 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-16.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-16.cmp=%} -p 16 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-17.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-17.cmp=%} -p 17 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-18.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-18.cmp=%} -p 18 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-19.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-19.cmp=%} -p 19 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-20.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-20.cmp=%} -p 20 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-21.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-21.cmp=%} -p 21 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-22.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-22.cmp=%} -p 22 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-23.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-23.cmp=%} -p 23 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-24.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-24.cmp=%} -p 24 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-25.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-25.cmp=%} -p 25 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-26.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-26.cmp=%} -p 26 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-27.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-27.cmp=%} -p 27 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-28.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-28.cmp=%} -p 28 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-29.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-29.cmp=%} -p 29 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-30.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-30.cmp=%} -p 30 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-31.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-31.cmp=%} -p 31 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+${MRSLIBS:%=$(MRSDIR)%-32.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:%-32.cmp=%} -p 32 -P $(MRS_PARTS) $(MRS_OPTIONS)
+
+ifeq ($(MRS_PARTS),1)
+PARTS	= 1
+endif
+
+ifeq ($(MRS_PARTS),2)
+PARTS	= 1 2
+endif
+
+ifeq ($(MRS_PARTS),3)
+PARTS	= 1 2 3
+endif
+
+ifeq ($(MRS_PARTS),4)
+PARTS	= 1 2 3 4
+endif
+
+ifeq ($(MRS_PARTS),5)
+PARTS	= 1 2 3 4 5
+endif
+
+ifeq ($(MRS_PARTS),6)
+PARTS	= 1 2 3 4 5 6
+endif
+
+ifeq ($(MRS_PARTS),7)
+PARTS	= 1 2 3 4 5 6 7
+endif
+
+ifeq ($(MRS_PARTS),8)
+PARTS	= 1 2 3 4 5 6 7 8
+endif
+
+ifeq ($(MRS_PARTS),9)
+PARTS	= 1 2 3 4 5 6 7 8 9
+endif
+
+ifeq ($(MRS_PARTS),10)
+PARTS	= 1 2 3 4 5 6 7 8 9 10
+endif
+
+ifeq ($(MRS_PARTS),11)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11
+endif
+
+ifeq ($(MRS_PARTS),12)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11 12
+endif
+
+ifeq ($(MRS_PARTS),13)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11 12 13
+endif
+
+ifeq ($(MRS_PARTS),14)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11 12 13 14
+endif
+
+ifeq ($(MRS_PARTS),15)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+endif
+
+ifeq ($(MRS_PARTS),16)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+endif
+
+ifeq ($(MRS_PARTS),17)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17
+endif
+
+ifeq ($(MRS_PARTS),18)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18
+endif
+
+ifeq ($(MRS_PARTS),19)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19
+endif
+
+ifeq ($(MRS_PARTS),20)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+endif
+
+ifeq ($(MRS_PARTS),21)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21
+endif
+
+ifeq ($(MRS_PARTS),22)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22
+endif
+
+ifeq ($(MRS_PARTS),23)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23
+endif
+
+ifeq ($(MRS_PARTS),24)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24
+endif
+
+ifeq ($(MRS_PARTS),25)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25
+endif
+
+ifeq ($(MRS_PARTS),26)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+endif
+
+ifeq ($(MRS_PARTS),27)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27
+endif
+
+ifeq ($(MRS_PARTS),28)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28
+endif
+
+ifeq ($(MRS_PARTS),29)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
+endif
+
+ifeq ($(MRS_PARTS),30)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30
+endif
+
+ifeq ($(MRS_PARTS),31)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
+endif
+
+ifeq ($(MRS_PARTS),32)
+PARTS	= 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32
+endif

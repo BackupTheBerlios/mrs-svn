@@ -1,0 +1,5 @@
+To do:
+
+- full-text index definieren = character sequences containing no more than 1 consecutive punctuation mark and bounded by white space. 
+In: a-b.c
+Out: a--b.c

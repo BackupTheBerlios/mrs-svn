@@ -1,0 +1,267 @@
+<!-- $Id: help-6.html,v 1.4 2005/03/21 11:01:26 maarten Exp $
+
+	Copyright 2005, M.L. Hekkelman. CMBI, Radboud Universiteit Nijmegen
+
+-->
+
+<script language="JavaScript">
+<!--
+
+// Image Ready scripts
+
+function newImage(arg) {
+	if (document.images) {
+		rslt = new Image();
+		rslt.src = arg;
+		return rslt;
+	}
+}
+
+function changeImages() {
+	if (document.images && (preloadFlag == true)) {
+		for (var i=0; i<changeImages.arguments.length; i+=2) {
+			document[changeImages.arguments[i]].src = changeImages.arguments[i+1];
+		}
+	}
+}
+
+var preloadFlag = false;
+function preloadImages() {
+	if (document.images) {
+		results_01_results_03_over = newImage("../images/results_01-results_03_over.png");
+		results_01_results_04_over = newImage("../images/results_01-results_04_over.png");
+		results_01_results_06_over = newImage("../images/results_01-results_06_over.png");
+		results_01_results_07_over = newImage("../images/results_01-results_07_over.png");
+		results_01_results_05_over = newImage("../images/results_01-results_05_over.png");
+		results_03_over = newImage("../images/results_03-over.png");
+		results_03_results_04_over = newImage("../images/results_03-results_04_over.png");
+		results_03_results_06_over = newImage("../images/results_03-results_06_over.png");
+		results_03_results_05_over = newImage("../images/results_03-results_05_over.png");
+		results_04_results_03_over = newImage("../images/results_04-results_03_over.png");
+		results_04_over = newImage("../images/results_04-over.png");
+		results_04_results_06_over = newImage("../images/results_04-results_06_over.png");
+		results_04_results_05_over = newImage("../images/results_04-results_05_over.png");
+		results_05_results_03_over = newImage("../images/results_05-results_03_over.png");
+		results_05_results_04_over = newImage("../images/results_05-results_04_over.png");
+		results_05_results_06_over = newImage("../images/results_05-results_06_over.png");
+		results_05_over = newImage("../images/results_05-over.png");
+		results_06_results_03_over = newImage("../images/results_06-results_03_over.png");
+		results_06_results_04_over = newImage("../images/results_06-results_04_over.png");
+		results_06_over = newImage("../images/results_06-over.png");
+		results_06_results_07_over = newImage("../images/results_06-results_07_over.png");
+		results_06_results_05_over = newImage("../images/results_06-results_05_over.png");
+		results_07_results_03_over = newImage("../images/results_07-results_03_over.png");
+		results_07_results_04_over = newImage("../images/results_07-results_04_over.png");
+		results_07_results_06_over = newImage("../images/results_07-results_06_over.png");
+		results_07_over = newImage("../images/results_07-over.png");
+		results_07_results_05_over = newImage("../images/results_07-results_05_over.png");
+		results_08_results_03_over = newImage("../images/results_08-results_03_over.png");
+		results_08_results_04_over = newImage("../images/results_08-results_04_over.png");
+		results_08_results_06_over = newImage("../images/results_08-results_06_over.png");
+		results_08_results_07_over = newImage("../images/results_08-results_07_over.png");
+		results_08_results_05_over = newImage("../images/results_08-results_05_over.png");
+		results_09_results_03_over = newImage("../images/results_09-results_03_over.png");
+		results_09_results_04_over = newImage("../images/results_09-results_04_over.png");
+		results_09_results_06_over = newImage("../images/results_09-results_06_over.png");
+		results_09_results_07_over = newImage("../images/results_09-results_07_over.png");
+		results_09_results_05_over = newImage("../images/results_09-results_05_over.png");
+		preloadFlag = true;
+	}
+}
+
+preloadImages();
+
+function highlight(item)
+{
+	var p = document.getElementById('0');
+	if (p)
+		p.style.display = 'none';
+
+	p = document.getElementById(item);
+	if (p)
+		p.style.display = '';
+	
+	switch (item)
+	{
+		case 1:
+			changeImages(
+				'results_01', '../images/results_01-results_03_over.png',
+				'results_03', '../images/results_03-over.png',
+				'results_04', '../images/results_04-results_03_over.png',
+				'results_05', '../images/results_05-results_03_over.png',
+				'results_06', '../images/results_06-results_03_over.png',
+				'results_07', '../images/results_07-results_03_over.png',
+				'results_08', '../images/results_08-results_03_over.png',
+				'results_09', '../images/results_09-results_03_over.png');
+			break;
+		
+		case 2:
+			changeImages(
+				'results_01', '../images/results_01-results_04_over.png',
+				'results_03', '../images/results_03-results_04_over.png',
+				'results_04', '../images/results_04-over.png',
+				'results_05', '../images/results_05-results_04_over.png',
+				'results_06', '../images/results_06-results_04_over.png',
+				'results_07', '../images/results_07-results_04_over.png',
+				'results_08', '../images/results_08-results_04_over.png',
+				'results_09', '../images/results_09-results_04_over.png');
+			break;
+		
+		case 3:
+			changeImages(
+				'results_01', '../images/results_01-results_05_over.png',
+				'results_03', '../images/results_03-results_05_over.png',
+				'results_04', '../images/results_04-results_05_over.png',
+				'results_05', '../images/results_05-over.png',
+				'results_06', '../images/results_06-results_05_over.png',
+				'results_07', '../images/results_07-results_05_over.png',
+				'results_08', '../images/results_08-results_05_over.png',
+				'results_09', '../images/results_09-results_05_over.png');
+			break;
+		
+		case 4:
+			changeImages(
+				'results_01', '../images/results_01-results_06_over.png',
+				'results_03', '../images/results_03-results_06_over.png',
+				'results_04', '../images/results_04-results_06_over.png',
+				'results_05', '../images/results_05-results_06_over.png',
+				'results_06', '../images/results_06-over.png',
+				'results_07', '../images/results_07-results_06_over.png',
+				'results_08', '../images/results_08-results_06_over.png',
+				'results_09', '../images/results_09-results_06_over.png');
+			break;
+		
+		case 5:
+			changeImages(
+				'results_01', '../images/results_01-results_07_over.png',
+				'results_06', '../images/results_06-results_07_over.png',
+				'results_07', '../images/results_07-over.png',
+				'results_08', '../images/results_08-results_07_over.png',
+				'results_09', '../images/results_09-results_07_over.png');
+			break;
+		
+	}
+}
+
+function unhighlight(item)
+{
+	var p = document.getElementById(item);
+	if (p)
+		p.style.display = 'none';
+
+	p = document.getElementById('0');
+	if (p)
+		p.style.display = '';
+
+	changeImages(
+		'results_01', '../images/results_01.png',
+		'results_03', '../images/results_03.png',
+		'results_04', '../images/results_04.png',
+		'results_05', '../images/results_05.png',
+		'results_06', '../images/results_06.png',
+		'results_07', '../images/results_07.png',
+		'results_08', '../images/results_08.png',
+		'results_09', '../images/results_09.png');
+}
+
+
+// -->
+</script>
+
+
+<h2>The results</h2>
+
+<p>If you selected 'All Databanks' in the popup the result of a search will be a list
+of databanks containing hits for this query. The list is built up in real time and
+once it is finished a summary of the statistics will be given.</p>
+
+<p>If the search you did yielded less than 1000 hits per databank the number shown
+in this list is exact. However, if the number is larger than 1000 it might be an
+estimate. If a number is an estimate it will be preceded by a ≈ sign.
+This holds for all other places where number of hits are displayed.</p>
+
+<p>In the list with databanks you can click one of them and this will repeat the
+search in that particular databank only, just like you would have selected that
+databank from the popup menu when doing the search.</p>
+
+<h3>The results per databank list</h3>
+
+<p>The page you will see when doing a search in one databank only has several
+features that can help you interpreting the data. First of all there is a list
+containing two columns, one with the ID for each hit and the second contains a short
+description.</p>
+
+<div class="helpbox">
+
+<p id="0">Move the mouse over the screenshot below to get an explanation of the items available, 
+the explanation should appear in this box.</p>
+
+<p id="1" style="display:none">Here you see which hits are displayed and the total number of
+hits available. Again, if the total number is higher than 1000 the total might be an estimate
+in which case the number is preceded by a ≈ sign.
+</p>
+
+<p id="2" style="display:none">If there are more hits than fit in the current setting for the maximum number of
+hits per page the buttons Next and Prev allow you to browse through the hits page
+by page.
+</p>
+
+<p id="3" style="display:none">This popup button allows you to display the hits as summary (which is the
+default), in FastA format (if available) and as complete entries.
+</p>
+
+<p id="4" style="display:none">The number of lines in the list is 15 by default but can be changed by typing a diffent number
+in this edit box and then pressing the Enter key on the keyboard.
+</p>
+
+<p id="5" style="display:none">This pair of buttons allow you to export the data in a form without all the HTML markup. Using
+the popup button you can choose between displaying the data in a browswer window or sending the
+output to a file.
+</p>
+
+</div>
+
+
+
+<table width="677" border="0" cellpadding="0" cellspacing="0">
+	<tr>
+		<td colspan="7">
+			<img name="results_01" src="../images/results_01.png" width="677" height="37"></td>
+	</tr>
+	<tr>
+		<td rowspan="2">
+			<img src="../images/results_02.png" width="5" height="246"></td>
+		<td>
+			<a href="#"
+				onmouseover="highlight(1); return true;"
+				onmouseout="unhighlight(1); return true;">
+				<img name="results_03" src="../images/results_03.png" width="154" height="42" border="0"></a></td>
+		<td>
+			<a href="#"
+				onmouseover="highlight(2); return true;"
+				onmouseout="unhighlight(2); return true;">
+				<img name="results_04" src="../images/results_04.png" width="109" height="42" border="0"></a></td>
+		<td>
+			<a href="#"
+				onmouseover="highlight(3); return true;"
+				onmouseout="unhighlight(3); return true;">
+				<img name="results_05" src="../images/results_05.png" width="153" height="42" border="0"></a></td>
+		<td>
+			<a href="#"
+				onmouseover="highlight(4); return true;"
+				onmouseout="unhighlight(4); return true;">
+				<img name="results_06" src="../images/results_06.png" width="85" height="42" border="0"></a></td>
+		<td>
+			<a href="#"
+				onmouseover="highlight(5); return true;"
+				onmouseout="unhighlight(5); return true;">
+				<img name="results_07" src="../images/results_07.png" width="155" height="42" border="0"></a></td>
+		<td rowspan="2">
+			<img name="results_08" src="../images/results_08.png" width="16" height="246"></td>
+	</tr>
+	<tr>
+		<td colspan="5">
+			<img name="results_09" src="../images/results_09.png" width="656" height="204"></td>
+	</tr>
+</table>
+

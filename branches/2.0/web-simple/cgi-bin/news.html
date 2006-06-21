@@ -1,0 +1,24 @@
+<p>A couple of new features have been implemented in MRS. First of all MRS can now create numerical indices, data
+in these indices is still stored as ascii strings but sorting is done in numerical instead of lexical order. To take advantage
+of this I've also added the ability to search using an operator like greater or smaller than.</p>
+
+<p>To give you an idea of how this works, consider the following examples:</p>
+
+<dl>
+	<dt>To search for all proteins with a chain length less than 100 amino acids:</dt>
+	<dd><a href="mrs.cgi?db=sprot%2Btrembl&query=length&lt;100" title="Search Uniprot for proteins with length &lt; 100">
+		<code>length&lt;100</code></a></dd>
+
+	<dt>To search for all human proteins with a molecular weight more than 8000:</dt>
+	<dd><a href="mrs.cgi?db=sprot%2Btrembl&query=os:human%20mw&gt;8000" title="Search Uniprot for human proteins with mw &gt; 8000">
+		<code>os:human mw&gt;8000</code></a></dd>
+
+	<dt>To search for OMIM records released after Feb 1, 2005:</dt>
+	<dd><a href="mrs.cgi?db=omim&query=cd_date>=2005-02-01" title="Search OMIM for records published after Feb 1, 2005">
+		<code>cd_date>=2005-02-01</code></a> (note the format of the date)</dd>
+</dl>
+
+<p>To take advantage of these new features I will reindex most databanks to create
+more date and number indices where useful.</p>
+
+<p>Wait! There's more. You can also search for 'strings'. That means, you can do a search for <a href='mrs.cgi?db=omim&query="abnormal auricles"'>"abnormal auricles"</a> and it will return only documents where the word abnormal is followed by the word auricals.</p>
