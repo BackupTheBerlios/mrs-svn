@@ -14,11 +14,8 @@ use MRS;
 use File::stat;
 use Data::Dumper;
 use Format;
-use Time::HiRes;
 
-$| = 1;
-
-my $q = new MRSCGI;
+my $q = new MRSCGI(script => 'mrs.cgi');
 
 my $about =<<END;
 <h2>About</h2>
@@ -42,8 +39,19 @@ Vriend G.<br/>
 <a href="http://nar.oxfordjournals.org/cgi/content/full/33/suppl_2/W766?ijkey=1hM9Po54JADYz0b&keytype=ref">
 Nucleic Acids Research 2005 33(Web Server issue):W766-W769; doi:10.1093/nar/gki422.</a></cite></p>
 
+<p>The source code for MRS is now available from:
+<a href="http://developer.berlios.de/projects/mrs/">http://developer.berlios.de/projects/mrs/</a></p>
+
+
+<a href="http://developer.berlios.de" title="BerliOS Developer"> <img src="http://developer.berlios.de/bslogo.php?group_id=5642" width="124px" height="32px" border="0" alt="BerliOS Developer Logo"></a>
+
 <p>If you have suggestions for improvement, please mail to
 <a href="mailto:m.hekkelman\@cmbi.ru.nl?subject=MRS feedback">M.L. Hekkelman</a>.
+
+<p>There's also a mailinglist for issues related with MRS, to subscribe go to
+<a href="http://lists.berlios.de/mailman/listinfo/mrs-user">http://lists.berlios.de/mailman/listinfo/mrs-user</a>.
+
+
 END
 
 my $db;
@@ -109,8 +117,7 @@ my %index_types = (
 	'text' => 'Text',
 	'date' => 'Date',
 	'valu' => 'Value',
-	'nmbr' => 'Number',
-	'wtxt' => 'Weighted'
+	'nmbr' => 'Number'
 );
 
 &main();
@@ -178,12 +185,6 @@ sub printEntryHeader
 			-value=>"Blast",
 			-class=>'submit',
 			-onClick=>"window.location = '$base_url/cgi-bin/mrs-blast.cgi?db=$db_esc&id=$id';"
-		),
-		$q->button(
-			-name=>'similar',
-			-value=>"Find Similar",
-			-class=>'submit',
-			-onClick=>"window.location = '$base_url/cgi-bin/mrs.cgi?db=$db_esc&id=$id&similar=1';"
 		),
 	]);
 
@@ -339,6 +340,7 @@ sub printListHeader
 			-size=>3,
 			-maxlength=>4,
 			-default=>'15',
+			-onKeyPress=>'doKeyPress(event);'
 		),
 		$q->button(
 			-id=>'save',
@@ -362,115 +364,15 @@ sub printListHeader
 	print $q->div({-class=>'nav'}, $q->ul(@btns));
 }
 
-sub doFind
-{
-	my ($db, $dbo, $query, $mode) = @_;
-	
-	my $i;
-	
-	if ($mode == 1) {		# wildcard search
-		$i = $dbo->Find($query, 1);
-	}
-	elsif ($mode == 2) {	# strict boolean
-		$i = $dbo->Find($query, 0);
-	}
-	elsif ($mode == 4) {	# find similar
-
-		my $text = $dbo->Get($query) or die "$db:$query not found";
-		$text = Format::pre(&Filter($db), $q, $text, $query);
-		
-		my $rq = $dbo->RankedQuery('*alltext*');
-		
-		$rq->{Algorithm} = $q->param('alg') if defined $q->param('alg');
-		
-		local($/) = undef;
-		$text =~ s/<.*?>//sgo;
-		
-		my %terms;
-		
-		open TEXT, "<", \$text;
-		while (my $line = <TEXT>)
-		{
-			foreach my $w (split(m/\s+/, $line))
-			{
-				$w =~ s/^[^a-z0-9_]+//gi;
-				$w =~ s/[^a-z0-9_]+$//gi;
-				
-				$terms{$w} += 1;
-			}
-		}
-		close TEXT;
-		
-		foreach my $w (keys %terms) {
-			$rq->AddTerm($w, $terms{$w});
-		}
-		
-		$i = $rq->Perform;
-	}
-	else {					# ranked/smart
-		my $rq = $dbo->RankedQuery('*alltext*');
-		my $addedRankedTerm = 0;
-
-		$rq->{Algorithm} = $q->param('alg') if defined $q->param('alg');
-		
-		my $filter;
-		
-		foreach my $term (split(m/\s+/, $query)) {
-			my $fq;
-			
-			if ($term =~ m/^(-?)([a-z0-9_]+):(\S+)/) {
-				my $not = $1 eq '-';
-				
-				$fq = $dbo->Match("$3", "$2");
-				
-				if ($not) {
-					$fq = MRS::MBooleanQuery::Not($fq);
-				}
-			}
-			elsif ($term =~ m/^([a-z0-9]+)(<|<=|=|>=|>)(\S+)/) {
-				$fq = $dbo->MatchRel("$3", "$2", "$1");
-			}
-			elsif ($term =~ m/^-(\S+)/) {
-				$fq = MRS::MBooleanQuery::Not($dbo->Match("$1"));
-			}
-			else {
-				$term =~ s/\W/$1/gi;
-				
-				$rq->AddTerm($term, 1);
-				$addedRankedTerm = 1;
-			}
-			
-			if ($fq) {
-				if ($filter) {
-					$filter = MRS::MBooleanQuery::Intersection($filter, $fq);
-				}
-				else {
-					$filter = $fq;
-				}
-			}
-		}
-		
-		if (not $addedRankedTerm and $filter) {
-			$i = $filter->Perform;
-		}
-		elsif ($filter) {
-			$i = $rq->Perform($filter);
-		}
-		else {
-			$i = $rq->Perform;
-		}
-	}
-}
-
 sub doList
 {
-	my ($db, $format, $first, $count, $query, $mode, $d) = @_;
+	my ($db, $format, $first, $count, $query, $wildcard, $d) = @_;
 	
 	my $i;
 	
 	eval
 	{
-		$i = &doFind($db, $d, $query, $mode);
+		$i = $d->Find($query, $wildcard);
 	};
 	
 	if ($@ or not defined $i)
@@ -487,19 +389,14 @@ sub doList
 		my $max = $i->Count($exact);
 		$count = $max if $count > $max;
 		my $n;
-
-		my $addScore = ($i->Score != 1);
 		
 		my @rows;
-		my @th = (
+		push @rows, $q->Tr(
 			$q->th('nr'),
 			$q->th('id'),
-			$q->th({-style=>'width:100px;'}, 'score'),
 			$q->th('description'),
 			$q->th('&nbsp;')
 		);
-		
-		push @rows, $q->Tr(@th);
 	
 		$i->Skip($first) if $first > 0;
 		
@@ -519,15 +416,15 @@ sub doList
 				};
 				
 				if ($@) {
-					$fasta = $q->pre(Format::fasta(&Filter($db), $q, $d->Get($id)));
+					$fasta = $q->pre(Format::fasta(&Filter($db), $q, $$d->Get($id)));
 				}
 				
-				push @rows, $q->Tr($q->td({-colspan=>length(@th)}, $q->pre($fasta)));
+				push @rows, $q->Tr($q->td({-colspan=>4}, $q->pre($fasta)));
 			}
 			elsif (defined $format and $format eq 'entry')
 			{
 				push @rows, $q->Tr(
-					$q->td({-colspan=>length(@th)}, $q->pre($d->Get($id)))
+					$q->td({-colspan=>4}, $q->pre($d->Get($id)))
 				);
 			}
 			else
@@ -539,13 +436,9 @@ sub doList
 				$url .= "?db=$db_esc&id=$id&format=entry";
 				$url =~ s/#/%23/;
 				
-				my $score = $i->Score;
-				
-				my @rd = (
+				push @rows, $q->Tr(
 					$q->td($q->b($first + $n)),
 					$q->td($q->a({-href=>$url}, $id)),
-					$q->td({-style=>'vertical-align:middle;'},
-						$q->img({-src=>'../pixel-b.png', -width=>$score, -height=> 8})),
 					$q->td(Format::desc(&Filter($db), $q, $d->Get($id))),
 					$q->td(
 						$q->checkbox(
@@ -558,8 +451,6 @@ sub doList
 						)
 					)
 				);
-				
-				push @rows, $q->Tr(@rd);
 			}
 		}
 		
@@ -580,13 +471,10 @@ sub doList
 		my $url = $q->url({-absolute=>1});
 		
 		my (@suggestions, $andOrWarning);
-
-		my $db_esc = $db;
-		$db_esc =~ s/\+/%2B/;
 		
 		for (my $i = 0; $i < scalar(@query_parts); ++$i)
 		{
-			my ($ix, $not);
+			my $ix;
 			my $term = $query_parts[$i];
 			
 			next if $term =~ /[<=>]/;
@@ -597,30 +485,21 @@ sub doList
 				$term = $3;
 			}
 			
-			if ($term =~ /^-(\S+)/)
-			{
-				$not = 1;
-				$term = $1;
-			}
-			
 			if ($term eq 'and' or $term eq 'or' or $term eq 'not')
 			{
 				$andOrWarning = $q->p($q->strong("Note:"), "The words '<code>and</code>, '<code>or</code>' and '<code>not</code>'",
 					" can be used as boolean operators. But then they have to be in upper case.");
-				next;
 			}
 			
 			my $alt_iter = $d->SuggestCorrection($term);
 			
 			if (defined $alt_iter)
 			{
-				my @alt;
-				my $n = 0;
-				while (my $alt = $alt_iter->Next and $n++ < 5)
+				my $alt;
+				while (defined ($alt = $alt_iter->Next))
 				{
 					if ($alt ne $term and length($alt) > 0)
 					{
-						$alt = "-$alt" if defined $not;
 						$alt = "$ix:$alt" if defined $ix;
 						
 						my @alt_query_parts = @query_parts;
@@ -629,11 +508,16 @@ sub doList
 						
 						my $alt_query = join(' ', @alt_query_parts);
 						
-						push @alt, $q->a({-href=>"$url?db=$db_esc&query=$alt_query"}, $alt);
+						my ($iter, $count);
+						if ($iter = $d->Find($alt_query, 0) and $count = $iter->Count(0))
+						{
+							my $db_esc = $db;
+							$db_esc =~ s/\+/%2B/;
+							
+							push @suggestions, $q->li($q->a({-href=>"$url?db=$db_esc&query=$alt_query"}, $alt_query), " ($count)");
+						}
 					}
 				}
-				
-				push @suggestions, $q->li("$term: ", join(", ", @alt));
 			}
 		}
 
@@ -651,11 +535,12 @@ sub doList
 sub doListAll()
 {
 	my ($query, $wildcard) = @_;
+
+	$| = 1;
 	
 	print "<div class='list'><table cellspacing='0' cellpadding='0'>\n";
 	print "<tr><th>Databank</th><th>Entries found</th></tr>\n";
 	
-	my $start = Time::HiRes::time;
 	my ($db_cnt, $entry_cnt, $max_count) = ( 0, 0, 0 );
 	
 	foreach my $db (@dbIds)
@@ -677,7 +562,7 @@ sub doListAll()
 
 		eval
 		{
-			if (my $i = &doFind($db, $d, $query, 0))
+			if (my $i = $d->Find($query, $wildcard))
 			{
 				my $url = $q->url({-full=>1, -query=>1});
 				
@@ -705,9 +590,8 @@ sub doListAll()
 
 	print "</div>";
 	
-	my $t = sprintf("%.3g", Time::HiRes::time - $start);
 	$entry_cnt = &printNumber($entry_cnt);
-	print $q->p("Done! Searched $db_cnt databanks containing $entry_cnt records in $t seconds");
+	print $q->p("Done! Searched $db_cnt databanks containing $entry_cnt records");
 }
 
 sub printOverview()
@@ -780,7 +664,6 @@ sub printDbInfo($)
 	my $d = new MRS::MDatabank($db) or next;
 	
 	push @rows, $q->Tr($q->td('Name'), $q->td({-style=>"text-align:right;"}, $n));
-	push @rows, $q->Tr($q->td('UUID'), $q->td({-style=>"text-align:right;"}, $d->GetUUID));
 	push @rows, $q->Tr($q->td('Number of records'), $q->td({-style=>"text-align:right;"}, &printNumber($d->Count)));
 	push @rows, $q->Tr($q->td('Parser script'), $q->td({-style=>"text-align:right;"}, $q->a({-href=>"mrs.cgi?parser=$p"}, $p)));
 
@@ -941,15 +824,11 @@ sub main()
 		}
 	}
 	
-	my $mode = 0;
+	my $wildcard = 0;
 	
-	if (defined $q->param('mode'))
+	if (defined $q->param('wildcard'))
 	{
-		$mode = $q->param('mode');
-	}
-	elsif (defined $q->param('wildcard'))
-	{
-		$mode = 2 if $q->param('wildcard') eq 'on';
+		$wildcard = 1 if $q->param('wildcard') eq 'on';
 	}
 	
 	if ($q->param('extended'))
@@ -978,6 +857,7 @@ sub main()
 
 		my $save_to = $q->param('save_to');
 
+#		print $q->header($save_to);
 		if ($q->param('save_to') eq 'text/plain') {
 			print $q->header(-type=>'text/plain');
 		}
@@ -1005,7 +885,7 @@ sub main()
 		}
 		elsif ($query)
 		{
-			if (my $i = &doFind($db, $d, $query, 0))
+			if (my $i = $d->Find($query, $wildcard))
 			{
 				for (my $id = $i->Next; defined $id; $id = $i->Next)
 				{
@@ -1033,8 +913,8 @@ sub main()
 	}
 
 	my %cookies = fetch CGI::Cookie;
-	my $cookie = $cookies{mode};
-	$cookie = new CGI::Cookie(-name => 'mode', -value => $mode, -expires => '+1y')
+	my $cookie = $cookies{wildcard};
+	$cookie = new CGI::Cookie(-name => 'wildcard', -value => $wildcard, -expires => '+1y')
 		unless defined $cookie;
 	$cookie->expires('+1y');
 
@@ -1054,17 +934,79 @@ sub main()
 
 		# the search bar
 		
-	my $searchBox = $q->span(
-		&getDbPopup('all', "doSearch();"),
-		"for",
-		$q->textfield(
-			-name=>"query",
-			-class=>'tb',
-			-size=>40,
-			-maxlength=>256,
-		),
-		$q->button(-name=>'search', -value=>"Search", -class=>'submit', onClick=>'doSearch();'),
-	);
+	my $searchBox;
+	
+	if ($q->param('extended'))
+	{
+		print $q->p('This page is a work in progress, it is not intended for normal use.',
+			'Please use the regular search instead unless you know how this page works.',
+			'An improved version of this page will follow shortly.');
+		
+		if (defined $db and $db ne 'all')
+		{
+			$d = new MRS::MDatabank($db) or die "Could not open databank $db";
+
+			&getFields($d, $db) if defined $d;
+		}
+		
+		$searchBox = $q->table({id=>'tabel'},
+			$q->Tr(
+				$q->td({colspan=>3},
+					"Databank",
+					&getDbPopup('uniprot', "changeDb(\"".$q->url({-relative=>1})."\");"),
+				)
+			),
+			$q->Tr(
+				$q->td({id=>'rij', colspan=>3},
+					$q->popup_menu(-name=>"idx",
+						-values=>\@fields,
+						-default=>'all',
+						-labels=>\%fldLabels
+					),
+					$q->textfield(
+						-name=>"fld",
+						-class=>'tb',
+						-size=>50,
+						-maxlength=>256,
+						-onKeyPress=>'doKeyPress(event);'
+					)
+				)
+			),
+			$q->Tr(
+				$q->td({width=>'80%'},
+					$q->button(-name=>'add', -value=>"More Fields", -class=>'submit', onClick=>'addField();')
+				),
+				$q->td(
+					$q->button(-name=>'search', -value=>"Search", -class=>'submit', onClick=>'doSearch();')
+				),
+#				$q->td(
+#					$q->button(-name=>'clear', -value=>"Reset", -class=>'submit', onClick=>'doClear();')
+#				),
+			)
+		);
+	}
+	else
+	{
+		$searchBox = $q->span(
+			&getDbPopup('all', "doSearch();"),
+#			$q->popup_menu(-name=>"db",
+#				-values=>\@dbIds,
+#				-default=>'all',
+#				-labels=>\%dbLabels,
+#				-onChange=>"doSearch();"
+#			),
+			"for",
+			$q->textfield(
+				-name=>"query",
+				-class=>'tb',
+				-size=>40,
+				-maxlength=>256,
+				-onKeyPress=>'doKeyPress(event);'
+			),
+			$q->button(-name=>'search', -value=>"Search", -class=>'submit', onClick=>'doSearch();'),
+#			$q->button(-name=>'clear', -value=>"Reset", -class=>'submit', onClick=>'doClear();'),
+		);
+	}
 	
 	my $expires = gmtime(time + 3600 * 24 * 365);
 	
@@ -1074,6 +1016,13 @@ sub main()
 		$q->div({id=>'s', class=>'blackbox'},
 			"Search",
 			$searchBox,
+			$q->checkbox(
+				-name=>'wildcard',
+				-checked=>$cookie->value,
+				-value=>'on',
+				-label=>'Append wildcards',
+				-onClick=>"setCookie('wildcard', document.f.wildcard.checked ? 1 : 0, '/', '$expires')"
+			),
 			$q->hidden('first', 0),
 		);
 	
@@ -1119,16 +1068,11 @@ sub main()
 			print $q->h2("News"), $q->p($news);
 		}
 	}
-	elsif ($q->param('similar'))
-	{
-		$d = new MRS::MDatabank($db) or die "Could not open databank $db";
-		&doList($db, $format, $first, $count, $q->param('id'), 4, $d);
-	}
 	elsif ($db eq 'all')
 	{
 		if (defined $query)
 		{
-			&doListAll($query, $mode);
+			&doListAll($query, $wildcard);
 		}
 	}
 	else
@@ -1141,7 +1085,7 @@ sub main()
 		}
 		elsif (defined $query)
 		{
-			doList($db, $format, $first, $count, $query, $mode, $d);
+			doList($db, $format, $first, $count, $query, $wildcard, $d);
 			
 #			# and print some buttons to do nice things
 #			
