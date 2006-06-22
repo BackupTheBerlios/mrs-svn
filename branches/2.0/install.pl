@@ -13,17 +13,6 @@ use Config;
 
 $| = 1;	# flush stdout
 
-# some globals
-
-my $perlpath;		# path to the Perl interpreter
-my $binpath;		# installation directory for the other executables (mrs.pl and mrs_blast)
-my $httpd;			# path to apache webserver
-my $httpd_conf;		# path to apache webserver config file
-my $site_dir;		# where to install the website
-my $data_dir;		# where to store the data files
-my $os;				# the OS we're installing on
-my $cpu;			# the CPU we're using here
-
 # let's start with a sanity check
 
 die "This version of perl is not supported, please make sure you use at least 5.8\n"
@@ -34,7 +23,7 @@ print "Not running as root, assuming you have sudo installed and configured.\n"
 
 # Now first find out what Perl executable will be used
 
-$perlpath = $Config{perlpath};
+my $perlpath = $Config{perlpath};
 if ($OSNAME ne 'VMS') {
 	$perlpath .= $Config{_exe}
 		unless $perlpath =~ m/$Config{_exe}$/i;
@@ -95,7 +84,7 @@ if (scalar @missing_modules > 0) {
 
 # Then ask the user for the installation directory for the other tools
 
-$binpath = &ask_for_string('Where to install other executables', '/usr/local/bin');
+my $binpath = &ask_for_string('Where to install other executables', '/usr/local/bin');
 
 # Try to find out some variables needed for building the plugin
 # First see if the right version of SWIG is available
@@ -236,7 +225,66 @@ print "\nCreating the make configuration is now finished.\n";
 print "You can cd to the plugin directory and type 'make' followed by 'make install'\n";
 print "to create and install the binaries\n\n";
 
-# continue hacking the web scripts
+# continue hacking the update scripts
+
+print "\n";
+print "The update scripts will be installed next. Please specify the directory\n";
+print "where the data should be stored. If you want to have EMBL and Genbank you\n";
+print "will need something like 750 Gb of free diskspace in this directory.\n\n";
+
+my $data_dir = &ask_for_string('Where should the data be located', '/usr/local/data/');
+&mkdir_recursive($data_dir);
+
+my $make_script_dir = &ask_for_string("Where should the update scripts go", '/usr/local/share/mrs/update_scripts');
+&mkdir_recursive($make_script_dir);
+
+my $parser_script_dir = &ask_for_string("Where should the parser scripts go", '/usr/local/share/mrs/parser_scripts');
+&mkdir_recursive($parser_script_dir);
+
+my $maintainer = `whoami`;
+chomp($maintainer);
+&ask_for_string("What is the e-mail address for the maintainer", $maintainer);
+
+my $db_conf;
+if (1) {
+	local($/) = undef;
+	open T, "<db-update/make_TEMPLATE.conf" or die "make_TEMPLATE.conf seems to be missing: $@";
+	$db_conf = <T>;
+	close T;
+}
+
+$db_conf =~ s|__DATA_DIR__|$data_dir|g;
+$db_conf =~ s|__BIN_DIR__|$binpath|g;
+$db_conf =~ s|__MAINTAINER__|$maintainer|g;
+$db_conf =~ s|__SCRIPT_DIR__|$make_script_dir|g;
+$db_conf =~ s|__PERL__|$perlpath|g;
+
+my $hncmd = 'hostname -s';
+my $hostname = `$hncmd`;
+chomp($hostname);
+
+my $db_conf_file = "$make_script_dir/make_$hostname.conf";
+
+open MAKE_CONFIG, ">$db_conf_file" or die "Could not create make config file $db_conf_file: $@\n";
+print MAKE_CONFIG $db_conf;
+close MAKE_CONFIG;
+
+my $make = `which make`;
+chomp($make);
+
+while (1) {
+	my $make_version;
+	
+	open M, "$make -v|";
+	if (<M> =~ m/GNU Make (\d.\d+)/) {
+		$make_version = $1;
+	}
+	close M;
+	
+	last if defined $make_version and $make_version >= 3.79;
+	
+	$make = &ask_for_string("Which make do you want to use (should be a GNU make > 3.79)", $make);
+}
 
 sub ask_for_string {
 	my ($question, $default) = @_;
@@ -271,4 +319,41 @@ sub compile_and_catch {
 	unlink("/tmp/$bn.out", "/tmp/$bn.cpp");
 	
 	return $r;
+}
+
+sub mkdir_recursive {
+	my $dir = shift;
+
+	$dir =~ s|/+$||;	# strip off trailing slash
+
+	return if -d $dir;	# if it exists we're done
+	
+	eval {
+		return if system("mkdir", "-p", $dir) == 0;
+	};
+	
+	if ($@) {
+		print "$@\n";
+	}
+	
+	eval {
+		print "Trying to create directory with sudo and mkdir\n";
+		my @args = ("sudo", "mkdir", "-p", $dir);
+		system(@args) == 0 or die "system @args failed: $?";
+		chown $REAL_USER_ID, $dir;
+		chmod 0755, $dir;
+	};
+	
+	if ($@) {
+		print "Using sudo and mkdir failed, trying to do it the regular way.\n";
+		
+		my $parent = $dir;
+		$parent =~ s|/+$||;
+		$parent =~ s|[^/]+$||;
+		
+		&mkdir_recursive($parent) if (length($parent) > 0);
+		
+		mkdir($dir) or die "Could not create $dir, please create it and then rerun this script\n";
+		chmod 0755, $dir;
+	}
 }

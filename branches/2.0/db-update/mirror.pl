@@ -1,11 +1,11 @@
-#!/usr/bin/perl -w
+#!perl
 
 use strict;
+use warnings;
 
 use URI;
 use Net::FTP;
 use Getopt::Std;
-use Data::Dumper;
 
 my %opts;
 my $recursive = 0;

@@ -1,6 +1,10 @@
-#!/usr/bin/perl -w
+#!perl
+#
+# Use this script to generate an include file that contains rules
+# to build multi part MRS files.
 
 use strict;
+use warnings;
 
 my $templ = q{
 ${MRSLIBS:%%=$(MRSDIR)%%-%d.cmp}: $(ZIPFILES)

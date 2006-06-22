@@ -33,7 +33,6 @@ DAILY		= $(filter-out $(NOT_DAILY), $(WEEKLY))
 
 # internal rules and macros
 
-
 ifneq ($(DAILY),)
 DBDAILYFLAGS =	$(addprefix $(FLAGSDIR), $(DAILY))
 endif
@@ -61,7 +60,7 @@ dirs: $(DIRS)
 $(BINDIR)%: $(SCRIPTDIR)%.cpp
 	g++ -o $@ $<
 
-tools: $(BINDIR)run_and_log $(BINDIR)lock_and_run
+tools: $(BINDIR)run_and_log $(BINDIR)lock_and_run $(BINDIR)swiss2fasta
 
 # The meat of this makefile, the rule(s) to first fetch/mirror the data and
 # then to execute the database's makefile.
@@ -116,18 +115,3 @@ test:
 ${ALL_DATABASES}:
 	$(MAKE) $(FLAGSDIR)$@.done
 	rm $(FLAGSDIR)$@.*
-
-# The next rules are used on cmbi8 to regenerate the structure databanks
-
-dssp: uniprot pdb
-
-hssp: dssp
-
-pdbfinder: dssp hssp
-
-pdbfinder2: pdbfinder
-
-structure_dbs: pdbfinder2
-	@ find $(FLAGSDIR) -type f | xargs rm
-	echo "Structure DB update done"
-

@@ -11,7 +11,6 @@ include make_$(HOST).conf
 SRCDIR		= $(DATADIR)raw/$(DATABANK)/
 DSTDIR		= $(DATADIR)srs/$(DATABANK)/
 FASTADIR	= $(DATADIR)fasta/$(DATABANK)/
-GCGDIR		= $(DATADIR)gcg/$(DATABANK)/
 
 # some necessary variables to make things work
 
