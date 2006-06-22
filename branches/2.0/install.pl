@@ -26,10 +26,10 @@ my $cpu;			# the CPU we're using here
 
 # let's start with a sanity check
 
-die "\nThis version of perl is not supported, please make sure you use at least 5.8\n"
+die "This version of perl is not supported, please make sure you use at least 5.8\n"
 	unless $PERL_VERSION ge v5.8.0;
 
-print "\nNot running as root, this will probably fail but we'll see how far we will get.\n\n"
+print "Not running as root, this will probably fail but we'll see how far we will get.\n"
 	unless $EFFECTIVE_USER_ID == 0;
 
 # Now first find out what Perl executable will be used
@@ -88,10 +88,10 @@ foreach my $m (keys %modules) {
 }
 
 if (scalar @missing_modules > 0) {
-	print "\nMissing modules: ", join(", ", @missing_modules), "\n";
+	print "Missing modules: ", join(", ", @missing_modules), "\n";
 	
 	die "Please install these before continuing installation\n" if ($essential);
-	warn "The missing modules are not essential, but functionality may be limited\n\n";
+	print "The missing modules are not essential, but functionality may be limited\n\n";
 }
 
 # Then ask the user for the installation directory for the other tools
@@ -103,12 +103,12 @@ $binpath = &ask_for_string('Where to install other executables', '/usr/local/bin
 my $swig = `which swig`;
 chomp($swig);
 
-$swig = &ask_for_string("\nWhere is your version of swig (can be left empty)", $swig);
+$swig = &ask_for_string("Where is your version of swig (can be left empty)", $swig);
 
 if (defined $swig and length($swig) > 0) {
 
 	my $swig_version;
-	open P, "$swig -version|";
+	open P, "$swig -version 2>&1 |";
 	while (my $vl = <P>) {
 		if ($vl =~ m|SWIG Version (.+)|) {
 			$swig_version = $1;
@@ -117,8 +117,10 @@ if (defined $swig and length($swig) > 0) {
 	}
 	close P;
 	
-	if ($swig_version ne '1.3.27') {
-		warn "Swig version 1.3.27 (exactly) is needed to build MRS\n";
+	if (not defined $swig_version or $swig_version ne '1.3.27') {
+		print "Version $swig_version of Swig is not the correct one\n"
+			if defined $swig_version;
+		print "Swig version 1.3.27 (exactly) is needed to build MRS\n";
 		undef $swig;
 	}
 }
