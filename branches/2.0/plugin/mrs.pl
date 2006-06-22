@@ -39,13 +39,7 @@ use strict;
 use English;
 use warnings;
 use Time::HiRes qw(usleep ualarm gettimeofday tv_interval);
-#use Sys::Proctitle;
 use MRS;
-
-#BEGIN {
-#	require "./MRS.pm";
-#	import MRS::errstr;
-#}
 
 use Getopt::Std;
 
@@ -327,8 +321,7 @@ sub Create()
 	
 	foreach my $r (@raw_files)
 	{
-#		Sys::Proctitle::setproctitle(
-#			sprintf("[%d/%d] MRS: '%s'", $n++, $m, $r));
+		SetProcTitle(sprintf("[%d/%d] MRS: '%s'", $n++, $m, $r));
 		
 		print "$r\n" if $verbose;
 		open IN, $r;
@@ -337,6 +330,8 @@ sub Create()
 	}
 	
 	print "Parsing done, creating index... ";
+	SetProcTitle("MRS: Parsing done, creating index... ");
+
 	$mrs->Finish(1);	# and please create the weighted alltext index
 	print "done!\n";
 }
@@ -636,4 +631,18 @@ sub ReadStopWords()
 	}
 	
 	return keys %sw;
+}
+
+sub SetProcTitle
+{
+	my $title = shift;
+	
+	eval {
+		require Sys::Proctitle;
+		Sys::Proctitle::setproctitle($title);
+	};
+	
+	if ($@) {
+		$PROGRAM_NAME = $title;
+	}
 }
