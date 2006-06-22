@@ -320,20 +320,21 @@ clean: FORCE
 	rm -rf $(OBJDIR)
 
 dist: FORCE
-	mkdir -p dist/lib
+	mkdir -p dist/lib dist/bin
 	$(PERL) -pi.bak -e 's/^.+VERSION.+$$/\t"VERSION"\t\t\t=> "$(VERSION)",/' dist/Makefile.PL
 	cp MRS.pm $(OUTPUT) dist/lib/
+	cp mrs.pl dist/bin
 	$(STRIP) dist/lib/$(OUTPUT)
 	echo "MANIFEST" > dist/MANIFEST
 	echo "Makefile.PL" >> dist/MANIFEST
 	echo "lib/MRS.pm" >> dist/MANIFEST
+	echo "bin/mrs.pl" >> dist/MANIFEST
 	echo lib/$(OUTPUT) >> dist/MANIFEST
 	rm -rf dist/MRS-$(VERSION).tar.gz
-	cd dist; $(PERL) Makefile.PL; $(MAKE) dist
+	cd dist; $(PERL) Makefile.PL INSTALLSCRIPT=$(INSTALL_DIR); $(MAKE) dist
 
 install: $(OUTPUT) blast query dist
 	cd dist; $(SUDO) $(MAKE) install
-	$(SUDO) install -m 755 mrs.pl /usr/local/bin/mrs.pl
 	$(SUDO) install -m 755 mrs_blast /usr/local/bin/mrs_blast
 	$(SUDO) install -m 755 mrs_query /usr/local/bin/mrs_query
 

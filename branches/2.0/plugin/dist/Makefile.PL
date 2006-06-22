@@ -8,5 +8,6 @@ WriteMakefile(
 	{
 		'lib/MRS.pm' => '$(INST_LIBDIR)/MRS.pm',
 		'lib/MRS.$(DLEXT)' => '$(INST_ARCHAUTODIR)/MRS.$(DLEXT)'
-	}
+	},
+	EXE_FILES			=> ['bin/mrs.pl']
 );
