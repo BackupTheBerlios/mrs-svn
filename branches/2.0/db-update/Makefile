@@ -20,7 +20,7 @@ ifeq ($(DATABASES),)
 DATABASES	= $(ALL_DATABASES)
 endif
 
-FAILED_DBS = $(sort $(shell cat $(STATUSDIR)failed_dbs.txt))
+FAILED_DBS = $(sort $(shell cat $(STATUSDIR)failed_dbs.txt) || echo -n "")
 DATABASES	:= $(filter-out $(FAILED_DBS), $(DATABASES))
 
 ifeq ($(NOT_DAILY),)
@@ -57,10 +57,10 @@ ${DIRS}:
 dirs: $(DIRS)
 
 # this may not run on all systems:
-$(BINDIR)%: $(SCRIPTDIR)%.cpp
+$(SCRIPTDIR)/%: $(SCRIPTDIR)/%.cpp
 	g++ -o $@ $<
 
-tools: $(BINDIR)run_and_log $(BINDIR)lock_and_run $(BINDIR)swiss2fasta
+tools: $(SCRIPTDIR)/run_and_log $(SCRIPTDIR)/lock_and_run $(SCRIPTDIR)/swiss2fasta
 
 # The meat of this makefile, the rule(s) to first fetch/mirror the data and
 # then to execute the database's makefile.
@@ -68,14 +68,14 @@ tools: $(BINDIR)run_and_log $(BINDIR)lock_and_run $(BINDIR)swiss2fasta
 # the execution.
 
 ${DBALLFLAGS:=.make}:
-	@ $(BINDIR)run_and_log -r 3 -l $(STATUSDIR)${@F:.make=}.make_log \
+	@ $(SCRIPTDIR)/run_and_log -r 3 -l $(STATUSDIR)${@F:.make=}.make_log \
 		$(MAKE) -f ${@F:.make=}.make data mrs blast || echo ${@F:.make=} >> $(STATUSDIR)failed_dbs.txt
 	sync
 	touch $(STATUSDIR)$(@F)
 	touch $@
 
 ${DBALLFLAGS:=.fetched}:
-	@ $(BINDIR)run_and_log -r 3 -l $(STATUSDIR)${@F:.fetched=}.mirror_log \
+	@ $(SCRIPTDIR)/run_and_log -r 3 -l $(STATUSDIR)${@F:.fetched=}.mirror_log \
 		$(MAKE) -f ${@F:.fetched=}.make fetch || echo ${@F:.make=} >> $(STATUSDIR)failed_dbs.txt
 	sync
 	touch $(STATUSDIR)$(@F)
@@ -112,6 +112,6 @@ allweeklydata: tools dirs ${DBWEEKLYFLAGS:=.make}
 test:
 	echo $(DATABASES)
 
-${ALL_DATABASES}:
+${ALL_DATABASES}: tools dirs
 	$(MAKE) $(FLAGSDIR)$@.done
 	rm $(FLAGSDIR)$@.*

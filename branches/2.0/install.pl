@@ -253,10 +253,16 @@ if (1) {
 	close T;
 }
 
+$data_dir			=~ s|/*$|/|;
+$binpath			=~ s|/*$|/|;
+$make_script_dir	=~ s|/*$|/|;
+$parser_script_dir	=~ s|/*$|/|;
+
 $db_conf =~ s|__DATA_DIR__|$data_dir|g;
 $db_conf =~ s|__BIN_DIR__|$binpath|g;
 $db_conf =~ s|__MAINTAINER__|$maintainer|g;
 $db_conf =~ s|__SCRIPT_DIR__|$make_script_dir|g;
+$db_conf =~ s|__PARSER_DIR__|$parser_script_dir|g;
 $db_conf =~ s|__PERL__|$perlpath|g;
 
 my $hncmd = 'hostname -s';
@@ -269,22 +275,62 @@ open MAKE_CONFIG, ">$db_conf_file" or die "Could not create make config file $db
 print MAKE_CONFIG $db_conf;
 close MAKE_CONFIG;
 
-my $make = `which make`;
-chomp($make);
+# copy over all the files in db-update
+system("cd db-update; find . | cpio -p $make_script_dir") == 0
+	or die "Could not copy over the files in db-update to $make_script_dir: $!\n";
 
-while (1) {
-	my $make_version;
-	
-	open M, "$make -v|";
-	if (<M> =~ m/GNU Make (\d.\d+)/) {
-		$make_version = $1;
-	}
-	close M;
-	
-	last if defined $make_version and $make_version >= 3.79;
-	
-	$make = &ask_for_string("Which make do you want to use (should be a GNU make > 3.79)", $make);
-}
+# copy over all parsers
+system("cd plugin/scripts; find . | cpio -p $parser_script_dir") == 0
+	or die "Could not copy over the files in plugin/scripts to $parser_script_dir: $!\n";
+
+# web site still needs to be done
+
+print "\nOK, installation seems to have worked fine up until now.\n";
+print "Next steps are to build the actual plugins, as stated above you have to\n";
+print "enter the following commands for this:\n";
+print "\n";
+print "cd plugin\n";
+print "make\n";
+print "make install\n";
+print "\n";
+print "The make install may fail if you don't have sudo and don't have the permission\n";
+print "to install the plugin or executables. In that case you have to run that\n";
+print "make install step as root.\n";
+print "\n";
+print "Once you've installed the plugins you can cd into $make_script_dir and to test the\n";
+print "scripts there you could e.g. type:\n";
+print "\n";
+print "make enzyme\n";
+print "\n";
+print "That command will create the directories and tools needed to do updates, it then\n";
+print "continues fetching the enzyme data files and creates an mrs file from them.\n";
+print "\n";
+print "Other useful commands you can type in the make directory are:\n";
+print "\n";
+print "make -j 2 daily		# update all daily dbs using 2 processors\n";
+print "make -j 2 weekly		# update all dbs\n";
+print "\n";
+print "Have a look at the $db_conf_file for local settings.\n";
+
+exit;
+#
+#
+#my $make = `which make`;
+#chomp($make);
+#
+#while (1) {
+#	my $make_version;
+#	
+#	open M, "$make -v|";
+#	if (<M> =~ m/GNU Make (\d.\d+)/) {
+#		$make_version = $1;
+#	}
+#	close M;
+#	
+#	last if defined $make_version and $make_version >= 3.79;
+#	
+#	$make = &ask_for_string("Which make do you want to use (should be a GNU make > 3.79)", $make);
+#}
 
 sub ask_for_string {
 	my ($question, $default) = @_;
@@ -326,16 +372,10 @@ sub mkdir_recursive {
 
 	$dir =~ s|/+$||;	# strip off trailing slash
 
+	system("mkdir", "-p", $dir);
+
 	return if -d $dir;	# if it exists we're done
-	
-	eval {
-		return if system("mkdir", "-p", $dir) == 0;
-	};
-	
-	if ($@) {
-		print "$@\n";
-	}
-	
+		
 	eval {
 		print "Trying to create directory with sudo and mkdir\n";
 		my @args = ("sudo", "mkdir", "-p", $dir);

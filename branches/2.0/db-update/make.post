@@ -35,6 +35,7 @@ $(DSTDIR)%: $(SRCDIR)%
 	ln -fs $< $@
 
 dirs: $(PATHS)
+	@ touch $(STATUSDIR)failed_dbs.txt
 
 ifeq ($(NO_AUTO_DATA_RULE),)
 data: $(DATFILES)
