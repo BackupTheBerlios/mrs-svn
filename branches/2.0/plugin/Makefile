@@ -80,7 +80,12 @@ ifeq ($(HAVE_TR1),1)
 DEFINES		+= USE_TR1
 endif
 
+ifneq ($(SWIG),)
 SWIG_VERSION	= $(shell $(SWIG) -version | grep Version | sed s'/SWIG Version //')
+else
+SWIG_VERSION	= not_installed
+endif
+
 PERL_CORE		= $(shell $(PERL) -MExtUtils::Embed -e perl_inc)
 
 ifeq ($(OS),FreeBSD)
