@@ -21,7 +21,7 @@ my @links_db_xref = (
 		result	=> '$1.$q->a({-href=>"$url?db=embl_release|embl_updates&query=ac:$2"}, $2)'
 	},
 	{
-		match	=> qr[^(swiss-prot|sptrembl|uniprot/swiss-prot|uniprot/trembl):(\S+)]i,
+		match	=> qr[^(swiss-prot|sptrembl|uniprot/swiss-prot|uniprot/trembl|UniProtKB/Swiss-Prot):(\S+)]i,
 		result	=> '$1.":".$q->a({-href=>"$url?db=sprot%2Btrembl&query=ac:$2"}, $2)'
 	},
 	{
@@ -661,7 +661,12 @@ sub to_field_name
 		'kw' => 'Keywords',
 		'ft' => 'Feature table data',
 		'sv' => 'Sequence version',
-		'fh' => 'Feature table header'
+		'fh' => 'Feature table header',
+		'topology'	=> 'Topology (circular or linear)',
+		'mt' => 'Molecule type',
+		'dc' => 'Data class',
+		'td' => 'Taxonomic division',
+		'length' => 'Sequence length'
 	);
 
 	my $result = $n{$id};
