@@ -1,4 +1,4 @@
-#!/usr/pkg/bin/perl 
+#!/usr/bin/perl
 #
 # $Id: mrs_soap.cgi,v 1.9 2005/10/11 13:17:50 maarten Exp $
 #

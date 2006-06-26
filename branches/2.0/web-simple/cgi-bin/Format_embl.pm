@@ -1,5 +1,3 @@
-#!/opt/local/bin/perl -w
-#
 # $Id: Format_embl.pm,v 1.18 2005/10/27 10:59:11 maarten Exp $
 #
 # Copyright 2005, M.L. Hekkelman. CMBI, Radboud Universiteit Nijmegen

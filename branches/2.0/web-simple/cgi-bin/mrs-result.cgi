@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 
 use strict;
 use MRS;
@@ -13,7 +13,7 @@ use XML::SAX::Expat;
 use MRSCommon;
 use Format;
 
-my $q = new MRSCGI(script=>'result.cgi');
+my $q = new MRSCGI(script=>'mrs-result.cgi');
 my $ug = new Data::UUID;
 
 my %cookies = fetch CGI::Cookie;
@@ -291,7 +291,7 @@ sub printResult
 	$result = $q->br;
 	$result .= 
 		&printNavBar(@{$hits}[0]->{hit_nr}, scalar @{$hits}, $hit_count, "Hits",
-			"$base_url/cgi-bin/result.cgi?query=$query_name&first=%i&count=%i",
+			"$base_url/cgi-bin/mrs-result.cgi?query=$query_name&first=%i&count=%i",
 			$options->{dbs});
 	
 	my $mrs_db = new MRS::MDatabank($options->{dbs})
@@ -740,8 +740,8 @@ sub printList
 			
 			push @rows, $q->Tr({
 					-id => "q_$nr",
-					-onClick => "showQuery('$base_url/cgi-bin/result.cgi?query=$name');",
-					-onMouseOver => "enterItem('q_$nr', '$base_url/cgi-bin/result.cgi?query=$name');",
+					-onClick => "showQuery('$base_url/cgi-bin/mrs-result.cgi?query=$name');",
+					-onMouseOver => "enterItem('q_$nr', '$base_url/cgi-bin/mrs-result.cgi?query=$name');",
 					-onMouseOut => "leaveItem('q_$nr');"
 				},
 				$q->td({-style => 'text-align:right' }, $nr),
@@ -756,8 +756,8 @@ sub printList
 		{
 			push @rows, $q->Tr({
 					-id => "q_$nr",
-					-onClick => "showQuery('$base_url/cgi-bin/result.cgi?query=$name');",
-					-onMouseOver => "enterItem('q_$nr', '$base_url/cgi-bin/result.cgi?query=$name');",
+					-onClick => "showQuery('$base_url/cgi-bin/mrs-result.cgi?query=$name');",
+					-onMouseOver => "enterItem('q_$nr', '$base_url/cgi-bin/mrs-result.cgi?query=$name');",
 					-onMouseOut => "leaveItem('q_$nr');"
 				},
 				$q->td({-style => 'text-align:right' }, $nr),
@@ -772,8 +772,8 @@ sub printList
 		{
 			push @rows, $q->Tr({
 					-id => "q_$nr",
-					-onClick => "showQuery('$base_url/cgi-bin/result.cgi?query=$name');",
-					-onMouseOver => "return enterItem('q_$nr', '$base_url/cgi-bin/result.cgi?query=$name');",
+					-onClick => "showQuery('$base_url/cgi-bin/mrs-result.cgi?query=$name');",
+					-onMouseOver => "return enterItem('q_$nr', '$base_url/cgi-bin/mrs-result.cgi?query=$name');",
 					-onMouseOut => "leaveItem('q_$nr');"
 				},
 				$q->td({-style => 'text-align:right' }, $nr),

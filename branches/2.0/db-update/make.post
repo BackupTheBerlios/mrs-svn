@@ -15,17 +15,17 @@ endif
 ifneq ($(PRESERVE_DATE),)
 
 $(DSTDIR)%: $(SRCDIR)%.gz
-	gzcat $< > $@
+	$(GZCAT) $< > $@
 	touch -cr $< $@
 
 $(DSTDIR)%: $(SRCDIR)%.Z
-	zcat $< > $@
+	$(GZCAT) $< > $@
 	touch -cr $< $@
 
 else
 
 $(DSTDIR)%: $(SRCDIR)%.gz
-	gzcat $< > $@
+	$(GZCAT) $< > $@
 
 $(DSTDIR)%: $(SRCDIR)%.Z
 	zcat $< > $@

@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 
 # A simple perl script to create an overview of the status of the available databanks
 # Created by Maarten L. Hekkelman @ CMBI 

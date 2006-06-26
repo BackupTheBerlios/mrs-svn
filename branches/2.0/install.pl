@@ -58,7 +58,6 @@ my %modules = (
 	'Data::UUID'				=> 1,
 	'XML::XSLT'					=> 1,
 	'URI'						=> 1,
-	'XMLRPC::Transport::HTTP'	=> 0,
 	'SOAP::Lite'				=> 0,
 	'SOAP::Transport::HTTP'		=> 0,
 );
@@ -182,16 +181,13 @@ eval {
 };
 
 if ($@ or not defined $boost_version or length($boost_version) == 0) {
-	foreach my $d ( '/usr/include/boost', '/usr/local/include/boost', '/opt/local/include/boost',
-		'/usr/pkg/include/boost' )
+	foreach my $d ( '/usr/include', '/usr/local/include', '/opt/local/include',
+		'/usr/pkg/include' )
 	{
-		if (-d $d) {
-			my $bd = $d;
-			$bd =~ s|/[^/]+$||;
-			
-			eval { $boost_version = &compile_and_catch($C_file, "$cc -I$bd"); };
+		if (-d "$d/boost") {
+			eval { $boost_version = &compile_and_catch($C_file, "$cc -I$d"); };
 			next if ($@);
-			$boost_location = $bd;
+			$boost_location = $d;
 			last;
 		}
 	}

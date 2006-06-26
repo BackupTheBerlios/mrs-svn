@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 
 use strict;
 use MRSCGI;
@@ -184,7 +184,7 @@ sub main()
 		
 		&submitJobs();
 		
-		print $q->redirect("$base_url/cgi-bin/result.cgi");
+		print $q->redirect("$base_url/cgi-bin/mrs-result.cgi");
 	};
 	
 	if ($@)
