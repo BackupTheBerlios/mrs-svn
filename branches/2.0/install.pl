@@ -237,6 +237,9 @@ my $make_script_dir = &ask_for_string("Where should the update scripts go", '/us
 my $parser_script_dir = &ask_for_string("Where should the parser scripts go", '/usr/local/share/mrs/parser_scripts');
 &mkdir_recursive($parser_script_dir);
 
+my $web_dir = &ask_for_string("Where should the website go", '/usr/local/share/mrs/www');
+&mkdir_recursive($web_dir);
+
 my $maintainer = `whoami`;
 chomp($maintainer);
 &ask_for_string("What is the e-mail address for the maintainer", $maintainer);
@@ -279,7 +282,44 @@ system("cd db-update; find . | cpio -p $make_script_dir") == 0
 system("cd plugin/scripts; find . | cpio -p $parser_script_dir") == 0
 	or die "Could not copy over the files in plugin/scripts to $parser_script_dir: $!\n";
 
-# web site still needs to be done
+# web site
+
+system("cd web-simple; find . | cpio -p $web_dir") == 0
+	or die "Could not copy over the files in plugin/scripts to $parser_script_dir: $!\n";
+
+# make sure the permissions are correct
+
+opendir D, "$web_dir/cgi-bin" or die "no cgi-bin directory?";
+my @f = map { "$web_dir/$_" } readdir(D);
+closedir D;
+
+chmod 0644, grep { -f } @f;
+
+@f = grep { -f and m|\.cgi$| } @f;
+
+chmod 0755, @f;
+
+# correct the shebang, if needed
+if ($perlpath ne '/usr/bin/perl') {
+	local($/) = undef;
+	
+	foreach my $f (@f) {
+		open F, "<$f" or die "Could not open cgi script $f\n";
+		my $cgi = <F>;
+		close F;
+		$cgi =~ s|#\!/usr/bin/perl|#\!$perlpath|;
+		open F, ">$f" or die "Could not open cgi script $f\n";
+		print F $cgi;
+		close F; 
+	}
+}
+
+# and now create a new mrs.conf file
+
+if (1) {
+	
+}
+
 
 print "\nOK, installation seems to have worked fine up until now.\n";
 print "Next steps are to build the actual plugins, as stated above you have to\n";

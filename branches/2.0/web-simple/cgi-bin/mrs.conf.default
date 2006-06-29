@@ -6,6 +6,7 @@
 #
 
 $mrs_data = '__DATA_DIR__';
+$mrs_script = '__PARSER_DIR__';
 
 # databases presented to the user:
 

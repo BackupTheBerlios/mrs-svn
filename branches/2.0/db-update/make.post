@@ -36,6 +36,7 @@ $(DSTDIR)%: $(SRCDIR)%
 
 dirs: $(PATHS)
 	@ touch $(STATUSDIR)failed_dbs.txt
+	@ chmod a+rw $(STATUSDIR)failed_dbs.txt
 
 ifeq ($(NO_AUTO_DATA_RULE),)
 data: $(DATFILES)

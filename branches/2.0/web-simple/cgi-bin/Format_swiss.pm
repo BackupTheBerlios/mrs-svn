@@ -90,7 +90,7 @@ sub print_ref
 		$ident = $q->a({-href=>"http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&list_uids=$ident&dopt=Abstract"}, $ident)
 			if ($name eq 'MEDLINE');
 
-		$ident = $q->a({-href=>"http://www.ncbi.nlm.nih.gov/entrez/utils/qmap.cgi?uid=$ident&form=6&db=m&Dopt=r"}, $ident)
+		$ident = $q->a({-href=>"http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=pubmed&cmd=search&term=$ident"}, $ident)
 			if ($name eq 'PubMed');
 		
 		$ident = $q->a({-href=>"http://dx.doi.org/$ident"}, $ident)

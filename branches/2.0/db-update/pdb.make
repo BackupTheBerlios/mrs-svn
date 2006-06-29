@@ -30,7 +30,7 @@ cleanup_deps:
 fetch: cleanup_deps
 	rsync -rltpvz --delete --port=33444 \
 		rsync.rcsb.org::ftp_data/structures/divided/pdb/ \
-		/usr/data/raw/pdb/
+		$(SRCDIR)
 
 include pdb.deps
 
