@@ -244,13 +244,7 @@ my $maintainer = `whoami`;
 chomp($maintainer);
 &ask_for_string("What is the e-mail address for the maintainer", $maintainer);
 
-my $db_conf;
-if (1) {
-	local($/) = undef;
-	open T, "<db-update/make_TEMPLATE.conf" or die "make_TEMPLATE.conf seems to be missing: $@";
-	$db_conf = <T>;
-	close T;
-}
+my $db_conf = &read_file("db-update/make_TEMPLATE.conf");
 
 $data_dir			=~ s|/*$|/|;
 $binpath			=~ s|/*$|/|;
@@ -269,10 +263,7 @@ my $hostname = `$hncmd`;
 chomp($hostname);
 
 my $db_conf_file = "$make_script_dir/make_$hostname.conf";
-
-open MAKE_CONFIG, ">$db_conf_file" or die "Could not create make config file $db_conf_file: $@\n";
-print MAKE_CONFIG $db_conf;
-close MAKE_CONFIG;
+&write_file($db_conf, $db_conf_file);
 
 # copy over all the files in db-update
 system("cd db-update; find . | cpio -p $make_script_dir") == 0
@@ -316,9 +307,18 @@ if ($perlpath ne '/usr/bin/perl') {
 
 # and now create a new mrs.conf file
 
-if (1) {
+my $web_conf = &read_file("$web_dir/cgi-bin/mrs.conf.default");
 	
-}
+$web_conf =~ s|__DATA_DIR__|$data_dir|g;
+$web_conf =~ s|__PARSER_DIR__|$parser_script_dir|g;
+
+&write_file($web_conf, "$web_dir/cgi-bin/mrs.conf");
+
+print "To activate the website you need to add the following lines to your httpd.conf:\n";
+print "\n";
+print "ScriptAlias \"/mrs/cgi-bin/\" \"$web_dir/cgi-bin/\"\n";
+print "Alias \"/mrs/\" \"$web_dir/htdocs/\"\n";
+print "\n";
 
 
 print "\nOK, installation seems to have worked fine up until now.\n";
@@ -378,6 +378,22 @@ sub ask_for_string {
 	$answer = $default unless defined($answer) and length($answer) > 0;
 	
 	return $answer;
+}
+
+sub read_file {
+	my $file = shift;
+	local($/) = undef;
+	open FILE, "<$file" or die "Could not open file $file for reading";
+	my $result = <FILE>;
+	close FILE;
+	return $result;
+}
+
+sub write_file {
+	my ($text, $file) = @_;
+	open FILE, ">$file" or die "Could not open file $file for writing";
+	print FILE $text;
+	close FILE;
 }
 
 sub compile_and_catch {

@@ -7,6 +7,7 @@
 
 $mrs_data = '__DATA_DIR__';
 $mrs_script = '__PARSER_DIR__';
+# $mrs_tmp_dir = '';	# temp dir for blast output
 
 # databases presented to the user:
 
@@ -21,9 +22,9 @@ $mrs_script = '__PARSER_DIR__';
 	{
 		id => 'uniprot',
 		name => 'Protein (UniProt)',
-		filter => 'embl',
+		filter => 'swiss',
 		url => 'http://www.ebi.ac.uk/uniprot/index.html',
-		parser => 'embl.pm'
+		parser => 'uniprot.pm'
 	},
 	{
 		id => 'embl_release|embl_updates',
