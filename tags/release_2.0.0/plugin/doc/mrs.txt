@@ -1,0 +1,21 @@
+Manual to MRS.
+
+MRS allows you to search through all available //databases of //.
+This guide tells you briefly how to use it.
+
+Searching
+
+Select the database you want to search in the first text box. Enter one or more search terms in the second text box and press Search. 
+The search results appear in a numbered list. You should be aware that the number of hits found is an estimate; the smaller the number of hits, the more accurate the estimate will be.
+Click on the link of an //ID// to view the entire entry.
+
+Using keywords for search actions
+
+When you enter more than one keyword, MRS will search for entries in which all of these terms occur. You can also enter Boolean searches:
+AND, OR, and NOT, which have short-term notation as &, | and ! respectively.
+In addition to these /search parameters/ you can use brackets to assign hierarchy to the search terms.
+Use ? to replace a character
+Use * to replace more than one character.
+
+
+

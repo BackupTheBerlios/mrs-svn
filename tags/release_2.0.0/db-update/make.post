@@ -1,0 +1,108 @@
+# Include file for the separate makefiles
+# This makefile contains several default rules that are similar for all
+# databanks
+
+# First some rules to see if we need to throw away files in the repository
+
+ifeq ($(PRESERVE_DAT_FILES),)
+TO_BE_DELETED	= $(filter-out $(notdir $(DATFILES)), $(notdir $(wildcard $(DSTDIR)*)))
+endif
+
+ifneq ($(PRESERVE),)
+	TO_BE_DELETED := $(filter-out $(PRESERVE), $(TO_BE_DELETED))
+endif
+
+ifneq ($(PRESERVE_DATE),)
+
+$(DSTDIR)%: $(SRCDIR)%.gz
+	$(GZCAT) $< > $@
+	touch -cr $< $@
+
+$(DSTDIR)%: $(SRCDIR)%.Z
+	$(GZCAT) $< > $@
+	touch -cr $< $@
+
+else
+
+$(DSTDIR)%: $(SRCDIR)%.gz
+	$(GZCAT) $< > $@
+
+$(DSTDIR)%: $(SRCDIR)%.Z
+	zcat $< > $@
+endif
+
+$(DSTDIR)%: $(SRCDIR)%
+	ln -fs $< $@
+
+dirs: $(PATHS)
+	@ touch $(STATUSDIR)failed_dbs.txt
+	@ chmod a+rw $(STATUSDIR)failed_dbs.txt
+
+ifeq ($(NO_AUTO_DATA_RULE),)
+data: $(DATFILES)
+ifneq ($(TO_BE_DELETED),)
+	rm -f $(addprefix $(DSTDIR), $(TO_BE_DELETED))
+	echo "Deleted $(TO_BE_DELETED)" | mail $(MAINTAINER)
+endif
+endif
+
+blast: $(BLAST_FILES)
+
+ifeq ($(DB_URL),)
+fetch: dirs
+else
+
+ifneq ($(MIRROR_INCLUDE),)
+MIRROR_OPTIONS	+= -i'$(MIRROR_INCLUDE)'
+endif
+
+fetch: dirs
+	$(MIRROR) -d $(SRCDIR) $(MIRROR_OPTIONS) $(DB_URL)
+
+endif
+
+# MRS rules
+
+ifneq ($(MRSLIBS),)
+
+MRS_FILES	= $(addprefix $(MRSDIR), $(MRSLIBS))
+MRS_OPTIONS	= 
+
+ifneq ($(MRSSCRIPT),)
+MRS_OPTIONS	+= -s $(MRSSCRIPT)
+endif
+
+ifneq ($(MRS_PARTS),)
+
+include mrs.include
+
+${MRS_FILES:=.cmp}: $(ZIPFILES)
+	$(MAKE) -f $(DATABANK).make ${PARTS:%=${@:.cmp=}-%.cmp}
+	$(MRS_MERGE) -d $(@F:.cmp=) -P $(MRS_PARTS)
+	chmod a+r $@
+	rm -rf ${PARTS:%=$(MRSDIR)$(@F:.cmp=)%.cmp}
+
+else
+
+${MRS_FILES:=.cmp}: $(ZIPFILES)
+	$(MRS_CREATE) -d ${@F:.cmp=} $(MRS_OPTIONS)
+	chmod a+r $@
+
+endif
+
+$(MRSDIR)%.dict: $(MRSDIR)%.cmp
+	$(MRS_DICT_CREATE) -d ${@F:.dict=} -i $(MRS_DICT) $(MRS_DICT_OPTIONS)
+
+ifneq ($(MRS_DICT),)
+DICT = $(addsuffix .dict, $(basename $(MRS_FILES)))
+endif
+
+mrs: ${MRS_FILES:=.cmp} $(DICT)
+
+else
+
+mrs:
+
+endif
+
+FORCE:
