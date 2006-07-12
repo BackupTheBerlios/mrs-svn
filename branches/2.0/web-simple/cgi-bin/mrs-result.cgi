@@ -10,7 +10,6 @@ use Data::Dumper;
 use POSIX qw(strftime);
 use XML::SAX;
 use XML::SAX::Expat;
-use MRSCommon;
 use Format;
 
 my $q = new MRSCGI(script=>'mrs-result.cgi');
