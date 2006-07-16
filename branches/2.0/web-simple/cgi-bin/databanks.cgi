@@ -21,7 +21,7 @@ unless (my $return = do $settings)
 }
 
 # assume that $mrs_data and $status_dir share the same parent folder
-my $status_dir = "$mrs_data/status/";
+my $status_dir = "$mrs_data/../status/";
 
 my $q = new MRSCGI;
 

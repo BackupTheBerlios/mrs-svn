@@ -310,6 +310,7 @@ if ($perlpath ne '/usr/bin/perl') {
 my $web_conf = &read_file("$web_dir/cgi-bin/mrs.conf.default");
 	
 $web_conf =~ s|__DATA_DIR__|$data_dir|g;
+$web_conf =~ s|__BIN_DIR__|$binpath|g;
 $web_conf =~ s|__PARSER_DIR__|$parser_script_dir|g;
 
 &write_file($web_conf, "$web_dir/cgi-bin/mrs.conf");

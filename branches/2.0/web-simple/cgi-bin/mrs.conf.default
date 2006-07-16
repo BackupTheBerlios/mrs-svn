@@ -5,9 +5,10 @@
 # Copyright 2005, M.L. Hekkelman. CMBI, Radboud Universiteit Nijmegen
 #
 
-$mrs_data = '__DATA_DIR__';
+$mrs_data = '__DATA_DIR__/mrs';
 $mrs_script = '__PARSER_DIR__';
-# $mrs_tmp_dir = '';	# temp dir for blast output
+$bin_dir = '__BIN_DIR__';		# directory where mrs_blast is located
+$mrs_tmp_dir = '/tmp/';			# temp dir for blast output
 
 # databases presented to the user:
 
@@ -20,11 +21,28 @@ $mrs_script = '__PARSER_DIR__';
 		parser => undef
 	},
 	{
-		id => 'uniprot',
+		id => 'sprot+trembl',
 		name => 'Protein (UniProt)',
 		filter => 'swiss',
 		url => 'http://www.ebi.ac.uk/uniprot/index.html',
-		parser => 'uniprot.pm'
+		parser => 'uniprot.pm',
+		blast => 1
+	},
+	{
+		id => 'sprot',
+		name => 'Swissprot',
+		filter => 'swiss',
+		url => 'http://www.ebi.ac.uk/uniprot/index.html',
+		parser => 'uniprot.pm',
+		blast => 1
+	},
+	{
+		id => 'trembl',
+		name => 'TrEMBL',
+		filter => 'swiss',
+		url => 'http://www.ebi.ac.uk/uniprot/index.html',
+		parser => 'uniprot.pm',
+		blast => 1
 	},
 	{
 		id => 'embl_release|embl_updates',
@@ -45,7 +63,8 @@ $mrs_script = '__PARSER_DIR__';
 		name => 'PDB',
 		filter => 'default',
 		url => 'http://www.rcsb.org/pdb/',
-		parser => 'pdb.pm'
+		parser => 'pdb.pm',
+		blast => 1
 	},
 	{
 		id => 'pdbfinder2',
