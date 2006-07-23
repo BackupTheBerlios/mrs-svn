@@ -121,7 +121,7 @@ sub raw_files
 	my ($self, $raw_dir) = @_;
 	
 	$raw_dir =~ s|[^/]+/?$||;
-	$raw_dir =~ s/raw/srs/;
+	$raw_dir =~ s/raw/uncompressed/;
 	
 print "$raw_dir/omim/mimmap.txt\n";
 
