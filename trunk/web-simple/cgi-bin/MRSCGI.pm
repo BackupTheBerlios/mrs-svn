@@ -43,7 +43,7 @@ sub menu($)
 #	push @links, $self->li($self->a({-href=>"$base_url/cgi-bin/crc64.cgi"}, "Find Protein"));
 #	push @links, $self->li($self->a({-href=>"$base_url/cgi-bin/blast.cgi"}, "NCBI-Blast"));
 	push @links, $self->li($self->a({-href=>"$base_url/cgi-bin/mrs-blast.cgi"}, "Blast"));
-	push @links, $self->li($self->a({-href=>"$base_url/cgi-bin/result.cgi"}, "Blast results"));
+	push @links, $self->li($self->a({-href=>"$base_url/cgi-bin/mrs-result.cgi"}, "Blast results"));
 	push @links, $self->li($self->a({-href=>"$base_url/cgi-bin/mrs-clustalw.cgi"}, "ClustalW"));
 	push @links, $self->li($self->a({-href=>"$base_url/cgi-bin/mrs.cgi?help=0"}, "Help"));
 	push @links, $self->li($self->a({-href=>"$base_url/download/index.html"}, "Download"));

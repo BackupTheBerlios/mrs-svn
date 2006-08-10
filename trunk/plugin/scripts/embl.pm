@@ -90,19 +90,15 @@ sub parse
 
 			if ($fld eq 'ID')
 			{
-				$text =~ m/(\S+)/ or warn "No ID found in $text?!?!?\n";
-				$id = $1;
-				$m->IndexValue('id', $id);
-				
-#				my @flds = split(m/;\s*/, $text);
-#
-#				$m->IndexValue('id', $flds[0]);
-#				$flds[1] =~ m/SV (\d+)/ && $m->IndexWord('sv', $1);
-#				$m->IndexWord('topology', $flds[2]);
-#				$m->IndexWord('mt', $flds[3]);
-#				$m->IndexWord('dc', $flds[4]);
-#				$m->IndexWord('td', $flds[5]);
-#				$flds[6] =~ m/(\d+)/ && $m->IndexNumber('length', $1);
+				my @flds = split(m/;\s*/, $text);
+
+				$m->IndexValue('id', $flds[0]);
+				$flds[1] =~ m/SV (\d+)/ && $m->IndexNumber('sv', $1);
+				$m->IndexWord('topology', lc($flds[2]));
+				$m->IndexWord('mt', lc($flds[3]));
+				$m->IndexWord('dc', lc($flds[4]));
+				$m->IndexWord('td', lc($flds[5]));
+				$flds[6] =~ m/(\d+)/ && $m->IndexNumber('length', $1);
 			}
 			elsif (substr($fld, 0, 1) eq 'R')
 			{

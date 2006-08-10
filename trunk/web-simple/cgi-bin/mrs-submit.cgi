@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 
 use strict;
 use MRSCGI;
@@ -19,6 +19,7 @@ my %cookies = fetch CGI::Cookie;
 our @dbs;
 our $mrs_data;
 our $mrs_tmp_dir;
+our $bin_dir;
 
 my $settings = 'mrs.conf';
 unless (my $return = do $settings)
@@ -152,7 +153,7 @@ sub submitJobs()
 		print SCRIPT "#!/bin/tcsh\n";
 		print SCRIPT "#\$ -N blast_$query_name\n";
 		print SCRIPT "cd $work_dir\n";
-		print SCRIPT "( /usr/bin/env MRS_DATA_DIR=$mrs_data /opt/local/bin/mrs_blast -p $program $options -i $query_name.fa -o $query_name.out ) >& $query_name.err\n";
+		print SCRIPT "( /usr/bin/env MRS_DATA_DIR=$mrs_data $bin_dir/mrs_blast -p $program $options -i $query_name.fa -o $query_name.out ) >& $query_name.err\n";
 		close SCRIPT;
 		
 		chmod 0744, "$query_name.csh";
@@ -184,7 +185,7 @@ sub main()
 		
 		&submitJobs();
 		
-		print $q->redirect("$base_url/cgi-bin/result.cgi");
+		print $q->redirect("$base_url/cgi-bin/mrs-result.cgi");
 	};
 	
 	if ($@)

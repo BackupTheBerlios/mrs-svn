@@ -1,5 +1,3 @@
-#!/opt/local/bin/perl -w
-#
 # $Id: Format_oxford.pm,v 1.3 2005/09/20 10:40:15 maarten Exp $
 #
 # Copyright 2005, M.L. Hekkelman. CMBI, Radboud Universiteit Nijmegen

@@ -9,9 +9,18 @@ HOST = $(shell hostname -s)
 include make_$(HOST).conf
 
 SRCDIR		= $(DATADIR)raw/$(DATABANK)/
-DSTDIR		= $(DATADIR)srs/$(DATABANK)/
+DSTDIR		= $(DATADIR)uncompressed/$(DATABANK)/
 FASTADIR	= $(DATADIR)fasta/$(DATABANK)/
-GCGDIR		= $(DATADIR)gcg/$(DATABANK)/
+
+# export the variables that mrs needs
+MRS_DATA_DIR	= $(MRSDIR)
+export MRS_DATA_DIR
+
+MRS_RAW_DIR		= $(DATADIR)raw/
+export MRS_RAW_DIR
+
+MRS_SCRIPT_DIR	= $(PARSERDIR)
+export MRS_SCRIPT_DIR
 
 # some necessary variables to make things work
 
@@ -22,7 +31,7 @@ YEAR		= $(shell date "+%Y")
 RELEASE_SCRIPT	= while (<>) { if (/Release (\d+(\.\d+)?)/) { print $$1; exit; } }
 EMBL_RELEASE	= $(shell perl -e '$(RELEASE_SCRIPT)' $(DATADIR)raw/embl/relnotes.txt)
 
-PATHS		= $(SRCDIR) $(DSTDIR) $(FASTADIR) $(BLASTDIR) $(GCGDIR)
+PATHS		= $(SRCDIR) $(DSTDIR) $(FASTADIR) $(BLASTDIR) $(MRSDIR)
 
 VPATH		:=
 VPATH		+= $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(PATHS))))

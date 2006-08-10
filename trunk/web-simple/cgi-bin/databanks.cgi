@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 
 # A simple perl script to create an overview of the status of the available databanks
 # Created by Maarten L. Hekkelman @ CMBI 
@@ -10,7 +10,19 @@ use POSIX qw(strftime);
 use File::stat;
 use Data::Dumper;
 
-my $status_dir = "/data/status/";
+our $mrs_data;
+
+my $settings = 'mrs.conf';
+unless (my $return = do $settings)
+{
+	warn "couldn't parse $settings: $@" if $@;
+	warn "couldn't do $settings: $!" unless defined $return;
+	warn "couldn't run $settings" unless $return;
+}
+
+# assume that $mrs_data and $status_dir share the same parent folder
+my $status_dir = "$mrs_data/../status/";
+
 my $q = new MRSCGI;
 
 &main();

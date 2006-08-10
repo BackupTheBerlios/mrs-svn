@@ -80,7 +80,12 @@ ifeq ($(HAVE_TR1),1)
 DEFINES		+= USE_TR1
 endif
 
+ifneq ($(SWIG),)
 SWIG_VERSION	= $(shell $(SWIG) -version | grep Version | sed s'/SWIG Version //')
+else
+SWIG_VERSION	= not_installed
+endif
+
 PERL_CORE		= $(shell $(PERL) -MExtUtils::Embed -e perl_inc)
 
 ifeq ($(OS),FreeBSD)
@@ -320,20 +325,23 @@ clean: FORCE
 	rm -rf $(OBJDIR)
 
 dist: FORCE
-	mkdir -p dist/lib
+	mkdir -p dist/lib dist/bin
 	$(PERL) -pi.bak -e 's/^.+VERSION.+$$/\t"VERSION"\t\t\t=> "$(VERSION)",/' dist/Makefile.PL
 	cp MRS.pm $(OUTPUT) dist/lib/
+	cp mrs.pl dist/bin
 	$(STRIP) dist/lib/$(OUTPUT)
 	echo "MANIFEST" > dist/MANIFEST
 	echo "Makefile.PL" >> dist/MANIFEST
 	echo "lib/MRS.pm" >> dist/MANIFEST
+	echo "bin/mrs.pl" >> dist/MANIFEST
 	echo lib/$(OUTPUT) >> dist/MANIFEST
 	rm -rf dist/MRS-$(VERSION).tar.gz
-	cd dist; $(PERL) Makefile.PL; $(MAKE) dist
+	cd dist; $(PERL) Makefile.PL INSTALLSCRIPT=$(INSTALL_DIR); $(MAKE) dist
 
-install: dist
-	cd dist; sudo $(MAKE) install
-#	install -m 755 $< /usr/local/bin/mrs
+install: $(OUTPUT) blast query dist
+	cd dist; $(SUDO) $(MAKE) install
+	$(SUDO) install -m 755 mrs_blast /usr/local/bin/mrs_blast
+	$(SUDO) install -m 755 mrs_query /usr/local/bin/mrs_query
 
 blast: echo_flags lib Sources/mrs_blast.cpp
 	$(CC) $(CFLAGS) -o mrs_blast -ILib/Includes Sources/mrs_blast.cpp $(LIBNAME) $(LDFLAGS)

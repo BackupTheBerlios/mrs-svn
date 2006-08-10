@@ -1,5 +1,3 @@
-#!/opt/local/bin/perl -w
-#
 # $Id: Format_embl.pm,v 1.18 2005/10/27 10:59:11 maarten Exp $
 #
 # Copyright 2005, M.L. Hekkelman. CMBI, Radboud Universiteit Nijmegen
@@ -21,7 +19,7 @@ my @links_db_xref = (
 		result	=> '$1.$q->a({-href=>"$url?db=embl_release|embl_updates&query=ac:$2"}, $2)'
 	},
 	{
-		match	=> qr[^(swiss-prot|sptrembl|uniprot/swiss-prot|uniprot/trembl):(\S+)]i,
+		match	=> qr[^(swiss-prot|sptrembl|uniprot/swiss-prot|uniprot/trembl|UniProtKB/Swiss-Prot):(\S+)]i,
 		result	=> '$1.":".$q->a({-href=>"$url?db=sprot%2Btrembl&query=ac:$2"}, $2)'
 	},
 	{
@@ -122,7 +120,7 @@ sub print_ref
 		$ident = $q->a({-href=>"http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&list_uids=$ident&dopt=Abstract"}, $ident)
 			if (lc $name eq 'medline');
 
-		$ident = $q->a({-href=>"http://www.ncbi.nlm.nih.gov/entrez/utils/qmap.cgi?uid=$ident&form=6&db=m&Dopt=r"}, $ident)
+		$ident = $q->a({-href=>"http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=pubmed&cmd=search&term=$ident"}, $ident)
 			if (lc $name eq 'pubmed');
 		
 		$ident = $q->a({-href=>"http://dx.doi.org/$ident"}, $ident)
@@ -661,7 +659,12 @@ sub to_field_name
 		'kw' => 'Keywords',
 		'ft' => 'Feature table data',
 		'sv' => 'Sequence version',
-		'fh' => 'Feature table header'
+		'fh' => 'Feature table header',
+		'topology'	=> 'Topology (circular or linear)',
+		'mt' => 'Molecule type',
+		'dc' => 'Data class',
+		'td' => 'Taxonomic division',
+		'length' => 'Sequence length'
 	);
 
 	my $result = $n{$id};

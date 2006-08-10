@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 
 use strict;
 use MRSCGI;
@@ -7,7 +7,6 @@ use CGI::Cookie;
 use CGI::Carp qw(fatalsToBrowser);
 use Data::UUID;
 use Data::Dumper;
-use MRSCommon;
 use Format;
 use MRS;
 

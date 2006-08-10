@@ -20,7 +20,7 @@ ifeq ($(DATABASES),)
 DATABASES	= $(ALL_DATABASES)
 endif
 
-FAILED_DBS = $(sort $(shell cat $(STATUSDIR)failed_dbs.txt))
+FAILED_DBS = $(sort $(shell cat $(STATUSDIR)failed_dbs.txt) || echo -n "")
 DATABASES	:= $(filter-out $(FAILED_DBS), $(DATABASES))
 
 ifeq ($(NOT_DAILY),)
@@ -33,7 +33,6 @@ DAILY		= $(filter-out $(NOT_DAILY), $(WEEKLY))
 
 # internal rules and macros
 
-
 ifneq ($(DAILY),)
 DBDAILYFLAGS =	$(addprefix $(FLAGSDIR), $(DAILY))
 endif
@@ -42,6 +41,7 @@ ifneq ($(WEEKLY),)
 DBWEEKLYFLAGS =	$(addprefix $(FLAGSDIR), $(WEEKLY))
 endif
 
+DBFLAGS =		$(addprefix $(FLAGSDIR), $(DATABASES))
 DBALLFLAGS =	$(addprefix $(FLAGSDIR), $(ALL_DATABASES))
 
 # The directories that need to exist in order to be able to run
@@ -58,10 +58,10 @@ ${DIRS}:
 dirs: $(DIRS)
 
 # this may not run on all systems:
-$(BINDIR)%: $(SCRIPTDIR)%.cpp
+$(SCRIPTDIR)/%: $(SCRIPTDIR)/%.cpp
 	g++ -o $@ $<
 
-tools: $(BINDIR)run_and_log $(BINDIR)lock_and_run
+tools: $(SCRIPTDIR)/run_and_log $(SCRIPTDIR)/lock_and_run $(SCRIPTDIR)/swiss2fasta
 
 # The meat of this makefile, the rule(s) to first fetch/mirror the data and
 # then to execute the database's makefile.
@@ -69,14 +69,14 @@ tools: $(BINDIR)run_and_log $(BINDIR)lock_and_run
 # the execution.
 
 ${DBALLFLAGS:=.make}:
-	@ $(BINDIR)run_and_log -r 3 -l $(STATUSDIR)${@F:.make=}.make_log \
+	@ $(SCRIPTDIR)/run_and_log -r 3 -l $(STATUSDIR)${@F:.make=}.make_log \
 		$(MAKE) -f ${@F:.make=}.make data mrs blast || echo ${@F:.make=} >> $(STATUSDIR)failed_dbs.txt
 	sync
 	touch $(STATUSDIR)$(@F)
 	touch $@
 
 ${DBALLFLAGS:=.fetched}:
-	@ $(BINDIR)run_and_log -r 3 -l $(STATUSDIR)${@F:.fetched=}.mirror_log \
+	@ $(SCRIPTDIR)/run_and_log -r 3 -l $(STATUSDIR)${@F:.fetched=}.mirror_log \
 		$(MAKE) -f ${@F:.fetched=}.make fetch || echo ${@F:.make=} >> $(STATUSDIR)failed_dbs.txt
 	sync
 	touch $(STATUSDIR)$(@F)
@@ -98,7 +98,7 @@ weekly: tools dirs ${DBWEEKLYFLAGS:=.done}
 	@ find $(FLAGSDIR) -type f | xargs rm
 	echo "Weekly update done"
 
-all: tools dirs ${DBALLFLAGS:=.done}
+all: tools dirs ${DBFLAGS:=.done}
 	@ find $(FLAGSDIR) -type f | xargs rm
 	echo "Complete update done"
 
@@ -113,21 +113,6 @@ allweeklydata: tools dirs ${DBWEEKLYFLAGS:=.make}
 test:
 	echo $(DATABASES)
 
-${ALL_DATABASES}:
+${ALL_DATABASES}: tools dirs
 	$(MAKE) $(FLAGSDIR)$@.done
 	rm $(FLAGSDIR)$@.*
-
-# The next rules are used on cmbi8 to regenerate the structure databanks
-
-dssp: uniprot pdb
-
-hssp: dssp
-
-pdbfinder: dssp hssp
-
-pdbfinder2: pdbfinder
-
-structure_dbs: pdbfinder2
-	@ find $(FLAGSDIR) -type f | xargs rm
-	echo "Structure DB update done"
-

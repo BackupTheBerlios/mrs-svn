@@ -1,5 +1,3 @@
-#!/opt/local/bin/perl -w
-#
 # $Id: Format_interpro.pm,v 1.4 2005/11/08 15:19:19 maarten Exp $
 #
 # Copyright 2005, M.L. Hekkelman. CMBI, Radboud Universiteit Nijmegen

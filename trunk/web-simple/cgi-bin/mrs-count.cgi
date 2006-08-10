@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 #
 # $Id: mrs-count.cgi,v 1.1 2005/10/13 14:14:07 maarten Exp $
 #

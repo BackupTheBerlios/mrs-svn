@@ -1,5 +1,3 @@
-#!/opt/local/bin/perl -w
-#
 # $Id: Format_dbest.pm,v 1.3 2005/08/26 09:08:54 maarten Exp $
 #
 # Copyright 2005, M.L. Hekkelman. CMBI, Radboud Universiteit Nijmegen
