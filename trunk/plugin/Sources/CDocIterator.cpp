@@ -530,14 +530,14 @@ uint32 CDbAllDocIterator::Read() const
 	return fDocNr;
 }
 
-CDocVectorIterator::CDocVectorIterator(const DocFreqVector& inDocs)
+CDocFreqVectorIterator::CDocFreqVectorIterator(const DocFreqVector& inDocs)
 	: fDocs(new DocFreqVector(inDocs))
 	, fCur(0)
 	, fRead(0)
 {
 }
 
-bool CDocVectorIterator::Next(uint32& ioValue, bool inSkip)
+bool CDocFreqVectorIterator::Next(uint32& ioValue, bool inSkip)
 {
 	bool result = false;
 	while (not result and fCur < fDocs->size())
@@ -555,7 +555,7 @@ bool CDocVectorIterator::Next(uint32& ioValue, bool inSkip)
 	return result;
 }
 
-bool CDocVectorIterator::Next(uint32& ioDoc, float& outFreq, bool inSkip)
+bool CDocFreqVectorIterator::Next(uint32& ioDoc, float& outFreq, bool inSkip)
 {
 	bool result = false;
 	while (not result and fCur < fDocs->size())
@@ -569,6 +569,43 @@ bool CDocVectorIterator::Next(uint32& ioDoc, float& outFreq, bool inSkip)
 		result = true;
 		ioDoc = fDocs->at(fCur).first;
 		outFreq = fDocs->at(fCur).second;
+		++fCur;
+	}
+	return result;
+}
+
+bool CDocVectorIterator::Next(uint32& ioValue, bool inSkip)
+{
+	bool result = false;
+	while (not result and fCur < fDocs.size())
+	{
+		if (fDocs[fCur] <= ioValue and inSkip)
+		{
+			++fCur;
+			continue;
+		}
+		
+		result = true;
+		ioValue = fDocs[fCur];
+		++fCur;
+	}
+	return result;
+}
+
+bool CDocVectorIterator::Next(uint32& ioDoc, float& outFreq, bool inSkip)
+{
+	bool result = false;
+	while (not result and fCur < fDocs.size())
+	{
+		if (fDocs[fCur] <= ioDoc and inSkip)
+		{
+			++fCur;
+			continue;
+		}
+		
+		result = true;
+		ioDoc = fDocs[fCur];
+		outFreq = 1;
 		++fCur;
 	}
 	return result;
@@ -719,11 +756,11 @@ CDocCachedIterator::CDocCachedIterator(CDocIterator* inIterator, uint32 inCache)
 	, fCacheContainsAll(false)
 {
 	double start = system_time();
-	double kLimitTime = 0.1;		// limit to a tenth of a second
+	double kLimitTime = start + 0.1;		// limit to a tenth of a second
 
 	uint32 v = 0, n = 0;
 	
-	while (n++ < 1000 or start + kLimitTime > system_time())
+	while (++n < 1000 or ((n % 128) == 0 and kLimitTime > system_time()))
 	{
 		if (fIter->Next(v, false))
 			fCache.push_back(v);

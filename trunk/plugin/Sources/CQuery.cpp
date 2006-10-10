@@ -753,6 +753,27 @@ CQueryImp::IteratorForString(const string& inIndex, const string& inString)
 //	QueryObject support
 //
 
+void CQueryObject::Prefetch()
+{
+	auto_ptr<CDocIterator> iter(Perform());
+	
+	uint32 doc;
+	while (iter->Next(doc, false))
+		fPrefetch.push_back(doc);
+}
+
+CDocIterator* CQueryObject::Perform()
+{
+	auto_ptr<CDocIterator> result;
+	
+	if (fPrefetch.size() > 0)
+		result.reset(new CDocVectorIterator(fPrefetch));
+	else
+		result.reset(DoPerform());
+	
+	return result.release();
+}
+
 CMatchQueryObject::CMatchQueryObject(CDatabankBase& inDb,
 		const string& inValue, const string& inIndex)
 	: CQueryObject(inDb)
@@ -786,7 +807,7 @@ CMatchQueryObject::CMatchQueryObject(CDatabankBase& inDb,
 		THROW(("Unknown relational operator '%s'", inRelOp.c_str()));
 }
 
-CDocIterator* CMatchQueryObject::Perform()
+CDocIterator* CMatchQueryObject::DoPerform()
 {
 	CQueryImp parser(fDb);
 	return parser.Build(fIndex, fValue, fRelOp);
@@ -800,7 +821,7 @@ CNotQueryObject::CNotQueryObject(CDatabankBase& inDb, boost::shared_ptr<CQueryOb
 {
 }
 
-CDocIterator* CNotQueryObject::Perform()
+CDocIterator* CNotQueryObject::DoPerform()
 {
 	return new CDocNotIterator(fChild->Perform(), fDb.Count()); 
 }
@@ -815,7 +836,7 @@ CUnionQueryObject::CUnionQueryObject(CDatabankBase& inDb,
 {
 }
 
-CDocIterator* CUnionQueryObject::Perform()
+CDocIterator* CUnionQueryObject::DoPerform()
 {
 	return CDocUnionIterator::Create(fChildA->Perform(), fChildB->Perform());
 }
@@ -830,7 +851,7 @@ CIntersectionQueryObject::CIntersectionQueryObject(CDatabankBase& inDb,
 {
 }
 
-CDocIterator* CIntersectionQueryObject::Perform()
+CDocIterator* CIntersectionQueryObject::DoPerform()
 {
 	return CDocIntersectionIterator::Create(fChildA->Perform(), fChildB->Perform());
 }
@@ -845,7 +866,7 @@ CParsedQueryObject::CParsedQueryObject(CDatabankBase& inDb,
 {
 }
 
-CDocIterator* CParsedQueryObject::Perform()
+CDocIterator* CParsedQueryObject::DoPerform()
 {
 	CQueryImp parser(fDb, fQuery, fAutoWildcard);
 	return parser.Parse();

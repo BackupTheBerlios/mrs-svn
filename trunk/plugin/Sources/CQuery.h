@@ -58,11 +58,16 @@ class CQueryObject
 								: fDb(inDb) {}
 	virtual					~CQueryObject() {}
 	
-	virtual CDocIterator*	Perform() = 0;
-	
+	CDocIterator*			Perform();
+
+	void					Prefetch();
 	
   protected:
+
+	virtual CDocIterator*	DoPerform() = 0;
+
 	CDatabankBase&			fDb;
+	std::vector<uint32>		fPrefetch;
 };
 
 class CMatchQueryObject : public CQueryObject
@@ -76,9 +81,10 @@ class CMatchQueryObject : public CQueryObject
 								const std::string& inRelOp,
 								const std::string& inIndex);
 
-	virtual CDocIterator*	Perform();
-
   protected:
+
+	virtual CDocIterator*	DoPerform();
+
 	std::string				fValue;
 	std::string				fIndex;
 	CQueryOperator			fRelOp;
@@ -91,9 +97,10 @@ class CNotQueryObject : public CQueryObject
 							CNotQueryObject(CDatabankBase& inDb,
 								boost::shared_ptr<CQueryObject> inChild);
 
-	virtual CDocIterator*	Perform();
-
   private:
+
+	virtual CDocIterator*	DoPerform();
+
 	boost::shared_ptr<CQueryObject>		fChild;
 };
 
@@ -104,9 +111,10 @@ class CUnionQueryObject : public CQueryObject
 								boost::shared_ptr<CQueryObject> inObjectA,
 								boost::shared_ptr<CQueryObject> inObjectB);
 
-	virtual CDocIterator*	Perform();
-
   private:
+
+	virtual CDocIterator*	DoPerform();
+
 	boost::shared_ptr<CQueryObject>		fChildA;
 	boost::shared_ptr<CQueryObject>		fChildB;
 };
@@ -118,9 +126,10 @@ class CIntersectionQueryObject : public CQueryObject
 								boost::shared_ptr<CQueryObject> inObjectA,
 								boost::shared_ptr<CQueryObject> inObjectB);
 
-	virtual CDocIterator*	Perform();
-
   private:
+
+	virtual CDocIterator*	DoPerform();
+
 	boost::shared_ptr<CQueryObject>		fChildA;
 	boost::shared_ptr<CQueryObject>		fChildB;
 };
@@ -131,9 +140,10 @@ class CParsedQueryObject : public CQueryObject
 							CParsedQueryObject(CDatabankBase& inDb,
 								const std::string& inQuery, bool inAutoWildcard);
 
-	virtual CDocIterator*	Perform();
-
   private:
+
+	virtual CDocIterator*	DoPerform();
+
 	std::string				fQuery;
 	bool					fAutoWildcard;
 };

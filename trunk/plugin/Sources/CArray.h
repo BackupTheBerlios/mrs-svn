@@ -50,7 +50,8 @@ template <class T>
 class CCArray
 {
   public:
-	static const int kPageSize;
+//	static const int kPageSize;
+	enum { kPageSize = 256 };
 
 						CCArray(const std::vector<T>& inData, int64 inMax);
 						CCArray(HStreamBase& inData, int64 inMax);

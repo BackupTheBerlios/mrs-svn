@@ -146,24 +146,9 @@ uint32 COBitStream::bit_size() const
 
 // ibit
 
-struct CIBitStream_imp
+struct CIBitStreamConstImp : public CIBitStream::CIBitStreamImp
 {
-					CIBitStream_imp(int32 inSize)
-						: size(inSize), byte_offset(0) {}
-	
-	virtual			~CIBitStream_imp() {}
-	
-	virtual void	get(int8& outByte) = 0;
-	virtual CIBitStream_imp*
-					clone() const = 0;
-
-	int32			size;
-	uint32			byte_offset;
-};
-
-struct const_CIBitStream_imp : public CIBitStream_imp
-{
-					const_CIBitStream_imp(const char* inData, int32 inSize);
+					CIBitStreamConstImp(const char* inData, int32 inSize);
 	
 	virtual void	get(int8& outByte)
 					{
@@ -172,10 +157,10 @@ struct const_CIBitStream_imp : public CIBitStream_imp
 						++byte_offset;
 					}
 
-	virtual CIBitStream_imp*
+	virtual CIBitStreamImp*
 					clone() const
 					{
-						const_CIBitStream_imp* result = new const_CIBitStream_imp(data, 0);
+						CIBitStreamConstImp* result = new CIBitStreamConstImp(data, 0);
 						result->offset = offset;
 						result->size = size;
 						return result;
@@ -185,8 +170,8 @@ struct const_CIBitStream_imp : public CIBitStream_imp
 	uint32			offset;
 };
 
-const_CIBitStream_imp::const_CIBitStream_imp(const char* inData, int32 inSize)
-	: CIBitStream_imp(inSize)
+CIBitStreamConstImp::CIBitStreamConstImp(const char* inData, int32 inSize)
+	: CIBitStreamImp(inSize)
 	, data(inData)
 	, offset(0)
 {
@@ -207,9 +192,9 @@ const_CIBitStream_imp::const_CIBitStream_imp(const char* inData, int32 inSize)
 		size = numeric_limits<int32>::max();
 }
 
-struct file_CIBitStream_imp : public CIBitStream_imp
+struct CIBitStreamFileImp : public CIBitStream::CIBitStreamImp
 {
-					file_CIBitStream_imp(HStreamBase& inData,
+					CIBitStreamFileImp(HStreamBase& inData,
 						int64 inOffset, int32 inSize);
 	
 	virtual void	get(int8& outByte)
@@ -226,10 +211,10 @@ struct file_CIBitStream_imp : public CIBitStream_imp
 						++byte_offset;
 					}
 
-	virtual CIBitStream_imp*
+	virtual CIBitStreamImp*
 					clone() const
 					{
-						file_CIBitStream_imp* result = new file_CIBitStream_imp(data, offset, 0);
+						CIBitStreamFileImp* result = new CIBitStreamFileImp(data, offset, 0);
 						result->size = size;
 						return result;
 					}
@@ -243,9 +228,9 @@ struct file_CIBitStream_imp : public CIBitStream_imp
 	char*			buffer_ptr;
 };
 
-file_CIBitStream_imp::file_CIBitStream_imp(HStreamBase& inData,
+CIBitStreamFileImp::CIBitStreamFileImp(HStreamBase& inData,
 			int64 inOffset, int32 inSize)
-	: CIBitStream_imp(inSize)
+	: CIBitStreamImp(inSize)
 	, data(inData)
 	, offset(inOffset)
 	, buffer_size(0)
@@ -267,7 +252,7 @@ file_CIBitStream_imp::file_CIBitStream_imp(HStreamBase& inData,
 	}
 }
 
-void file_CIBitStream_imp::read()
+void CIBitStreamFileImp::read()
 {
 	if (buffer_size == 0)				// avoid reading excess bytes in the first call
 		buffer_size = kBitBufferSize;
@@ -286,21 +271,21 @@ void file_CIBitStream_imp::read()
 }
 
 CIBitStream::CIBitStream(HStreamBase& inData, int64 inOffset)
-	: impl(new file_CIBitStream_imp(inData, inOffset, numeric_limits<int32>::max()))
+	: impl(new CIBitStreamFileImp(inData, inOffset, numeric_limits<int32>::max()))
 	, bit_offset(7)
 {
 	impl->get(byte);
 }
 
 CIBitStream::CIBitStream(HStreamBase& inData, int64 inOffset, uint32 inSize)
-	: impl(new file_CIBitStream_imp(inData, inOffset, static_cast<int32>(inSize)))
+	: impl(new CIBitStreamFileImp(inData, inOffset, static_cast<int32>(inSize)))
 	, bit_offset(7)
 {
 	impl->get(byte);
 }
 
 CIBitStream::CIBitStream(const char* inData, uint32 inSize)
-	: impl(new const_CIBitStream_imp(inData, static_cast<int32>(inSize)))
+	: impl(new CIBitStreamConstImp(inData, static_cast<int32>(inSize)))
 	, bit_offset(7)
 {
 	impl->get(byte);
@@ -316,25 +301,6 @@ CIBitStream::CIBitStream(const CIBitStream& inOther)
 CIBitStream::~CIBitStream()
 {
 	delete impl;
-}
-
-bool CIBitStream::eof() const
-{
-	return (7 - bit_offset) >= (8 + impl->size);
-}
-
-void CIBitStream::underflow()
-{
-	if (not eof())
-	{
-		impl->get(byte);
-		bit_offset = 7;
-	}
-}
-
-uint32 CIBitStream::bytes_read() const
-{
-	return impl->byte_offset;
 }
 
 // routines

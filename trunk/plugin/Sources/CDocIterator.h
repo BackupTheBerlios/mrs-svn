@@ -252,16 +252,16 @@ class CDocNotIterator : public CDocIterator
 	uint32			fCur, fNext, fMax, fRead;
 };
 
-class CDocVectorIterator : public CDocIterator
+class CDocFreqVectorIterator : public CDocIterator
 {
   public:
 	typedef std::vector<std::pair<uint32,float> > DocFreqVector;
 
-					CDocVectorIterator(DocFreqVector* inDocs)
+					CDocFreqVectorIterator(DocFreqVector* inDocs)
 						: fDocs(inDocs)
 						, fCur(0)
 						, fRead(0) {}
-					CDocVectorIterator(const DocFreqVector& inDocs);
+					CDocFreqVectorIterator(const DocFreqVector& inDocs);
 	
 	virtual bool	Next(uint32& ioDoc, float& outScore, bool inSkip);
 	virtual bool	Next(uint32& ioValue, bool inSkip);
@@ -270,6 +270,26 @@ class CDocVectorIterator : public CDocIterator
 
   private:
 	std::auto_ptr<DocFreqVector>	fDocs;
+	uint32			fCur, fRead;
+};
+
+class CDocVectorIterator : public CDocIterator
+{
+  public:
+	typedef std::vector<uint32> DocVector;
+
+					CDocVectorIterator(DocVector& inDocs)
+						: fDocs(inDocs)
+						, fCur(0)
+						, fRead(0) {}
+	
+	virtual bool	Next(uint32& ioDoc, float& outScore, bool inSkip);
+	virtual bool	Next(uint32& ioValue, bool inSkip);
+	virtual uint32	Count() const						{ return fDocs.size(); }
+	virtual uint32	Read() const						{ return fRead; }
+
+  private:
+	DocVector&		fDocs;
 	uint32			fCur, fRead;
 };
 

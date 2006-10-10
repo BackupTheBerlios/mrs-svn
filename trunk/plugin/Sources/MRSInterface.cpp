@@ -198,7 +198,7 @@ struct MQueryResultsImp
 								{
 									bool result = false;
 
-									CDocVectorIterator* vi = dynamic_cast<CDocVectorIterator*>(fIter.get());
+									CDocFreqVectorIterator* vi = dynamic_cast<CDocFreqVectorIterator*>(fIter.get());
 									if (vi != nil)
 										result = vi->Next(outDoc, fScore, false);
 									else if (fIter.get() != nil)
@@ -1198,6 +1198,11 @@ MBooleanQuery* MBooleanQuery::Intersection(MBooleanQuery* inQueryA, MBooleanQuer
 	imp->fQuery.reset(new CIntersectionQueryObject(*imp->fDatabank,
 		inQueryA->fImpl->fQuery, inQueryB->fImpl->fQuery));
 	return MBooleanQuery::Create(imp.release());
+}
+
+void MBooleanQuery::Prefetch()
+{
+	fImpl->fQuery->Prefetch();
 }
 
 MQueryResults* MBooleanQuery::Perform()

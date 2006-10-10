@@ -461,11 +461,11 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	
 	sort_heap(docs.begin(), docs.end(), greater<CDocScore>());
 	
-	auto_ptr<CDocVectorIterator::DocFreqVector> dv(new CDocVectorIterator::DocFreqVector());
+	auto_ptr<CDocFreqVectorIterator::DocFreqVector> dv(new CDocFreqVectorIterator::DocFreqVector());
 	dv->reserve(docs.size());
 
 	for (vector<CDocScore>::iterator i = docs.begin(); i != docs.end(); ++i)
 		dv->push_back(make_pair(i->fDocNr, i->fRank * 100));
 
-	return new CDocVectorIterator(dv.release());
+	return new CDocFreqVectorIterator(dv.release());
 }

@@ -140,8 +140,8 @@ HStreamBase& operator<<(HStreamBase& inData, const SIndexHeader& inStruct)
 	
 	data.Write(&inStruct.sig, sizeof(inStruct.sig));
 	data << kSIndexHeaderSize << inStruct.entries
-		 << inStruct.count << inStruct.weight_bit_count
-		 << inStruct.array_compression_kind;
+		 << inStruct.count << inStruct.weight_bit_count;
+	data.Write(&inStruct.array_compression_kind, sizeof(inStruct.array_compression_kind));
 	
 	return inData;
 }
@@ -159,7 +159,16 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexHeader& inStruct)
 		inStruct.weight_bit_count = 6;
 
 	if (inStruct.size >= kSIndexHeaderSize)
-		data >> inStruct.array_compression_kind;
+	{
+		data.Read(&inStruct.array_compression_kind, sizeof(&inStruct.array_compression_kind));
+		
+		// stupid me...
+		
+		if (inStruct.array_compression_kind == '1les')
+			inStruct.array_compression_kind = kAC_SelectorCode;
+		else if (inStruct.array_compression_kind == 'olog')
+			inStruct.array_compression_kind = kAC_GolombCode;
+	}
 	else
 		inStruct.array_compression_kind = kAC_GolombCode;
 	

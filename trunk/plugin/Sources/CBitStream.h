@@ -49,6 +49,11 @@
 
 class HStreamBase;
 
+// --------------------------------------------------------------------
+//
+// COBitStream, class used to stream bits to a 'file'
+//
+
 class COBitStream
 {
   public:
@@ -78,9 +83,52 @@ class COBitStream
 	HStreamBase*	file;
 };
 
+inline
+COBitStream& COBitStream::operator<<(int inBit)
+{
+	if (data == NULL)
+		overflow();
+	
+	if (inBit)
+		data[byte_offset] |= static_cast<char>(1 << bit_offset);
+
+	if (--bit_offset < 0)
+	{
+		++byte_offset;
+		bit_offset = 7;
+
+		if (byte_offset >= physical_size)
+			overflow();
+
+		data[byte_offset] = 0;
+	}
+	return *this;
+}
+
+// --------------------------------------------------------------------
+//
+// CIBitStream, class used to read bits from a data stream
+//
+
 class CIBitStream
 {
   public:
+
+	struct CIBitStreamImp
+	{
+						CIBitStreamImp(int32 inSize)
+							: size(inSize), byte_offset(0) {}
+		
+		virtual			~CIBitStreamImp() {}
+		
+		virtual void	get(int8& outByte) = 0;
+		virtual CIBitStreamImp*
+						clone() const = 0;
+	
+		int32			size;
+		uint32			byte_offset;
+	};
+
 					CIBitStream(HStreamBase& inData, int64 inOffset);
 					CIBitStream(HStreamBase& inData, int64 inOffset, uint32 inSize);
 					CIBitStream(const char* inData, uint32 inSize);
@@ -104,11 +152,60 @@ class CIBitStream
 
   private:
 
-	struct CIBitStream_imp*	impl;
+	struct CIBitStreamImp*	impl;
 
 	int8			byte;
 	int8			bit_offset;
 };
+
+// make sure the inlines are visible before being used!
+
+inline
+bool CIBitStream::eof() const
+{
+	return (7 - bit_offset) >= (8 + impl->size);
+}
+
+inline
+void CIBitStream::underflow()
+{
+	if (not eof())
+	{
+		impl->get(byte);
+		bit_offset = 7;
+	}
+}
+
+inline
+uint32 CIBitStream::bytes_read() const
+{
+	return impl->byte_offset;
+}
+
+inline
+int CIBitStream::next_bit()
+{
+	int result = (byte & (1 << bit_offset)) != 0;
+	--bit_offset;
+
+	if (bit_offset < 0)
+		underflow();
+
+	return result;
+}
+
+inline
+CIBitStream& CIBitStream::operator>>(int& outBit)
+{
+	outBit = next_bit();
+
+	return *this;
+}
+
+// --------------------------------------------------------------------
+//
+// Several global functions used to read from/write to the bit streams
+//
 
 uint32 ReadGamma(CIBitStream& inBits);
 void WriteGamma(COBitStream& inBits, uint32 inValue);
@@ -117,6 +214,7 @@ uint32 ReadUnary(CIBitStream& inBits);
 void WriteUnary(COBitStream& inBits, uint32 inValue);
 
 template<class T>
+inline
 T ReadBinary(CIBitStream& inBits, int inBitCount)
 {
 	assert(inBitCount < sizeof(T) * 8);
@@ -133,6 +231,7 @@ T ReadBinary(CIBitStream& inBits, int inBitCount)
 }
 
 template<class T>
+inline
 void WriteBinary(COBitStream& inBits, T inValue, int inBitCount)
 {
 	assert(inBitCount <= sizeof(T) * 8);
@@ -140,101 +239,6 @@ void WriteBinary(COBitStream& inBits, T inValue, int inBitCount)
 	for (int32 i = inBitCount - 1; i >= 0; --i)
 		inBits << ((inValue & (1 << i)) != 0);
 }
-
-template<int bit_size>
-class CBinaryOutStream
-{
-  public:
-						CBinaryOutStream(COBitStream& inStream)
-							: fBits(inStream)
-						{
-						}
-	
-	CBinaryOutStream&	operator<<(uint32 inValue)
-	{
-		for (int32 i = bit_size - 1; i >= 0; --i)
-			fBits << ((inValue & (1 << i)) != 0);
-		return *this;
-	}
-
-  private:
-	COBitStream&		fBits;
-};
-
-template<int bit_size>
-class CBinaryInStream
-{
-  public:
-						CBinaryInStream(CIBitStream& inStream)
-							: fBits(inStream)
-						{
-						}
-	
-	template<typename T>
-	CBinaryInStream&	operator>>(T& outValue)
-	{
-		outValue = 0;
-		for (int32 i = bit_size - 1; i >= 0; --i)
-		{
-			if (fBits.next_bit())
-				outValue |= 1 << i;
-		}
-		return *this;
-	}
-
-  private:
-	CIBitStream&		fBits;
-};
-
-// inline implementations
-
-inline
-COBitStream& COBitStream::operator<<(int inBit)
-{
-	if (data == NULL)
-		overflow();
-	
-	if (inBit)
-		data[byte_offset] |= static_cast<char>(1 << bit_offset);
-
-	if (--bit_offset < 0)
-	{
-		++byte_offset;
-		bit_offset = 7;
-
-		if (byte_offset >= physical_size)
-			overflow();
-
-		data[byte_offset] = 0;
-	}
-	return *this;
-}
-
-inline
-CIBitStream& CIBitStream::operator>>(int& outBit)
-{
-	outBit = (byte & (1 << bit_offset)) != 0;
-	--bit_offset;
-
-	if (bit_offset < 0)
-		underflow();
-
-	return *this;
-}
-
-inline
-int CIBitStream::next_bit()
-{
-	int result = (byte & (1 << bit_offset)) != 0;
-	--bit_offset;
-
-	if (bit_offset < 0)
-		underflow();
-
-	return result;
-}
-
-// compressarray implementation:
 
 inline
 int32 CalculateB(int64 inMax, uint32 inCnt)

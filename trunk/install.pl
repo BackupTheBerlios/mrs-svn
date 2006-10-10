@@ -56,7 +56,6 @@ my %modules = (
 	'XML::SAX'					=> 1,
 	'XML::SAX::Expat'			=> 1,
 	'Data::UUID'				=> 1,
-	'XML::XSLT'					=> 1,
 	'URI'						=> 1,
 	'SOAP::Lite'				=> 0,
 	'SOAP::Transport::HTTP'		=> 0,
@@ -74,7 +73,7 @@ foreach my $m (keys %modules) {
 	}
 }
 
-if (scalar @missing_modules > 0) {
+if (0 and scalar @missing_modules > 0) {
 	print "Missing modules: ", join(", ", @missing_modules), "\n";
 	
 	die "Please install these before continuing installation\n" if ($essential);

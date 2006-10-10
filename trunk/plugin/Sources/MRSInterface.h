@@ -203,6 +203,8 @@ class MBooleanQuery : public MRSObject<MBooleanQuery, struct MBooleanQueryImp>
 	static MBooleanQuery*	Intersection(MBooleanQuery* inQueryA, MBooleanQuery* inQueryB);
 	
 	MQueryResults*			Perform();
+
+	void					Prefetch();
 };
 
 class MRankedQuery : public MRSObject<MRankedQuery, struct MRankedQueryImp>
