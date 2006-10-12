@@ -160,13 +160,13 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexHeader& inStruct)
 
 	if (inStruct.size >= kSIndexHeaderSize)
 	{
-		data.Read(&inStruct.array_compression_kind, sizeof(&inStruct.array_compression_kind));
+		data.Read(&inStruct.array_compression_kind, sizeof(inStruct.array_compression_kind));
 		
 		// stupid me...
 		
-		if (inStruct.array_compression_kind == '1les')
+		if (inStruct.array_compression_kind == FOUR_CHAR_INLINE('1les'))
 			inStruct.array_compression_kind = kAC_SelectorCode;
-		else if (inStruct.array_compression_kind == 'olog')
+		else if (inStruct.array_compression_kind == FOUR_CHAR_INLINE('olog'))
 			inStruct.array_compression_kind = kAC_GolombCode;
 	}
 	else
