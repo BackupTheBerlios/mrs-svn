@@ -3,7 +3,7 @@
 DATABANK		= embl_release
 MRSLIBS			= embl_release
 MRSSCRIPT		= embl
-MRS_PARTS		= 8
+MRS_PARTS		= 32
 MRS_DICT        = de:cc:ft:kw:oc:og:os:ref
 #MRS_DICT_OPTIONS	= -n 10 -l 4 -D
 

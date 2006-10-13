@@ -173,7 +173,7 @@ sub printEntryHeader
 			-name=>'save',
 			-value=>"Save",
 			-class=>'submit',
-			-onClick=>"doSave('$url', '$db_esc', '$id')"
+			-onClick=>"doSave('$url', $db, '$id')"
 		),
 		$q->popup_menu(
 			-name=>"save_to",
