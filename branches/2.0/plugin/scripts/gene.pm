@@ -1,6 +1,6 @@
-# MRS plugin for creating an prosite.dat db
+# Perl module voor het parsen van pdb
 #
-# $Id$
+# $Id: gene.pm 18 2006-03-01 15:31:09Z hekkel $
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.
@@ -37,14 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package prosite::parser;
-
-use strict;
+package gene::parser;
 
 my $count = 0;
-
-our $COMPRESSION_LEVEL = 9;
-our $COMPRESSION = "zlib";
 
 sub new
 {
@@ -52,7 +47,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "prosite::parser";
+	return bless $self, "gene::parser";
 }
 
 sub parse
@@ -60,85 +55,82 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my ($id, $doc, $state, $m);
+	$| = 1;
 	
-	$state = 0;
-	$m = $self->{mrs};
+	my $m = $self->{mrs};
 	
-	my $lookahead = <IN>;
+	my ($doc, $last_id, $lookahead, $xml_header);
 	
-	$lookahead = <IN>
-		while (substr($lookahead, 0, 2) eq 'CC');
-	$lookahead = <IN>
-		if (substr($lookahead, 0, 2) eq '//');
+	$lookahead = <IN>;
+	while (defined $lookahead and not ($lookahead =~ /^\s*<Entrezgene-Set>/))
+	{
+		$xml_header .= $lookahead;	
+		$lookahead = <IN>;
+	}
+
+	my $n = 0;
+	my ($date_kind, %date);
+	
+	$date{create} = ();
+	$date{update} = ();
+	$date{discontinue} = ();
 	
 	while (defined $lookahead)
 	{
 		my $line = $lookahead;
 		$lookahead = <IN>;
-
+		
 		$doc .= $line;
-
-		chomp($line);
-
-		if (substr($line, 0, 2) eq '//')
+		
+		$line =~ s|^\s+||;
+		
+		if ($line =~ m|</Entrezgene>|)
 		{
-			die "No ID specified\n" unless defined $id;
-
-			$m->Store($doc);
+			foreach my $k ('create', 'update', 'discontinue')
+			{
+				next unless defined $date{$k}{year};
+				my $date = sprintf("%4.4d-%2.2d-%2.2d", $date{$k}{year}, $date{$k}{month}, $date{$k}{day});
+				$m->IndexDate("${k}d", $date);
+			}
+			
+			$m->Store("$xml_header<Entrezgene-Set>\n$doc</Entrezgene-Set>\n");
 			$m->FlushDocument;
-
-			$id = undef;
+			
 			$doc = undef;
+			$date_created = undef;
+			$date_updated = undef;
+			$date_discontinued = undef;
 		}
-		elsif ($line =~ /^([A-Z]{2}) {3}/o)
+		elsif ($line =~ m|^<Gene-track_geneid>(\d+)</Gene-track_geneid>|)
 		{
-			my $fld = $1;
-			my $value = substr($line, 5);
-
-			if ($fld eq 'ID' and $value =~ /^([A-Z0-9_]+); ([A-Z]+)/o)
-			{
-				die "Double ID: $id <=> $1\n" if defined $id;
-				$id = $1;
-				die "ID too short" unless length($id);
-				$m->IndexValue('id', $id);
-				$m->IndexWord('type', lc $2);
-			}
-			elsif ($fld =~ /MA|NR|PA/o)  # useless fields
-			{}
-			else
-			{
-				$m->IndexText(lc($fld), substr($line, 5));
-			}
+			$m->IndexValue('id', $1);
+		}
+		elsif ($line =~ m/<Gene-track_(create|update|discontinue)-date>/)
+		{
+			$date_kind = $1;
+		}
+		elsif ($line =~ m'^<Date-std_(year|month|day)>(\d+)</Date-std_\1>')
+		{
+			$date{$date_kind}{$1} = $2;
+		}
+		elsif ($line =~ m|^<(.+?)>(.+)</\1>|)
+		{
+			my ($key, $text) = ($1, $2);
+			
+			$m->IndexText('text', $2);
 		}
 	}
 }
 
-sub version
-{
-        my ($self, $raw_dir) = @_;
-	my $vers;
-
-	open REL, "<$raw_dir/prosite.dat";
-
-	while (my $line = <REL>)
-	{
-		if ($line =~ /^CC   (Release [0-9.]+ [^.]+)\./) {
-			$vers = $1;
-			last;	
-		}
-	}	
-
-	close REL;
-
-	return $vers;
-}
-
-sub raw_files
+sub raw_files()
 {
 	my ($self, $raw_dir) = @_;
 	
-	return "<$raw_dir/prosite.dat";
+	my $gene2xml = `which gene2xml`;
+	chomp($gene2xml);
+	$gene2xml = "/usr/data/scripts/gene2xml" unless -x $gene2xml;
+	
+	return "$gene2xml -i $raw_dir/All_Data.ags.gz -o stdout -b -c |";
 }
 
 1;
