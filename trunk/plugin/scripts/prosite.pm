@@ -96,19 +96,42 @@ sub parse
 			my $fld = $1;
 			my $value = substr($line, 5);
 
-			if ($fld eq 'ID' and $value =~ /^([A-Z0-9_]+)/o)
+			if ($fld eq 'ID' and $value =~ /^([A-Z0-9_]+); ([A-Z]+)/o)
 			{
 				die "Double ID: $id <=> $1\n" if defined $id;
 				$id = $1;
 				die "ID too short" unless length($id);
 				$m->IndexValue('id', $id);
+				$m->IndexWord('type', lc $2);
 			}
+			elsif ($fld =~ /MA|NR|PA/o)  # useless fields
+			{}
 			else
 			{
 				$m->IndexText(lc($fld), substr($line, 5));
 			}
 		}
 	}
+}
+
+sub version
+{
+        my ($self, $raw_dir) = @_;
+	my $vers;
+
+	open REL, "<$raw_dir/prosite.dat";
+
+	while (my $line = <REL>)
+	{
+		if ($line =~ /^CC   (Release [0-9.]+ [^.]+)\./) {
+			$vers = $1;
+			last;	
+		}
+	}	
+
+	close REL;
+
+	return $vers;
 }
 
 sub raw_files

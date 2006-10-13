@@ -43,6 +43,15 @@ sub pp
 						"<a href='$url?db=sprot%2Btrembl\&id=$3'>$3</a>"
 					}xge;
 		}
+		elsif (substr($line, 0, 2) eq '3D') 
+		{
+			$line =~ s{
+						(\w\w\w\w);
+					}
+					{
+						"<a href='$url?db=pdb\&query=id:$1'>$1</a>;"
+					}xge;
+		}
 		elsif (substr($line, 0, 2) eq 'DO')
 		{
 			$line =~ s{
@@ -122,19 +131,14 @@ sub to_field_name
 		'id' => 'Identification',
 		'ac' => 'Accession number',
 		'cc' => 'Comments and Notes',
-		'dt' => 'Date',
 		'de' => 'Description',
-		'gn' => 'Gene name',
-		'os' => 'Organism species',
-		'og' => 'Organelle',
-		'oc' => 'Organism classification',
-		'ox' => 'Taxonomy cross-reference',
-		'ref' => 'Any reference field',
+		'do' => 'PROSITE documentation link',
 		'dr' => 'Database cross-reference',
-		'kw' => 'Keywords',
-		'ft' => 'Feature table data',
-		'sv' => 'Sequence version',
-		'fh' => 'Feature table header'
+		'dt' => 'Date',
+		'pp' => 'Post-Processing Rule',
+		'pr' => 'Prorule link',
+		'ru' => 'Rule',
+		'type' => 'Type (PATTERN, MATRIX or RULE)'
 	);
 
 	my $result = $n{$id};
