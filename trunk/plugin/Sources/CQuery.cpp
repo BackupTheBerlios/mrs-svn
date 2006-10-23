@@ -758,8 +758,11 @@ void CQueryObject::Prefetch()
 	auto_ptr<CDocIterator> iter(Perform());
 	
 	uint32 doc;
-	while (iter->Next(doc, false))
-		fPrefetch.push_back(doc);
+	if (iter.get())
+	{
+		while (iter->Next(doc, false))
+			fPrefetch.push_back(doc);
+	}
 }
 
 CDocIterator* CQueryObject::Perform()
