@@ -1803,7 +1803,7 @@ void iterator_imp_t<DD>::increment()
 {
 	bool valid = true;
 
-	if (fDiskPage.GetP(fPageIndex)) // current entry has a p, decent
+	if (fPageIndex < fDiskPage.GetN() and fDiskPage.GetP(fPageIndex)) // current entry has a p, decent
 	{
 		fStack.push(fPage);
 		
