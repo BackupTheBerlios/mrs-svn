@@ -129,12 +129,13 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 #endif
 						MDatabank(const std::string& inName);
 
-	static MDatabank*	Create(const std::string& inPath);
+	static MDatabank*	Create(const std::string& inPath, MStringArray inMetaDataFields);
 	static void			Merge(const std::string& inPath, MDatabankArray inDbs, bool inCopyData);
 
 	long				Count();
 	std::string			GetVersion();
 	std::string			GetUUID();
+	std::string			GetFileDate();
 	void				DumpInfo();
 	void				DumpIndex(const std::string& inIndex);
 	
@@ -151,6 +152,11 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	MRankedQuery*		RankedQuery(const std::string& inIndex);
 	
 	const char*			Get(const std::string& inEntryID);
+	const char*			GetMetaData(const std::string& inEntryID, const std::string& inFieldName);
+	
+						// by definition the description is the first meta data field.
+	const char*			GetDescription(const std::string& inEntryID);
+
 #ifndef NO_BLAST
 	const char*			Sequence(const std::string& inEntryID, unsigned long inIndex = 0);
 	MBlastHits*			Blast(const std::string& inQuery, const std::string& inMatrix,
@@ -165,6 +171,7 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	
 	void				SetStopWords(MStringArray inStopWords);
 	
+	void				StoreMetaData(const std::string& inFieldName, const std::string& inValue);
 	void				Store(const std::string& inDocument);
 	void				IndexText(const std::string& inIndex, const std::string& inText);
 	void				IndexTextAndNumbers(const std::string& inIndex, const std::string& inText);
@@ -190,7 +197,7 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 							long inMinOccurrence, long inMinWordLength);
 
   private:
-						MDatabank(const std::string& inName, bool);
+						MDatabank(const std::string& inName, const MStringArray& inMetaDataFields);
 };
 
 class MBooleanQuery : public MRSObject<MBooleanQuery, struct MBooleanQueryImp>

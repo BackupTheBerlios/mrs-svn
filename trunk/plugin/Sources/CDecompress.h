@@ -57,10 +57,12 @@ class CDecompressor
 						CDecompressor(const HUrl& inDb,
 							HStreamBase& inFile, uint32 inKind,
 							int64 inDataOffset, int64 inDataSize,
-							int64 inTableOffset, int64 inTableSize);
+							int64 inTableOffset, int64 inTableSize,
+							uint32 inMetaDataCount);
 						~CDecompressor();
 	
 	std::string			GetDocument(uint32 inEntry);
+	std::string			GetField(uint32 inEntry, uint32 inIndex);
 	
 	void				CopyData(HStreamBase& outData, uint32& outKind,
 							int64& outDataOffset, int64& outDataSize,
@@ -76,6 +78,7 @@ class CDecompressor
 
 	struct CDecompressorImp*	fImpl;
 	uint32						fKind;
+	uint32						fMetaDataCount;
 };
 
 #endif // CDECOMPRESS_H

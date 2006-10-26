@@ -81,6 +81,7 @@ using namespace std;
 const uint32
 	kHeaderSig = FOUR_CHAR_INLINE('MRSd'),
 	kDataSig = FOUR_CHAR_INLINE('data'),
+	kMetaDataSig = FOUR_CHAR_INLINE('meta'),
 	kPartSig = FOUR_CHAR_INLINE('part'),
 	kBlastIndexSignature = FOUR_CHAR_INLINE('blst');
 
@@ -107,6 +108,14 @@ struct SDataHeader
 	uint32			sig;
 	uint32			size;
 	uint32			count;
+	uint32			meta_data_count;
+};
+
+struct SMetaData
+{
+	uint32			sig;
+	uint32			size;
+	char			name[16];
 };
 
 struct SDataPart
@@ -140,6 +149,8 @@ HStreamBase& operator<<(HStreamBase& inData, SHeader& inStruct);
 HStreamBase& operator>>(HStreamBase& inData, SHeader& inStruct);
 HStreamBase& operator<<(HStreamBase& inData, SDataHeader& inStruct);
 HStreamBase& operator>>(HStreamBase& inData, SDataHeader& inStruct);
+HStreamBase& operator<<(HStreamBase& inData, SMetaData& inStruct);
+HStreamBase& operator>>(HStreamBase& inData, SMetaData& inStruct);
 HStreamBase& operator<<(HStreamBase& inData, SDataPart& inStruct);
 HStreamBase& operator>>(HStreamBase& inData, SDataPart& inStruct);
 HStreamBase& operator<<(HStreamBase& inData, SBlastIndexHeader& inStruct);
@@ -203,6 +214,11 @@ uint32 CDatabankBase::GetDocumentNr(const std::string& inDocID) const
 string CDatabankBase::GetDocument(const string& inDocumentID)
 {
 	return GetDocument(GetDocumentNr(inDocumentID));
+}
+
+string CDatabankBase::GetMetaData(const string& inDocumentID, const string& inName)
+{
+	return GetMetaData(GetDocumentNr(inDocumentID), inName);
 }
 
 string CDatabankBase::GetDocumentID(uint32 inDocNr) const
@@ -308,12 +324,12 @@ vector<string> CDatabankBase::SuggestCorrection(const string& inKey)
 	Implementations
 */
 
-CDatabank::CDatabank(const HUrl& inUrl, bool inNew)
+CDatabank::CDatabank(const HUrl& inUrl, const vector<string>& inMetaDataFields)
 	: fPath(inUrl)
 	, fDataFile(NULL)
 	, fCompressor(NULL)
 	, fIndexer(NULL)
-	, fReadOnly(not inNew)
+	, fReadOnly(false)
 	, fInfoContainer(nil)
 	, fIdTable(nil)
 #ifndef NO_BLAST
@@ -321,6 +337,7 @@ CDatabank::CDatabank(const HUrl& inUrl, bool inNew)
 #endif
 	, fHeader(new SHeader)
 	, fDataHeader(new SDataHeader)
+	, fMetaData(nil)
 	, fParts(nil)
 #ifndef NO_BLAST
 	, fBlast(nil)
@@ -329,102 +346,152 @@ CDatabank::CDatabank(const HUrl& inUrl, bool inNew)
 	memset(fHeader, 0, sizeof(SHeader));
 	memset(fDataHeader, 0, sizeof(SDataHeader));
 	
-	if (inNew)
-	{
-		int mode = O_RDWR | O_CREAT | O_BINARY | O_TRUNC;
-		
-//		fDataFile = new HBufferedFileStream(fPath, mode);
-		fDataFile = new HFileStream(fPath, mode);
-		
-		fHeader->sig = kHeaderSig;
-		
-		// generate a uuid based on time and MAC address
-		// that way it is easier to track where DB's come from.
-		uuid_generate_time(fHeader->uuid);
-		
-		*fDataFile << *fHeader;
-
-		fHeader->data_offset = fDataFile->Tell();
-		
-		fDataHeader->sig = kDataSig;
-		fDataHeader->count = 1;
-		*fDataFile << *fDataHeader;
-		
-		fParts = new SDataPart[1];
-		memset(fParts, 0, sizeof(SDataPart));
-		fParts[0].sig = kPartSig;
-		*fDataFile << fParts[0];
-		
-		fCompressor = new CCompressor(*fDataFile, inUrl);
-		fIndexer = new CIndexer(inUrl);
-
-//		fInfoContainer = new CDbInfo;
-	}
-	else
-	{
-		int mode = O_RDONLY | O_BINARY;
-		
-		fDataFile = new HBufferedFileStream(fPath, mode);
-		
-		*fDataFile >> *fHeader;
+	int mode = O_RDWR | O_CREAT | O_BINARY | O_TRUNC;
 	
-		if (fHeader->sig != kHeaderSig)
-			THROW(("Not a mrs data file"));
-		
-		if (fHeader->data_offset == 0 or fHeader->data_size == 0 or
-			fHeader->index_offset == 0 or fHeader->index_size == 0)
-		{
-			THROW(("Invalid mrs data file"));
-		}
-		
-		if (fHeader->info_size > 0)
-		{
-			HStreamView s(*fDataFile, fHeader->info_offset, fHeader->info_size);
-			fInfoContainer = new CDbInfo(s);
-		}
+//	fDataFile = new HBufferedFileStream(fPath, mode);
+	fDataFile = new HFileStream(fPath, mode);
 	
-		if (fHeader->id_size > 0)
-			fIdTable = new CIdTable(*fDataFile, fHeader->id_offset, fHeader->id_size);
+	fHeader->sig = kHeaderSig;
+	
+	// generate a uuid based on time and MAC address
+	// that way it is easier to track where DB's come from.
+	uuid_generate_time(fHeader->uuid);
+	
+	*fDataFile << *fHeader;
 
-		fDataFile->Seek(fHeader->data_offset, SEEK_SET);
-		(*fDataFile) >> *fDataHeader;
+	fHeader->data_offset = fDataFile->Tell();
+	
+	fDataHeader->sig = kDataSig;
+	fDataHeader->count = 1;
+	fDataHeader->meta_data_count = inMetaDataFields.size();
+	
+	*fDataFile << *fDataHeader;
+	
+	if (fDataHeader->meta_data_count > 0)
+	{
+		fMetaData = new CMetaData[fDataHeader->meta_data_count];
 		
-		if (fDataHeader->count == 0)
-			THROW(("Invalid mrs data file"));
+		HAutoBuf<SMetaData> mb(new SMetaData[fDataHeader->meta_data_count]);
+		memset(mb.get(), 0, sizeof(SMetaData) * fDataHeader->meta_data_count);
 		
-		fParts = new SDataPart[fDataHeader->count];
-		
-		uint32 i;
-		for (i = 0; i < fDataHeader->count; ++i)
-			*fDataFile >> fParts[i];
-		
-		for (i = 0; i < fDataHeader->count; ++i)
+		uint32 i = 0;
+		for (vector<string>::const_iterator md = inMetaDataFields.begin(); md != inMetaDataFields.end(); ++md, ++i)
 		{
-			SDataPart& pi = fParts[i];
+			strcpy(mb[i].name, md->c_str());
+			*fDataFile << mb[i];
 			
-			CDataPart cpi;
-			cpi.fDecompressor = nil;
-			cpi.fCount = pi.count;
-			fDataParts.push_back(cpi);
+			strcpy(fMetaData[i].name, md->c_str());
 		}
-		
+	}
+	
+	fParts = new SDataPart[1];
+	memset(fParts, 0, sizeof(SDataPart));
+	fParts[0].sig = kPartSig;
+	*fDataFile << fParts[0];
+	
+	fCompressor = new CCompressor(*fDataFile, inUrl);
+	fIndexer = new CIndexer(inUrl);
+
+//	fInfoContainer = new CDbInfo;
+}
+
+CDatabank::CDatabank(const HUrl& inUrl)
+	: fPath(inUrl)
+	, fDataFile(NULL)
+	, fCompressor(NULL)
+	, fIndexer(NULL)
+	, fReadOnly(true)
+	, fInfoContainer(nil)
+	, fIdTable(nil)
 #ifndef NO_BLAST
-		if (fHeader->blast_ix_size > 0)
-		{
-			fBlast = new SBlastIndexHeader;
-			
-			fDataFile->Seek(fHeader->blast_ix_offset, SEEK_SET);
-			(*fDataFile) >> *fBlast;
-			
-			if (fBlast->sig != kBlastIndexSignature /*or fBlast->size < sizeof(SBlastIndexHeader) */)
-				THROW(("Unknown or corrupt blast index"));
-			
-			fBlastIndex = new CBlastIndex(*fDataFile, fBlast->kind,
-				fBlast->data_offset, fBlast->data_size,
-				fBlast->table_offset, fBlast->table_size);
-		}
+	, fBlastIndex(nil)
 #endif
+	, fHeader(new SHeader)
+	, fDataHeader(new SDataHeader)
+	, fMetaData(nil)
+	, fParts(nil)
+#ifndef NO_BLAST
+	, fBlast(nil)
+#endif
+{
+	memset(fHeader, 0, sizeof(SHeader));
+	memset(fDataHeader, 0, sizeof(SDataHeader));
+	
+	int mode = O_RDONLY | O_BINARY;
+	
+	fDataFile = new HBufferedFileStream(fPath, mode);
+	
+	*fDataFile >> *fHeader;
+
+	if (fHeader->sig != kHeaderSig)
+		THROW(("Not a mrs data file"));
+	
+	if (fHeader->data_offset == 0 or fHeader->data_size == 0 or
+		fHeader->index_offset == 0 or fHeader->index_size == 0)
+	{
+		THROW(("Invalid mrs data file"));
 	}
+	
+	if (fHeader->info_size > 0)
+	{
+		HStreamView s(*fDataFile, fHeader->info_offset, fHeader->info_size);
+		fInfoContainer = new CDbInfo(s);
+	}
+
+	if (fHeader->id_size > 0)
+		fIdTable = new CIdTable(*fDataFile, fHeader->id_offset, fHeader->id_size);
+
+	fDataFile->Seek(fHeader->data_offset, SEEK_SET);
+	(*fDataFile) >> *fDataHeader;
+	
+	if (fDataHeader->count == 0)
+		THROW(("Invalid mrs data file"));
+	
+	if (fDataHeader->meta_data_count > 0)
+	{
+		fMetaData = new CMetaData[fDataHeader->meta_data_count];
+		
+		for (uint32 i = 0; i < fDataHeader->meta_data_count; ++i)
+		{
+			SMetaData md;
+			*fDataFile >> md;
+			
+			strcpy(fMetaData[i].name, md.name);
+		}
+	}
+	
+	fParts = new SDataPart[fDataHeader->count];
+	
+	uint32 i;
+	for (i = 0; i < fDataHeader->count; ++i)
+		*fDataFile >> fParts[i];
+	
+	for (i = 0; i < fDataHeader->count; ++i)
+	{
+		SDataPart& pi = fParts[i];
+		
+		CDataPart cpi;
+		cpi.fDecompressor = nil;
+		cpi.fCount = pi.count;
+		fDataParts.push_back(cpi);
+	}
+	
+#ifndef NO_BLAST
+	if (fHeader->blast_ix_size > 0)
+	{
+		fBlast = new SBlastIndexHeader;
+		
+		fDataFile->Seek(fHeader->blast_ix_offset, SEEK_SET);
+		(*fDataFile) >> *fBlast;
+		
+		if (fBlast->sig != kBlastIndexSignature /*or fBlast->size < sizeof(SBlastIndexHeader) */)
+			THROW(("Unknown or corrupt blast index"));
+		
+		fBlastIndex = new CBlastIndex(*fDataFile, fBlast->kind,
+			fBlast->data_offset, fBlast->data_size,
+			fBlast->table_offset, fBlast->table_size);
+	}
+#endif
 }
 
 CDatabank::~CDatabank()
@@ -472,8 +539,8 @@ void CDatabank::Finish(bool inCreateAllTextIndex)
 		partInfo.kind, partInfo.count);
 	
 	fHeader->data_size = fDataFile->Tell() - fHeader->data_offset;
-	
-	fDataFile->Seek(fHeader->data_offset + sizeof(SDataHeader), SEEK_SET);
+
+	fDataFile->Seek(fHeader->data_offset + sizeof(SDataHeader) + fDataHeader->meta_data_count * sizeof(SMetaData), SEEK_SET);
 	*fDataFile << partInfo;
 
 	delete fCompressor;
@@ -777,8 +844,55 @@ string CDatabank::GetDocument(uint32 inDocNr)
 	if (p == fDataParts.end())
 		THROW(("Doc number out of range"));
 	
+	if (fMetaData != nil)
+		return GetDecompressor(p - fDataParts.begin())
+			->GetField(inDocNr, fDataHeader->meta_data_count);	// field after last meta field is document
+	else
+		return GetDecompressor(p - fDataParts.begin())
+			->GetDocument(inDocNr);
+}
+
+string CDatabank::GetMetaData(uint32 inDocNr, const string& inName)
+{
+	if (fMetaData == nil)
+		THROW(("This db does not contain meta data"));
+	
+	CPartList::iterator p = fDataParts.begin();
+	while (p != fDataParts.end() and inDocNr >= (*p).fCount)
+	{
+		inDocNr -= (*p).fCount;
+		++p;
+	}
+	
+	if (p == fDataParts.end())
+		THROW(("Doc number out of range"));
+	
+	uint32 ix = 0;
+	while (ix < fDataHeader->meta_data_count)
+	{
+		if (inName == fMetaData[ix].name)
+			break;
+		++ix;
+	}
+	
+	if (ix == fDataHeader->meta_data_count)
+		THROW(("Meta data field not found"));
+	
 	return GetDecompressor(p - fDataParts.begin())
-		->GetDocument(inDocNr);
+		->GetField(inDocNr, ix);
+}
+
+vector<string> CDatabank::GetMetaDataFields() const
+{
+	vector<string> result;
+	
+	if (fMetaData)
+	{
+		for (uint32 ix = 0; ix < fDataHeader->meta_data_count; ++ix)
+			result.push_back(fMetaData[ix].name);
+	}
+	
+	return result;
 }
 
 bool CDatabank::GetDocumentNr(const string& inDocID, uint32& outDocNr) const
@@ -831,7 +945,8 @@ CDecompressor* CDatabank::GetDecompressor(uint32 inPartNr)
 		fDataParts[inPartNr].fDecompressor =
 			new CDecompressor(fPath, *fDataFile, fParts[inPartNr].kind,
 				fParts[inPartNr].data_offset, fParts[inPartNr].data_size,
-				fParts[inPartNr].table_offset, fParts[inPartNr].table_size);
+				fParts[inPartNr].table_offset, fParts[inPartNr].table_size,
+				fDataHeader->meta_data_count);
 	}
 	
 	return fDataParts[inPartNr].fDecompressor;
@@ -987,7 +1102,21 @@ void CDatabank::PrintInfo()
 	cout << "Data Header:" << endl;
 	cout << "  signature:    " << sig[0] << sig[1] << sig[2] << sig[3] << endl;
 	cout << "  size:         " << fDataHeader->size << endl;
-	cout << "  count :       " << fDataHeader->count << endl;
+	cout << "  count:        " << fDataHeader->count << endl;
+
+	if (fMetaData != nil)
+	{
+		cout << "  meta data:    " << fDataHeader->meta_data_count << " { ";
+
+		for (uint32 i = 0; i < fDataHeader->meta_data_count; ++i)
+		{
+			cout << fMetaData[i].name;
+			if (i < fDataHeader->meta_data_count - 1)
+				cout << ", ";
+		}
+
+		cout << " }" << endl;
+	}
 	cout << endl;
 	
 	for (uint32 ix = 0; ix < fDataHeader->count; ++ix)
@@ -1034,9 +1163,41 @@ void CDatabank::SetStopWords(const vector<string>& inStopWords)
 
 void CDatabank::Store(const string& inDocument)
 {
-	fCompressor->AddDocument(inDocument.c_str(), inDocument.length());
+	if (fMetaData != nil)
+	{
+		vector<pair<const char*,uint32> > dv;
+		
+		for (uint32 i = 0; i < fDataHeader->meta_data_count; ++i)
+			dv.push_back(make_pair(fMetaData[i].data.c_str(), fMetaData[i].data.length()));
+
+		dv.push_back(make_pair(inDocument.c_str(), inDocument.length()));
+
+		fCompressor->AddData(dv);
+
+		for (uint32 i = 0; i < fDataHeader->meta_data_count; ++i)
+			fMetaData[i].data.clear();
+	}
+	else
+		fCompressor->AddDocument(inDocument.c_str(), inDocument.length());
+
 	++fHeader->entries;
 	fParts[0].raw_data_size += inDocument.length();
+}
+
+void CDatabank::StoreMetaData(const std::string& inFieldName, const std::string& inData)
+{
+	uint32 i;
+	for (i = 0; i < fDataHeader->meta_data_count; ++i)
+	{
+		if (inFieldName == fMetaData[i].name)
+		{
+			fMetaData[i].data += inData;
+			break;
+		}
+	}
+	
+	if (i == fDataHeader->meta_data_count)
+		THROW(("Meta data field %s not defined in the MDatabank::Create call", inFieldName.c_str()));
 }
 
 void CDatabank::IndexText(const string& inIndex, const string& inText)
@@ -1196,7 +1357,7 @@ HStreamBase& operator<<(HStreamBase& inData, SDataHeader& inStruct)
 	
 	data.Write(&inStruct.sig, sizeof(inStruct.sig));
 	
-	data << inStruct.size << inStruct.count;
+	data << inStruct.size << inStruct.count << inStruct.meta_data_count;
 	
 	return inData;
 }
@@ -1209,6 +1370,37 @@ HStreamBase& operator>>(HStreamBase& inData, SDataHeader& inStruct)
 	data.Read(&inStruct.sig, sizeof(inStruct.sig));
 	
 	data >> inStruct.size >> inStruct.count;
+	
+	if (inStruct.size >= sizeof(inStruct))
+		data >> inStruct.meta_data_count;
+	
+	if (inStruct.size != sizeof(inStruct))
+		inData.Seek(offset + inStruct.size, SEEK_SET);
+	
+	return inData;
+}
+
+HStreamBase& operator<<(HStreamBase& inData, SMetaData& inStruct)
+{
+	inStruct.size = sizeof(inStruct);
+
+	HSwapStream<net_swapper> data(inData);
+	
+	data.Write(&inStruct.sig, sizeof(inStruct.sig));
+	data << inStruct.size;
+	data.Write(inStruct.name, sizeof(inStruct.name));
+	
+	return inData;
+}
+
+HStreamBase& operator>>(HStreamBase& inData, SMetaData& inStruct)
+{
+	int64 offset = inData.Tell();
+	HSwapStream<net_swapper> data(inData);
+	
+	data.Read(&inStruct.sig, sizeof(inStruct.sig));
+	data >> inStruct.size;
+	data.Read(inStruct.name, sizeof(inStruct.name));
 	
 	if (inStruct.size != sizeof(inStruct))
 		inData.Seek(offset + inStruct.size, SEEK_SET);
@@ -1394,6 +1586,19 @@ string CJoinedDatabank::GetDocument(uint32 inDocNr)
 	
 	if (PartForDoc(inDocNr, db))
 		result = db->GetDocument(inDocNr);
+	else
+		THROW(("Document number(%d) out of range", inDocNr));
+	
+	return result;
+}
+
+string CJoinedDatabank::GetMetaData(uint32 inDocNr, const string& inName)
+{
+	string result;
+	CDatabankBase* db;
+	
+	if (PartForDoc(inDocNr, db))
+		result = db->GetMetaData(inDocNr, inName);
 	else
 		THROW(("Document number(%d) out of range", inDocNr));
 	
@@ -1627,6 +1832,22 @@ string CJoinedDatabank::GetUUID() const
 	return uuid;
 }
 
+vector<string> CJoinedDatabank::GetMetaDataFields() const
+{
+	set<string> fields;
+	
+	for (uint32 p = 0; p < fPartCount; ++p)
+	{
+		vector<string> n(fParts[p].fDb->GetMetaDataFields());
+		for (vector<string>::iterator m = n.begin(); m != n.end(); ++m)
+			fields.insert(*m);
+	}
+	
+	vector<string> result;
+	copy(fields.begin(), fields.end(), back_insert_iterator<vector<string> >(result));
+	return result;
+}
+
 string CJoinedDatabank::GetDbName() const
 {
 	string result;
@@ -1645,7 +1866,7 @@ string CJoinedDatabank::GetDbName() const
 //
 
 CUpdatedDatabank::CUpdatedDatabank(const HUrl& inFile, CDatabankBase* inOriginal)
-	: CDatabank(inFile, false)
+	: CDatabank(inFile)
 	, fOriginal(inOriginal)
 {
 }
@@ -1661,6 +1882,14 @@ string CUpdatedDatabank::GetDocument(uint32 inDocNr)
 		return fOriginal->GetDocument(inDocNr - CDatabank::Count());
 	else
 		return CDatabank::GetDocument(inDocNr);
+}
+
+string CUpdatedDatabank::GetMetaData(uint32 inDocNr, const std::string& inName)
+{
+	if (inDocNr >= CDatabank::Count())
+		return fOriginal->GetMetaData(inDocNr - CDatabank::Count(), inName);
+	else
+		return CDatabank::GetMetaData(inDocNr, inName);
 }
 
 #ifndef NO_BLAST
@@ -1853,6 +2082,23 @@ CDbDocIteratorBase* CUpdatedDatabank::GetDocWeightIterator(
 	
 	return new CMergedDbDocIterator(b, CDatabank::Count(), CDatabank::Count(),
 		a, 0, fOriginal->Count());
+}
+
+vector<string> CUpdatedDatabank::GetMetaDataFields() const
+{
+	set<string> fields;
+	
+	vector<string> n(CDatabank::GetMetaDataFields());
+	for (vector<string>::iterator m = n.begin(); m != n.end(); ++m)
+		fields.insert(*m);
+
+	n = fOriginal->GetMetaDataFields();
+	for (vector<string>::iterator m = n.begin(); m != n.end(); ++m)
+		fields.insert(*m);
+	
+	vector<string> result;
+	copy(fields.begin(), fields.end(), back_insert_iterator<vector<string> >(result));
+	return result;
 }
 
 string	CUpdatedDatabank::GetDbName() const

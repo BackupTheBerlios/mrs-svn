@@ -55,10 +55,11 @@ class CRankedQuery
 	
 	void			AddTerm(const std::string& inKey, uint32 inFrequency);
 	
-	CDocIterator*	PerformSearch(CDatabankBase& inDatabank,
+	void			PerformSearch(CDatabankBase& inDatabank,
 						const std::string& inIndex, const std::string& inAlgorithm,
 						CDocIterator* inMetaQuery, uint32 inMaxReturn,
-						bool inAllTermsRequired);
+						bool inAllTermsRequired,
+						CDocIterator*& outResults, uint32& outCount);
 	
   private:
 					CRankedQuery(const CRankedQuery&);

@@ -39,6 +39,10 @@
 
 package omim::parser;
 
+our $COMPRESSION_LEVEL = 9;
+our $COMPRESSION = "zlib";
+our @META_DATA_FIELDS = [ 'title' ];
+
 my $count = 0;
 
 sub new
@@ -55,7 +59,7 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my ($doc, $field, $m);
+	my ($doc, $field, $title, $m);
 
 	$m = $self->{mrs};
 	
@@ -65,6 +69,7 @@ sub parse
 		{
 			if (defined $doc)
 			{
+				$m->StoreMetaData('title', $title) if defined $title;
 				$m->Store($doc);
 				$m->FlushDocument;
 			}
@@ -72,6 +77,7 @@ sub parse
 			$doc = $line;
 			
 			$field = undef;
+			$title = undef;
 			$state = 1;
 		}
 		else
@@ -98,6 +104,13 @@ sub parse
 					warn $@ if $@;
 				}
 				
+				if ($field eq 'ti' and not defined $title)
+				{
+					$title = $line;
+					$title =~ s/^\D?\d{6}\s//om;
+					$title = (split(m/;/, $title))[0];
+				}
+				
 				$m->IndexText($field, $line);
 			}
 		}
@@ -105,6 +118,7 @@ sub parse
 
 	if (defined $doc)
 	{
+		$m->StoreMetaData('title', $title) if defined $title;
 		$m->Store($doc);
 		$m->FlushDocument;
 	}

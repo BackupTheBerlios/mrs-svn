@@ -1566,13 +1566,14 @@ XS(_wrap_new_MDatabank) {
 XS(_wrap_MDatabank_Create) {
     {
         std::string *arg1 = 0 ;
+        SwigValueWrapper<std::vector<std::string > > arg2 ;
         MDatabank *result;
         std::string temp1 ;
         int argvi = 0;
         dXSARGS;
         
-        if ((items < 1) || (items > 1)) {
-            SWIG_croak("Usage: MDatabank_Create(inPath);");
+        if ((items < 2) || (items > 2)) {
+            SWIG_croak("Usage: MDatabank_Create(inPath,inMetaDataFields);");
         }
         {
             STRLEN len;
@@ -1585,8 +1586,37 @@ XS(_wrap_MDatabank_Create) {
             }
         }
         {
+            if (!SvROK(ST(1)))
+            croak("Argument 2 is not a reference.");
+            
+            AV* av = (AV*)SvRV(ST(1));
+            
+            if (SvTYPE(av) != SVt_PVAV)
+            croak("ST(1) is not an array.");
+            
+            I32 len = av_len(av) + 1;
+            
+            std::vector<std::string> a;
+            
+            for (int i = 0; i < len; ++i)
+            {
+                SV** tv = av_fetch(av, i, 0);
+                
+                STRLEN len;
+                const char *ptr = SvPV(*tv, len);
+                if (!ptr) {
+                    SWIG_croak("Undefined variable in array.");
+                } else {
+                    string s(ptr, len);
+                    a.push_back(s);
+                }
+            }
+            
+            arg2 = a;
+        }
+        {
             try {
-                result = (MDatabank *)MDatabank::Create((std::string const &)*arg1);
+                result = (MDatabank *)MDatabank::Create((std::string const &)*arg1,arg2);
                 
             }
             
@@ -1786,6 +1816,50 @@ XS(_wrap_MDatabank_GetUUID) {
         {
             try {
                 result = (arg1)->GetUUID();
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        {
+            if (argvi >= items) EXTEND(sp, 1);	// bump stack ptr, if needed
+            char *data = const_cast<char*>((&result)->data());
+            sv_setpvn(ST(argvi) = sv_newmortal(), data, (&result)->size());
+            ++argvi;
+        }
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MDatabank_GetFileDate) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        std::string result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: MDatabank_GetFileDate(self);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_GetFileDate. Expected _p_MDatabank");
+            }
+        }
+        {
+            try {
+                result = (arg1)->GetFileDate();
                 
             }
             
@@ -2702,6 +2776,130 @@ XS(_wrap_MDatabank_Get) {
 }
 
 
+XS(_wrap_MDatabank_GetMetaData) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        std::string *arg2 = 0 ;
+        std::string *arg3 = 0 ;
+        char *result;
+        std::string temp2 ;
+        std::string temp3 ;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 3) || (items > 3)) {
+            SWIG_croak("Usage: MDatabank_GetMetaData(self,inEntryID,inFieldName);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_GetMetaData. Expected _p_MDatabank");
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(1), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 2 of MDatabank_GetMetaData.");
+            } else {
+                temp2.assign(ptr, len);
+                arg2 = &temp2;
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(2), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 3 of MDatabank_GetMetaData.");
+            } else {
+                temp3.assign(ptr, len);
+                arg3 = &temp3;
+            }
+        }
+        {
+            try {
+                result = (char *)(arg1)->GetMetaData((std::string const &)*arg2,(std::string const &)*arg3);
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        ST(argvi) = sv_newmortal();
+        if (result) {
+            sv_setpv((SV*)ST(argvi++), (char *) result);
+        } else {
+            sv_setsv((SV*)ST(argvi++), &PL_sv_undef);
+        }
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MDatabank_GetDescription) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        std::string *arg2 = 0 ;
+        char *result;
+        std::string temp2 ;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 2) || (items > 2)) {
+            SWIG_croak("Usage: MDatabank_GetDescription(self,inEntryID);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_GetDescription. Expected _p_MDatabank");
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(1), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 2 of MDatabank_GetDescription.");
+            } else {
+                temp2.assign(ptr, len);
+                arg2 = &temp2;
+            }
+        }
+        {
+            try {
+                result = (char *)(arg1)->GetDescription((std::string const &)*arg2);
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        ST(argvi) = sv_newmortal();
+        if (result) {
+            sv_setpv((SV*)ST(argvi++), (char *) result);
+        } else {
+            sv_setsv((SV*)ST(argvi++), &PL_sv_undef);
+        }
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
 XS(_wrap_MDatabank_Sequence__SWIG_0) {
     {
         MDatabank *arg1 = (MDatabank *) 0 ;
@@ -3136,6 +3334,68 @@ XS(_wrap_MDatabank_SetStopWords) {
         {
             try {
                 (arg1)->SetStopWords(arg2);
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MDatabank_StoreMetaData) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        std::string *arg2 = 0 ;
+        std::string *arg3 = 0 ;
+        std::string temp2 ;
+        std::string temp3 ;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 3) || (items > 3)) {
+            SWIG_croak("Usage: MDatabank_StoreMetaData(self,inFieldName,inValue);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_StoreMetaData. Expected _p_MDatabank");
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(1), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 2 of MDatabank_StoreMetaData.");
+            } else {
+                temp2.assign(ptr, len);
+                arg2 = &temp2;
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(2), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 3 of MDatabank_StoreMetaData.");
+            } else {
+                temp3.assign(ptr, len);
+                arg3 = &temp3;
+            }
+        }
+        {
+            try {
+                (arg1)->StoreMetaData((std::string const &)*arg2,(std::string const &)*arg3);
                 
             }
             
@@ -4155,6 +4415,44 @@ XS(_wrap_MBooleanQuery_Perform) {
         }
         ST(argvi) = sv_newmortal();
         SWIG_MakePtr(ST(argvi++), (void *) result, SWIGTYPE_p_MQueryResults, SWIG_SHADOW|0);
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MBooleanQuery_Prefetch) {
+    {
+        MBooleanQuery *arg1 = (MBooleanQuery *) 0 ;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: MBooleanQuery_Prefetch(self);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MBooleanQuery,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MBooleanQuery_Prefetch. Expected _p_MBooleanQuery");
+            }
+        }
+        {
+            try {
+                (arg1)->Prefetch();
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        
         XSRETURN(argvi);
         fail:
         ;
@@ -6437,6 +6735,7 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MDatabank_Count", _wrap_MDatabank_Count},
 {"MRSc::MDatabank_GetVersion", _wrap_MDatabank_GetVersion},
 {"MRSc::MDatabank_GetUUID", _wrap_MDatabank_GetUUID},
+{"MRSc::MDatabank_GetFileDate", _wrap_MDatabank_GetFileDate},
 {"MRSc::MDatabank_DumpInfo", _wrap_MDatabank_DumpInfo},
 {"MRSc::MDatabank_DumpIndex", _wrap_MDatabank_DumpIndex},
 {"MRSc::MDatabank_PrefetchDocWeights", _wrap_MDatabank_PrefetchDocWeights},
@@ -6447,12 +6746,15 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MDatabank_BooleanQuery", _wrap_MDatabank_BooleanQuery},
 {"MRSc::MDatabank_RankedQuery", _wrap_MDatabank_RankedQuery},
 {"MRSc::MDatabank_Get", _wrap_MDatabank_Get},
+{"MRSc::MDatabank_GetMetaData", _wrap_MDatabank_GetMetaData},
+{"MRSc::MDatabank_GetDescription", _wrap_MDatabank_GetDescription},
 {"MRSc::MDatabank_Sequence", _wrap_MDatabank_Sequence},
 {"MRSc::MDatabank_Blast", _wrap_MDatabank_Blast},
 {"MRSc::MDatabank_Index", _wrap_MDatabank_Index},
 {"MRSc::MDatabank_Indices", _wrap_MDatabank_Indices},
 {"MRSc::MDatabank_SuggestCorrection", _wrap_MDatabank_SuggestCorrection},
 {"MRSc::MDatabank_SetStopWords", _wrap_MDatabank_SetStopWords},
+{"MRSc::MDatabank_StoreMetaData", _wrap_MDatabank_StoreMetaData},
 {"MRSc::MDatabank_Store", _wrap_MDatabank_Store},
 {"MRSc::MDatabank_IndexText", _wrap_MDatabank_IndexText},
 {"MRSc::MDatabank_IndexTextAndNumbers", _wrap_MDatabank_IndexTextAndNumbers},
@@ -6471,6 +6773,7 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MBooleanQuery_Union", _wrap_MBooleanQuery_Union},
 {"MRSc::MBooleanQuery_Intersection", _wrap_MBooleanQuery_Intersection},
 {"MRSc::MBooleanQuery_Perform", _wrap_MBooleanQuery_Perform},
+{"MRSc::MBooleanQuery_Prefetch", _wrap_MBooleanQuery_Prefetch},
 {"MRSc::new_MBooleanQuery", _wrap_new_MBooleanQuery},
 {"MRSc::delete_MBooleanQuery", _wrap_delete_MBooleanQuery},
 {"MRSc::MRankedQuery_AddTerm", _wrap_MRankedQuery_AddTerm},

@@ -333,9 +333,10 @@ Algorithm& Algorithm::Choose(const string& inName)
 		THROW(("Unknown algorithm: %s", inName.c_str()));
 }
 
-CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
+void CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	const string& inIndex, const std::string& inAlgorithm,
-	CDocIterator* inMetaQuery, uint32 inMaxReturn, bool inAllTermsRequired)
+	CDocIterator* inMetaQuery, uint32 inMaxReturn, bool inAllTermsRequired,
+	CDocIterator*& outResults, uint32& outCount)
 {
 	Algorithm& alg = Algorithm::Choose(inAlgorithm);
 	
@@ -455,9 +456,12 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 		{
 			docs.push_back(ds);
 			push_heap(docs.begin(), docs.end(), greater<CDocScore>());
-			++n;
 		}
+
+		++n;
 	}
+
+	outCount = n;
 	
 	sort_heap(docs.begin(), docs.end(), greater<CDocScore>());
 	
@@ -467,5 +471,5 @@ CDocIterator* CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 	for (vector<CDocScore>::iterator i = docs.begin(); i != docs.end(); ++i)
 		dv->push_back(make_pair(i->fDocNr, i->fRank * 100));
 
-	return new CDocFreqVectorIterator(dv.release());
+	outResults = new CDocFreqVectorIterator(dv.release());
 }

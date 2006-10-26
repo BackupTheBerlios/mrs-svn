@@ -40,6 +40,7 @@ use English;
 use warnings;
 use Time::HiRes qw(usleep ualarm gettimeofday tv_interval);
 use MRS;
+use Data::Dumper;
 
 use Getopt::Std;
 
@@ -48,6 +49,7 @@ $| = 1;
 # capture the commandline parameters
 
 my $action = shift;
+$action = '' unless defined $action;
 
 my %opts;
 
@@ -243,14 +245,16 @@ sub Create()
 	require "$script.pm";
 	
 	# Set the MRS globals before creating an MRS object
+
+	no strict 'refs';
 	
 	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
-	$MRS::COMPRESSION = $parser::COMPRESSION
-		if defined $parser::COMPRESSION;
-	$MRS::COMPRESSION_LEVEL = $parser::COMPRESSION_LEVEL
-		if defined $parser::COMPRESSION_LEVEL;
-	$MRS::COMPRESSION_DICTIONARY = $parser::COMPRESSION_DICTIONARY
-		if defined $parser::COMPRESSION_DICTIONARY;
+	$MRS::COMPRESSION = ${"${parser}::COMPRESSION"}
+		if defined ${"${parser}::COMPRESSION"};
+	$MRS::COMPRESSION_LEVEL = ${"${parser}::COMPRESSION_LEVEL"}
+		if defined ${"${parser}::COMPRESSION_LEVEL"};
+	$MRS::COMPRESSION_DICTIONARY = ${"${parser}::COMPRESSION_DICTIONARY"}
+		if defined ${"${parser}::COMPRESSION_DICTIONARY"};
 	$MRS::WEIGHT_BIT_COUNT = $weight_bit_count;
 	
 	my $cmp_name = $db;
@@ -258,8 +262,11 @@ sub Create()
 
 	my $fileName = "$data_dir/$cmp_name.cmp";
 	my $exists = -f $fileName;
-	
-	my $mrs = MRS::MDatabank::Create($fileName)
+
+	my @meta_data_fields = [];
+	@meta_data_fields = @{"${parser}::META_DATA_FIELDS"} if @{"${parser}::META_DATA_FIELDS"};
+
+	my $mrs = MRS::MDatabank::Create($fileName, @meta_data_fields)
 		or die "Could not create new databank $db: " . &MRS::errstr();
 
 	# protect the new born file

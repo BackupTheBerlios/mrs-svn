@@ -89,6 +89,9 @@ class CDatabankBase
 	
 	virtual std::string	GetDocument(uint32 inDocNr) = 0;
 	std::string			GetDocument(const std::string& inDocID);
+	
+	virtual std::string	GetMetaData(uint32 inDocNr, const std::string& inName) = 0;
+	std::string			GetMetaData(const std::string& inDocID, const std::string& inName);
 
 	virtual std::string	GetDocumentID(uint32 inDocNr) const;
 	virtual bool		GetDocumentNr(const std::string& inDocID, uint32& outDocNr) const;
@@ -135,6 +138,9 @@ class CDatabankBase
 	
 	std::vector<std::string>
 						SuggestCorrection(const std::string& inKey);
+
+	virtual std::vector<std::string>
+						GetMetaDataFields() const = 0;
 	
 	virtual std::string	GetDbName() const = 0;
 	virtual std::string	GetDbNameForDocID(const std::string& inDocID) const;
@@ -162,8 +168,10 @@ class CDatabankBase
 class CDatabank : public CDatabankBase
 {
   public:
-							// third constructor, for perl plugin interface
-						CDatabank(const HUrl& inFile, bool inNew);
+							// two constructors, for perl plugin interface
+						CDatabank(const HUrl& inFile);
+						CDatabank(const HUrl& inFile,
+							const std::vector<std::string>& inMetaDataFields);
 					
 						~CDatabank();
 
@@ -179,6 +187,10 @@ class CDatabank : public CDatabankBase
 
 	using CDatabankBase::GetDocument;
 	virtual std::string	GetDocument(uint32 inDocNr);
+
+	virtual std::string	GetMetaData(uint32 inDocNr, const std::string& inName);
+	virtual std::vector<std::string>
+						GetMetaDataFields() const;
 
 	virtual std::string	GetDocumentID(uint32 inDocNr) const;
 	virtual bool		GetDocumentNr(const std::string& inDocID, uint32& outDocNr) const;
@@ -196,8 +208,7 @@ class CDatabank : public CDatabankBase
 	void				SetStopWords(const std::vector<std::string>& inStopWords);
 	
 	void				Store(const std::string& inDocument);
-	void				StoreFingerPrint(const std::string& inFingerPrint,
-							const std::string& inThesaurus);
+	void				StoreMetaData(const std::string& inFieldName, const std::string& inValue);
 	void				IndexText(const std::string& inIndex, const std::string& inText);
 	void				IndexTextAndNumbers(const std::string& inIndex, const std::string& inText);
 	void				IndexWord(const std::string& inIndex, const std::string& inText);
@@ -268,6 +279,12 @@ class CDatabank : public CDatabankBase
 	};
 	typedef std::vector<CDataPart> CPartList;
 	
+	struct CMetaData
+	{
+		char		name[16];
+		std::string	data;		// used during indexing only
+	};
+	
 	HUrl			fPath;
 	HStreamBase*	fDataFile;
 	CCompressor*	fCompressor;
@@ -275,7 +292,6 @@ class CDatabank : public CDatabankBase
 	mutable CIndexer*
 					fIndexer;
 	bool			fReadOnly;
-	std::string		fScript;
 	CDbInfo*		fInfoContainer;
 	CIdTable*		fIdTable;
 #ifndef NO_BLAST
@@ -285,6 +301,7 @@ class CDatabank : public CDatabankBase
 	// on disk info
 	SHeader*		fHeader;
 	SDataHeader*	fDataHeader;
+	CMetaData*		fMetaData;
 	SDataPart*		fParts;
 #ifndef NO_BLAST
 	SBlastIndexHeader*	fBlast;
@@ -298,6 +315,8 @@ class CJoinedDatabank : public CDatabankBase
 						~CJoinedDatabank();
 	
 	virtual std::string	GetDocument(uint32 inDocNr);
+
+	virtual std::string	GetMetaData(uint32 inDocNr, const std::string& inName);
 
 	virtual std::string	GetDocumentID(uint32 inDocNr) const;
 	virtual bool		GetDocumentNr(const std::string& inDocID, uint32& outDocNr) const;
@@ -337,6 +356,9 @@ class CJoinedDatabank : public CDatabankBase
 	virtual CDocIterator* CreateDocIterator(const std::string& inIndex,
 							const std::string& inKey, bool inKeyIsPattern,
 							CQueryOperator inOperator);
+
+	virtual std::vector<std::string>
+						GetMetaDataFields() const;
 
 	virtual std::string	GetDbName() const;
 
@@ -378,6 +400,8 @@ class CUpdatedDatabank : public CDatabank
 
 	virtual std::string	GetDocument(uint32 inDocNr);
 
+	virtual std::string	GetMetaData(uint32 inDocNr, const std::string& inName);
+
 	virtual std::string	GetDocumentID(uint32 inDocNr) const;
 	virtual bool		GetDocumentNr(const std::string& inDocID, uint32& outDocNr) const;
 
@@ -405,6 +429,9 @@ class CUpdatedDatabank : public CDatabank
 	virtual uint32		GetMaxWeight() const;
 
 //	virtual void		RecalculateDocumentWeights(const std::string& inIndex);
+
+	virtual std::vector<std::string>
+						GetMetaDataFields() const;
 
 	virtual std::string	GetDbName() const;
 

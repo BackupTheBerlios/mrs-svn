@@ -161,6 +161,7 @@ int main(int argc, const char* argv[])
 	
 		q->SetAlgorithm(alg);
 		q->SetAllTermsRequired(1);
+		q->SetMaxReturn(10);
 	
 		for (vector<string>::iterator qw = queryWords.begin(); qw != queryWords.end(); ++qw)
 			q->AddTerm(*qw, 1);
@@ -176,10 +177,17 @@ int main(int argc, const char* argv[])
 	
 	if (r.get() != NULL)
 	{
+		unsigned long count = r->Count(true);
+		
+		cout << "Found " << count << " hits, displaying the first " << min(10UL, count) << endl;
+		
 		int n = 10;
 		const char* id;
 		while (n-- > 0 and (id = r->Next()) != NULL)
-			cout << id << '\t' << r->Score() << endl;
+		{
+			string desc = mrsDb.GetMetaData(id, "title");
+			cout << id << '\t' << r->Score() << '\t' << desc << endl;
+		}
 	}
 	else
 		cout << "No hits found" << endl;

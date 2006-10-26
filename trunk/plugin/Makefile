@@ -295,7 +295,7 @@ LDFLAGS += $(LINK_PATHS) $(LINK_LIBS)
 
 CFLAGS	+= $(DBG) $(WARNINGS)
 ifeq ($(CPU), x86)
-CFLAGS	+= -fpic
+CFLAGS	+= -fPIC
 endif
 
 DEFS	= $(foreach define, $(DEFINES), $(addprefix -D, $(define)))

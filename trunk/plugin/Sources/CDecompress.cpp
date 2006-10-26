@@ -63,10 +63,12 @@ struct CDecompressorImp
 {
 					CDecompressorImp(HStreamBase& inFile, uint32 inKind,
 						int64 inDataOffset, int64 inDataSize,
-						int64 inTableOffset, int64 inTableSize);
+						int64 inTableOffset, int64 inTableSize,
+						uint32 inMetaDataCount);
 	virtual			~CDecompressorImp();
 	
 	virtual string	GetDocument(uint32 inDocNr) = 0;
+	virtual string	GetField(uint32 inDocNr, uint32 inFieldNr) = 0;
 
 	virtual void	CopyData(HStreamBase& outData, uint32& outKind,
 						int64& outDataOffset, int64& outDataSize,
@@ -82,7 +84,8 @@ struct CDecompressorImp
 					Create(const HUrl& inDb,
 						HStreamBase& inFile, uint32 inKind,
 						int64 inDataOffset, int64 inDataSize,
-						int64 inTableOffset, int64 inTableSize);
+						int64 inTableOffset, int64 inTableSize,
+						uint32 inMetaDataCount);
 
 	virtual void	Init();
 	
@@ -90,16 +93,19 @@ struct CDecompressorImp
 	uint32			fKind;
 	int64			fDataOffset, fDataSize;
 	int64			fTableOffset, fTableSize;
+	uint32			fMetaDataCount;
 };
 
 CDecompressorImp::CDecompressorImp(HStreamBase& inFile, uint32 inKind,
-		int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize)
+		int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize,
+		uint32 inMetaDataCount)
 	: fFile(&inFile)
 	, fKind(inKind)
 	, fDataOffset(inDataOffset)
 	, fDataSize(inDataSize)
 	, fTableOffset(inTableOffset)
 	, fTableSize(inTableSize)
+	, fMetaDataCount(inMetaDataCount)
 {
 }
 
@@ -193,29 +199,23 @@ struct CBasicDecompressorImp : public CDecompressorImp
 {
 					CBasicDecompressorImp(HStreamBase& inFile, uint32 inKind,
 						int64 inDataOffset, int64 inDataSize,
-						int64 inTableOffset, int64 inTableSize);
+						int64 inTableOffset, int64 inTableSize,
+						uint32 inMetaDataCount);
 	virtual			~CBasicDecompressorImp();
 
 	virtual void	Init();
 
 	virtual string	GetDocument(uint32 inDocNr);
-	virtual string	GetDocument(int64 inOffset, uint32 inSize) = 0;
+	virtual string	GetField(uint32 inDocNr, uint32 inFieldNr);
 
-//	virtual void	CopyData(HStreamBase& outData, uint32& outKind,
-//						int64& outDataOffset, int64& outDataSize,
-//						int64& outTableOffset, int64& outTableSize);
-//	
-//	virtual void	LinkData(const HUrl& inMergedDb,
-//						HStreamBase& outData, uint32& outKind,
-//						int64& outDataOffset, int64& outDataSize,
-//						int64& outTableOffset, int64& outTableSize);
+	virtual string	GetDocument(int64 inOffset, uint32 inSize) = 0;
 
 	CCArray<int64>*	fDocIndex;
 };
 
 CBasicDecompressorImp::CBasicDecompressorImp(HStreamBase& inFile, uint32 inKind,
-		int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize)
-	: CDecompressorImp(inFile, inKind, inDataOffset, inDataSize, inTableOffset, inTableSize)
+		int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize, uint32 inMetaDataCount)
+	: CDecompressorImp(inFile, inKind, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount)
 	, fDocIndex(NULL)
 {
 }
@@ -245,13 +245,49 @@ string CBasicDecompressorImp::GetDocument(uint32 inDocNr)
 	return GetDocument(fDataOffset + offset, size);
 }
 
+string CBasicDecompressorImp::GetField(uint32 inDocNr, uint32 inFieldNr)
+{
+	int64 offset;
+	uint32 size;
+
+	offset = (*fDocIndex)[inDocNr];
+	size = static_cast<uint32>((*fDocIndex)[inDocNr + 1] - offset);
+
+	assert(offset + size <= fDataSize);
+
+	HSwapStream<net_swapper> data(*fFile);
+	data.Seek(fDataOffset + offset, SEEK_SET);
+	
+	uint32 offsetTableLength = sizeof(uint16) * fMetaDataCount;
+	
+	HAutoBuf<uint16> offsets(new uint16[fMetaDataCount + 1]);
+
+	offsets[0] = 0;
+	for (uint32 ix = 1; ix <= fMetaDataCount; ++ix)
+	{
+		uint16 n;
+		data >> n;
+		offsets[ix] = offsets[ix - 1] + n;
+	}
+	
+	string result = GetDocument(fDataOffset + offset + offsetTableLength, size - offsetTableLength);
+	
+	if (inFieldNr < fMetaDataCount)
+		result = result.substr(offsets[inFieldNr], offsets[inFieldNr + 1] - offsets[inFieldNr]);
+	else
+		result = result.substr(offsets[fMetaDataCount]);
+	
+	return result;
+}
+
 // compression using zlib
 
 struct CZLibDecompressorImp : public CBasicDecompressorImp
 {
 					CZLibDecompressorImp(HStreamBase& inFile,
 						int64 inDataOffset, int64 inDataSize,
-						int64 inTableOffset, int64 inTableSize);
+						int64 inTableOffset, int64 inTableSize,
+						uint32 inMetaDataCount);
 	virtual			~CZLibDecompressorImp();
 	
 	virtual void	Init();
@@ -264,9 +300,10 @@ struct CZLibDecompressorImp : public CBasicDecompressorImp
 };
 
 CZLibDecompressorImp::CZLibDecompressorImp(HStreamBase& inFile,
-		int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize)
-	: CBasicDecompressorImp(inFile, kZLibCompressed, inDataOffset, inDataSize, inTableOffset, inTableSize)
+		int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize, uint32 inMetaDataCount)
+	: CBasicDecompressorImp(inFile, kZLibCompressed, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount)
 	, fDictionary(NULL)
+	, fDictLength(0)
 {
 }
 
@@ -286,10 +323,15 @@ void CZLibDecompressorImp::Init()
 	uint16 n;
 	data >> n;
 
-	fDictLength = n;
-	fDictionary = new unsigned char[fDictLength];
-
-	fFile->Read(fDictionary, fDictLength);
+	if (n > 0)
+	{
+		fDictLength = n;
+		fDictionary = new unsigned char[fDictLength];
+	
+		fFile->Read(fDictionary, fDictLength);
+	}
+	
+	fDataOffset += sizeof(n) + n;
 	
 	memset(&fZStream, 0, sizeof(fZStream));
 
@@ -300,8 +342,6 @@ void CZLibDecompressorImp::Init()
 	
 string CZLibDecompressorImp::GetDocument(int64 inOffset, uint32 inLength)
 {
-	inOffset += sizeof(uint16) + fDictLength;
-	
 	string result;
 
 	const long kBufferSize = 0x10000;
@@ -320,10 +360,10 @@ string CZLibDecompressorImp::GetDocument(int64 inOffset, uint32 inLength)
 	bool done = false;
 	int err = inflateReset(&fZStream);
 
-	while (not done && err >= Z_OK)
+	while (not done and err >= Z_OK)
 	{
 			// shift remaining unread bytes to the beginning of our buffer
-		if (fZStream.next_in > src_buf.get() && fZStream.avail_in > 0)
+		if (fZStream.next_in > src_buf.get() and fZStream.avail_in > 0)
 			memmove(src_buf.get(), fZStream.next_in, fZStream.avail_in);
 
 		fZStream.next_in = src_buf.get();
@@ -371,15 +411,16 @@ struct CbzLibDecompressorImp : public CBasicDecompressorImp
 {
 					CbzLibDecompressorImp(HStreamBase& inFile,
 						int64 inDataOffset, int64 inDataSize,
-						int64 inTableOffset, int64 inTableSize);
+						int64 inTableOffset, int64 inTableSize,
+						uint32 inMetaDataCount);
 	virtual			~CbzLibDecompressorImp();
 	
 	virtual string	GetDocument(int64 inOffset, uint32 inSize);
 };
 
 CbzLibDecompressorImp::CbzLibDecompressorImp(HStreamBase& inFile,
-		int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize)
-	: CBasicDecompressorImp(inFile, kbzLibCompressed, inDataOffset, inDataSize, inTableOffset, inTableSize)
+		int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize, uint32 inMetaDataCount)
+	: CBasicDecompressorImp(inFile, kbzLibCompressed, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount)
 {
 }
 
@@ -408,10 +449,10 @@ string CbzLibDecompressorImp::GetDocument(int64 inOffset, uint32 inLength)
 	stream.avail_out = kBufferSize;
 
 	bool done = false;
-	while (not done && err >= Z_OK)
+	while (not done and err >= Z_OK)
 	{
 			// shift remaining unread bytes to the beginning of our buffer
-		if (stream.next_in > src_buf.get() && stream.avail_in > 0)
+		if (stream.next_in > src_buf.get() and stream.avail_in > 0)
 			memmove(src_buf.get(), stream.next_in, stream.avail_in);
 
 		stream.next_in = src_buf.get();
@@ -455,7 +496,8 @@ struct CHuffWordDecompressorImp : public CBasicDecompressorImp
 {
 					CHuffWordDecompressorImp(HStreamBase& inFile,
 						int64 inDataOffset, int64 inDataSize,
-						int64 inTableOffset, int64 inTableSize);
+						int64 inTableOffset, int64 inTableSize,
+						uint32 inMetaDataCount);
 	virtual			~CHuffWordDecompressorImp();
 
 	virtual void	Init();
@@ -488,8 +530,8 @@ struct CHuffWordDecompressorImp : public CBasicDecompressorImp
 };
 
 CHuffWordDecompressorImp::CHuffWordDecompressorImp(HStreamBase& inFile,
-		int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize)
-	: CBasicDecompressorImp(inFile, kHuffWordCompressed, inDataOffset, inDataSize, inTableOffset, inTableSize)
+		int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize, uint32 inMetaDataCount)
+	: CBasicDecompressorImp(inFile, kHuffWordCompressed, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount)
 	, offset(0)
 {
 }
@@ -676,9 +718,11 @@ class CLinkedDataImp : public CDecompressorImp
   public:
 					CLinkedDataImp(const HUrl& inURL, HStreamBase& inFile,
 						int64 inDataOffset, int64 inDataSize,
-						int64 inTableOffset, int64 inTableSize);
+						int64 inTableOffset, int64 inTableSize,
+						uint32 inMetaDataCount);
 	
 	virtual string	GetDocument(uint32 inDocNr);
+	virtual string	GetField(uint32 inDocNr, uint32 inFieldNr);
 
 	virtual void	LinkData(const std::string& inDataFileName,
 							const std::string& inDataFileUUID,
@@ -693,8 +737,8 @@ class CLinkedDataImp : public CDecompressorImp
 };
 
 CLinkedDataImp::CLinkedDataImp(const HUrl& inURL, HStreamBase& inFile,
-	int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize)
-	: CDecompressorImp(inFile, 0, 0, 0, 0, 0)
+	int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize, uint32 inMetaDataCount)
+	: CDecompressorImp(inFile, 0, 0, 0, 0, 0, inMetaDataCount)
 {
 	HStreamView view(inFile, inDataOffset, inDataSize);
 	HSwapStream<net_swapper> data(view);
@@ -710,7 +754,7 @@ CLinkedDataImp::CLinkedDataImp(const HUrl& inURL, HStreamBase& inFile,
 	if (not HFile::Exists(url))
 		THROW(("Linked data file (%s) not found", url.GetURL().c_str()));
 	
-	CDatabank db(url, false);
+	CDatabank db(url);
 	
 	if (db.GetUUID() != fDataFileUUID)
 		THROW(("UUID mismatch for linked data in file %s", url.GetURL().c_str()));
@@ -719,12 +763,17 @@ CLinkedDataImp::CLinkedDataImp(const HUrl& inURL, HStreamBase& inFile,
 	fFile = fMyFile.get();
 	
 	fDecompressor.reset(CDecompressorImp::Create(url, *fFile, fKind,
-		fDataOffset, fDataSize, fTableOffset, fTableSize));
+		fDataOffset, fDataSize, fTableOffset, fTableSize, inMetaDataCount));
 }
 
 string CLinkedDataImp::GetDocument(uint32 inDocNr)
 {
 	return fDecompressor->GetDocument(inDocNr);
+}
+
+string CLinkedDataImp::GetField(uint32 inDocNr, uint32 inFieldNr)
+{
+	return fDecompressor->GetField(inDocNr, inFieldNr);
 }
 
 void CLinkedDataImp::LinkData(const std::string& inDataFileName,
@@ -736,26 +785,26 @@ void CLinkedDataImp::LinkData(const std::string& inDataFileName,
 }
 
 CDecompressorImp* CDecompressorImp::Create(const HUrl& inDb, HStreamBase& inFile, uint32 inKind,
-	int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize)
+	int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize, uint32 inMetaDataCount)
 {
 	CDecompressorImp* result = NULL;
 	
 	switch (inKind)
 	{
 		case kHuffWordCompressed:
-			result = new CHuffWordDecompressorImp(inFile, inDataOffset, inDataSize, inTableOffset, inTableSize);
+			result = new CHuffWordDecompressorImp(inFile, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount);
 			break;
 		
 		case kZLibCompressed:
-			result = new CZLibDecompressorImp(inFile, inDataOffset, inDataSize, inTableOffset, inTableSize);
+			result = new CZLibDecompressorImp(inFile, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount);
 			break;
 		
 		case kbzLibCompressed:
-			result = new CbzLibDecompressorImp(inFile, inDataOffset, inDataSize, inTableOffset, inTableSize);
+			result = new CbzLibDecompressorImp(inFile, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount);
 			break;
 		
 		case kLinkedData:
-			result = new CLinkedDataImp(inDb, inFile, inDataOffset, inDataSize, inTableOffset, inTableSize);
+			result = new CLinkedDataImp(inDb, inFile, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount);
 			break;
 		
 		default:
@@ -770,9 +819,11 @@ CDecompressorImp* CDecompressorImp::Create(const HUrl& inDb, HStreamBase& inFile
 CDecompressor::CDecompressor(const HUrl& inDb,
 		HStreamBase& inFile, uint32 inKind,
 		int64 inDataOffset, int64 inDataSize,
-		int64 inTableOffset, int64 inTableSize)
-	: fImpl(CDecompressorImp::Create(inDb, inFile, inKind, inDataOffset, inDataSize, inTableOffset, inTableSize))
+		int64 inTableOffset, int64 inTableSize,
+		uint32 inMetaDataCount)
+	: fImpl(CDecompressorImp::Create(inDb, inFile, inKind, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount))
 	, fKind(inKind)
+	, fMetaDataCount(inMetaDataCount)
 {
 }
 
@@ -784,6 +835,11 @@ CDecompressor::~CDecompressor()
 string CDecompressor::GetDocument(uint32 inDocNr)
 {
 	return fImpl->GetDocument(inDocNr);
+}
+
+string CDecompressor::GetField(uint32 inEntry, uint32 inIndex)
+{
+	return fImpl->GetField(inEntry, inIndex);
 }
 
 void CDecompressor::CopyData(HStreamBase& outData, uint32& outKind,

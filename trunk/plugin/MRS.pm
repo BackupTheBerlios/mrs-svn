@@ -104,6 +104,7 @@ sub new {
 *Count = *MRSc::MDatabank_Count;
 *GetVersion = *MRSc::MDatabank_GetVersion;
 *GetUUID = *MRSc::MDatabank_GetUUID;
+*GetFileDate = *MRSc::MDatabank_GetFileDate;
 *DumpInfo = *MRSc::MDatabank_DumpInfo;
 *DumpIndex = *MRSc::MDatabank_DumpIndex;
 *PrefetchDocWeights = *MRSc::MDatabank_PrefetchDocWeights;
@@ -114,12 +115,15 @@ sub new {
 *BooleanQuery = *MRSc::MDatabank_BooleanQuery;
 *RankedQuery = *MRSc::MDatabank_RankedQuery;
 *Get = *MRSc::MDatabank_Get;
+*GetMetaData = *MRSc::MDatabank_GetMetaData;
+*GetDescription = *MRSc::MDatabank_GetDescription;
 *Sequence = *MRSc::MDatabank_Sequence;
 *Blast = *MRSc::MDatabank_Blast;
 *Index = *MRSc::MDatabank_Index;
 *Indices = *MRSc::MDatabank_Indices;
 *SuggestCorrection = *MRSc::MDatabank_SuggestCorrection;
 *SetStopWords = *MRSc::MDatabank_SetStopWords;
+*StoreMetaData = *MRSc::MDatabank_StoreMetaData;
 *Store = *MRSc::MDatabank_Store;
 *IndexText = *MRSc::MDatabank_IndexText;
 *IndexTextAndNumbers = *MRSc::MDatabank_IndexTextAndNumbers;
@@ -167,6 +171,7 @@ package MRS::MBooleanQuery;
 *Union = *MRSc::MBooleanQuery_Union;
 *Intersection = *MRSc::MBooleanQuery_Intersection;
 *Perform = *MRSc::MBooleanQuery_Perform;
+*Prefetch = *MRSc::MBooleanQuery_Prefetch;
 sub new {
     my $pkg = shift;
     my $self = MRSc::new_MBooleanQuery(@_);

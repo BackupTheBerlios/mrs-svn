@@ -56,6 +56,8 @@ $commentLine3
 $commentLine1
 END
 
+our @META_DATA_FIELDS = [ 'title', 'species' ];
+
 sub new
 {
 	my $invocant = shift;
@@ -71,9 +73,8 @@ sub parse
 	local *IN = shift;
 	my ($verbose, $db) = @_;
 	
-	my ($id, $doc, $state, $m);
+	my ($id, $doc, $title, $species, $m);
 	
-	$state = 0;
 	$m = $self->{mrs};
 	
 	while (my $line = <IN>)
@@ -85,15 +86,20 @@ sub parse
 		# just maybe there are records without a sequence???
 		if ($line eq '//')
 		{
+			$m->StoreMetaData('title', $title)		if defined $title;
+			$m->StoreMetaData('species', $species)	if defined $species;
 			$m->Store($doc);
 			$m->FlushDocument;
 	
 			$id = undef;
 			$doc = undef;
+			$title = undef;
+			$species = undef;
 		}
-		elsif ($line =~ /^([A-Z]{2}) {3}/o)
+		elsif ($line =~ /^([A-Z]{2}) {3}(.+)/o)
 		{
 			my $fld = $1;
+			my $value = $2;
 
 			if ($line =~ /^ID +(\S+)/o)
 			{
@@ -122,16 +128,20 @@ sub parse
 					$sequence .= $line;
 				}
 
+				$m->StoreMetaData('title', $title)		if defined $title;
+				$m->StoreMetaData('species', $species)	if defined $species;
 				$m->Store($doc);
 				$m->AddSequence($sequence);
 				$m->FlushDocument;
 	
 				$id = undef;
 				$doc = undef;
+				$title = undef;
+				$species = undef;
 			}
 			elsif (substr($fld, 0, 1) eq 'R')
 			{
-				$m->IndexTextAndNumbers('ref', substr($line, 5));
+				$m->IndexTextAndNumbers('ref', $value);
 			}
 			elsif ($fld eq 'CC')
 			{
@@ -139,12 +149,26 @@ sub parse
 					$line ne $commentLine2 and
 					$line ne $commentLine3)
 				{
-					$m->IndexTextAndNumbers('cc', substr($line, 5));
+					$m->IndexTextAndNumbers('cc', $value);
 				}
+			}
+			elsif ($fld eq 'DE')
+			{
+				$title .= ' ' if defined $title;
+				$title .= $value;
+				
+				$m->IndexTextAndNumbers('de', $value);
+			}
+			elsif ($fld eq 'OS')
+			{
+				$species .= ' ' if defined $species;
+				$species .= $value;
+				
+				$m->IndexTextAndNumbers('os', $value);
 			}
 			elsif ($fld ne 'XX')
 			{
-				$m->IndexTextAndNumbers(lc($fld), substr($line, 5));
+				$m->IndexTextAndNumbers(lc($fld), $value);
 			}
 		}
 	}

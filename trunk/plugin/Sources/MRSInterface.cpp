@@ -154,7 +154,8 @@ static void PrintStatistics()
 
 struct MDatabankImp
 {
-					MDatabankImp(const string& inDatabank, bool inNew);
+					MDatabankImp(const string& inDatabank);
+					MDatabankImp(const string& inDatabank, const vector<string>& inMetaDataFields);
 
 	CDatabank*		GetDB()
 					{
@@ -188,9 +189,11 @@ struct MDatabankImp
 struct MQueryResultsImp
 {
 								MQueryResultsImp(CDatabankBase& inDb,
-										CDocIterator* inDocIterator)
+										CDocIterator* inDocIterator,
+										uint32 inCount = numeric_limits<uint32>::max())
 									: fDatabank(&inDb)
 									, fScore(1.0f)
+									, fCount(inCount)
 									, fIter(inDocIterator) {}
 	virtual						~MQueryResultsImp() {}
 
@@ -209,15 +212,19 @@ struct MQueryResultsImp
 
 	virtual uint32				Count(bool inExact)
 								{
-									uint32 result = 0;
-									if (fIter.get() != nil)
-										result = fIter->Count();
-									return result;
+									if (fCount == numeric_limits<uint32>::max())
+									{
+										fCount = 0;
+										if (fIter.get() != nil)
+											fCount = fIter->Count();
+									}
+									return fCount;
 								}
 
 	CDatabankBase*				fDatabank;
 	string						fScratch;
 	float						fScore;
+	uint32						fCount;
 
 	auto_ptr<CDocIterator>		fIter;
 };
@@ -356,141 +363,143 @@ struct MRankedQueryImp
 
 const char MDatabank::kWildCardString[] = "*";
 
-MDatabankImp::MDatabankImp(const string& inDatabank, bool inNew)
+MDatabankImp::MDatabankImp(const string& inDatabank, const vector<string>& inMetaDataFields)
 	: fStoreTime(0)
 	, fFlushTime(0)
 	, fIndexTime(0)
 	, fFinishTime(0)
 {
-	if (inNew)
+	HUrl url;
+	url.SetNativePath(inDatabank);
+	
+	if (HFile::Exists(url))
 	{
-		HUrl url;
-		url.SetNativePath(inDatabank);
-		
-		if (HFile::Exists(url))
-		{
-			fSafe.reset(new HFile::SafeSaver(url));
-			url = fSafe->GetURL();
-		}
-		
-		if (VERBOSE)
-			cout << "Creating databank " << url.GetURL() << endl;
-		
-		fDatabank.reset(new CDatabank(url, true));
+		fSafe.reset(new HFile::SafeSaver(url));
+		url = fSafe->GetURL();
 	}
-	else
+	
+	if (VERBOSE)
+		cout << "Creating databank " << url.GetURL() << endl;
+	
+	fDatabank.reset(new CDatabank(url, inMetaDataFields));
+}
+
+MDatabankImp::MDatabankImp(const string& inDatabank)
+	: fStoreTime(0)
+	, fFlushTime(0)
+	, fIndexTime(0)
+	, fFinishTime(0)
+{
+	const char* data_dir = getenv("MRS_DATA_DIR");
+
+	if (VERBOSE >= 2)
 	{
-		const char* data_dir = getenv("MRS_DATA_DIR");
+		if (data_dir)
+			cout << "using MRS_DATA_DIR=" << data_dir << endl;
+		else
+			cout << "MRS_DATA_DIR is not defined" << endl;
+	}
 
-		if (VERBOSE >= 2)
+	string databank(inDatabank);
+	
+	do
+	{
+		string::size_type p = databank.find('|');
+		string db;
+		
+		if (p != string::npos)
 		{
-			if (data_dir)
-				cout << "using MRS_DATA_DIR=" << data_dir << endl;
-			else
-				cout << "MRS_DATA_DIR is not defined" << endl;
+			db = databank.substr(0, p);
+			databank.erase(0, p + 1);
 		}
-
-		string databank(inDatabank);
-		
-		do
+		else
 		{
-			string::size_type p = databank.find('|');
-			string db;
-			
-			if (p != string::npos)
-			{
-				db = databank.substr(0, p);
-				databank.erase(0, p + 1);
-			}
-			else
-			{
-				db = databank;
-				databank.clear();
-			}
-			
-			HUrl url;
-			
-			string::size_type j = db.find('+');
-			if (j != string::npos)
-			{
-				// joined parts are only allowed before the first updating part...
-				
-				if (fDatabank.get() != nil)
-					THROW(("Joined parts can only occur before the first update part"));
-				
-				vector<CDatabankBase*> parts;
-				
-				do
-				{
-					string part;
-					
-					if (j != string::npos)
-					{
-						part = db.substr(0, j);
-						db.erase(0, j + 1);
-					}
-					else
-					{
-						part = db;
-						db.clear();
-					}
-					
-					HUrl url;
+			db = databank;
+			databank.clear();
+		}
 		
-					// find the db to use and try to be intelligent...
-					
-					url.SetNativePath(part);
-					if (not HFile::Exists(url))
-						url.SetNativePath(part + kFileExtension);
-					if (not HFile::Exists(url) and data_dir != nil)
-						url.SetNativePath(string(data_dir) + '/' + part);
-					if (not HFile::Exists(url) and data_dir != nil)
-						url.SetNativePath(string(data_dir) + '/' + part + kFileExtension);
+		HUrl url;
+		
+		string::size_type j = db.find('+');
+		if (j != string::npos)
+		{
+			// joined parts are only allowed before the first updating part...
 			
-					if (not HFile::Exists(url))
-						THROW(("Databank not found: '%s'", part.c_str()));
-	
-					if (VERBOSE)
-						cout << "Using file " << url.GetURL() << endl;
-					
-					parts.push_back(new CDatabank(url, false));
-						
-					j = db.find('+');
-				}
-				while (db.length());
-				
-				if (parts.size() == 0)
-					THROW(("no databanks specified"));
-	
-				fDatabank.reset(new CJoinedDatabank(parts));
-			}
-			else
+			if (fDatabank.get() != nil)
+				THROW(("Joined parts can only occur before the first update part"));
+			
+			vector<CDatabankBase*> parts;
+			
+			do
 			{
+				string part;
+				
+				if (j != string::npos)
+				{
+					part = db.substr(0, j);
+					db.erase(0, j + 1);
+				}
+				else
+				{
+					part = db;
+					db.clear();
+				}
+				
+				HUrl url;
 	
 				// find the db to use and try to be intelligent...
 				
-				url.SetNativePath(db);
+				url.SetNativePath(part);
 				if (not HFile::Exists(url))
-					url.SetNativePath(db + kFileExtension);
+					url.SetNativePath(part + kFileExtension);
 				if (not HFile::Exists(url) and data_dir != nil)
-					url.SetNativePath(string(data_dir) + '/' + db);
+					url.SetNativePath(string(data_dir) + '/' + part);
 				if (not HFile::Exists(url) and data_dir != nil)
-					url.SetNativePath(string(data_dir) + '/' + db + ".cmp");
+					url.SetNativePath(string(data_dir) + '/' + part + kFileExtension);
 		
 				if (not HFile::Exists(url))
-					THROW(("Databank not found: '%s'", db.c_str()));
-				
+					THROW(("Databank not found: '%s'", part.c_str()));
+
 				if (VERBOSE)
 					cout << "Using file " << url.GetURL() << endl;
 				
-				if (fDatabank.get() == nil)
-					fDatabank.reset(new CDatabank(url, false));
-				else
-					fDatabank.reset(new CUpdatedDatabank(url, fDatabank.release()));
+				parts.push_back(new CDatabank(url));
+					
+				j = db.find('+');
 			}
+			while (db.length());
+			
+			if (parts.size() == 0)
+				THROW(("no databanks specified"));
+
+			fDatabank.reset(new CJoinedDatabank(parts));
 		}
-		while (databank.length() != 0);
+		else
+		{
+
+			// find the db to use and try to be intelligent...
+			
+			url.SetNativePath(db);
+			if (not HFile::Exists(url))
+				url.SetNativePath(db + kFileExtension);
+			if (not HFile::Exists(url) and data_dir != nil)
+				url.SetNativePath(string(data_dir) + '/' + db);
+			if (not HFile::Exists(url) and data_dir != nil)
+				url.SetNativePath(string(data_dir) + '/' + db + ".cmp");
+	
+			if (not HFile::Exists(url))
+				THROW(("Databank not found: '%s'", db.c_str()));
+			
+			if (VERBOSE)
+				cout << "Using file " << url.GetURL() << endl;
+			
+			if (fDatabank.get() == nil)
+				fDatabank.reset(new CDatabank(url));
+			else
+				fDatabank.reset(new CUpdatedDatabank(url, fDatabank.release()));
+		}
 	}
+	while (databank.length() != 0);
 }
 
 void MDatabankImp::PrintCreateStatistics()
@@ -526,23 +535,28 @@ MDatabank::MDatabank()
 }
 
 MDatabank::MDatabank(const string& inDatabank)
-	: MRSObject<MDatabank, struct MDatabankImp>(new MDatabankImp(inDatabank, false))
+	: MRSObject<MDatabank, struct MDatabankImp>(new MDatabankImp(inDatabank))
 {
 }
 
-MDatabank::MDatabank(const string& inDatabank, bool)
-	: MRSObject<MDatabank, struct MDatabankImp>(new MDatabankImp(inDatabank, true))
+MDatabank::MDatabank(const string& inDatabank, const vector<string>& inMetaDataFields)
+	: MRSObject<MDatabank, struct MDatabankImp>(new MDatabankImp(inDatabank, inMetaDataFields))
 {
 }
 
-MDatabank* MDatabank::Create(const string& inName)
+MDatabank* MDatabank::Create(const string& inName, vector<string> inMetaDataFields)
 {
-	return new MDatabank(inName, true);
+	return new MDatabank(inName, inMetaDataFields);
 }
 
 void MDatabank::Merge(const string& inName, MDatabankArray inDbs, bool inCopyData)
 {
-	auto_ptr<MDatabankImp> result(new MDatabankImp(inName, true));
+	if (inDbs.size() == 0 or inDbs.front() == nil)
+		THROW(("Invalid array of databanks passed to Merge"));
+	
+	vector<string> metaData = inDbs[0]->fImpl->GetDB()->GetMetaDataFields();
+	
+	auto_ptr<MDatabankImp> result(new MDatabankImp(inName, metaData));
 	
 	vector<CDatabank*> dbs;
 	for (vector<MDatabank*>::const_iterator db = inDbs.begin(); db != inDbs.end(); ++db)
@@ -574,6 +588,11 @@ string MDatabank::GetVersion()
 string MDatabank::GetUUID()
 {
 	return fImpl->fDatabank->GetUUID();
+}
+
+string MDatabank::GetFileDate()
+{
+	return "to be implemented";
 }
 
 void MDatabank::DumpInfo()
@@ -635,6 +654,46 @@ const char* MDatabank::Get(const string& inEntryID)
 	{
 		fImpl->fScratch = fImpl->fDatabank->GetDocument(inEntryID);
 		result = fImpl->fScratch.c_str();
+	}
+	catch (exception& e)
+	{
+		gErrStr = e.what();
+	}
+	
+	return result;
+}
+
+const char* MDatabank::GetMetaData(
+	const std::string& inEntryID, const std::string& inFieldName)
+{
+	const char* result = nil;
+	
+	try
+	{
+		fImpl->fScratch = fImpl->fDatabank->GetMetaData(inEntryID, inFieldName);
+		result = fImpl->fScratch.c_str();
+	}
+	catch (exception& e)
+	{
+		gErrStr = e.what();
+	}
+	
+	return result;
+}
+
+const char* MDatabank::GetDescription(const std::string& inEntryID)
+{
+	const char* result = nil;
+	
+	try
+	{
+		MStringArray mf(fImpl->fDatabank->GetMetaDataFields());
+		
+		if (mf.size() > 0)
+		{
+			fImpl->fScratch = fImpl->fDatabank->GetMetaData(inEntryID, mf[0].c_str());
+			result = fImpl->fScratch.c_str();
+		}
 	}
 	catch (exception& e)
 	{
@@ -741,6 +800,12 @@ void MDatabank::Store(const string& inDocument)
 {
 	CStopwatch sw(fImpl->fStoreTime);
 	fImpl->GetDB()->Store(inDocument);
+}
+
+void MDatabank::StoreMetaData(const string& inFieldName, const string& inValue)
+{
+	CStopwatch sw(fImpl->fStoreTime);
+	fImpl->GetDB()->StoreMetaData(inFieldName, inValue);
 }
 
 void MDatabank::IndexText(const string& inIndex, const string& inText)
@@ -1253,10 +1318,15 @@ MQueryResults* MRankedQuery::Perform(MBooleanQuery* inMetaQuery)
 
 	if (inMetaQuery == nil or metaDocs.get() != nil)
 	{
-		auto_ptr<MQueryResultsImp> imp(
-			new MQueryResultsImp(*fImpl->fDatabank, fImpl->fQuery->PerformSearch(
-				*fImpl->fDatabank, fImpl->fIndex, fImpl->fAlgorithm, metaDocs.release(),
-				fImpl->fMaxReturn, fImpl->fAllTermsRequired)));
+		CDocIterator* data = nil;
+		uint32 count;
+		
+		fImpl->fQuery->PerformSearch(
+			*fImpl->fDatabank, fImpl->fIndex, fImpl->fAlgorithm, metaDocs.release(),
+			fImpl->fMaxReturn, fImpl->fAllTermsRequired,
+			data, count);
+		
+		auto_ptr<MQueryResultsImp> imp(new MQueryResultsImp(*fImpl->fDatabank, data, count));
 	
 		if (imp->Count(false) > 0)
 			result = MQueryResults::Create(imp.release());

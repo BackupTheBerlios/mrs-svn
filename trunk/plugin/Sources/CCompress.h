@@ -67,6 +67,11 @@ class CCompressor
 	virtual				~CCompressor();
 
 	void				AddDocument(const char* inText, uint32 inSize);
+	
+						// AddData accepts an array of pairs of pointers to data and lengths
+						// the last pair is the document
+	void				AddData(std::vector<std::pair<const char*,uint32> >& inDataVector);
+
 	void				Finish(int64& outDataOffset, int64& outDataSize,
 							int64& outTableOffset, int64& outTableSize,
 							uint32& outCompressionKind, uint32& outCount);
@@ -74,14 +79,9 @@ class CCompressor
 	uint32				Count() const		{ return fDocCount; }
 
   private:
-	
-	void				ProcessScratch();
-	void				CompressDocument(const char* inText, uint32 inSize);
 
 	struct CCompressorImp*	fImpl;
 	HStreamBase&			fData;
-	HStreamBase*			fScratch;
-	std::vector<int64>		fScratchIndex;
 	int64					fDataOffset, fFirstDocOffset;
 	int64					fDocStart;
 	HStreamBase*			fDocIndexData;
