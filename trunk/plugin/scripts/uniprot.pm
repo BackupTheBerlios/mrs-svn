@@ -56,7 +56,7 @@ $commentLine3
 $commentLine1
 END
 
-our @META_DATA_FIELDS = [ 'title', 'species' ];
+our @META_DATA_FIELDS = [ 'title' ];	# was [ 'title', 'species' ]
 
 sub new
 {
@@ -87,7 +87,7 @@ sub parse
 		if ($line eq '//')
 		{
 			$m->StoreMetaData('title', $title)		if defined $title;
-			$m->StoreMetaData('species', $species)	if defined $species;
+#			$m->StoreMetaData('species', $species)	if defined $species;
 			$m->Store($doc);
 			$m->FlushDocument;
 	
@@ -129,7 +129,7 @@ sub parse
 				}
 
 				$m->StoreMetaData('title', $title)		if defined $title;
-				$m->StoreMetaData('species', $species)	if defined $species;
+#				$m->StoreMetaData('species', $species)	if defined $species;
 				$m->Store($doc);
 				$m->AddSequence($sequence);
 				$m->FlushDocument;

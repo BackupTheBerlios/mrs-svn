@@ -205,7 +205,7 @@ echo_flags:
 	 @ echo Compiler flags used: $(CFLAGS)
 	 @ echo Include paths: $(INCLUDES)
 
-$(TARGET): echo_flags Sources/soapC.cpp $(OBJS)
+$(TARGET): echo_flags $(OBJS)
 	@ echo "Linking "$(@F)
 	$(CC) -o $(TARGET) $(LDFLAGS) $(OBJS)
 	@ chmod a+rx $(TARGET)
@@ -232,7 +232,7 @@ $(OBJDIR)/%.o: %.cpp
 
 include $(OBJS:%.o=%.d)
 
-Sources/soapC.cpp: Sources/mrsws.h
+Sources/soapC.cpp Sources/soapServer.cpp: Sources/mrsws.h
 	$(SOAPCPP2) -Igsoap-2.7/soapcpp2/import -d Sources/ Sources/mrsws.h
 
 $(OBJDIR)/%.d:%.cpp
