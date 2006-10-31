@@ -232,7 +232,7 @@ $(OBJDIR)/%.o: %.cpp
 
 include $(OBJS:%.o=%.d)
 
-Sources/soapC.cpp Sources/soapServer.cpp: Sources/mrsws.h
+soapC.cpp soapServer.cpp: Sources/mrsws.h
 	$(SOAPCPP2) -Igsoap-2.7/soapcpp2/import -d Sources/ Sources/mrsws.h
 
 $(OBJDIR)/%.d:%.cpp

@@ -957,6 +957,14 @@ uint32 CDatabank::Count() const
 	return fHeader->entries;
 }
 
+int64 CDatabank::GetRawDataSize() const
+{
+	int64 result = 0;
+	for (uint32 i = 0; i < fDataHeader->count; ++i)
+		result += fParts[i].raw_data_size;
+	return result;
+}
+
 string CDatabank::GetVersion() const
 {
 	string vers, s;
@@ -1681,6 +1689,14 @@ uint32 CJoinedDatabank::Count() const
 	return result;
 }
 
+int64 CJoinedDatabank::GetRawDataSize() const
+{
+	int64 result = 0;
+	for (uint32 p = 0; p < fPartCount; ++p)
+		result += fParts[p].fDb->GetRawDataSize();
+	return result;
+}
+
 void CJoinedDatabank::PrintInfo()
 {
 	for (uint32 p = 0; p < fPartCount; ++p)
@@ -1854,7 +1870,7 @@ string CJoinedDatabank::GetDbName() const
 	for (uint32 p = 0; p < fPartCount; ++p)
 	{
 		if (p > 0)
-			result += " + ";
+			result += '+';
 		result += fParts[p].fDb->GetDbName();
 	}
 	return result;
@@ -2041,6 +2057,11 @@ CDocIterator* CUpdatedDatabank::CreateDocIterator(const string& inIndex,
 uint32 CUpdatedDatabank::Count() const
 {
 	return CDatabank::Count() + fOriginal->Count();
+}
+
+int64 CUpdatedDatabank::GetRawDataSize() const
+{
+	return CDatabank::GetRawDataSize() + fOriginal->GetRawDataSize();
 }
 
 void CUpdatedDatabank::PrintInfo()

@@ -135,7 +135,8 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	long				Count();
 	std::string			GetVersion();
 	std::string			GetUUID();
-	std::string			GetFileDate();
+	std::string			GetFilePath();
+	long long			GetRawDataSize();
 	void				DumpInfo();
 	void				DumpIndex(const std::string& inIndex);
 	

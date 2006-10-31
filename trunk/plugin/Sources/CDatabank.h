@@ -110,6 +110,7 @@ class CDatabankBase
 #endif
 	
 	virtual uint32		Count() const = 0;
+	virtual int64		GetRawDataSize() const = 0;
 	virtual std::string	GetVersion() const = 0;
 	virtual std::string	GetUUID() const = 0;
 	virtual void		PrintInfo() = 0;
@@ -229,6 +230,7 @@ class CDatabank : public CDatabankBase
 	void				Finish(bool inCreateAllTextIndex);
 	
 	virtual uint32		Count() const;
+	virtual int64		GetRawDataSize() const;
 	virtual std::string	GetVersion() const;
 	virtual std::string	GetUUID() const;
 	
@@ -330,6 +332,7 @@ class CJoinedDatabank : public CDatabankBase
 #endif
 
 	virtual uint32		Count() const;
+	virtual int64		GetRawDataSize() const;
 	virtual std::string	GetVersion() const;
 	virtual std::string	GetUUID() const;
 	virtual void		PrintInfo();
@@ -394,6 +397,7 @@ class CUpdatedDatabank : public CDatabank
 						~CUpdatedDatabank();
 
 	virtual uint32		Count() const;
+	virtual int64		GetRawDataSize() const;
 	virtual std::string	GetVersion() const;
 	virtual std::string	GetUUID() const;
 	virtual void		PrintInfo();

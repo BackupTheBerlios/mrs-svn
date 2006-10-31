@@ -590,9 +590,14 @@ string MDatabank::GetUUID()
 	return fImpl->fDatabank->GetUUID();
 }
 
-string MDatabank::GetFileDate()
+string MDatabank::GetFilePath()
 {
-	return "to be implemented";
+	return fImpl->GetDB()->GetDataUrl().GetURL();
+}
+
+long long MDatabank::GetRawDataSize()
+{
+	return fImpl->fDatabank->GetRawDataSize();
 }
 
 void MDatabank::DumpInfo()

@@ -6,6 +6,7 @@
 #include <map>
 #include <sstream>
 #include <cstdarg>
+#include <sys/stat.h>
 
 #include "soapH.h"
 #include "mrsws.nsmap"
@@ -116,17 +117,49 @@ void GetDatabankInfo(const string& inDb, ns__DatabankInfo& outInfo)
 			outInfo.filter = dbi->filter;
 			outInfo.url = dbi->url;
 			outInfo.parser = dbi->parser;
-			outInfo.blastable = dbi->blast;
+			outInfo.blastable = (dbi->blast != 0);
 			
-			MDatabank db(inDb);
+			char* first = const_cast<char*>(inDb.c_str());
+			char* last = NULL;
+			const char* dbn;
 			
-			outInfo.uuid = db.GetUUID();
-			outInfo.entries = db.Count();
-			outInfo.version = db.GetVersion();
-			outInfo.last_update = db.GetFileDate();
+			while ((dbn = strtok_r(first, "+|", &last)) != NULL)
+			{
+				first = NULL;
+
+				MDatabank db(dbn);
+				
+				ns__FileInfo fi;
+				
+				fi.id = dbn;
+				fi.uuid = db.GetUUID();
+				fi.version = db.GetVersion();
+				fi.path = db.GetFilePath();
+				fi.entries = db.Count();
+				fi.raw_data_size = db.GetRawDataSize();
+				
+				struct stat sb;
+				string path = fi.path;
+				if (path.substr(0, 7) == "file://")
+					path.erase(0, 7);
+				
+				if (stat(path.c_str(), &sb) == 0)
+				{
+					fi.file_size = sb.st_size;
+					
+					struct tm tm;
+					char b[1024];
+
+					strftime(b, sizeof(b), "%Y-%m-%d %H:%M:%S",
+						localtime_r(&sb.st_mtime, &tm));
+					
+					fi.modification_date = b;
+				}
+				
+				outInfo.files.push_back(fi);
+			}
 			
 			found = true;
-			
 			break;
 		}
 	}
@@ -318,9 +351,41 @@ SOAP_FMAC5 int SOAP_FMAC6 ns__Find(struct soap*, string db, vector<string> query
 	return result;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 ns__FindSimilar(struct soap*, string db, string id,
-	enum ns__Algorithm algorithm, int resultoffset, int maxresultcount,
-	struct ns__FindResponse& result)
+SOAP_FMAC5 int SOAP_FMAC6
+ns__SpellCheck(
+	struct soap*	soap,
+	string			db,
+	string			queryterm,
+	vector<string>&	suggestions)
 {
-	return SOAP_ERR;
+	int result = SOAP_OK;
+	
+	try
+	{
+		MDatabank mrsDb(db);
+		
+		auto_ptr<MStringIterator> s(mrsDb.SuggestCorrection(queryterm));
+		if (s.get() != NULL)
+		{
+			const char* sw;
+			while ((sw = s->Next()) != NULL)
+				suggestions.push_back(sw);
+		}
+	}
+	catch (exception& e)
+	{
+		result = soap_receiver_fault(soap,
+			"An error occurred while trying to get spelling suggestions",
+			e.what());
+	}
+
+	return result;
 }
+
+
+//SOAP_FMAC5 int SOAP_FMAC6 ns__FindSimilar(struct soap*, string db, string id,
+//	enum ns__Algorithm algorithm, int resultoffset, int maxresultcount,
+//	struct ns__FindResponse& result)
+//{
+//	return SOAP_ERR;
+//}

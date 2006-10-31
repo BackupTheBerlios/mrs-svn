@@ -1842,7 +1842,7 @@ XS(_wrap_MDatabank_GetUUID) {
 }
 
 
-XS(_wrap_MDatabank_GetFileDate) {
+XS(_wrap_MDatabank_GetFilePath) {
     {
         MDatabank *arg1 = (MDatabank *) 0 ;
         std::string result;
@@ -1850,16 +1850,16 @@ XS(_wrap_MDatabank_GetFileDate) {
         dXSARGS;
         
         if ((items < 1) || (items > 1)) {
-            SWIG_croak("Usage: MDatabank_GetFileDate(self);");
+            SWIG_croak("Usage: MDatabank_GetFilePath(self);");
         }
         {
             if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
-                SWIG_croak("Type error in argument 1 of MDatabank_GetFileDate. Expected _p_MDatabank");
+                SWIG_croak("Type error in argument 1 of MDatabank_GetFilePath. Expected _p_MDatabank");
             }
         }
         {
             try {
-                result = (arg1)->GetFileDate();
+                result = (arg1)->GetFilePath();
                 
             }
             
@@ -1877,6 +1877,50 @@ XS(_wrap_MDatabank_GetFileDate) {
             char *data = const_cast<char*>((&result)->data());
             sv_setpvn(ST(argvi) = sv_newmortal(), data, (&result)->size());
             ++argvi;
+        }
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MDatabank_GetRawDataSize) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        long long result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: MDatabank_GetRawDataSize(self);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_GetRawDataSize. Expected _p_MDatabank");
+            }
+        }
+        {
+            try {
+                result = (long long)(arg1)->GetRawDataSize();
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        {
+            char temp[256];
+            sprintf(temp,"%lld", (long long) result);
+            ST(argvi) = sv_newmortal();
+            sv_setpv((SV*)ST(argvi++), temp);
         }
         XSRETURN(argvi);
         fail:
@@ -6735,7 +6779,8 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MDatabank_Count", _wrap_MDatabank_Count},
 {"MRSc::MDatabank_GetVersion", _wrap_MDatabank_GetVersion},
 {"MRSc::MDatabank_GetUUID", _wrap_MDatabank_GetUUID},
-{"MRSc::MDatabank_GetFileDate", _wrap_MDatabank_GetFileDate},
+{"MRSc::MDatabank_GetFilePath", _wrap_MDatabank_GetFilePath},
+{"MRSc::MDatabank_GetRawDataSize", _wrap_MDatabank_GetRawDataSize},
 {"MRSc::MDatabank_DumpInfo", _wrap_MDatabank_DumpInfo},
 {"MRSc::MDatabank_DumpIndex", _wrap_MDatabank_DumpIndex},
 {"MRSc::MDatabank_PrefetchDocWeights", _wrap_MDatabank_PrefetchDocWeights},
