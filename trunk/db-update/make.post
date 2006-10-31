@@ -90,14 +90,14 @@ ${MRS_FILES:=.cmp}: $(ZIPFILES)
 
 endif
 
-$(MRSDIR)%.dict: $(MRSDIR)%.cmp
-	$(MRS_DICT_CREATE) -d ${@F:.dict=} -i $(MRS_DICT) $(MRS_DICT_OPTIONS)
+${MRS_DICTS:=.dict}: $(ZIPFILES)
+	$(MRS_DICT_CREATE) -d ${@F:.dict=} -i $(MRS_DICT_FIELDS) $(MRS_DICT_OPTIONS)
 
 ifneq ($(MRS_DICT),)
 DICT = $(addsuffix .dict, $(basename $(MRS_FILES)))
 endif
 
-mrs: ${MRS_FILES:=.cmp} $(DICT)
+mrs: ${MRS_FILES:=.cmp} ${MRS_DICTS:=.dict}
 
 else
 
