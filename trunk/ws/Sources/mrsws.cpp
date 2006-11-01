@@ -67,12 +67,11 @@ class WSDatabankTable
 	struct DBInfo
 	{
 		MDatabankPtr	mDb;
-		string			mPath;
-		time_t			mTimeStamp;
 		
 						DBInfo();
 						DBInfo(MDatabankPtr inDb);
 						DBInfo(const DBInfo& inOther);
+
 		bool			Valid();
 	};
 
@@ -88,38 +87,22 @@ WSDatabankTable& WSDatabankTable::Instance()
 }
 
 WSDatabankTable::DBInfo::DBInfo()
-	: mTimeStamp(0)
 {
 }
 
 WSDatabankTable::DBInfo::DBInfo(const DBInfo& inOther)
 	: mDb(inOther.mDb)
-	, mPath(inOther.mPath)
-	, mTimeStamp(inOther.mTimeStamp)
 {
 }
 
 WSDatabankTable::DBInfo::DBInfo(MDatabankPtr inDb)
 	: mDb(inDb)
-	, mPath(inDb->GetFilePath())
 {
-	if (mPath.substr(0, 7) == "file://")
-		mPath.erase(0, 7);
-	
-	struct stat sb;
-	
-	if (stat(mPath.c_str(), &sb) != 0)
-		THROW(("Error locating db %s: %s", mPath.c_str(), strerror(errno)));
-		
-	mTimeStamp = sb.st_mtime;
 }
 
 bool WSDatabankTable::DBInfo::Valid()
 {
-	struct stat sb;
-	
-	return
-		stat(mPath.c_str(), &sb) == 0 && mTimeStamp == sb.st_mtime;
+	return mDb.get() != NULL and mDb->IsUpToDate();
 }
 
 MDatabankPtr WSDatabankTable::operator[](const string& inCode)
@@ -129,9 +112,7 @@ MDatabankPtr WSDatabankTable::operator[](const string& inCode)
 		cout << "Reloading db " << inCode << endl;
 		
 		MDatabankPtr db(new MDatabank(inCode));
-		
-		DBInfo inf(db);
-		mDBs[inCode] = inf;
+		mDBs[inCode] = DBInfo(db);
 	}
 	
 	return mDBs[inCode].mDb;
@@ -449,6 +430,8 @@ ns__SpellCheck(
 	vector<string>&	suggestions)
 {
 	int result = SOAP_OK;
+	
+	VERBOSE = 2;
 	
 	try
 	{

@@ -118,7 +118,12 @@ ifeq ($(OS),Darwin)
 	SYSINCPATHS	+= /opt/local/include
 	LIBPATHS	+= /opt/local/lib
 	CFLAGS		+= -force_cpusubtype_ALL
-	OPT			+= -O3 -mcpu=G4 -falign-loops=32
+	OPT			+= -O3 -falign-loops=32
+	
+ifeq ($(CPU),ppc)
+		OPT		+= -mcpu=G4
+endif
+	
 #	WARNINGS	+= -Wno-long-double
 	CTAGS		= /sw/bin/ctags
 	STRIP		= strip -S
@@ -206,6 +211,7 @@ echo_flags:
 	 @ echo Include paths: $(INCLUDES)
 
 $(TARGET): echo_flags $(OBJS)
+	$(MAKE) DEBUG=$(DEBUG) -C ../plugin $(LIBNAME)
 	@ echo "Linking "$(@F)
 	$(CC) -o $(TARGET) $(LDFLAGS) $(OBJS)
 	@ chmod a+rx $(TARGET)
