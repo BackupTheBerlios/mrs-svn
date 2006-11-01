@@ -115,6 +115,9 @@ class CDatabankBase
 	virtual std::string	GetUUID() const = 0;
 	virtual void		PrintInfo() = 0;
 //	virtual void		DumpIndex(const std::string& inIndex);
+
+	virtual bool		IsUpToDate() const = 0;
+
 	virtual CIteratorBase*
 						GetIteratorForIndex(const std::string& inIndex);
 	virtual CIteratorBase*
@@ -233,6 +236,7 @@ class CDatabank : public CDatabankBase
 	virtual int64		GetRawDataSize() const;
 	virtual std::string	GetVersion() const;
 	virtual std::string	GetUUID() const;
+	virtual bool		IsUpToDate() const;
 	
 	virtual long		GetIndexCount();
 	virtual	void		GetIndexInfo(uint32 inIndexNr, std::string& outCode,
@@ -288,6 +292,7 @@ class CDatabank : public CDatabankBase
 	};
 	
 	HUrl			fPath;
+	int64			fModificationTime;
 	HStreamBase*	fDataFile;
 	CCompressor*	fCompressor;
 	CPartList		fDataParts;
@@ -335,6 +340,7 @@ class CJoinedDatabank : public CDatabankBase
 	virtual int64		GetRawDataSize() const;
 	virtual std::string	GetVersion() const;
 	virtual std::string	GetUUID() const;
+	virtual bool		IsUpToDate() const;
 	virtual void		PrintInfo();
 	virtual long		GetIndexCount();
 	virtual	void		GetIndexInfo(uint32 inIndexNr, std::string& outCode,
@@ -400,6 +406,7 @@ class CUpdatedDatabank : public CDatabank
 	virtual int64		GetRawDataSize() const;
 	virtual std::string	GetVersion() const;
 	virtual std::string	GetUUID() const;
+	virtual bool		IsUpToDate() const;
 	virtual void		PrintInfo();
 
 	virtual std::string	GetDocument(uint32 inDocNr);

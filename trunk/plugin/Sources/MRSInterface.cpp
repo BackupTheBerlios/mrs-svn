@@ -590,6 +590,11 @@ string MDatabank::GetUUID()
 	return fImpl->fDatabank->GetUUID();
 }
 
+bool MDatabank::IsUpToDate()
+{
+	return fImpl->fDatabank->IsUpToDate();
+}
+
 string MDatabank::GetFilePath()
 {
 	return fImpl->GetDB()->GetDataUrl().GetURL();

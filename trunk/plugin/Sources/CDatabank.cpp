@@ -326,6 +326,7 @@ vector<string> CDatabankBase::SuggestCorrection(const string& inKey)
 
 CDatabank::CDatabank(const HUrl& inUrl, const vector<string>& inMetaDataFields)
 	: fPath(inUrl)
+	, fModificationTime(0)
 	, fDataFile(NULL)
 	, fCompressor(NULL)
 	, fIndexer(NULL)
@@ -397,6 +398,7 @@ CDatabank::CDatabank(const HUrl& inUrl, const vector<string>& inMetaDataFields)
 
 CDatabank::CDatabank(const HUrl& inUrl)
 	: fPath(inUrl)
+	, fModificationTime(0)
 	, fDataFile(NULL)
 	, fCompressor(NULL)
 	, fIndexer(NULL)
@@ -414,6 +416,8 @@ CDatabank::CDatabank(const HUrl& inUrl)
 	, fBlast(nil)
 #endif
 {
+	HFile::GetModificationTime(fPath, fModificationTime);
+	
 	memset(fHeader, 0, sizeof(SHeader));
 	memset(fDataHeader, 0, sizeof(SDataHeader));
 	
@@ -988,6 +992,14 @@ string CDatabank::GetUUID() const
 	char suuid[40];
 	uuid_unparse(fHeader->uuid, suuid);
 	return suuid;
+}
+
+bool CDatabank::IsUpToDate() const
+{
+	int64 mtime;
+	
+	return
+		HFile::GetModificationTime(fPath, mtime) == 0 and mtime == fModificationTime;
 }
 
 string CDatabank::GetDocumentID(uint32 inDocNr) const
@@ -1848,6 +1860,16 @@ string CJoinedDatabank::GetUUID() const
 	return uuid;
 }
 
+bool CJoinedDatabank::IsUpToDate() const
+{
+	bool result = true;
+	
+	for (uint32 p = 0; p < fPartCount; ++p)
+		result = result and fParts[p].fDb->IsUpToDate();
+	
+	return result;
+}
+
 vector<string> CJoinedDatabank::GetMetaDataFields() const
 {
 	set<string> fields;
@@ -2087,6 +2109,11 @@ string CUpdatedDatabank::GetVersion() const
 string CUpdatedDatabank::GetUUID() const
 {
 	return fOriginal->GetUUID() + " | " + CDatabank::GetUUID();
+}
+
+bool CUpdatedDatabank::IsUpToDate() const
+{
+	return fOriginal->IsUpToDate() and CDatabank::IsUpToDate();
 }
 
 CDbDocIteratorBase* CUpdatedDatabank::GetDocWeightIterator(

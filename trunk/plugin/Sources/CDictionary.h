@@ -41,21 +41,6 @@ class CDictionary
 						std::string inMatch, const char* inWoord);
 	void			Substitute(uint32 inState, int32 inScore, uint32 inEdits,
 						std::string inMatch, const char* inWoord);
-	void			AddSuggestion(int32 inScore, uint32 inEdits, std::string inMatch);
-
-	typedef std::vector<std::pair<std::string,int32> > CScores;
-	
-	struct CSortOnWord
-	{
-		bool operator()(const std::pair<std::string,int32>& inA, const std::pair<std::string,int32>& inB)
-			{ return inA.first < inB.first; }
-	};
-	
-	struct CSortOnScore
-	{
-		bool operator()(const std::pair<std::string,int32>& inA, const std::pair<std::string,int32>& inB)
-			{ return inA.second > inB.second; }
-	};
 
 	CDatabankBase&						fDatabank;
 	std::auto_ptr<HFileStream>			fDictionaryFile;
@@ -63,8 +48,7 @@ class CDictionary
 	const union CTransition*			fAutomaton;
 	uint32								fAutomatonLength;
 
-	CScores								fHits;
-	int32								fCutOff;
+	struct CScoreTable*					fScores;
 	std::string							fWord;
 };
 

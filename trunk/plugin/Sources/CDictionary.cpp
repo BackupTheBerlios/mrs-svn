@@ -6,6 +6,7 @@
 #include "MRS.h"
 
 #include <iostream>
+#include <set>
 
 #include "HGlobals.h"
 #include "HFile.h"
@@ -148,12 +149,87 @@ uint32 CHashTable::Lookup(CTransition* state, uint32 state_len, CAutomaton& auto
 	return addr;
 }
 
+const uint32
+	kMaxScoreTableSize = 20,
+	kMaxEdits = 2;
+
+struct CScoreTableImp
+{
+	struct CScore
+	{
+		string		term;
+		int32		score;
+		
+					CScore()
+						: score(0) {}
+					CScore(const CScore& inOther)
+						: term(inOther.term)
+						, score(inOther.score) {}
+					CScore(string inTerm, int32 inScore)
+						: term(inTerm)
+						, score(inScore) {}
+		
+		bool		operator<(const CScore& inOther) const
+						{ return score < inOther.score; }
+		bool		operator>(const CScore& inOther) const
+						{ return score > inOther.score; }
+	};
+
+	void			Add(string inTerm, int32 inScore);
+	void			Finish();
+	void			Reset();
+	int32			MinScore();
+
+	CScore			scores[kMaxScoreTableSize];
+	uint32			n;
+};
+
+void CScoreTableImp::Add(string inTerm, int32 inScore)
+{
+	if (n >= kMaxScoreTableSize)
+	{
+		if (inScore > scores[0].score)
+		{
+			pop_heap(scores, scores + n, greater<CScore>());
+			scores[kMaxScoreTableSize - 1] = CScore(inTerm, inScore);
+			push_heap(scores, scores + n, greater<CScore>());
+		}
+	}
+	else
+	{
+		scores[n] = CScore(inTerm, inScore);
+		++n;
+		push_heap(scores, scores + n, greater<CScore>());
+	}
 }
+
+void CScoreTableImp::Finish()
+{
+	sort_heap(scores, scores + n, greater<CScore>());
+}
+
+void CScoreTableImp::Reset()
+{
+	n = 0;
+}
+
+int32 CScoreTableImp::MinScore()
+{
+	int32 result = 0;
+	if (n > 0)
+		result = scores[0].score;
+	return result;
+}
+
+}
+
+struct CScoreTable : public CScoreTableImp {};
 
 CDictionary::CDictionary(CDatabankBase& inDatabank)
 	: fDatabank(inDatabank)
 	, fDictionaryFile(nil)
 	, fAutomaton(nil)
+	, fScores(new CScoreTable)
 {
 	HUrl url = inDatabank.GetDictionaryFileURL();
 
@@ -217,6 +293,9 @@ void CDictionary::Create(CDatabankBase& inDatabank,
 	
 	while (iter->Next(s, v))
 	{
+#if P_DEBUG
+cout << s << endl;
+#endif
 		q = s.length();
 		
 		if (q < inMinWordLength)
@@ -239,7 +318,7 @@ void CDictionary::Create(CDatabankBase& inDatabank,
 			;
 		
 		if (s[p] < s0[p])
-			throw "error, strings are unsorted";
+			THROW(("error, strings are unsorted"));
 		
 		while (i > p)
 		{
@@ -287,34 +366,25 @@ void CDictionary::Create(CDatabankBase& inDatabank,
 
 vector<string> CDictionary::SuggestCorrection(const string& inWord)
 {
-	fHits.clear();
-	fCutOff = -8;
-	
-	vector<string> words;
-	
+	fScores->Reset();
+
 	string match;
 	Test(fAutomaton[fAutomatonLength - 1].b.dest, 0, 0, match, inWord.c_str());
 
-	sort(fHits.begin(), fHits.end(), CSortOnScore());
+	set<string> unique;
+	vector<string> words;
 	
-	string last;
-	int32 high = 0;
-	
-	for (CScores::iterator s = fHits.begin();
-		s != fHits.end() and words.size() < 10; ++s)
-	{
-		if ((*s).second > high)
-			high = (*s).second;
-		else if ((*s).second < high + fCutOff)
-			break;
-		
-		if ((*s).first != last and (*s).first != inWord)
-			words.push_back((*s).first);
+	fScores->Finish();
 
-		if (VERBOSE >= 1)
-			cout << "suggestion " << words.size() << ": " << (*s).first << "; score: " << (*s).second << endl;
-		
-		last = (*s).first;
+	for (uint32 i = 0; i < fScores->n; ++i)
+	{
+		string term = fScores->scores[i].term;
+
+		if (term != inWord and unique.find(term) == unique.end())
+		{
+			words.push_back(term);
+			unique.insert(term);
+		}
 	}
 	
 	return words;
@@ -324,7 +394,7 @@ void CDictionary::Test(uint32 inState, int32 inScore, uint32 inEdits, string inM
 {
 	Match(inState, inScore, inEdits, inMatch, inWord);
 
-	if (inScore >= static_cast<int32>(inMatch.length()) + fCutOff and inEdits < 3)
+	if (inScore >= fScores->MinScore() - 3 and inEdits < 3)
 	{
 		Delete(inState, inScore, inEdits, inMatch, inWord);
 		Insert(inState, inScore, inEdits, inMatch, inWord);
@@ -357,8 +427,8 @@ bool CDictionary::Match(uint32 inState, int32 inScore, uint32 inEdits, string in
 			inScore += kMatchReward;
 			inMatch += inWord[0];
 			
-			if (fAutomaton[inState].b.term)
-				AddSuggestion(inScore, inEdits, inMatch);
+			if (fAutomaton[inState].b.term and inEdits < kMaxEdits)
+				fScores->Add(inMatch, inScore);
 			
 			Test(fAutomaton[inState].b.dest, inScore, inEdits, inMatch, inWord + 1);
 		}
@@ -375,8 +445,8 @@ void CDictionary::Delete(uint32 inState, int32 inScore, uint32 inEdits, string i
 	{
 		int8 ch = fAutomaton[state].b.attr;
 
-		if (fAutomaton[state].b.term)
-			AddSuggestion(inScore + kDeletePenalty, inEdits + 1, inMatch + ch);
+		if (fAutomaton[state].b.term and inEdits < kMaxEdits)
+			fScores->Add(inMatch + ch, inScore + kDeletePenalty);
 
 		Test(fAutomaton[state].b.dest, inScore + kDeletePenalty, inEdits + 1, inMatch + ch, inWord);
 
@@ -415,32 +485,17 @@ void CDictionary::Substitute(uint32 inState, int32 inScore, uint32 inEdits, stri
 		{
 			int8 ch = fAutomaton[state].b.attr;
 
-			if (fAutomaton[state].b.term)
-				AddSuggestion(inScore + kSubstitutePenalty, inEdits + 1, inMatch + ch);
+			if (fAutomaton[state].b.term and inEdits < kMaxEdits)
+				fScores->Add(inMatch + ch, inScore + kSubstitutePenalty);
 
 			Test(fAutomaton[state].b.dest, inScore + kSubstitutePenalty, inEdits + 1, inMatch + ch, inWord + 1);
 			
 			if (fAutomaton[state].b.last)
 				break;
+
 			++state;
 		}
 	}
 }
-
-void CDictionary::AddSuggestion(int32 inScore, uint32 inEdits, std::string inMatch)
-{
-	if (/*inScore >= static_cast<int32>(inMatch.length()) + fCutOff and */inEdits < 3)
-	{
-		pair<string, int32> v(inMatch, inScore);
-		
-		CScores::iterator i = lower_bound(fHits.begin(), fHits.end(), v, CSortOnWord());
-		
-		if (i != fHits.end() and (*i).first == inMatch)
-			(*i).second = max((*i).second, inScore);
-		else
-			fHits.insert(i, v);
-	}
-}
-
 
 

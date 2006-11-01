@@ -136,6 +136,7 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	std::string			GetVersion();
 	std::string			GetUUID();
 	std::string			GetFilePath();
+	bool				IsUpToDate();		// checks to see if our data still resides on disk
 	long long			GetRawDataSize();
 	void				DumpInfo();
 	void				DumpIndex(const std::string& inIndex);

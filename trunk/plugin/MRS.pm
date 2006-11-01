@@ -104,7 +104,9 @@ sub new {
 *Count = *MRSc::MDatabank_Count;
 *GetVersion = *MRSc::MDatabank_GetVersion;
 *GetUUID = *MRSc::MDatabank_GetUUID;
-*GetFileDate = *MRSc::MDatabank_GetFileDate;
+*GetFilePath = *MRSc::MDatabank_GetFilePath;
+*IsUpToDate = *MRSc::MDatabank_IsUpToDate;
+*GetRawDataSize = *MRSc::MDatabank_GetRawDataSize;
 *DumpInfo = *MRSc::MDatabank_DumpInfo;
 *DumpIndex = *MRSc::MDatabank_DumpIndex;
 *PrefetchDocWeights = *MRSc::MDatabank_PrefetchDocWeights;
