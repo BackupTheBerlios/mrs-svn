@@ -159,6 +159,9 @@ CDictionary::CDictionary(CDatabankBase& inDatabank)
 
 	if (not HFile::Exists(url))
 		THROW(("Dictionary %s does not exist", url.GetURL().c_str()));
+
+	if (VERBOSE > 0)
+		cout << "Opening dictionary file " << url.GetURL() << endl;
 	
 	fDictionaryFile.reset(new HFileStream(url, O_RDONLY));
 
