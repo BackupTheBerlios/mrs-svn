@@ -8,6 +8,8 @@
 #include <cstdarg>
 #include <sys/stat.h>
 
+#include <boost/shared_ptr.hpp>
+
 #include "soapH.h"
 #include "mrsws.nsmap"
 #include "MRSInterface.h"
@@ -51,6 +53,90 @@ inline void __report_throw(const char* ex, const char* file, int line)
 
 #define THROW(e)		do { __report_throw(#e, __FILE__, __LINE__); throw ws_exception e; } while (false)
 
+typedef boost::shared_ptr<MDatabank>	MDatabankPtr;
+
+class WSDatabankTable
+{
+  public:
+	static WSDatabankTable&	Instance();
+
+	MDatabankPtr				operator[](const string& inCode);
+	
+  private:
+
+	struct DBInfo
+	{
+		MDatabankPtr	mDb;
+		string			mPath;
+		time_t			mTimeStamp;
+		
+						DBInfo();
+						DBInfo(MDatabankPtr inDb);
+						DBInfo(const DBInfo& inOther);
+		bool			Valid();
+	};
+
+	typedef map<string,DBInfo >	DBTable;
+	
+	DBTable		mDBs;
+};
+
+WSDatabankTable& WSDatabankTable::Instance()
+{
+	static WSDatabankTable sInstance;
+	return sInstance;
+}
+
+WSDatabankTable::DBInfo::DBInfo()
+	: mTimeStamp(0)
+{
+}
+
+WSDatabankTable::DBInfo::DBInfo(const DBInfo& inOther)
+	: mDb(inOther.mDb)
+	, mPath(inOther.mPath)
+	, mTimeStamp(inOther.mTimeStamp)
+{
+}
+
+WSDatabankTable::DBInfo::DBInfo(MDatabankPtr inDb)
+	: mDb(inDb)
+	, mPath(inDb->GetFilePath())
+{
+	if (mPath.substr(0, 7) == "file://")
+		mPath.erase(0, 7);
+	
+	struct stat sb;
+	
+	if (stat(mPath.c_str(), &sb) != 0)
+		THROW(("Error locating db %s: %s", mPath.c_str(), strerror(errno)));
+		
+	mTimeStamp = sb.st_mtime;
+}
+
+bool WSDatabankTable::DBInfo::Valid()
+{
+	struct stat sb;
+	
+	return
+		stat(mPath.c_str(), &sb) == 0 && mTimeStamp == sb.st_mtime;
+}
+
+MDatabankPtr WSDatabankTable::operator[](const string& inCode)
+{
+	if (mDBs.find(inCode) == mDBs.end() or not mDBs[inCode].Valid())
+	{
+		cout << "Reloading db " << inCode << endl;
+		
+		MDatabankPtr db(new MDatabank(inCode));
+		
+		DBInfo inf(db);
+		mDBs[inCode] = inf;
+	}
+	
+	return mDBs[inCode].mDb;
+}
+
 int main()
 {
 	string dataDir;
@@ -61,47 +147,51 @@ int main()
 
 	setenv("MRS_DATA_DIR", dataDir.c_str(), 1);
 
+
+#if 0
 	soap_serve(soap_new()); // use the remote method request dispatcher
 	return 0;
-//
-//	struct soap soap;
-//	int m, s; // master and slave sockets
-//	soap_init(&soap);
-//
+#else
+
+	struct soap soap;
+	int m, s; // master and slave sockets
+	soap_init(&soap);
+
 //	soap_set_recv_logfile(&soap, "recv.log"); // append all messages received in /logs/recv/service12.log
 //	soap_set_sent_logfile(&soap, "sent.log"); // append all messages sent in /logs/sent/service12.log
 //	soap_set_test_logfile(&soap, "test.log"); // no file name: do not save debug messages
-//
-//	m = soap_bind(&soap, "localhost", 8081, 100);
-//	if (m < 0)
-//		soap_print_fault(&soap, stderr);
-//	else
-//	{
-//		fprintf(stderr, "Socket connection successful: master socket = %d\n", m);
-//		for (int i = 1; ; ++i)
-//		{
-//			s = soap_accept(&soap);
-//			if (s < 0)
-//			{
-//				soap_print_fault(&soap, stderr);
-//				break;
-//			}
-//			fprintf(stderr, "%d: accepted connection from IP=%ld.%ld.%ld.%ld socket=%d...", i,
-//				(soap.ip >> 24)&0xFF, (soap.ip >> 16)&0xFF, (soap.ip >> 8)&0xFF, soap.ip&0xFF, s);
-//			
-//			double start = system_time();
-//			
-//			if (soap_serve(&soap) != SOAP_OK) // process RPC request
-//				soap_print_fault(&soap, stderr); // print error
-//			
-//			double end = system_time();
-//			
-//			fprintf(stderr, " request served in %.3g seconds\n", end - start);
-//			soap_destroy(&soap); // clean up class instances
-//			soap_end(&soap); // clean up everything and close socket
-//		}
-//	}
-//	soap_done(&soap); // close master socket and detach environment
+
+	m = soap_bind(&soap, "localhost", 8081, 100);
+	if (m < 0)
+		soap_print_fault(&soap, stderr);
+	else
+	{
+		fprintf(stderr, "Socket connection successful: master socket = %d\n", m);
+		for (int i = 1; ; ++i)
+		{
+			s = soap_accept(&soap);
+			if (s < 0)
+			{
+				soap_print_fault(&soap, stderr);
+				break;
+			}
+			fprintf(stderr, "%d: accepted connection from IP=%ld.%ld.%ld.%ld socket=%d...", i,
+				(soap.ip >> 24)&0xFF, (soap.ip >> 16)&0xFF, (soap.ip >> 8)&0xFF, soap.ip&0xFF, s);
+			
+			double start = system_time();
+			
+			if (soap_serve(&soap) != SOAP_OK) // process RPC request
+				soap_print_fault(&soap, stderr); // print error
+			
+			double end = system_time();
+			
+			fprintf(stderr, " request served in %.3g seconds\n", end - start);
+			soap_destroy(&soap); // clean up class instances
+			soap_end(&soap); // clean up everything and close socket
+		}
+	}
+	soap_done(&soap); // close master socket and detach environment
+#endif
 }
 
 void GetDatabankInfo(const string& inDb, ns__DatabankInfo& outInfo)
@@ -127,16 +217,16 @@ void GetDatabankInfo(const string& inDb, ns__DatabankInfo& outInfo)
 			{
 				first = NULL;
 
-				MDatabank db(dbn);
+				MDatabankPtr db = WSDatabankTable::Instance()[dbn];
 				
 				ns__FileInfo fi;
 				
 				fi.id = dbn;
-				fi.uuid = db.GetUUID();
-				fi.version = db.GetVersion();
-				fi.path = db.GetFilePath();
-				fi.entries = db.Count();
-				fi.raw_data_size = db.GetRawDataSize();
+				fi.uuid = db->GetUUID();
+				fi.version = db->GetVersion();
+				fi.path = db->GetFilePath();
+				fi.entries = db->Count();
+				fi.raw_data_size = db->GetRawDataSize();
 				
 				struct stat sb;
 				string path = fi.path;
@@ -212,21 +302,21 @@ SOAP_FMAC5 int SOAP_FMAC6 ns__GetEntry(struct soap* soap, string db,
 	
 	try
 	{
-		MDatabank mrsDb(db);
+		MDatabankPtr mrsDb = WSDatabankTable::Instance()[db];
 		
 		const char* data = NULL;
 		
 		switch (format)
 		{
 			case plain:
-				data = mrsDb.Get(id);
+				data = mrsDb->Get(id);
 				if (data == NULL)
 					THROW(("Entry %s not found in databank %s", id.c_str(), db.c_str()));
 				entry = data;
 				break;
 			
 			case title:
-				data = mrsDb.GetMetaData(id, "title");
+				data = mrsDb->GetMetaData(id, "title");
 				if (data == NULL)
 					THROW(("Title for entry %s not found in databank %s", id.c_str(), db.c_str()));
 				entry = data;
@@ -234,7 +324,7 @@ SOAP_FMAC5 int SOAP_FMAC6 ns__GetEntry(struct soap* soap, string db,
 			
 			case fasta:
 			{
-				data = mrsDb.Sequence(id, 0);
+				data = mrsDb->Sequence(id, 0);
 				if (data == NULL)
 					THROW(("Sequence for entry %s not found in databank %s", id.c_str(), db.c_str()));
 				
@@ -246,7 +336,7 @@ SOAP_FMAC5 int SOAP_FMAC6 ns__GetEntry(struct soap* soap, string db,
 						sequence += '\n';
 				}
 				
-				const char* descData = mrsDb.GetMetaData(id, "title");
+				const char* descData = mrsDb->GetMetaData(id, "title");
 				string desc;
 				
 				if (descData != NULL)
@@ -279,14 +369,14 @@ SOAP_FMAC5 int SOAP_FMAC6 ns__Find(struct soap*, string db, vector<string> query
 	bool alltermsrequired, enum ns__Algorithm algorithm, int resultoffset, int maxresultcount,
 	struct ns__FindResponse& response)
 {
-	MDatabank mrsDb(db);
+	MDatabankPtr mrsDb = WSDatabankTable::Instance()[db];
 	auto_ptr<MQueryResults> r;
 	
 	int result = SOAP_OK;
 
 	if (queryterms.size() > 0)
 	{
-		auto_ptr<MRankedQuery> q(mrsDb.RankedQuery("__ALL_TEXT__"));
+		auto_ptr<MRankedQuery> q(mrsDb->RankedQuery("__ALL_TEXT__"));
 	
 		switch (algorithm)
 		{
@@ -314,12 +404,12 @@ SOAP_FMAC5 int SOAP_FMAC6 ns__Find(struct soap*, string db, vector<string> query
 		
 		auto_ptr<MBooleanQuery> m;
 //		if (filter.length())
-//			m.reset(mrsDb.BooleanQuery(filter));
+//			m.reset(mrsDb->BooleanQuery(filter));
 	
 		r.reset(q->Perform(m.get()));
 	}
 //	else if (filter.length() > 0)
-//		r.reset(mrsDb.Find(filter, false));
+//		r.reset(mrsDb->Find(filter, false));
 	
 	if (r.get() != NULL)
 	{
@@ -338,7 +428,7 @@ SOAP_FMAC5 int SOAP_FMAC6 ns__Find(struct soap*, string db, vector<string> query
 			h.id = id;
 			h.score = r->Score();
 			
-			const char* title = mrsDb.GetMetaData(id, "title");
+			const char* title = mrsDb->GetMetaData(id, "title");
 			if (title != NULL)
 				h.title = title;
 			
@@ -362,9 +452,9 @@ ns__SpellCheck(
 	
 	try
 	{
-		MDatabank mrsDb(db);
+		MDatabankPtr mrsDb = WSDatabankTable::Instance()[db];
 		
-		auto_ptr<MStringIterator> s(mrsDb.SuggestCorrection(queryterm));
+		auto_ptr<MStringIterator> s(mrsDb->SuggestCorrection(queryterm));
 		if (s.get() != NULL)
 		{
 			const char* sw;
