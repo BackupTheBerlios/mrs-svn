@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/opt/local/bin/perl
 #
 # $Id: mrs.cgi,v 1.36 2005/10/27 10:59:11 maarten Exp $
 #

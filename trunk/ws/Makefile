@@ -55,12 +55,15 @@ INCPATHS	= ../plugin/Lib/Includes/ ../plugin/Lib/X/ ../plugin/Lib/ ../plugin/Sou
 SYSINCPATHS	= /usr/include ../plugin/Lib/loki $(BOOST)
 WARNINGS	=  -Wall -Wno-multichar -Wno-unknown-pragmas -Wno-long-long -Wno-sign-compare
 CFLAGS		= -fsigned-char -g -ffor-scope
-LDFLAGS		= -fdata-sections -g # -ffunction-sections 
+LDFLAGS		= -fdata-sections -g # -ffunction-sections
 CC			= c++
 OPT			+= -fstrict-aliasing
 SOAPCPP2	= soapcpp2
+PERL		= /usr/bin/perl
 
 include make.config
+
+LDFLAGS		+= $(shell $(PERL) -MExtUtils::Embed -e ldopts)
 
 ifeq ($(OS),FreeBSD)
 	LIBS		+= 
@@ -157,7 +160,9 @@ Sources = \
 	./Sources/mrsws.cpp \
 	./Sources/WConfig.cpp \
 	./Sources/soapC.cpp \
-	./Sources/soapServer.cpp
+	./Sources/soapServer.cpp \
+	./Sources/WFormat.cpp \
+	./Sources/WError.cpp
 
 define SOURCES
 	$(Sources)
@@ -178,6 +183,8 @@ VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(S
 
 # add the list of source paths to INLCUDES if not already present
 INCLUDES = $(foreach path, $(INCPATHS) $(SRC_PATHS), $(addprefix -I, $(path)))
+INCLUDES += $(shell $(PERL) -MExtUtils::Embed -e ccopts)
+
 ifneq ($(IQUOTE),0)
 INCLUDES += -iquote
 else
@@ -233,6 +240,10 @@ $(OBJDIR):
 	@ test -d $(OBJDIR) || mkdir $(OBJDIR)
 
 $(OBJDIR)/%.o: %.cpp
+	@ echo "=> "$(@F)
+	@ $(CC) -c $< -o $@ $(INCLUDES) $(CFLAGS)
+
+$(OBJDIR)/%.o: %.c
 	@ echo "=> "$(@F)
 	@ $(CC) -c $< -o $@ $(INCLUDES) $(CFLAGS)
 

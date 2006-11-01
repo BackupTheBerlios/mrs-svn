@@ -293,9 +293,6 @@ void CDictionary::Create(CDatabankBase& inDatabank,
 	
 	while (iter->Next(s, v))
 	{
-#if P_DEBUG
-cout << s << endl;
-#endif
 		q = s.length();
 		
 		if (q < inMinWordLength)

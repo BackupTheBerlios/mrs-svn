@@ -14,44 +14,13 @@
 #include "mrsws.nsmap"
 #include "MRSInterface.h"
 #include "WConfig.h"
+#include "WError.h"
+#include "WFormat.h"
 
 using namespace std;
 
 vector<DbInfo>	gDbInfo;
 extern double system_time();
-
-class ws_exception : public std::exception
-{
-  public:
-						ws_exception(const char* msg, ...);
-						
-	virtual const char*	what() const throw()		{ return msg; }
-	
-  private:
-	char				msg[1024];
-};
-
-ws_exception::ws_exception(const char* inMessage, ...)
-{
-	using namespace std;
-	
-	va_list vl;
-	va_start(vl, inMessage);
-	vsnprintf(msg, sizeof(msg), inMessage, vl);
-	va_end(vl);
-#ifndef NDEBUG
-	cerr << msg << endl;
-#endif
-}
-
-inline void __report_throw(const char* ex, const char* file, int line)
-{
-#ifndef NDEBUG
-	cerr << "Exception " << ex << " in File: " << file << " line: " << line << endl;
-#endif
-}
-
-#define THROW(e)		do { __report_throw(#e, __FILE__, __LINE__); throw ws_exception e; } while (false)
 
 typedef boost::shared_ptr<MDatabank>	MDatabankPtr;
 
@@ -332,6 +301,27 @@ SOAP_FMAC5 int SOAP_FMAC6 ns__GetEntry(struct soap* soap, string db,
 				break;
 			}
 			
+			case html:
+			{
+				data = mrsDb->Get(id);
+				if (data == NULL)
+					THROW(("Entry %s not found in databank %s", id.c_str(), db.c_str()));
+					
+				string parser = "default";
+				
+				for (vector<DbInfo>::iterator dbi = gDbInfo.begin(); dbi != gDbInfo.end(); ++dbi)
+				{
+					if (dbi->id == db)
+					{
+						parser = dbi->parser;
+						break;
+					}
+				}
+					
+				entry = WFormatTable::Instance().Format(parser, data);
+				break;
+			}
+			
 			default:
 				THROW(("Unsupported format in GetEntry"));
 		}
@@ -430,8 +420,6 @@ ns__SpellCheck(
 	vector<string>&	suggestions)
 {
 	int result = SOAP_OK;
-	
-	VERBOSE = 2;
 	
 	try
 	{
