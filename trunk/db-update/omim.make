@@ -2,7 +2,8 @@
 
 DATABANK		= omim
 MRSLIBS			= omim mimmap
-MRS_DICT		= av:cn:cs:rf:sa:ti:tx
+MRS_DICT_FIELDS	= av:cn:cs:rf:sa:ti:tx
+MRS_DICTS		= omim
 
 include make.pre
 
