@@ -25,8 +25,8 @@ xs_init(pTHX)
 	char *file = __FILE__;
 	dXSUB_SYS;
 
-//	/* DynaLoader is a special case */
-//	newXS("DynaLoader::boot_DynaLoader", boot_DynaLoader, file);
+	/* DynaLoader is a special case */
+	newXS("DynaLoader::boot_DynaLoader", boot_DynaLoader, file);
 }
 
 }
@@ -36,7 +36,10 @@ struct WFormatTableImp
 							WFormatTableImp();
 							~WFormatTableImp();
 
-	string					Format(const string& inParser, const string& inText);
+	string					Format(
+								const string&	inFormat,
+								const string&	inText,
+								const string&	inId);
 	
 	PerlInterpreter*		my_perl;
 };
@@ -50,7 +53,7 @@ WFormatTableImp::WFormatTableImp()
 	
 	perl_construct(my_perl);
 
-	char* embedding[] = { "", "WSFormatter.pl" };
+	char* embedding[] = { "", "WSFormatter.pm" };
 	
 	int err = perl_parse(my_perl, xs_init, 2, embedding, NULL);
 	if (err != 0)
@@ -68,28 +71,33 @@ WFormatTableImp::~WFormatTableImp()
 	perl_free(my_perl);
 }
 
-string WFormatTableImp::Format(const string& inParser, const string& inText)
+string WFormatTableImp::Format(
+	const string& inFormat,
+	const string& inText,
+	const string& inId)
 {
-	char* args[] = {
-		const_cast<char*>(inParser.c_str()),
-		const_cast<char*>(inText.c_str()),
-		NULL
-	};
-
 	dSP;                            /* initialize stack pointer      */
+	ENTER;                          /* everything created after here */
+	SAVETMPS;                       /* ...is a temporary variable.   */
+	PUSHMARK(SP);                   /* remember the stack pointer    */
+									/* push the parser name onto the stack  */
+	XPUSHs(sv_2mortal(newSVpvn(inFormat.c_str(), inFormat.length())));
+									/* push the text onto stack  */
+	XPUSHs(sv_2mortal(newSVpvn(inText.c_str(), inText.length())));
+									/* push the id onto stack  */
+	XPUSHs(sv_2mortal(newSVpvn(inId.c_str(), inId.length())));
+	PUTBACK;						/* make local stack pointer global */
+									/* call the function             */
+	perl_call_pv("Embed::WSFormat::pretty", G_SCALAR);
+	SPAGAIN;                        /* refresh stack pointer         */
+		                            /* pop the return value from stack */
 
-	int c = perl_call_argv("Embed::WSFormat::pretty", G_EVAL | G_SCALAR, args);
+	string result = POPp;
 	
-	SV* retval = POPs;
-	
-	if (c != 1)
-		THROW(("pretty print did not return a value"));
+	PUTBACK;
+	FREETMPS;                       /* free that return value        */
+	LEAVE;                       /* ...and the XPUSHed "mortal" args.*/
 
-	if (not SvPOK(retval))
-		THROW(("pretty print did not return a string"));
-	
-	string result = SvPV(retval, PL_na);
-	
 	return result;
 }
 
@@ -113,9 +121,10 @@ WFormatTable& WFormatTable::Instance()
 }
 
 string WFormatTable::Format(
-	const string&	inParser,
-	const string&	inText)
+	const string&	inFormat,
+	const string&	inText,
+	const string&	inId)
 {
-	return mImpl->Format(inParser, inText);
+	return mImpl->Format(inFormat, inText, inId);
 }
 	

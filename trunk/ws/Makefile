@@ -122,6 +122,7 @@ ifeq ($(OS),Darwin)
 	LIBPATHS	+= /opt/local/lib
 	CFLAGS		+= -force_cpusubtype_ALL
 	OPT			+= -O3 -falign-loops=32
+	LDFLAGS		+= /System/Library/Perl/5.8.6/darwin-thread-multi-2level/auto/DynaLoader/DynaLoader.a
 	
 ifeq ($(CPU),ppc)
 		OPT		+= -mcpu=G4

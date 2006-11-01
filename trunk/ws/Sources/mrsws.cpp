@@ -307,18 +307,18 @@ SOAP_FMAC5 int SOAP_FMAC6 ns__GetEntry(struct soap* soap, string db,
 				if (data == NULL)
 					THROW(("Entry %s not found in databank %s", id.c_str(), db.c_str()));
 					
-				string parser = "default";
+				string formatter = "default";
 				
 				for (vector<DbInfo>::iterator dbi = gDbInfo.begin(); dbi != gDbInfo.end(); ++dbi)
 				{
 					if (dbi->id == db)
 					{
-						parser = dbi->parser;
+						formatter = dbi->filter;
 						break;
 					}
 				}
 					
-				entry = WFormatTable::Instance().Format(parser, data);
+				entry = WFormatTable::Instance().Format(formatter, data, id);
 				break;
 			}
 			
