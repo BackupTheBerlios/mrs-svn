@@ -391,7 +391,7 @@ void CDictionary::Test(uint32 inState, int32 inScore, uint32 inEdits, string inM
 {
 	Match(inState, inScore, inEdits, inMatch, inWord);
 
-	if (inScore >= fScores->MinScore() - 3 and inEdits < 3)
+	if (inScore >= max(fScores->MinScore() - 3, 0) and inEdits < 3)
 	{
 		Delete(inState, inScore, inEdits, inMatch, inWord);
 		Insert(inState, inScore, inEdits, inMatch, inWord);
