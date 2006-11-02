@@ -25,7 +25,7 @@ cleanup_deps:
 fetch: cleanup_deps
 	rsync -rltpvz --delete --port=33444 \
 		rsync.rcsb.org::ftp_data/structures/divided/structure_factors/ \
-		/usr/data/raw/structure_factors/
+		$(SRCDIR)
 
 include sf.deps
 

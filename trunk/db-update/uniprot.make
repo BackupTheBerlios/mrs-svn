@@ -6,7 +6,6 @@ MRSSCRIPT			= uniprot
 MRS_DICT_FIELDS		= de:kw:cc:ft:oc:og:ox:ref
 MRS_DICTS			= sprot trembl sprot+trembl
 #MRS_DICT_OPTIONS	= -n 2 -l 4
-MRS_WEIGHTS			= sprot trembl sprot+trembl
 
 include make.pre
 
