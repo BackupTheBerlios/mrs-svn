@@ -267,9 +267,27 @@ SOAP_FMAC5 int SOAP_FMAC6 ns__GetEntry(struct soap* soap, string db,
 			
 			case title:
 				data = mrsDb->GetMetaData(id, "title");
-				if (data == NULL)
-					THROW(("Title for entry %s not found in databank %s", id.c_str(), db.c_str()));
-				entry = data;
+				if (data != NULL)
+					entry = data;
+				else
+				{
+					data = mrsDb->Get(id);
+					if (data == NULL)
+						THROW(("Title for entry %s not found in databank %s", id.c_str(), db.c_str()));
+
+					string formatter = "default";
+					
+					for (vector<DbInfo>::iterator dbi = gDbInfo.begin(); dbi != gDbInfo.end(); ++dbi)
+					{
+						if (dbi->id == db)
+						{
+							formatter = dbi->filter;
+							break;
+						}
+					}
+
+					entry = WFormatTable::Instance().Format(formatter, "title", data, id);
+				}
 				break;
 			
 			case fasta:
@@ -318,7 +336,7 @@ SOAP_FMAC5 int SOAP_FMAC6 ns__GetEntry(struct soap* soap, string db,
 					}
 				}
 					
-				entry = WFormatTable::Instance().Format(formatter, data, id);
+				entry = WFormatTable::Instance().Format(formatter, "html", data, id);
 				break;
 			}
 			

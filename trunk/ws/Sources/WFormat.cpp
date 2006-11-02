@@ -37,6 +37,7 @@ struct WFormatTableImp
 							~WFormatTableImp();
 
 	string					Format(
+								const string&	inFormatter,
 								const string&	inFormat,
 								const string&	inText,
 								const string&	inId);
@@ -72,6 +73,7 @@ WFormatTableImp::~WFormatTableImp()
 }
 
 string WFormatTableImp::Format(
+	const string& inFormatter,
 	const string& inFormat,
 	const string& inText,
 	const string& inId)
@@ -80,15 +82,19 @@ string WFormatTableImp::Format(
 	ENTER;                          /* everything created after here */
 	SAVETMPS;                       /* ...is a temporary variable.   */
 	PUSHMARK(SP);                   /* remember the stack pointer    */
-									/* push the parser name onto the stack  */
-	XPUSHs(sv_2mortal(newSVpvn(inFormat.c_str(), inFormat.length())));
+									/* push the formatter name onto the stack  */
+	XPUSHs(sv_2mortal(newSVpvn(inFormatter.c_str(), inFormatter.length())));
 									/* push the text onto stack  */
 	XPUSHs(sv_2mortal(newSVpvn(inText.c_str(), inText.length())));
 									/* push the id onto stack  */
 	XPUSHs(sv_2mortal(newSVpvn(inId.c_str(), inId.length())));
 	PUTBACK;						/* make local stack pointer global */
+
 									/* call the function             */
-	perl_call_pv("Embed::WSFormat::pretty", G_SCALAR);
+	string call = "Embed::WSFormat::";
+	call += inFormat;
+	perl_call_pv(call.c_str(), G_SCALAR | G_EVAL);
+
 	SPAGAIN;                        /* refresh stack pointer         */
 		                            /* pop the return value from stack */
 
@@ -121,10 +127,11 @@ WFormatTable& WFormatTable::Instance()
 }
 
 string WFormatTable::Format(
+	const string&	inFormatter,
 	const string&	inFormat,
 	const string&	inText,
 	const string&	inId)
 {
-	return mImpl->Format(inFormat, inText, inId);
+	return mImpl->Format(inFormatter, inFormat, inText, inId);
 }
 	

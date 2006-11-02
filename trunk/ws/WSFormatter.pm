@@ -37,7 +37,7 @@ sub getFormatter
 	return $formatters{$name};
 };
 
-sub pretty
+sub html
 {
 	my ($name, $text, $id) = @_;
 	
@@ -50,6 +50,29 @@ sub pretty
 		my $fmt = &getFormatter($name);
 
 		$result = $fmt->pp($q, $text, $id, $url);
+	};
+	
+	if ($@)
+	{
+		$result = "Error in formatting entry: $@";
+	}
+	
+	return $result;
+}
+
+sub title
+{
+	my ($name, $text, $id) = @_;
+	
+	my $result;
+	
+	eval
+	{
+		my $url = undef;
+
+		my $fmt = &getFormatter($name);
+
+		$result = $fmt->describe($q, $text, $id, $url);
 	};
 	
 	if ($@)

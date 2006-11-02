@@ -10,6 +10,7 @@ class WFormatTable
 {
   public:
 	std::string				Format(
+								const std::string&	inFormatter,
 								const std::string&	inFormat,
 								const std::string&	inText,
 								const std::string&	inId);
