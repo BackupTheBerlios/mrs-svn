@@ -674,11 +674,9 @@ sub FetchVersionDate
 	my @files = grep { -f("$raw_dir/$_") and $_ !~ /^\./ } readdir(DIR);
 	closedir(DIR);
 		
-	my $date;
+	my $date = 0;
 	foreach my $f (@files)
 	{
-		print "$f\n";
-		
 		my $sb = stat("$raw_dir/$f");
 		$date = $sb->mtime if $sb->mtime > $date;
 	}
