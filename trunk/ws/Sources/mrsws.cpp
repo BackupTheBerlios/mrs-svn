@@ -30,15 +30,17 @@ class WSDatabankTable
 	static WSDatabankTable&	Instance();
 
 	MDatabankPtr				operator[](const string& inCode);
+	string						GetFormatter(const string& inCode);
 	
   private:
 
 	struct DBInfo
 	{
 		MDatabankPtr	mDb;
+		string			mFormat;
 		
 						DBInfo();
-						DBInfo(MDatabankPtr inDb);
+						DBInfo(MDatabankPtr inDb, const string& inId);
 						DBInfo(const DBInfo& inOther);
 
 		bool			Valid();
@@ -64,9 +66,21 @@ WSDatabankTable::DBInfo::DBInfo(const DBInfo& inOther)
 {
 }
 
-WSDatabankTable::DBInfo::DBInfo(MDatabankPtr inDb)
+WSDatabankTable::DBInfo::DBInfo(
+	MDatabankPtr		inDb,
+	const string&		inId)
 	: mDb(inDb)
 {
+	mFormat = "default";
+	
+	for (vector<DbInfo>::iterator dbi = gDbInfo.begin(); dbi != gDbInfo.end(); ++dbi)
+	{
+		if (dbi->id == inId)
+		{
+			mFormat = dbi->filter;
+			break;
+		}
+	}
 }
 
 bool WSDatabankTable::DBInfo::Valid()
@@ -81,10 +95,15 @@ MDatabankPtr WSDatabankTable::operator[](const string& inCode)
 		cout << "Reloading db " << inCode << endl;
 		
 		MDatabankPtr db(new MDatabank(inCode));
-		mDBs[inCode] = DBInfo(db);
+		mDBs[inCode] = DBInfo(db, inCode);
 	}
 	
 	return mDBs[inCode].mDb;
+}
+
+inline string WSDatabankTable::GetFormatter(const string& inCode)
+{
+	return mDBs[inCode].mFormat;
 }
 
 int main()
@@ -97,12 +116,10 @@ int main()
 
 	setenv("MRS_DATA_DIR", dataDir.c_str(), 1);
 
-
 #if 0
 	soap_serve(soap_new()); // use the remote method request dispatcher
 	return 0;
 #else
-
 	struct soap soap;
 	int m, s; // master and slave sockets
 	soap_init(&soap);
@@ -245,8 +262,36 @@ SOAP_FMAC5 int SOAP_FMAC6 ns__GetDatabankInfo(struct soap* soap, string db, vect
 	return result;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 ns__GetEntry(struct soap* soap, string db,
-	string id, enum ns__Format format, string &entry)
+string GetTitle(
+	const string&		inDb,
+	const string&		inId)
+{
+	MDatabankPtr db(WSDatabankTable::Instance()[inDb]);
+
+	const char* title = db->GetMetaData(inId, "title");
+	string result;
+	
+	if (title == NULL or *title == 0)
+	{
+		title = db->Get(inId);
+		if (title != NULL and *title != 0)
+			result = WFormatTable::Instance().Format(
+						WSDatabankTable::Instance().GetFormatter(inDb),
+						"title", title, inId);
+	}
+	else
+		result = title;
+	
+	return result;
+}
+
+SOAP_FMAC5 int SOAP_FMAC6
+ns__GetEntry(
+	struct soap*	soap,
+	string			db,
+	string			id,
+	enum ns__Format	format,
+	string&			entry)
 {
 	int result = SOAP_OK;
 	
@@ -266,28 +311,7 @@ SOAP_FMAC5 int SOAP_FMAC6 ns__GetEntry(struct soap* soap, string db,
 				break;
 			
 			case title:
-				data = mrsDb->GetMetaData(id, "title");
-				if (data != NULL)
-					entry = data;
-				else
-				{
-					data = mrsDb->Get(id);
-					if (data == NULL)
-						THROW(("Title for entry %s not found in databank %s", id.c_str(), db.c_str()));
-
-					string formatter = "default";
-					
-					for (vector<DbInfo>::iterator dbi = gDbInfo.begin(); dbi != gDbInfo.end(); ++dbi)
-					{
-						if (dbi->id == db)
-						{
-							formatter = dbi->filter;
-							break;
-						}
-					}
-
-					entry = WFormatTable::Instance().Format(formatter, "title", data, id);
-				}
+				entry = GetTitle(db, id);
 				break;
 			
 			case fasta:
@@ -325,18 +349,8 @@ SOAP_FMAC5 int SOAP_FMAC6 ns__GetEntry(struct soap* soap, string db,
 				if (data == NULL)
 					THROW(("Entry %s not found in databank %s", id.c_str(), db.c_str()));
 					
-				string formatter = "default";
-				
-				for (vector<DbInfo>::iterator dbi = gDbInfo.begin(); dbi != gDbInfo.end(); ++dbi)
-				{
-					if (dbi->id == db)
-					{
-						formatter = dbi->filter;
-						break;
-					}
-				}
-					
-				entry = WFormatTable::Instance().Format(formatter, "html", data, id);
+				entry = WFormatTable::Instance().Format(
+					WSDatabankTable::Instance().GetFormatter(db), "html", data, id);
 				break;
 			}
 			
@@ -416,10 +430,7 @@ SOAP_FMAC5 int SOAP_FMAC6 ns__Find(struct soap*, string db, vector<string> query
 			h.db = db;
 			h.id = id;
 			h.score = r->Score();
-			
-			const char* title = mrsDb->GetMetaData(id, "title");
-			if (title != NULL)
-				h.title = title;
+			h.title = GetTitle(db, id);
 			
 			response.hits.push_back(h);
 		}
