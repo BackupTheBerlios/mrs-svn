@@ -389,8 +389,9 @@ void CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 		uint32 idDocNr;
 		if (inDatabank.GetDocumentNr(t.key, idDocNr))
 		{
-			A[idDocNr] += (Wd[idDocNr] * t.weight) / maxTermFreq;
-			Smax = max(Smax, (float)A[idDocNr]);
+			float sa = (A[idDocNr] += (Wd[idDocNr] * t.weight) / maxTermFreq);
+			if (Smax < sa)
+				Smax = sa;
 		}
 
 		if (t.iter.get() == nil)
