@@ -2270,7 +2270,9 @@ void CIndexer::GetIndexInfo(uint32 inIndexNr, string& outCode,
 CDocIterator* CIndexer::GetImpForPattern(const string& inIndex,
 	const string& inValue)
 {
-	string index = tolower(inIndex);
+	string index = inIndex;
+	if (index != kAllTextIndexName)
+		index = tolower(inIndex);
 	
 	auto_ptr<CDocIterator> result(nil);
 	
@@ -2314,7 +2316,10 @@ CDocIterator* CIndexer::CreateDocIterator(const string& inIndex, const string& i
 {
 	vector<CDocIterator*> iters;
 
-	string index = tolower(inIndex);
+	string index = inIndex;
+	if (index != kAllTextIndexName)
+		index = tolower(inIndex);
+
 	string key = tolower(inKey);
 
 	for (uint32 ix = 0; ix < fHeader->count; ++ix)
@@ -2364,7 +2369,7 @@ CDocIterator* CIndexer::CreateDocIterator(const string& inIndex, const string& i
 			{
 				if (fParts[ix].kind == kValueIndex)
 					iters.push_back(new CDocNrIterator(value));
-				else if (fParts[ix].kind == kTextIndex or fParts[ix].kind == kDateIndex or fParts[ix].kind == kNumberIndex)
+				else //if (fParts[ix].kind == kTextIndex or fParts[ix].kind == kDateIndex or fParts[ix].kind == kNumberIndex)
 					iters.push_back(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
 						fParts[ix].bits_offset + value, fHeader->entries));
 			}

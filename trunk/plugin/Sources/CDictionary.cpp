@@ -298,6 +298,13 @@ void CDictionary::Create(CDatabankBase& inDatabank,
 		if (q < inMinWordLength)
 			continue;
 		
+		bool isNumber = true;
+		for (string::iterator ch = s.begin(); isNumber and ch != s.end(); ++ch)
+			isNumber = isdigit(*ch) or *ch == '.';
+
+		if (isNumber)	// numbers should not be put into a dictionary, obviously
+			continue;
+		
 		if (inMinOccurrence > 1)
 		{
 			bool accept = false;
