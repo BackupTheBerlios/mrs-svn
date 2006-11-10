@@ -105,31 +105,24 @@ sub parse
 
 sub raw_files
 {
-#	my ($self, $raw_dir) = @_;
-#	
-#	opendir DIR, $raw_dir;
-#	my @result = grep { -e "$raw_dir/$_" and $_ =~ /\.data\.gz$/ } readdir DIR;
-#	closedir DIR;
-#	
-#	return map { "gunzip -c $raw_dir/$_ |" } @result;
-        my ($self, $raw_dir) = @_;
+    my ($self, $raw_dir) = @_;
 
-        my @result;
+    my @result;
 
-        opendir DIR, $raw_dir;
-        while (my $d = readdir DIR)
-        {
-                next unless -d "$raw_dir/$d";
+    opendir DIR, $raw_dir;
+    while (my $d = readdir DIR)
+    {
+        next unless -d "$raw_dir/$d";
+		next if substr($d, 0, 1) eq '_';
 
-                opendir D2, "$raw_dir/$d";
-                my @files = grep { -e "$raw_dir/$d/$_" and $_ =~ /\.data\.gz$/ } readdir D2;
-                push @result, join(' ', map { "$raw_dir/$d/$_" } @files) if scalar @files;
-                closedir D2;
-        }
-        closedir DIR;
+        opendir D2, "$raw_dir/$d";
+        my @files = grep { -e "$raw_dir/$d/$_" and $_ =~ /\.data\.gz$/ } readdir D2;
+        push @result, join(' ', map { "$raw_dir/$d/$_" } @files) if scalar @files;
+        closedir D2;
+    }
+    closedir DIR;
 
-        return map { "gunzip -c $_ |" } @result;
-
+    return map { "gunzip -c $_ |" } @result;
 }
 
 1;

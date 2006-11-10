@@ -118,6 +118,7 @@ sub raw_files
 	while (my $d = readdir DIR)
 	{
 		next unless -d "$raw_dir/$d";
+		next if substr($d, 0, 1) eq '_';
 
 		opendir D2, "$raw_dir/$d";
 		my @files = grep { -e "$raw_dir/$d/$_" and $_ =~ /\.seq\.uniq\.gz$/ } readdir D2;

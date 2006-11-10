@@ -69,7 +69,7 @@ sub parse
 		{
 			if (defined $doc)
 			{
-				$m->StoreMetaData('title', $title) if defined $title;
+				$m->StoreMetaData('title', lc $title) if defined $title;
 				$m->Store($doc);
 				$m->FlushDocument;
 			}
@@ -118,7 +118,7 @@ sub parse
 
 	if (defined $doc)
 	{
-		$m->StoreMetaData('title', $title) if defined $title;
+		$m->StoreMetaData('title', lc $title) if defined $title;
 		$m->Store($doc);
 		$m->FlushDocument;
 	}
