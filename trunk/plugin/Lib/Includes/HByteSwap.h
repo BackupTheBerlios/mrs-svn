@@ -45,6 +45,8 @@
 // helper class, effectively a noop
 struct no_swapper
 {
+	enum { swaps_bytes = false };
+	
 	template<typename T>
 	static T	swap(T inValue)		{ return inValue; }
 };
@@ -52,6 +54,8 @@ struct no_swapper
 // a class that swaps
 struct byte_swapper
 {
+	enum { swaps_bytes = true };
+
 	template<typename T>
 	static T	swap(T inValue)
 	{
