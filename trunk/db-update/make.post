@@ -90,14 +90,29 @@ ${MRS_FILES:=.cmp}: $(ZIPFILES)
 
 endif
 
-${MRS_DICTS:=.dict}: $(ZIPFILES)
-	$(MRS_DICT_CREATE) -d ${@F:.dict=} -i $(MRS_DICT_FIELDS) $(MRS_DICT_OPTIONS)
+# dictionary support
+# create a dictionary on the __ALL_TEXT__ index by default
+# with options -l 4 (minimal length of dictionary term is 4 characters)
+# and -n 4 (minimal occurrence of term should be 4)
 
-ifneq ($(MRS_DICT),)
-DICT = $(addsuffix .dict, $(basename $(MRS_FILES)))
+ifeq ($(MRS_DICT_FILES),)
+MRS_DICT_FILES = $(MRS_FILES)
+else
+MRS_DICT_FILES := $(addprefix $(MRSDIR), $(basename $(MRS_DICT_FILES)))
 endif
 
-mrs: ${MRS_FILES:=.cmp} ${MRS_DICTS:=.dict}
+ifeq ($(MRS_DICT_OPTIONS),)
+MRS_DICT_OPTIONS = -l 4 -n 4
+endif
+
+ifeq ($(MRS_DICT_FIELDS),)
+MRS_DICT_FIELDS = __ALL_TEXT__
+endif
+
+${MRS_DICT_FILES:=.dict}: $(ZIPFILES)
+	$(MRS_DICT_CREATE) -d ${@F:.dict=} -i $(MRS_DICT_FIELDS) $(MRS_DICT_OPTIONS)
+
+mrs: ${MRS_FILES:=.cmp} ${MRS_DICT_FILES:=.dict}
 
 else
 

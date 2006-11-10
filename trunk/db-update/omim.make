@@ -2,8 +2,6 @@
 
 DATABANK		= omim
 MRSLIBS			= omim mimmap
-MRS_DICT_FIELDS	= av:cn:cs:rf:sa:ti:tx
-MRS_DICTS		= omim
 
 include make.pre
 
@@ -13,6 +11,8 @@ DB_URL = ftp://ftp.ncbi.nih.gov/repository/OMIM
 
 ZIPFILES = $(SRCDIR)omim.txt.Z $(SRCDIR)genemap 
 DATFILES = $(DSTDIR)omim.txt $(DSTDIR)mimmap.txt 
+
+mrs: data
 
 $(DSTDIR)mimmap.txt: $(SRCDIR)genemap
 	awk -f $(SCRIPTDIR)genemap.awk $< > $@

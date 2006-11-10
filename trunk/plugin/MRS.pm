@@ -123,6 +123,7 @@ sub new {
 *Blast = *MRSc::MDatabank_Blast;
 *Index = *MRSc::MDatabank_Index;
 *Indices = *MRSc::MDatabank_Indices;
+*LoadDictionary = *MRSc::MDatabank_LoadDictionary;
 *SuggestCorrection = *MRSc::MDatabank_SuggestCorrection;
 *SetStopWords = *MRSc::MDatabank_SetStopWords;
 *StoreMetaData = *MRSc::MDatabank_StoreMetaData;

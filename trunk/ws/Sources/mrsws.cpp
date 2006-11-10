@@ -92,7 +92,7 @@ MDatabankPtr WSDatabankTable::operator[](const string& inCode)
 {
 	if (mDBs.find(inCode) == mDBs.end() or not mDBs[inCode].Valid())
 	{
-		cout << "Reloading db " << inCode << endl;
+//		cout << "Reloading db " << inCode << endl;
 		
 		MDatabankPtr db(new MDatabank(inCode));
 		mDBs[inCode] = DBInfo(db, inCode);
@@ -176,6 +176,8 @@ void GetDatabankInfo(const string& inDb, ns__DatabankInfo& outInfo)
 			outInfo.parser = dbi->parser;
 			outInfo.blastable = (dbi->blast != 0);
 			
+			outInfo.files.clear();
+			
 			char* first = const_cast<char*>(inDb.c_str());
 			char* last = NULL;
 			const char* dbn;
@@ -225,14 +227,16 @@ void GetDatabankInfo(const string& inDb, ns__DatabankInfo& outInfo)
 		THROW(("db %s not found", inDb.c_str()));
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 ns__GetDatabankInfo(struct soap* soap, string db, vector<struct ns__DatabankInfo >&info)
+SOAP_FMAC5 int SOAP_FMAC6
+ns__GetDatabankInfo(
+	struct soap*						soap,
+	string								db,
+	vector<struct ns__DatabankInfo>&	info)
 {
 	int result = SOAP_OK;
 	
 	try
 	{
-		ns__DatabankInfo inf;
-		
 		if (db == "all")
 		{
 			// how inefficient...
@@ -242,12 +246,21 @@ SOAP_FMAC5 int SOAP_FMAC6 ns__GetDatabankInfo(struct soap* soap, string db, vect
 				if (dbi->id == "all")
 					continue;
 				
-				GetDatabankInfo(dbi->id, inf);
-				info.push_back(inf);
+				try
+				{
+					ns__DatabankInfo inf;
+					GetDatabankInfo(dbi->id, inf);
+					info.push_back(inf);
+				}
+				catch (...)
+				{
+					cerr << endl << "Skipping db " << dbi->id << endl;
+				}
 			}
 		}
 		else
 		{
+			ns__DatabankInfo inf;
 			GetDatabankInfo(db, inf);
 			info.push_back(inf);
 		}
@@ -256,6 +269,53 @@ SOAP_FMAC5 int SOAP_FMAC6 ns__GetDatabankInfo(struct soap* soap, string db, vect
 	{
 		return soap_receiver_fault(soap,
 			"An error occurred while getting version information",
+			e.what());
+	}
+
+	return result;
+}
+
+SOAP_FMAC5 int SOAP_FMAC6
+ns__GetIndices(
+	struct soap*				soap,
+	string						db,
+	vector<struct ns__Index >&	indices)
+{
+	int result = SOAP_OK;
+	
+	try
+	{
+		MDatabankPtr mrsDb = WSDatabankTable::Instance()[db];
+		
+		auto_ptr<MIndices> mrsIndices(mrsDb->Indices());
+		
+		if (not mrsIndices.get())
+			THROW(("Databank %s has no indices", db.c_str()));
+		
+		for (auto_ptr<MIndex> index(mrsIndices->Next()); index.get() != NULL; index.reset(mrsIndices->Next()))
+		{
+			ns__Index ix;
+			
+			ix.id = index->Code();
+			ix.description = ix.id;	// for now...
+			
+			string t = index->Type();
+			if (t == "text" or t == "wtxt")
+				ix.type = FullText;
+			else if (t == "valu")
+				ix.type = Unique;
+			else if (t == "date")
+				ix.type = Date;
+			else if (t == "nmbr")
+				ix.type = Number;
+			
+			indices.push_back(ix);
+		}
+	}
+	catch (exception& e)
+	{
+		return soap_receiver_fault(soap,
+			(string("An error occurred while trying to get indices for db ") + db).c_str(),
 			e.what());
 	}
 
@@ -361,16 +421,24 @@ ns__GetEntry(
 	catch (exception& e)
 	{
 		return soap_receiver_fault(soap,
-			"An error occurred while trying to get entry",
+			(string("An error occurred while trying to get entry ") + id + " from db " + db).c_str(),
 			e.what());
 	}
 
 	return result;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 ns__Find(struct soap*, string db, vector<string> queryterms,
-	bool alltermsrequired, enum ns__Algorithm algorithm, int resultoffset, int maxresultcount,
-	struct ns__FindResponse& response)
+SOAP_FMAC5 int SOAP_FMAC6
+ns__Find(
+	struct soap*				soap,
+	string						db,
+	vector<string>				queryterms,
+	enum ns__Algorithm			algorithm,
+	bool						alltermsrequired,
+	string						booleanfilter,
+	int							resultoffset,
+	int							maxresultcount,
+	struct ns__FindResponse&	response)
 {
 	MDatabankPtr mrsDb = WSDatabankTable::Instance()[db];
 	auto_ptr<MQueryResults> r;
@@ -406,13 +474,14 @@ SOAP_FMAC5 int SOAP_FMAC6 ns__Find(struct soap*, string db, vector<string> query
 			q->AddTerm(*qw, 1);
 		
 		auto_ptr<MBooleanQuery> m;
-//		if (filter.length())
-//			m.reset(mrsDb->BooleanQuery(filter));
+		
+		if (booleanfilter.length())
+			m.reset(mrsDb->BooleanQuery(booleanfilter));
 	
 		r.reset(q->Perform(m.get()));
 	}
-//	else if (filter.length() > 0)
-//		r.reset(mrsDb->Find(filter, false));
+	else if (booleanfilter.length() > 0)
+		r.reset(mrsDb->Find(booleanfilter, false));
 	
 	if (r.get() != NULL)
 	{

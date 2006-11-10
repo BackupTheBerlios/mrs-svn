@@ -6,6 +6,10 @@
 #ifndef WERROR_H
 #define WERROR_H
 
+#include <iostream>
+
+using namespace std;
+
 class ws_exception : public std::exception
 {
   public:

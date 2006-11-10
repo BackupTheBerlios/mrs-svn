@@ -36,7 +36,9 @@ struct ns__DatabankInfo
 								files;
 };
 
-int ns__GetDatabankInfo(xsd__string db = "all", std::vector<struct ns__DatabankInfo>& info);
+int ns__GetDatabankInfo(
+	xsd__string								db = "all",
+	std::vector<struct ns__DatabankInfo>&	info);
 
 enum ns__Format
 {
@@ -46,7 +48,30 @@ enum ns__Format
 	fasta
 };
 
-int ns__GetEntry(xsd__string db, xsd__string id, enum ns__Format format = plain, xsd__string& entry);
+int ns__GetEntry(
+	xsd__string					db,
+	xsd__string					id,
+	enum ns__Format				format = plain,
+	xsd__string&				entry);
+
+enum ns__IndexType
+{
+	Unique,
+	FullText,
+	Number,
+	Date
+};
+
+struct ns__Index
+{
+	xsd__string					id;
+	xsd__string					description;
+	enum ns__IndexType			type;
+};
+
+int ns__GetIndices(
+	xsd__string						db,
+	std::vector<struct ns__Index>&	indices);
 
 struct ns__Hit
 {
@@ -59,7 +84,7 @@ struct ns__Hit
 struct ns__FindResponse
 {
 	unsigned long					count;	// the total number of hits found
-	std::vector<struct ns__Hit>		hits;
+	std::vector<struct ns__Hit>		hits;	// the requested sub section of the results
 };
 
 enum ns__Algorithm
@@ -69,11 +94,20 @@ enum ns__Algorithm
 	Jaccard
 };
 
-int ns__Find(xsd__string db, std::vector<xsd__string> queryterms, bool alltermsrequired = true,
-	enum ns__Algorithm algorithm = Vector, int resultoffset = 0, int maxresultcount = 15,
-	struct ns__FindResponse& response);
+int ns__Find(
+	xsd__string					db,
+	std::vector<xsd__string>	queryterms,
+	enum ns__Algorithm			algorithm = Vector,
+	bool						alltermsrequired = true,
+	xsd__string					booleanfilter,
+	int							resultoffset = 0,
+	int							maxresultcount = 15,
+	struct ns__FindResponse&	response);
 
-int ns__SpellCheck(xsd__string db, xsd__string queryterm, std::vector<xsd__string>& suggestions);
+int ns__SpellCheck(
+	xsd__string					db,
+	xsd__string					queryterm,
+	std::vector<xsd__string>&	suggestions);
 
 //int ns__FindSimilar(xsd__string db, xsd__string id,
 //	enum ns__Algorithm algorithm = Vector, int resultoffset = 0, int maxresultcount = 15,

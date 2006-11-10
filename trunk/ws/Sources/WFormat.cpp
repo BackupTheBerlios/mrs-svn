@@ -7,6 +7,9 @@
 #include <perl.h>
 #include <XSUB.h>
 
+#undef do_open
+#undef do_close
+
 #include <string>
 
 #include "WFormat.h"
