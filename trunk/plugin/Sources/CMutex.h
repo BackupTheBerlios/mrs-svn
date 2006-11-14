@@ -34,34 +34,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
  
-#ifndef CSEMAPHORE_H
-#define CSEMAPHORE_H
-
-class CSemaphore
-{
-  public:
-					CSemaphore(int inCount);
-					~CSemaphore();
-	
-	bool			Wait();
-	void			Signal();
-
-  private:
-	int				fSemID;
-};
-
-class CBenaphore
-{
-  public:
-					CBenaphore();
-					~CBenaphore();
-	
-	bool			Wait();
-	void			Signal();
-
-  private:
-	struct CBenaphoreImp*	fImpl;
-};
+#ifndef CMUTEX_H
+#define CMUTEX_H
 
 class CMutex
 {
@@ -91,4 +65,4 @@ class StMutex
 	CMutex&			fMutex;
 };
 
-#endif // CSEMAPHORE_H
+#endif // CMUTEX_H

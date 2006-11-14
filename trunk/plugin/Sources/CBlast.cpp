@@ -61,7 +61,7 @@
 #include "CBlast.h"
 
 #include "CThread.h"
-#include "CSemaphore.h"
+#include "CMutex.h"
 
 using namespace std;
 

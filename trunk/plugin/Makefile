@@ -214,9 +214,9 @@ Sources = \
 	./Sources/CIndexer.cpp \
 	./Sources/CIterator.cpp \
 	./Sources/CLexicon.cpp \
+	./Sources/CMutex.cpp \
 	./Sources/CQuery.cpp \
 	./Sources/CRankedQuery.cpp \
-	./Sources/CSemaphore.cpp \
 	./Sources/CSequence.cpp \
 	./Sources/CUtils.cpp \
 	./Sources/CTextTable.cpp \
