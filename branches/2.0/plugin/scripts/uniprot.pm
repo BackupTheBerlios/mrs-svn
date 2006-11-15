@@ -200,7 +200,7 @@ sub raw_files
 	}
 	elsif ($db eq 'gpcrdb') {
 		$raw_dir =~ s/uniprot/gpcrdb/;
-		$raw_dir =~ s/raw/srs/;
+		$raw_dir =~ s/raw/uncompressed/;
 		return "$raw_dir/gpcrdb.dat";
 	}
 	else {
