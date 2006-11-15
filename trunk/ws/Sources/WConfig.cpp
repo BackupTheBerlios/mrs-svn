@@ -439,6 +439,8 @@ void CfParser::ParseHash()
 			fDbInfo.back().parser = value;
 		else if (key == "blast")
 			fDbInfo.back().blast = atoi(value.c_str()) != 0;
+		else if (key == "in_all")
+			fDbInfo.back().in_all = atoi(value.c_str()) != 0;
 		
 		if (fLookahead == ',')
 			Match(',');

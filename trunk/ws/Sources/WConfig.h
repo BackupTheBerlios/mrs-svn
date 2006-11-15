@@ -16,6 +16,7 @@ struct DbInfo
 	std::string			url;
 	std::string			parser;
 	bool				blast;
+	bool				in_all;
 };
 
 class config_exception : public std::exception

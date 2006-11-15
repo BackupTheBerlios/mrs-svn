@@ -83,8 +83,8 @@ struct ns__Hit
 
 struct ns__FindResponse
 {
-	unsigned long					count;	// the total number of hits found
-	std::vector<struct ns__Hit>		hits;	// the requested sub section of the results
+	unsigned long				count;	// the total number of hits found
+	std::vector<struct ns__Hit>	hits;	// the requested sub section of the results
 };
 
 enum ns__Algorithm
@@ -104,6 +104,19 @@ int ns__Find(
 	int							maxresultcount = 15,
 	struct ns__FindResponse&	response);
 
+struct ns__FindAllResult
+{
+	xsd__string					db;
+	unsigned long				count;
+};
+
+int ns__FindAll(
+	std::vector<xsd__string>	queryterms,
+	enum ns__Algorithm			algorithm = Vector,
+	bool						alltermsrequired = true,
+	xsd__string					booleanfilter,
+	std::vector<struct ns__FindAllResult>&
+								response);
 int ns__SpellCheck(
 	xsd__string					db,
 	xsd__string					queryterm,

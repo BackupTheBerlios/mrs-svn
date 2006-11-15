@@ -511,6 +511,92 @@ ns__Find(
 }
 
 SOAP_FMAC5 int SOAP_FMAC6
+ns__FindAll(
+	struct soap*		soap,
+	vector<string>		queryterms,
+	enum ns__Algorithm	algorithm,
+	bool				alltermsrequired,
+	string				booleanfilter,
+	vector<struct ns__FindAllResult>&
+						response)
+{
+	int result = SOAP_OK;
+	
+	try
+	{
+		for (vector<DbInfo>::iterator dbi = gDbInfo.begin(); dbi != gDbInfo.end(); ++dbi)
+		{
+			if (not dbi->in_all)
+				continue;
+			
+			try
+			{
+				MDatabankPtr mrsDb = WSDatabankTable::Instance()[dbi->id];
+				auto_ptr<MQueryResults> r;
+				
+				if (queryterms.size() > 0)
+				{
+					auto_ptr<MRankedQuery> q(mrsDb->RankedQuery("__ALL_TEXT__"));
+				
+					switch (algorithm)
+					{
+						case Vector:
+							q->SetAlgorithm("vector");
+							break;
+						
+						case Dice:
+							q->SetAlgorithm("dice");
+							break;
+						
+						case Jaccard:
+							q->SetAlgorithm("jaccard");
+							break;
+						
+						default:
+							THROW(("Unsupported search algorithm"));
+							break;
+					}
+						
+					q->SetAllTermsRequired(alltermsrequired);
+				
+					for (vector<string>::iterator qw = queryterms.begin(); qw != queryterms.end(); ++qw)
+						q->AddTerm(*qw, 1);
+					
+					auto_ptr<MBooleanQuery> m;
+					
+					if (booleanfilter.length())
+						m.reset(mrsDb->BooleanQuery(booleanfilter));
+				
+					r.reset(q->Perform(m.get()));
+				}
+				else if (booleanfilter.length() > 0)
+					r.reset(mrsDb->Find(booleanfilter, false));
+				
+				if (r.get() != NULL)
+				{
+					ns__FindAllResult fa;
+					fa.db = dbi->id;
+					fa.count = r->Count(true);
+					response.push_back(fa);
+				}
+			}
+			catch (...)
+			{
+				cerr << endl << "Skipping db " << dbi->id << endl;
+			}
+		}
+	}
+	catch (exception& e)
+	{
+		return soap_receiver_fault(soap,
+			"An error occurred while doing a FindAll",
+			e.what());
+	}
+
+	return result;
+}
+
+SOAP_FMAC5 int SOAP_FMAC6
 ns__SpellCheck(
 	struct soap*	soap,
 	string			db,
