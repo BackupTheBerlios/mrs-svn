@@ -80,7 +80,7 @@ ${MRS_FILES:=.cmp}: $(ZIPFILES)
 	$(MAKE) -f $(DATABANK).make ${PARTS:%=${@:.cmp=}-%.cmp}
 	$(MRS_MERGE) -d $(@F:.cmp=) -P $(MRS_PARTS)
 	chmod a+r $@
-	rm -rf ${PARTS:%=$(MRSDIR)$(@F:.cmp=)%.cmp}
+	rm -rf ${PARTS:%=$(MRSDIR)$(@F:.cmp=)-%.cmp}
 
 else
 
