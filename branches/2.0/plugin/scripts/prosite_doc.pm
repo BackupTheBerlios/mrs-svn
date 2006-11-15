@@ -96,6 +96,30 @@ sub parse
 	}
 }
 
+sub version
+{
+    my ($self, $raw_dir) = @_;
+    my $vers;
+
+	$raw_dir =~ s/prosite_doc/prosite/;
+
+    open REL, "<$raw_dir/prosite.doc";
+
+    while (my $line = <REL>)
+    {
+        if ($line =~ /^(Release [0-9.]+ of [^.]+)\./) {
+            $vers = $1;
+            last;
+        }
+    }
+
+    close REL;
+    
+    warn "Version not found" unless defined $vers;
+
+    return $vers;
+}
+
 sub raw_files
 {
 	my ($self, $raw_dir) = @_;
