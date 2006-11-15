@@ -198,6 +198,11 @@ sub raw_files
 	elsif ($db eq 'uniprot') {
 		return ( "gzcat $raw_dir/uniprot_trembl.dat.gz|", "gzcat $raw_dir/uniprot_sprot.dat.gz|");
 	}
+	elsif ($db eq 'gpcrdb') {
+		$raw_dir =~ s/uniprot/gpcrdb/;
+		$raw_dir =~ s/raw/srs/;
+		return "$raw_dir/gpcrdb.dat";
+	}
 	else {
 		return "gzcat $raw_dir/$db.dat.gz|";
 	}
