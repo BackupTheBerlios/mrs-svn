@@ -141,6 +141,100 @@ sub pp
 	my $kw_ix;
 	my @comments;
 	
+	my %features;			# pos => { @feature_ids }
+	my $ft_nr = 0;
+	my $js=<<END;
+<script type="text/javascript">
+function getSeqSegmentsForID(id)
+{
+	var items = new Array();
+
+#1
+
+	return items;
+}
+
+function highlightFeature(id) {
+	var i;
+
+	for (i = 0; i < #2; ++i)
+	{
+		var item = document.getElementById('fs_' + i);
+		if (item)
+			item.className = '';
+	}
+
+	for (i = 0; i < #3; ++i)
+	{
+		var item = document.getElementById('feature_' + i);
+		if (item)
+			item.className = '';
+	}
+
+	var item = document.getElementById('feature_' + id);
+	if (item)
+	{
+		item.style.backgroundColor = '';
+		item.className = 'highlighted';
+	}
+
+	var items = getSeqSegmentsForID(id);
+
+	for (i in items)
+	{
+		if (items[i])
+			items[i].className = 'highlighted';
+	}
+}
+
+function enterFeature(id)
+{
+	var item = document.getElementById('feature_' + id);
+	
+	if (item && item.className != 'highlighted')
+	{
+		item.style.backgroundColor = '#ddf';
+		item.style.cursor = 'pointer';
+	}
+	
+	var items = getSeqSegmentsForID(id);
+
+	for (i in items)
+	{
+		if (items[i])
+		{
+			items[i].style.textDecoration = 'underline';
+			items[i].style.color = '#88e';
+		}
+	}
+	
+	return true;
+}
+
+function leaveFeature(id)
+{
+	var item = document.getElementById('feature_' + id);
+	
+	if (item)
+		item.style.backgroundColor = '';
+
+	var items = getSeqSegmentsForID(id);
+
+	for (i in items)
+	{
+		if (items[i])
+		{
+			items[i].style.textDecoration = 'none';
+			items[i].style.color = '';
+		}
+	}
+	
+	return true;
+}
+
+</script>
+END
+	
 	my $lookahead = shift @lines;
 	
 	while (defined $lookahead)
@@ -593,13 +687,36 @@ sub pp
 				
 				my $length = $to - $from + 1;
 #				$length = '-' if $length == 0;
+
+				my $from_nr = $from; $from_nr =~ tr/0-9//cd;
+				my $to_nr = $to; $to_nr =~ tr/0-9//cd;
+
+				foreach my $loc ($from_nr .. $to_nr)
+				{
+					if (defined $features{$loc})
+					{
+						$features{$loc} .= ":$ft_nr";
+					}
+					else
+					{
+						$features{$loc} .= "$ft_nr";
+					}
+				}
 				
 				push @ft, $q->Tr(
+					{
+						-id			 => "feature_$ft_nr",
+						-onClick	 => "highlightFeature(\'$ft_nr\')",
+						-onMouseOver => "enterFeature(\'$ft_nr\');",
+						-onMouseOut	 => "leaveFeature(\'$ft_nr\');"
+					},
 					$q->td(lc $key),
 					$q->td({-style=>'text-align:right'}, $from),
 					$q->td({-style=>'text-align:right'}, $to),
 					$q->td({-style=>'text-align:right'}, $length),
 					$q->td($desc));
+
+				++$ft_nr;
 				
 				last unless $lookahead =~ /^FT/;
 				
@@ -608,7 +725,7 @@ sub pp
 			}
 			
 			push @features_rows, $q->Tr($q->th({-colspan=>2}, 'Features'));
-			push @features_rows, $q->Tr($q->td({-colspan=>2}, $q->div({-class=>'sub_entry'},
+			push @features_rows, $q->Tr($q->td({-colspan=>2}, $q->div({-class=>'sub_entry', -id => 'feature_table'},
 					$q->table({-cellspacing=>'0', -cellpadding=>'0', -width=>'100%'}, @ft))));
 		}
 		
@@ -631,7 +748,80 @@ sub pp
 				$lookahead = shift @lines;
 			}
 			
-			push @sequence_rows, $q->Tr($q->td({-colspan=>2}, $q->pre($seq)));
+			$seq =~ s/\s//g;
+			my $nseq = "";
+			
+			my $fs = 0;
+			my %fm;
+			
+			for (my $i = 1; $i <= length($seq); ++$i)
+			{
+				my $ft_sig = $features{$i};
+				
+				my $aa = substr($seq, $i - 1 , 1);
+				
+				if ($i % 60 == 0) {
+					$aa .= "\n";
+				}
+				elsif ($i % 10 == 0) {
+					$aa .= ' ';
+				}
+				
+				while ($i + 1 <= length($seq) and $features{$i + 1} eq $ft_sig)
+				{
+					$aa .= substr($seq, $i, 1);
+					++$i;
+					if ($i % 60 == 0) {
+						$aa .= "\n";
+					}
+					elsif ($i % 10 == 0) {
+						$aa .= ' ';
+					}
+				}
+				
+				$nseq .= $q->span({-id => "fs_$fs"}, $aa);
+				
+				foreach my $ft_id (split(m/:/, $ft_sig))
+				{
+					if (ref($fm{$ft_id}) ne "ARRAY")
+					{
+						my @a = ( $fs );
+						$fm{$ft_id} = \@a;
+					}
+					else {
+						push @{$fm{$ft_id}}, $fs;
+					}
+				}
+				
+				++$fs;
+			}
+			
+			my $case;
+			
+			foreach my $fmk (keys %fm)
+			{
+				if (defined $case) {
+					$case .= "\telse if (id == '$fmk') {\n"
+				}
+				else {
+					$case .= "\tif (id == '$fmk') {\n";
+				}
+				
+				my $fn = 0;
+				foreach my $ft_id (@{$fm{$fmk}})
+				{
+					$case .= "\t\titems[$fn] = document.getElementById('fs_$ft_id');\n";
+					++$fn;
+				}
+				
+				$case .= "\t}\n";
+			}
+			
+			$js =~ s/#1/$case/;
+			$js =~ s/#2/$fs/;
+			$js =~ s/#3/$ft_nr/;
+			
+			push @sequence_rows, $q->Tr($q->td({-colspan=>2}, $q->pre($nseq)));
 		}
 	}
 
@@ -681,6 +871,7 @@ sub pp
 	push @rows, @sequence_rows if scalar @sequence_rows;
 
 	return $q->div({-class=>'entry'},
+		$js,
 		$q->table({-cellspacing=>'0', -cellpadding=>'0', -width=>'100%'}, @rows));
 
 }

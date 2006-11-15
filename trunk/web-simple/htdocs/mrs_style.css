@@ -599,3 +599,14 @@ hit_count {
 .ok {
 	
 }
+
+/*  */
+
+.highlighted {
+	background-color: #efff7e;
+}
+
+#feature_table {
+	max-height: 200px;
+	overflow: auto;
+}
