@@ -68,7 +68,7 @@ sub parse
 	my $lookahead = <IN>;
 	
 	$lookahead = <IN>
-		while (substr($lookahead, 0, 2) eq 'CC');
+		while (uc substr($lookahead, 0, 2) eq 'CC');
 	$lookahead = <IN>
 		if (substr($lookahead, 0, 2) eq '//');
 	
@@ -116,7 +116,7 @@ sub parse
 
 sub version
 {
-        my ($self, $raw_dir) = @_;
+	my ($self, $raw_dir) = @_;
 	my $vers;
 
 	open REL, "<$raw_dir/prosite.dat";
