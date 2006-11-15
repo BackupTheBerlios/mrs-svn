@@ -333,10 +333,15 @@ Algorithm& Algorithm::Choose(const string& inName)
 		THROW(("Unknown algorithm: %s", inName.c_str()));
 }
 
-void CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
-	const string& inIndex, const std::string& inAlgorithm,
-	CDocIterator* inMetaQuery, uint32 inMaxReturn, bool inAllTermsRequired,
-	CDocIterator*& outResults, uint32& outCount)
+void CRankedQuery::PerformSearch(
+	CDatabankBase&		inDatabank,
+	const string&		inIndex,
+	const string&		inAlgorithm,
+	CDocIterator*		inMetaQuery,
+	uint32				inMaxReturn,
+	bool				inAllTermsRequired,
+	CDocIterator*&		outResults,
+	uint32&				outCount)
 {
 	Algorithm& alg = Algorithm::Choose(inAlgorithm);
 	
@@ -361,6 +366,12 @@ void CRankedQuery::PerformSearch(CDatabankBase& inDatabank,
 		t->iter.reset(inDatabank.GetDocWeightIterator(inIndex, t->key));
 		if (t->iter.get() != nil)
 			t->w = t->iter->Weight() * t->iter->GetIDFCorrectionFactor() * t->weight;
+		else if (inAllTermsRequired)	// short cut, no results
+		{
+			outCount = 0;
+			outResults = nil;
+			return;
+		}
 		else
 			t->w = 0;
 	}
