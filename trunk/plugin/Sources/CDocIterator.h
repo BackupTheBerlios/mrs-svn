@@ -278,18 +278,36 @@ class CDocVectorIterator : public CDocIterator
   public:
 	typedef std::vector<uint32> DocVector;
 
+					// this constructor only makes use of the DocVector passed in
 					CDocVectorIterator(DocVector& inDocs)
-						: fDocs(inDocs)
+						: fDocs(&inDocs)
+						, fOwnsVector(false)
 						, fCur(0)
 						, fRead(0) {}
 	
+	
+					// this constructor takes ownership of the DocVector
+					CDocVectorIterator(DocVector* inDocs)
+						: fDocs(inDocs)
+						, fOwnsVector(true)
+						, fCur(0)
+						, fRead(0) {}
+	
+	virtual			~CDocVectorIterator()
+					{
+						if (fOwnsVector)
+							delete fDocs;
+					}
+	
 	virtual bool	Next(uint32& ioDoc, float& outScore, bool inSkip);
 	virtual bool	Next(uint32& ioValue, bool inSkip);
-	virtual uint32	Count() const						{ return fDocs.size(); }
+
+	virtual uint32	Count() const						{ return fDocs->size(); }
 	virtual uint32	Read() const						{ return fRead; }
 
   private:
-	DocVector&		fDocs;
+	DocVector*		fDocs;
+	bool			fOwnsVector;
 	uint32			fCur, fRead;
 };
 

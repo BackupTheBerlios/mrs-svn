@@ -577,16 +577,16 @@ bool CDocFreqVectorIterator::Next(uint32& ioDoc, float& outFreq, bool inSkip)
 bool CDocVectorIterator::Next(uint32& ioValue, bool inSkip)
 {
 	bool result = false;
-	while (not result and fCur < fDocs.size())
+	while (not result and fCur < fDocs->size())
 	{
-		if (fDocs[fCur] <= ioValue and inSkip)
+		if (fDocs->at(fCur) <= ioValue and inSkip)
 		{
 			++fCur;
 			continue;
 		}
 		
 		result = true;
-		ioValue = fDocs[fCur];
+		ioValue = fDocs->at(fCur);
 		++fCur;
 	}
 	return result;
@@ -595,16 +595,16 @@ bool CDocVectorIterator::Next(uint32& ioValue, bool inSkip)
 bool CDocVectorIterator::Next(uint32& ioDoc, float& outFreq, bool inSkip)
 {
 	bool result = false;
-	while (not result and fCur < fDocs.size())
+	while (not result and fCur < fDocs->size())
 	{
-		if (fDocs[fCur] <= ioDoc and inSkip)
+		if (fDocs->at(fCur) <= ioDoc and inSkip)
 		{
 			++fCur;
 			continue;
 		}
 		
 		result = true;
-		ioDoc = fDocs[fCur];
+		ioDoc = fDocs->at(fCur);
 		outFreq = 1;
 		++fCur;
 	}

@@ -1153,6 +1153,8 @@ void CIndexImpT<DD>::GetValuesForPattern(const string& inKey, vector<uint32>& ou
 	pair<uint32,uint32> v(page, 0);
 	stack<pair<uint32,uint32> > pStack;
 
+	outValues.clear();	// init the vector
+
 	uint32 c;
 	int64 val;
 	string key;
@@ -1210,7 +1212,10 @@ void CIndexImpT<DD>::GetValuesForPattern(const string& inKey, vector<uint32>& ou
 			{
 				if (val >= numeric_limits<uint32>::max())
 					THROW(("index value out of range"));
+				
+				// keep the values sorted
 				outValues.push_back(val);
+				push_heap(outValues.begin(), outValues.end());
 			}
 			else if (m == eNoMatchAndGreater)
 				done = true;
@@ -1232,6 +1237,8 @@ void CIndexImpT<DD>::GetValuesForPattern(const string& inKey, vector<uint32>& ou
 		else
 			pStack.pop();
 	}
+	
+	sort_heap(outValues.begin(), outValues.end());
 }
 
 template<typename DD>

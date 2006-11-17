@@ -284,3 +284,4 @@ function toggleClustalWrap() {
 		l.innerHTML = 'show wrapped';
 	}
 }
+

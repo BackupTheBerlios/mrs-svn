@@ -204,7 +204,8 @@ function enterFeature(id)
 		if (items[i])
 		{
 			items[i].style.textDecoration = 'underline';
-			items[i].style.color = '#88e';
+			items[i].style.fontWeight = 'bold';
+			items[i].style.color = '#b23e1c';
 		}
 	}
 	
@@ -225,6 +226,7 @@ function leaveFeature(id)
 		if (items[i])
 		{
 			items[i].style.textDecoration = 'none';
+			items[i].style.fontWeight = '';
 			items[i].style.color = '';
 		}
 	}

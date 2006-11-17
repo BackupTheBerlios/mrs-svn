@@ -40,6 +40,8 @@ sub pp
 	
 	my $script = sprintf($jmol_script, $q->url(), $id);
 	
+	$text =~ s|(COMPND   \d? )EC: ((\d+\.){3}\d+)|$1<a href="?id=enzyme%3A$2">EC: $2</a>|gmo;
+	
 	return $script . $q->pre($text);
 }
 
@@ -47,12 +49,50 @@ sub describe
 {
 	my ($this, $q, $text) = @_;
 	
-	my $desc = "";
-	
-	if ($text =~ /^HEADER\s+(.+)/mo)
+	my $header;
+	my $title = "";
+	my $compnd = "";
+
+	open TXT, "<", \$text;
+	while (my $line = <TXT>)
 	{
-		$desc = lc($1);
+		if ($line =~ /^HEADER\s+(.+?)\s{3}/mo)
+		{
+			$header = lc($1) . ' ';
+		}
+		elsif ($line =~ /^TITLE    [ \d](.+)/mo)
+		{
+			$title .= lc($1);
+		}
+		elsif ($line =~ /^COMPND   ( |\d )MOLECULE: (.+)/mo)
+		{
+			$compnd .= lc($2) . ' ';
+		}
+		elsif ($line =~ /^COMPND   ( |\d )EC: (.+)/mo)
+		{
+			$compnd .= 'EC: ' . lc($2) . ' ';
+		}
+		elsif ($line =~ /^SOURCE/)
+		{
+			last;
+		}
 	}
+
+	my $desc;
+		
+	if ($title ne '')
+	{
+		$desc = $q->b($title) . ' (' . $header . ')';
+	}
+	else
+	{
+		$desc = $header;
+	}
+
+	if ($compnd ne '')
+	{
+		$desc .= $q->br . $q->i($compnd);
+	}	
 	
 	return $desc;
 }

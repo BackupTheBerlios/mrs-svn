@@ -2286,26 +2286,23 @@ CDocIterator* CIndexer::GetImpForPattern(const string& inIndex,
 	auto_ptr<CIndex> indx(new CIndex(fParts[ix].kind, fParts[ix].index_version,
 		*fFile, fParts[ix].tree_offset, fParts[ix].root));
 
-	vector<uint32> values;
-	indx->GetValuesForPattern(inValue, values);
+	auto_ptr<vector<uint32> > values(new vector<uint32>());
+	indx->GetValuesForPattern(inValue, *values.get());
 	
-	if (values.size())
+	if (values->size())
 	{
-		vector<CDocIterator*> ixs;
-		
 		if (fParts[ix].kind == kValueIndex)
-		{
-			for (vector<uint32>::iterator i = values.begin(); i != values.end(); ++i)
-				ixs.push_back(new CDocNrIterator(*i));
-		}
+			result.reset(new CDocVectorIterator(values.release()));
 		else if (fParts[ix].kind == kTextIndex or fParts[ix].kind == kDateIndex or fParts[ix].kind == kNumberIndex)
 		{
-			for (vector<uint32>::iterator i = values.begin(); i != values.end(); ++i)
+			vector<CDocIterator*> ixs;
+
+			for (vector<uint32>::iterator i = values->begin(); i != values->end(); ++i)
 				ixs.push_back(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
 					fParts[ix].bits_offset + *i, fHeader->entries));
+
+			result.reset(CDocUnionIterator::Create(ixs));
 		}
-		
-		result.reset(CDocUnionIterator::Create(ixs));
 	}
 
 	return result.release();

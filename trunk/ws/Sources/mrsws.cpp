@@ -29,8 +29,10 @@ class WSDatabankTable
   public:
 	static WSDatabankTable&	Instance();
 
-	MDatabankPtr				operator[](const string& inCode);
-	string						GetFormatter(const string& inCode);
+	MDatabankPtr		operator[](const string& inCode);
+	string				GetFormatter(const string& inCode);
+	
+	void				ReloadDbs();
 	
   private:
 
@@ -46,7 +48,7 @@ class WSDatabankTable
 		bool			Valid();
 	};
 
-	typedef map<string,DBInfo >	DBTable;
+	typedef map<string,DBInfo>	DBTable;
 	
 	DBTable		mDBs;
 };
@@ -92,8 +94,6 @@ MDatabankPtr WSDatabankTable::operator[](const string& inCode)
 {
 	if (mDBs.find(inCode) == mDBs.end() or not mDBs[inCode].Valid())
 	{
-//		cout << "Reloading db " << inCode << endl;
-		
 		MDatabankPtr db(new MDatabank(inCode));
 		mDBs[inCode] = DBInfo(db, inCode);
 	}
@@ -106,59 +106,32 @@ inline string WSDatabankTable::GetFormatter(const string& inCode)
 	return mDBs[inCode].mFormat;
 }
 
-int main()
+void WSDatabankTable::ReloadDbs()
 {
-	string dataDir;
-	ReadConfig("mrs.conf", dataDir, gDbInfo);
+	mDBs.clear();
 	
-	if (dataDir.length() > 0 and dataDir[dataDir.length() - 1] != '/')
-		dataDir += '/';
-
-	setenv("MRS_DATA_DIR", dataDir.c_str(), 1);
-
-#if 0
-	soap_serve(soap_new()); // use the remote method request dispatcher
-	return 0;
-#else
-	struct soap soap;
-	int m, s; // master and slave sockets
-	soap_init(&soap);
-
-//	soap_set_recv_logfile(&soap, "recv.log"); // append all messages received in /logs/recv/service12.log
-//	soap_set_sent_logfile(&soap, "sent.log"); // append all messages sent in /logs/sent/service12.log
-//	soap_set_test_logfile(&soap, "test.log"); // no file name: do not save debug messages
-
-	m = soap_bind(&soap, "localhost", 8081, 100);
-	if (m < 0)
-		soap_print_fault(&soap, stderr);
-	else
+	cout << endl;
+	
+	for (vector<DbInfo>::iterator dbi = gDbInfo.begin(); dbi != gDbInfo.end(); ++dbi)
 	{
-		fprintf(stderr, "Socket connection successful: master socket = %d\n", m);
-		for (int i = 1; ; ++i)
+		if (dbi->id == "all")
+			continue;
+		
+		cout << "Loading " << dbi->id << "..."; cout.flush();
+		
+		try
 		{
-			s = soap_accept(&soap);
-			if (s < 0)
-			{
-				soap_print_fault(&soap, stderr);
-				break;
-			}
-			fprintf(stderr, "%d: accepted connection from IP=%ld.%ld.%ld.%ld socket=%d...", i,
-				(soap.ip >> 24)&0xFF, (soap.ip >> 16)&0xFF, (soap.ip >> 8)&0xFF, soap.ip&0xFF, s);
-			
-			double start = system_time();
-			
-			if (soap_serve(&soap) != SOAP_OK) // process RPC request
-				soap_print_fault(&soap, stderr); // print error
-			
-			double end = system_time();
-			
-			fprintf(stderr, " request served in %.3g seconds\n", end - start);
-			soap_destroy(&soap); // clean up class instances
-			soap_end(&soap); // clean up everything and close socket
+			MDatabankPtr db(new MDatabank(dbi->id));
+			mDBs[dbi->id] = DBInfo(db, dbi->id);
 		}
+		catch (exception& e)
+		{
+			cout << " failed" << endl;
+			continue;
+		}
+		
+		cout << " done" << endl;
 	}
-	soap_done(&soap); // close master socket and detach environment
-#endif
 }
 
 void GetDatabankInfo(const string& inDb, ns__DatabankInfo& outInfo)
@@ -566,7 +539,7 @@ ns__FindAll(
 					
 					if (booleanfilter.length())
 						m.reset(mrsDb->BooleanQuery(booleanfilter));
-				
+		
 					r.reset(q->Perform(m.get()));
 				}
 				else if (booleanfilter.length() > 0)
@@ -627,10 +600,118 @@ ns__SpellCheck(
 	return result;
 }
 
+// --------------------------------------------------------------------
+// 
+//   main body
+// 
 
-//SOAP_FMAC5 int SOAP_FMAC6 ns__FindSimilar(struct soap*, string db, string id,
-//	enum ns__Algorithm algorithm, int resultoffset, int maxresultcount,
-//	struct ns__FindResponse& result)
-//{
-//	return SOAP_ERR;
-//}
+// globals for communication with the outside world
+
+bool	gNeedReload;
+bool	gQuit;
+
+void handler(int inSignal)
+{
+	int old_errno = errno;
+	
+	switch (inSignal)
+	{
+		case SIGINT:
+			gQuit = true;
+			break;
+		
+		case SIGHUP:
+			gNeedReload = true;
+			break;
+		
+		default:	// now what?
+			break;
+	}
+	
+	cout << "signal caught: " << inSignal << endl;
+	
+	errno = old_errno;
+}
+
+int main()
+{
+	struct sigaction sa;
+	
+	sa.sa_handler = handler;
+	sa.sa_flags = 0;
+	sigemptyset(&sa.sa_mask);
+	
+	sigaction(SIGINT, &sa, NULL);
+	sigaction(SIGHUP, &sa, NULL);
+		
+	struct soap soap;
+	int m, s; // master and slave sockets
+	soap_init(&soap);
+
+//	soap_set_recv_logfile(&soap, "recv.log"); // append all messages received in /logs/recv/service12.log
+//	soap_set_sent_logfile(&soap, "sent.log"); // append all messages sent in /logs/sent/service12.log
+//	soap_set_test_logfile(&soap, "test.log"); // no file name: do not save debug messages
+
+	m = soap_bind(&soap, "localhost", 8081, 100);
+	if (m < 0)
+		soap_print_fault(&soap, stderr);
+	else
+	{
+		gQuit = false;
+		gNeedReload = true;
+		
+		soap.accept_timeout = 1;	// timeout
+		
+		fprintf(stderr, "Socket connection successful: master socket = %d\n", m);
+		for (int i = 1; ; ++i)
+		{
+			if (gQuit)
+				break;
+			
+			if (gNeedReload)
+			{
+				string dataDir;
+				ReadConfig("mrs.conf", dataDir, gDbInfo);
+				
+				if (dataDir.length() > 0 and dataDir[dataDir.length() - 1] != '/')
+					dataDir += '/';
+			
+				setenv("MRS_DATA_DIR", dataDir.c_str(), 1);
+				
+				WSDatabankTable::Instance().ReloadDbs();
+				
+				gNeedReload = false;
+			}
+			
+			s = soap_accept(&soap);
+			
+			if (s == SOAP_EOF)
+				continue;
+			
+			if (s < 0)
+			{
+				soap_print_fault(&soap, stderr);
+				break;
+			}
+			fprintf(stderr, "%d: accepted connection from IP=%ld.%ld.%ld.%ld socket=%d...", i,
+				(soap.ip >> 24)&0xFF, (soap.ip >> 16)&0xFF, (soap.ip >> 8)&0xFF, soap.ip&0xFF, s);
+			
+			double start = system_time();
+			
+			if (soap_serve(&soap) != SOAP_OK) // process RPC request
+				soap_print_fault(&soap, stderr); // print error
+			
+			double end = system_time();
+			
+			fprintf(stderr, " request served in %.3g seconds\n", end - start);
+			soap_destroy(&soap); // clean up class instances
+			soap_end(&soap); // clean up everything and close socket
+		}
+	}
+	soap_done(&soap); // close master socket and detach environment
+	
+	cout << "Quit" << endl;
+	
+	return 0;
+}
+

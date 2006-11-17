@@ -4,12 +4,11 @@
 #
 
 use strict;
-use XML::XSLT;
 
 package Format_interpro;
 
 use Data::Dumper;
-use XML::XSLT;
+#use XML::XSLT;
 
 our @ISA = "Format";
 
