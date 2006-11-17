@@ -49,6 +49,7 @@ DEFINES		= CPU_$(CPU) MINI_H_LIB
 WARNINGS	= -Wall -Wno-multichar
 BOOST		= ../boost_1_33_0/
 RDEFINES	= -DMACOS=0 -DUNIX=1
+LIBNAME		= mrs
 LIBS		= z expat m bz2 gsoap++
 LIBPATHS	=  ../plugin/Lib/ /usr/local/lib/ ../plugin/
 INCPATHS	= ../plugin/Lib/Includes/ ../plugin/Lib/X/ ../plugin/Lib/ ../plugin/Sources/
@@ -139,13 +140,12 @@ ifeq ($(DEBUG),0)
 	CFLAGS	+= $(OPT)
 	OBJDIR	= Obj.NoDebug
 	DEFINES	+= NDEBUG
-	LIBS	+= mrs
 else
 #	DBG		+= -g
 	OBJDIR	= Obj.Debug
 	DEFINES	+= DEBUG
 #	LIBS	+= efence
-	LIBS	+= mrsd
+	LIBNAME	:= $(LIBNAME)d
 endif
 
 ifeq ($(PROFILE),1)
@@ -156,6 +156,7 @@ ifeq ($(PROFILE),1)
 endif
 
 LDFLAGS += $(addprefix -L, $(LIBPATHS)) 
+LIBNAME := lib$(LIBNAME).a
 
 Sources = \
 	./Sources/mrsws.cpp \
@@ -221,7 +222,7 @@ echo_flags:
 $(TARGET): echo_flags $(OBJS)
 	$(MAKE) DEBUG=$(DEBUG) -C ../plugin $(LIBNAME)
 	@ echo "Linking "$(@F)
-	$(CC) -o $(TARGET) $(LDFLAGS) $(OBJS)
+	$(CC) -o $(TARGET) ../plugin/$(LIBNAME) $(OBJS) $(LDFLAGS)
 	@ chmod a+rx $(TARGET)
 	@ echo "Done"
 

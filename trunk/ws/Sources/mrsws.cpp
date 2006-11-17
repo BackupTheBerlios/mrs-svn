@@ -95,6 +95,7 @@ MDatabankPtr WSDatabankTable::operator[](const string& inCode)
 	if (mDBs.find(inCode) == mDBs.end() or not mDBs[inCode].Valid())
 	{
 		MDatabankPtr db(new MDatabank(inCode));
+		db->PrefetchDocWeights("__ALL_TEXT__");
 		mDBs[inCode] = DBInfo(db, inCode);
 	}
 	

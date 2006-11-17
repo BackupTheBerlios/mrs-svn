@@ -17,6 +17,10 @@ struct DbInfo
 	std::string			parser;
 	bool				blast;
 	bool				in_all;
+
+						DbInfo()
+							: blast(false)
+							, in_all(false) {}
 };
 
 class config_exception : public std::exception

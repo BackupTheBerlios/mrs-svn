@@ -4,6 +4,7 @@
 */
 
 #include <iostream>
+#include <cstdarg>
 
 #include "WError.h"
 

@@ -116,7 +116,7 @@ sub title
 	my ($name, $text, $id) = @_;
 	
 	my $result;
-	
+
 	eval
 	{
 		my $url = undef;
