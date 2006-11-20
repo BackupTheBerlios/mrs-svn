@@ -6,11 +6,13 @@
 	they are entered. Assign a sequence number to each entry and
 	this number can be used later to retrieve the entry.
 	
-	The sorted index on the data is stored as an AVL tree containing
-	only the string numbers. Balance information is stored in the
-	lower bits of the left, right pointers.
+	This implementation used to use an AVL tree to store the lexical
+	order. But I found out that a Patricia tree can reduce total
+	indexing time by as much as 10% !!!
 	
-	Entries are never deleted so don't bother with that.'
+	Entries are never deleted so don't bother with that. Even worse,
+	if you try to delete all Nodes, the indexing time will increase
+	with 10%. So don't do it.
 */
 
 /*-
@@ -51,12 +53,12 @@
  
 #include "MRS.h"
 
+#include <SmallObj.h>
+
 #include "HError.h"
 #include "CLexicon.h"
 
 using namespace std;
-
-#include <SmallObj.h>
 
 const int
 	kLexDataSize = 8 * 1024 * 1024 - 3 * sizeof(uint32),	// 8 Mb per page
@@ -64,135 +66,42 @@ const int
 
 struct CLexPage;
 
-template <class T>
-class CPointerPlusBit
-{
-  public:
-			CPointerPlusBit(T* ptr = 0);
-			CPointerPlusBit& operator=(const CPointerPlusBit& x);
-			CPointerPlusBit& operator=(T* x);
-			operator T*() const;
-	bool	GetBit() const;
-	void	SetBit(bool b);
-	T*		operator->() const;
-
-  private:
-			CPointerPlusBit(const CPointerPlusBit&);
-
-	T*		fPtr;
-};
-
-template <class T>
-inline
-CPointerPlusBit<T>::CPointerPlusBit(T* ptr)
-	: fPtr(ptr)
-{
-}
-
-template <class T>
-inline
-CPointerPlusBit<T>& CPointerPlusBit<T>::operator=(
-	const CPointerPlusBit& x)
-{
-	fPtr = (T*)(((size_t)x.fPtr & ~1) | ((size_t)fPtr & 1));
-	return *this;
-}
-
-template <class T>
-inline
-CPointerPlusBit<T>& CPointerPlusBit<T>::operator=(T* x)
-{
-	assert((((size_t)x) & 1) == 0);
-	fPtr = (T*)((size_t)x | ((size_t)fPtr & 1));
-	return *this;
-}
-
-template <class T>
-inline
-CPointerPlusBit<T>::operator T*() const
-{
-	return (T*)((size_t)fPtr & ~1);
-}
-
-template <class T>
-inline
-bool CPointerPlusBit<T>::GetBit() const
-{
-	return bool((size_t)fPtr & 1);
-}
-
-template <class T>
-inline
-void CPointerPlusBit<T>::SetBit(bool b)
-{
-	fPtr = (T*)(((size_t)fPtr & ~1) | (b & 1));
-}
-
-template <class T>
-inline
-T* CPointerPlusBit<T>::operator->() const
-{
-	return (T*)((size_t)fPtr & ~1);
-}
-
-enum Balance { Left, Even, Right };
+// CNode is a node in a Patricia tree
 
 struct CNode : public Loki::SmallObject<DEFAULT_THREADING, kIxPageSize>
 {
-	typedef CPointerPlusBit<CNode>	CNodePtr;
-
-					CNode(uint32 inValue);
+					CNode();
+					CNode(uint32 inValue, uint16 inBit);
 					~CNode();
 	
-	Balance			GetBalance() const;
-	void			SetBalance(Balance inBalance);
-	
-	CNodePtr		left, right;
+	CNode*			left;
+	CNode*			right;
 	uint32			value;
+	uint16			bit;
 };
 
-typedef CNode::CNodePtr CNodePtr;
+CNode::CNode()
+	: value(0)
+	, bit(0)
+{
+	left = this;
+	right = this;
+}
 
-CNode::CNode(uint32 inValue)
+CNode::CNode(uint32 inValue, uint16 inBit)
 	: left(0)
 	, right(0)
 	, value(inValue)
+	, bit(inBit)
 {
 }
 
 CNode::~CNode()
 {
-	CNode* n = left;
-	delete n;
-	
-	n = right;
-	delete n;
-}
-
-inline
-Balance CNode::GetBalance() const
-{
-	int r = 0;
-	if (left.GetBit())
-		r |= 1 << 1;
-	if (right.GetBit())
-		r |= 1 << 0;
-	return Balance(r);
-}
-
-inline
-void CNode::SetBalance(Balance inBalance)
-{
-	int b = int(inBalance);
-	if (b & (1 << 1))
-		left.SetBit(true);
-	else
-		left.SetBit(false);
-	
-	if (b & (1 << 0))
-		right.SetBit(true);
-	else
-		right.SetBit(false);
+	if (left->bit > bit)
+		delete left;
+	if (right->bit > bit)
+		delete right;
 }
 
 // CLexPage stores strings without null terminator packed in s. 
@@ -266,6 +175,27 @@ struct CLexPage
 				}
 
 	inline
+	bool		TestKeyBit(uint32 inEntry, uint16 inBit) const
+				{
+					assert(inEntry < N);
+					int32 ix = static_cast<int32>(inEntry);
+					assert(e[-ix - 1] > e[-ix]);
+					assert(e[-ix - 1] < kLexDataSize - N * sizeof(uint32));
+//					return string(s + e[-ix], e[-ix - 1] - e[-ix]);
+
+					bool result = false;
+					
+					uint16 byte = inBit >> 3;
+					if (byte < e[-ix - 1] - e[-ix])
+					{
+						uint16 bit = 7 - (inBit & 0x0007);
+						result = (s[e[-ix] + byte] & (1 << bit)) != 0;
+					}
+					
+					return result;
+				}
+
+	inline
 	uint32		Free() const
 				{
 					return kLexDataSize - e[-N] - (N + 3) * sizeof(uint32);
@@ -297,11 +227,50 @@ struct CLexiconImp
 {
 	uint32			Store(const string& inWord);
 	string			GetString(uint32 inNr) const;
+
+	const CNode*	Find(const CNode* inNode, const string& inKey) const;
 	bool			Find(const string& inKey, uint32& outNr) const;
-	void			Insert(CNode* inNode, CNodePtr& ioUnder, bool& outHeight);
+
 	int				Compare(const string& inKey, uint32 inNr) const;
 	int				Compare(const CNode* inA, const CNode* inB) const;
 	int				Compare(uint32 inA, uint32 inB) const;
+
+	inline
+	bool			TestKeyBit(
+						const char*		inKey,
+						uint32			inKeyLength,
+						uint16			inBit) const
+					{
+						bool result = false;
+						
+						uint16 byte = inBit >> 3;
+						if (byte < inKeyLength)
+						{
+							uint16 bit = 7 - (inBit & 0x0007);
+							result = (inKey[byte] & (1 << bit)) != 0;
+						}
+						
+						return result;
+					}
+
+	inline
+	bool			CompareKeyBits(
+						const char*		inKeyA,
+						uint32			inKeyALength,
+						const char*		inKeyB,
+						uint32			inKeyBLength,
+						uint16			inBit) const
+					{
+						return
+							TestKeyBit(inKeyA, inKeyALength, inBit) ==
+							TestKeyBit(inKeyB, inKeyBLength, inBit);
+					}
+
+	bool			CompareKeyBits(
+						const char*		inKey,
+						uint32			inKeyLength,
+						uint32			inNr,
+						uint16			inBit) const;
 
 					CLexiconImp();
 					~CLexiconImp();
@@ -312,15 +281,20 @@ struct CLexiconImp
 					GetPage(uint32& ioNr) const;
 
 	LexPageArray	fPages;
-	CNodePtr		fRoot;
+	CNode			fRoot;
 	uint32			fCount;
 };
 
 CLexiconImp::CLexiconImp()
-	: fRoot(nil)
-	, fCount(0)
+	: fCount(0)
 {
 	fPages.push_back(new CLexPage(0));
+	fPages.back()->Add(" ");	// avoid all kinds of checks below
+	++fCount;
+	
+	fRoot.bit = 0;
+	fRoot.left = &fRoot;
+	fRoot.right = &fRoot;
 }
 
 CLexiconImp::~CLexiconImp()
@@ -328,10 +302,10 @@ CLexiconImp::~CLexiconImp()
 	for (LexPageArray::iterator p = fPages.begin(); p != fPages.end(); ++p)
 		delete *p;
 
-	// don't delete the nodes... that's not needed anyway
-#if P_DEBUG
-	CNode* n = fRoot;
-	delete n;
+#if P_DEBUG == 0
+	// avoid deleting all nodes...
+	fRoot.left = nil;
+	fRoot.right = nil;
 #endif
 }
 
@@ -362,173 +336,105 @@ CLexiconImp::GetPage(uint32& ioNr) const
 	return p;
 }
 
+const CNode* CLexiconImp::Find(const CNode* inNode, const string& inKey) const
+{
+	const CNode* p;
+	
+	do
+	{
+		p = inNode;
+		
+		if (TestKeyBit(inKey.c_str(), inKey.length(), inNode->bit))
+			inNode = inNode->right;
+		else
+			inNode = inNode->left;
+	}
+	while (p->bit < inNode->bit);
+	
+	return inNode;
+}
+
 bool CLexiconImp::Find(const string& inKey, uint32& outNr) const
 {
-	CNode* n = fRoot;
 	bool result = false;
 	
-	while (result == false and n != nil)
+	if (fCount > 0)
 	{
-		int d = Compare(inKey, n->value);
-		if (d < 0)
-			n = n->left;
-		else if (d > 0)
-			n = n->right;
-		else
+		const CNode* t = Find(&fRoot, inKey);
+		if (t != nil and Compare(inKey, t->value) == 0)
 		{
 			result = true;
-			outNr = n->value;
+			outNr = t->value;
 		}
 	}
 	
 	return result;
 }
 
-uint32 CLexiconImp::Store(const string& inWord)
+uint32 CLexiconImp::Store(const string& inKey)
 {
-	uint32 result = 0;
-	
-	if (not Find(inWord, result))
-	{
-		if (fPages.back()->Free() < inWord.length() + sizeof(uint32))
-			fPages.push_back(new CLexPage(fCount));
+	CNode* x = &fRoot;
 
-		fPages.back()->Add(inWord);
-		
-		result = fCount;
-		
-		bool h;
-		Insert(new CNode(result), fRoot, h);
-		
-		++fCount;
+	const CNode* t = Find(x, inKey);
+
+	if (t != &fRoot and Compare(inKey, t->value) == 0)
+		return t->value;
+
+	uint16 i = 0;
+	
+	while (CompareKeyBits(inKey.c_str(), inKey.length(), t->value, i))
+		++i;
+
+	CNode* p;
+	
+	do
+	{
+		p = x;
+		if (TestKeyBit(inKey.c_str(), inKey.length(), x->bit))
+			x = x->right;
+		else
+			x = x->left;
 	}
+	while (x->bit < i and p->bit < x->bit);
 	
-	return result;
-}
+	if (fPages.back()->Free() < inKey.length() + sizeof(uint32))
+		fPages.push_back(new CLexPage(fCount));
 
-void CLexiconImp::Insert(CNode* inNode, CNodePtr& p, bool& h)
-{
-	if (p == nil)
+	fPages.back()->Add(inKey);
+
+	CNode* n = new CNode(fCount, i);
+	
+	if (TestKeyBit(inKey.c_str(), inKey.length(), n->bit))
 	{
-		h = true;
-		p = inNode;
-		p->SetBalance(Even);
+		n->right = n;
+		n->left = x;
 	}
 	else
 	{
-		int d = Compare(inNode, p);
-		if (d < 0)
-		{
-			Insert(inNode, p->left, h);
-			if (h)
-			{
-				switch (p->GetBalance())
-				{
-					case Right:
-						p->SetBalance(Even);
-						h = false;
-						break;
-					case Even:
-						p->SetBalance(Left);
-						break;
-					case Left:
-					{
-						CNode* p1 = p->left;
-						if (p1->GetBalance() == Left)
-						{
-							p->left = p1->right;
-							p1->right = p;
-							p->SetBalance(Even);
-							p = p1;
-						}
-						else
-						{
-							CNode* p2 = p1->right;
-							p1->right = p2->left;
-							p2->left = p1;
-							p->left = p2->right;
-							p2->right = p;
-							if (p2->GetBalance() == Left)
-								p->SetBalance(Right);
-							else
-								p->SetBalance(Even);
-							if (p2->GetBalance() == Right)
-								p1->SetBalance(Left);
-							else
-								p1->SetBalance(Even);
-							p = p2;
-						}
-						p->SetBalance(Even);
-						h = false;
-						break;
-					}
-				}
-			}
-		}
-		else if (d > 0)
-		{
-			Insert(inNode, p->right, h);
-			if (h)
-			{
-				switch (p->GetBalance())
-				{
-					case Left:
-						p->SetBalance(Even);
-						h = false;
-						break;
-					case Even:
-						p->SetBalance(Right);
-						break;
-					case Right: {
-						CNode* p1 = p->right;
-						if (p1->GetBalance() == Right)
-						{
-							p->right = p1->left;
-							p1->left = p;
-							p->SetBalance(Even);
-							p = p1;
-						}
-						else
-						{
-							CNode* p2 = p1->left;
-							p1->left = p2->right;
-							p2->right = p1;
-							p->right = p2->left;
-							p2->left = p;
-							if (p2->GetBalance() == Right)
-								p->SetBalance(Left);
-							else
-								p->SetBalance(Even);
-							if (p2->GetBalance() == Left)
-								p1->SetBalance(Right);
-							else
-								p1->SetBalance(Even);
-							p = p2;
-						}
-						p->SetBalance(Even);
-						h = false;
-						break;
-					}
-				}
-			}
-		}
-		else
-			assert(false);
+		n->right = x;
+		n->left = n;
 	}
+	
+	if (TestKeyBit(inKey.c_str(), inKey.length(), p->bit))
+		p->right = n;
+	else
+		p->left = n;
+	
+	uint32 result = fCount;
+	
+	++fCount;
+	
+	return result;
 }
 
-string CLexiconImp::GetString(uint32 inNr) const
+inline string CLexiconImp::GetString(uint32 inNr) const
 {
-	string result;
-	
 	LexPageArray::const_iterator p = GetPage(inNr);
 	
-	if (p != fPages.end() and inNr < (*p)->N)
-		result = (*p)->GetEntry(inNr);
-	else
-		assert(false);
+	if (p == fPages.end() or inNr >= (*p)->N)
+		THROW(("Lexicon is invalid"));
 	
-	return result;
+	return (*p)->GetEntry(inNr);
 }
 
 int CLexiconImp::Compare(const string& inKey, uint32 inNr) const
@@ -592,6 +498,25 @@ int CLexiconImp::Compare(uint32 inA, uint32 inB) const
 	}
 	
 	return result;
+}
+
+bool CLexiconImp::CompareKeyBits(
+	const char*		inKey,
+	uint32			inKeyLength,
+	uint32			inNr,
+	uint16			inBit) const
+{
+	bool b = false;
+	
+	LexPageArray::const_iterator p = GetPage(inNr);
+	
+	if (p != fPages.end() and inNr < (*p)->N)
+		b = (*p)->TestKeyBit(inNr, inBit);
+	else
+		assert(false);
+	
+	return
+		TestKeyBit(inKey, inKeyLength, inBit) == b;
 }
 
 CLexicon::CLexicon()
