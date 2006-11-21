@@ -59,7 +59,7 @@ class CLexicon
 	uint32			Store(const std::string& inWord);
 	std::string		GetString(uint32 inNr) const;
 	int				Compare(uint32 inA, uint32 inB) const;
-//	std::string		GetIxString(uint32 inIndexNr) const;
+
 	uint32			Count() const;
 	
   private:

@@ -801,7 +801,7 @@ bool CFullTextIndex::CRunEntryIterator::Next(uint32& outDoc, uint32& outTerm, ui
 	return result;
 }
 
-string CFullTextIndex::Lookup(uint32 inTerm)
+inline string CFullTextIndex::Lookup(uint32 inTerm)
 {
 	return lexicon.GetString(inTerm);
 }

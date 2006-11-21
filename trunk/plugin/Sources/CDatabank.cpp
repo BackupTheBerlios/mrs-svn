@@ -977,18 +977,23 @@ int64 CDatabank::GetRawDataSize() const
 
 string CDatabank::GetVersion() const
 {
-	string vers, s;
+	string vers, s, l;
 	uint32 cookie = 0, k;
 	
 	while (fInfoContainer and fInfoContainer->Next(cookie, s, k, 'vers'))
 	{
-		if (vers.length())
-			vers += '\t';
-		vers += s;
+		if (s != l)		// avoid adding a duplicate version string
+		{
+			if (vers.length())
+				vers += '\t';
+			vers += s;
+			
+			l = s;
+		}
 	}
 	
-	if (vers.length() == 0)
-		vers = "no version information available";
+//	if (vers.length() == 0)
+//		vers = "no version information available";
 	
 	return vers;
 }
