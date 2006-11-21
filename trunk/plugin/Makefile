@@ -314,6 +314,9 @@ $(LIBNAME): $(OBJDIR) $(OBJS)
 
 lib: $(LIBNAME)
 
+doc: FORCE
+	doxygen doc/doxygen.config
+
 $(OUTPUT): echo_flags lib $(OBJDIR)/MRS_$(TARGET).o
 	@ echo "Linking "$(@F)
 	@ $(CC) -o $(OUTPUT) $(LD_SO_FLAG) $(LIBNAME) $(OBJDIR)/MRS_$(TARGET).o $(LDFLAGS)

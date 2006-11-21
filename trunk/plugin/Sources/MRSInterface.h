@@ -91,12 +91,29 @@ struct MBlastHspImp;
 struct MBlastHspsImp;
 #endif
 
+/// MStringIterator, a helper class for access to lists of strings
+
+//! Several routines in this MRS interface work with lists of strings.
+//! The MStringIterator class can be used to iterate over the strings
+//! in these lists.
+
 class MStringIterator
 {
   public:
+	/** \brief MStringIterator constructor
+	 *
+	 *	The MStringIterator is constructed from an stl vector of strings
+	 */
+
 						MStringIterator(std::vector<std::string>& inStrings)
 							: fStrings(inStrings)
 							, fIter(fStrings.begin()) {}
+	
+	/** \brief Next string in list
+	 *
+	 *  Use Next to access the next element in the list. It will return
+	 *	NULL if you've reached the end of the list.
+	 */
 	
 	const char*			Next()
 						{
@@ -119,15 +136,57 @@ class MStringIterator
 	std::vector<std::string>::iterator		fIter;
 };
 
+/**	\brief MDatabank is the databank object
+ *
+ *	The MDatabank object represents a logical databank. This can either be a
+ *	MRS file on disk or a 'Update' or 'Joined' databank.
+ */
+
 class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 {
   public:
+
+	/**	\brief a constant string used as default parameter
+	 */
+
 	static const char	kWildCardString[];
 
 #ifndef SWIG
 						MDatabank();
 #endif
+
+	/**	\brief	Constructor used to open an existing databank
+	 *	
+	 *	The MDatabank constructor is used to open a databank.
+	 *	\param inName the name of the databank to open. The name can be one of the following:
+	 *			- a full path to an MRS file (e.g. <em>/usr/data/mrs/sprot.cmp</em> )
+	 *			- a base name of an MRS file (e.g. \e sprot ) The file is looked up in the current
+	 *				directory and if it cannot be found there the directory pointed to by the
+	 *				MRS_DATA_DIR variable is used. The extension '.cmp' is added as well if needed.
+	 *			- a joined databank name (e.g. <em>sprot+trembl</em> ) The two files are treated
+	 *				as if they were one databank.
+	 *			- an update databank (e.g. <em>embl_release|embl_updates</em> ) This construction
+	 *				is used to filter the results from the first databank with the contents of
+	 *				the second, effectively acting as if you have one databank to which an
+	 *				update is applied.
+	 *
+	 *	Note that you can combine the join and update operators.
+	 */
+
 						MDatabank(const std::string& inName);
+
+	/**	\brief	Create a new databank
+	 *
+	 *	The Create method is a static function that can be used to create a new databank.
+	 *	A temporary file is created and the file is filled with Store* and Index* methods.
+	 *	Once you're done with filling the file you call Finish.
+	 *
+	 *	\param inPath	The fully qualified path to the mrs file to create.
+	 *	\param inMetaDataFields
+	 * 					The list of meta data fields you want to create in this databank.
+	 *	\return			The newly created databank.
+	 *	\see			Finish
+	 */
 
 	static MDatabank*	Create(const std::string& inPath, MStringArray inMetaDataFields);
 	static void			Merge(const std::string& inPath, MDatabankArray inDbs, bool inCopyData);
