@@ -1587,7 +1587,9 @@ void CIndexer::CreateIndex(HStreamBase& inFile,
 		uint32 iDoc, lDoc, iTerm, iIx, lTerm = 0, i, tFreq;
 		uint8 iFreq;
 		CFullTextIndex::CRunEntryIterator iter(*fFullTextIndex, fHeader->weight_bit_count);
-	
+
+		int64 vStep = iter.Count() / 10;
+		
 		// the next loop is very *hot*, make sure it is optimized as much as possible
 		if (iter.Next(iDoc, iTerm, iIx, iFreq))
 		{
@@ -1599,6 +1601,11 @@ void CIndexer::CreateIndex(HStreamBase& inFile,
 
 			do
 			{
+				if (VERBOSE and (iter.Count() % vStep) == 0)
+				{
+					cout << (iter.Count() / vStep) << "... "; cout.flush();
+				}
+
 				if (allIndex and (lDoc != iDoc or lTerm != iTerm))
 				{
 					if (not isStopWord)

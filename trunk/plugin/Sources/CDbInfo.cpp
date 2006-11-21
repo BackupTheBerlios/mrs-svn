@@ -68,8 +68,8 @@ CDbInfo::CDbInfo(HStreamBase& inInfo)
 	
 			file >> k >> s;
 			
-			HAutoBuf<char> b(new char[size]);
-			file.Read(b.get(), size);
+			HAutoBuf<char> b(new char[s]);
+			file.Read(b.get(), s);
 			
 			CInfoRec r;
 			r.fKind = k;

@@ -45,6 +45,7 @@
 #include <vector>
 #include <string>
 #include <cstring>
+#include <set>
 
 #include "HUrl.h"
 
@@ -143,6 +144,8 @@ class CDatabankBase
 	std::vector<std::string>
 						SuggestCorrection(const std::string& inKey);
 
+	virtual void		GetStopWords(std::set<std::string>& outStopWords) const;
+
 	virtual std::vector<std::string>
 						GetMetaDataFields() const = 0;
 	
@@ -210,6 +213,7 @@ class CDatabank : public CDatabankBase
 	
 	// for the perl interface
 	void				SetStopWords(const std::vector<std::string>& inStopWords);
+	virtual void		GetStopWords(std::set<std::string>& outStopWords) const;
 	
 	void				Store(const std::string& inDocument);
 	void				StoreMetaData(const std::string& inFieldName, const std::string& inValue);

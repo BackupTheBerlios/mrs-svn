@@ -64,7 +64,7 @@ BOOST		= /usr/include
 LIBS		= z m bz2
 LIBPATHS	=  ./Lib/ /usr/local/lib/
 INCPATHS	= ./Lib/Includes/ ./Lib/X/ ./Lib/
-SYSINCPATHS	= /usr/include ./Lib/loki $(BOOST)
+SYSINCPATHS	= /usr/include $(BOOST)
 WARNINGS	=  -Wall -Wno-multichar -Wno-unknown-pragmas -Wno-long-long -Wno-sign-compare
 CFLAGS		= -fsigned-char -g -ffor-scope
 LDFLAGS		= -fdata-sections -g # -ffunction-sections 
@@ -230,7 +230,6 @@ Sources = \
 	./Lib/Generic/HUtils.cpp \
 	./Lib/Posix/HUnixFile.cpp \
 	./Lib/Posix/HUnixUtils.cpp \
-	./Lib/loki/SmallObj.cpp \
 	./Lib/uuid/clear.c \
 	./Lib/uuid/compare.c \
 	./Lib/uuid/copy.c \

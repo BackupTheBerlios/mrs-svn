@@ -347,6 +347,9 @@ void CRankedQuery::PerformSearch(
 	
 	CDocWeightArray Wd = inDatabank.GetDocWeights(inIndex);
 	const uint32 maxWeight = inDatabank.GetMaxWeight();
+
+	set<string> stopWords;
+	inDatabank.GetStopWords(stopWords);
 	
 	float Wq = 0, Smax = 0;
 	uint32 termCount = 0;
@@ -366,14 +369,14 @@ void CRankedQuery::PerformSearch(
 		t->iter.reset(inDatabank.GetDocWeightIterator(inIndex, t->key));
 		if (t->iter.get() != nil)
 			t->w = t->iter->Weight() * t->iter->GetIDFCorrectionFactor() * t->weight;
-		else if (inAllTermsRequired)	// short cut, no results
+		else if (not inAllTermsRequired or stopWords.count(t->key) == 1)
+			t->w = 0;
+		else		// short cut, no results
 		{
 			outCount = 0;
 			outResults = nil;
 			return;
 		}
-		else
-			t->w = 0;
 	}
 	
 	fImpl->fTerms.sort(greater<Term>());
@@ -383,6 +386,9 @@ void CRankedQuery::PerformSearch(
 	for (uint32 tx = 0; tx < fImpl->fTerms.size(); ++tx)
 	{
 		Term& t = fImpl->fTerms[tx];
+		
+		if (t.w == 0)	// done
+			break;
 
 		// use two thresholds, one to limit adding accumulators
 		// and one to stop walking the iterator
@@ -392,18 +398,6 @@ void CRankedQuery::PerformSearch(
 
 		float s_add = c_add * Smax;
 		float s_ins = c_ins * Smax;
-
-		// HACK!!!
-		// suppose we're looking for a term that is the ID for a record.
-		// In that case the ID will not be found since it isn't part of the *alltext* index.
-		// However, we would expect the doc to score very high in this case.
-		uint32 idDocNr;
-		if (inDatabank.GetDocumentNr(t.key, idDocNr))
-		{
-			float sa = (A[idDocNr] += (Wd[idDocNr] * t.weight) / maxTermFreq);
-			if (Smax < sa)
-				Smax = sa;
-		}
 
 		if (t.iter.get() == nil)
 			continue;
@@ -423,7 +417,7 @@ void CRankedQuery::PerformSearch(
 
 		while (t.iter->Next(docNr, rank, false) and rank >= f_add)
 		{
-			if (docNr != idDocNr and (rank >= f_ins or A[docNr] != 0))
+			if (rank >= f_ins or A[docNr] != 0)
 			{
 				float wd = rank;
 				float sd = idf * wd * wq;

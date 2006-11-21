@@ -53,8 +53,6 @@
  
 #include "MRS.h"
 
-#include <SmallObj.h>
-
 #include "HError.h"
 #include "CLexicon.h"
 
@@ -62,47 +60,19 @@ using namespace std;
 
 const int
 	kLexDataSize = 8 * 1024 * 1024 - 3 * sizeof(uint32),	// 8 Mb per page
-	kIxPageSize = 1024 * 1024 * sizeof(void*);				// 4 or 8 Mb
+	kIxPageSize = 1024 * 1024;								// 1 million entries
 
 struct CLexPage;
 
 // CNode is a node in a Patricia tree
 
-struct CNode : public Loki::SmallObject<DEFAULT_THREADING, kIxPageSize>
+struct CNode
 {
-					CNode();
-					CNode(uint32 inValue, uint16 inBit);
-					~CNode();
-	
 	CNode*			left;
 	CNode*			right;
 	uint32			value;
 	uint16			bit;
 };
-
-CNode::CNode()
-	: value(0)
-	, bit(0)
-{
-	left = this;
-	right = this;
-}
-
-CNode::CNode(uint32 inValue, uint16 inBit)
-	: left(0)
-	, right(0)
-	, value(inValue)
-	, bit(inBit)
-{
-}
-
-CNode::~CNode()
-{
-	if (left->bit > bit)
-		delete left;
-	if (right->bit > bit)
-		delete right;
-}
 
 // CLexPage stores strings without null terminator packed in s. 
 // e is an array with offsets into s. Use negative offsets to
@@ -280,8 +250,13 @@ struct CLexiconImp
 	LexPageArray::const_iterator
 					GetPage(uint32& ioNr) const;
 
+	typedef vector<CNode*> NodePageArray;
+
+	CNode*			AllocateNode();
+
 	LexPageArray	fPages;
-	CNode			fRoot;
+	NodePageArray	fNodes;
+	CNode*			fRoot;
 	uint32			fCount;
 };
 
@@ -289,12 +264,16 @@ CLexiconImp::CLexiconImp()
 	: fCount(0)
 {
 	fPages.push_back(new CLexPage(0));
+
+	fRoot = AllocateNode();
+	
+	fRoot->value = 0;
+	fRoot->bit = 0;
+	fRoot->left = fRoot;
+	fRoot->right = fRoot;
+
 	fPages.back()->Add(" ");	// avoid all kinds of checks below
 	++fCount;
-	
-	fRoot.bit = 0;
-	fRoot.left = &fRoot;
-	fRoot.right = &fRoot;
 }
 
 CLexiconImp::~CLexiconImp()
@@ -302,11 +281,21 @@ CLexiconImp::~CLexiconImp()
 	for (LexPageArray::iterator p = fPages.begin(); p != fPages.end(); ++p)
 		delete *p;
 
-#if P_DEBUG == 0
-	// avoid deleting all nodes...
-	fRoot.left = nil;
-	fRoot.right = nil;
-#endif
+	for (NodePageArray::iterator p = fNodes.begin(); p != fNodes.end(); ++p)
+		delete[] *p;
+}
+
+CNode* CLexiconImp::AllocateNode()
+{
+	uint32 ix = fCount % kIxPageSize;
+	
+	if (ix == 0)	// time for a new node page
+	{
+		assert((fCount / kIxPageSize) == fNodes.size());
+		fNodes.push_back(new CNode[kIxPageSize]);
+	}
+	
+	return fNodes.back() + ix;
 }
 
 inline
@@ -360,7 +349,7 @@ bool CLexiconImp::Find(const string& inKey, uint32& outNr) const
 	
 	if (fCount > 0)
 	{
-		const CNode* t = Find(&fRoot, inKey);
+		const CNode* t = Find(fRoot, inKey);
 		if (t != nil and Compare(inKey, t->value) == 0)
 		{
 			result = true;
@@ -373,11 +362,11 @@ bool CLexiconImp::Find(const string& inKey, uint32& outNr) const
 
 uint32 CLexiconImp::Store(const string& inKey)
 {
-	CNode* x = &fRoot;
+	CNode* x = fRoot;
 
 	const CNode* t = Find(x, inKey);
 
-	if (t != &fRoot and Compare(inKey, t->value) == 0)
+	if (t != fRoot and Compare(inKey, t->value) == 0)
 		return t->value;
 
 	uint16 i = 0;
@@ -402,7 +391,9 @@ uint32 CLexiconImp::Store(const string& inKey)
 
 	fPages.back()->Add(inKey);
 
-	CNode* n = new CNode(fCount, i);
+	CNode* n = AllocateNode();
+	n->value = fCount;
+	n->bit = i;
 	
 	if (TestKeyBit(inKey.c_str(), inKey.length(), n->bit))
 	{

@@ -83,7 +83,9 @@ const uint32
 	kDataSig = FOUR_CHAR_INLINE('data'),
 	kMetaDataSig = FOUR_CHAR_INLINE('meta'),
 	kPartSig = FOUR_CHAR_INLINE('part'),
-	kBlastIndexSignature = FOUR_CHAR_INLINE('blst');
+	kBlastIndexSignature = FOUR_CHAR_INLINE('blst'),
+	
+	kStopWordKind = FOUR_CHAR_INLINE('stop');
 
 struct SHeader
 {
@@ -318,6 +320,10 @@ vector<string> CDatabankBase::SuggestCorrection(const string& inKey)
 		fDictionary = new CDictionary(*this);
 
 	return fDictionary->SuggestCorrection(inKey);
+}
+
+void CDatabankBase::GetStopWords(std::set<std::string>& outStopWords) const
+{
 }
 
 /*
@@ -1179,6 +1185,24 @@ void CDatabank::PrintInfo()
 void CDatabank::SetStopWords(const vector<string>& inStopWords)
 {
 	fIndexer->SetStopWords(inStopWords);
+	
+	if (fInfoContainer == nil)
+		fInfoContainer = new CDbInfo;
+
+	for (vector<string>::const_iterator s = inStopWords.begin(); s != inStopWords.end(); ++s)
+		fInfoContainer->Add(kStopWordKind, *s);
+}
+
+void CDatabank::GetStopWords(set<string>& outStopWords) const
+{
+	if (fInfoContainer != nil)
+	{
+		uint32 cookie = 0, kind;
+		string s;
+		
+		while (fInfoContainer->Next(cookie, s, kind, kStopWordKind))
+			outStopWords.insert(s);
+	}
 }
 
 void CDatabank::Store(const string& inDocument)

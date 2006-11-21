@@ -43,7 +43,6 @@
 #define CSEQUENCE_H
 
 #include <string>
-#include "SmallObj.h"
 
 struct CMatrix;
 
@@ -152,7 +151,7 @@ class CSequence
 
   private:
 	
-	struct CSequenceImp //: public Loki::SmallObject<DEFAULT_THREADING,kCSequenceImpPageSize>
+	struct CSequenceImp
 	{
 		uint8*				fPtr;
 		uint32				fLength;

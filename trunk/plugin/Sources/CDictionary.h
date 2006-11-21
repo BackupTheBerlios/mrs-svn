@@ -21,7 +21,7 @@ class CDictionary
 						uint32 inMinOccurrence, uint32 inMinWordLength);
 
 					CDictionary(CDatabankBase& inDatabank);
-					
+
 					~CDictionary();
 
 	std::vector<std::string>
