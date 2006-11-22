@@ -289,138 +289,6 @@ const uint32
 	kRunBlockSize = 0x100000,		// 1 Mb
 	kBufferEntryCount = 2000000;	// that's about 2.5 megabytes compressed
 
-// CIndexBase is the base class for the various index types, these
-// classes are only used for building indices.
-
-class CIndexBase
-{
-  public:
-					CIndexBase(const string& inName, uint32 inKind);
-	virtual			~CIndexBase();
-	
-	virtual void	AddWord(const string& inWord, uint32 inFrequency = 1) = 0;
-	virtual void	FlushDoc(uint32 inDocNr) = 0;
-	virtual bool	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo) = 0;
-
-	virtual bool	Empty() const = 0;
-	
-	virtual int		Compare(const char* inA, uint32 inLengthA, const char* inB, uint32 inLengthB) const;
-
-  protected:
-	string			fName;
-  	uint32			fKind;
-};
-
-CIndexBase::CIndexBase(const string& inName, uint32 inKind)
-	: fName(inName)
-	, fKind(inKind)
-{
-}
-
-CIndexBase::~CIndexBase()
-{
-}
-
-int CIndexBase::Compare(const char* inA, uint32 inLengthA, const char* inB, uint32 inLengthB) const
-{
-	CIndexTraits<kTextIndex> comp;
-	return comp.Compare(inA, inLengthA, inB, inLengthB);
-}
-
-// CValueIndex, can only store one value per document and so
-// it should be unique
-
-class CValueIndex : public CIndexBase
-{
-  public:
-					CValueIndex(const string& inName);
-	
-	virtual void	AddWord(const string& inWord, uint32 inFrequency);
-	virtual void	FlushDoc(uint32 inDocNr);
-	virtual bool	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
-	
-	virtual bool	Empty() const			{ return false; }
-
-  private:
-	typedef map<string,uint32,CValueLess> ValueIndex;
-
-	string			fWord;
-	ValueIndex		fIndex;
-};
-
-CValueIndex::CValueIndex(const string& inName)
-	: CIndexBase(inName, kValueIndex)
-{
-}
-	
-void CValueIndex::AddWord(const string& inWord, uint32 inFrequency)
-{
-	fWord = inWord;
-}
-
-void CValueIndex::FlushDoc(uint32 inDocNr)
-{
-	assert(fWord.length() < 256);
-
-	if (fWord.length() == 0 and fName == "id")
-	{
-		cerr << "Warning, document nr " << inDocNr + 1 << " does not have an ID value" << endl;
-		
-		stringstream s;
-		s << inDocNr;
-		fWord = s.str();
-	}
-
-	if (fWord.length() > 0)
-	{
-		if (fIndex.count(fWord) > 0)
-		{
-			string w = fWord;
-			
-			stringstream s;
-			s << w << "_" << inDocNr;
-			fWord = s.str();
-			
-			cerr << "Attempt to enter duplicate value '" << w << "' in value index " << fName << endl;
-			cerr << "The key will be replaced with '" << fWord << '\'' << endl;
-		}
-		
-		(void)fIndex.insert(make_pair<string,uint32>(fWord, inDocNr));
-
-		fWord.clear();
-	}
-}
-
-bool CValueIndex::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPart& outInfo)
-{
-	if (fIndex.size() == 0)
-		return false;
-	
-	if (VERBOSE >= 1)
-	{
-		cout << endl << "Writing index '" << fName << "'... ";
-		cout.flush();
-	}
-
-	outInfo.sig = kIndexPartSig;
-	outInfo.index_version = kCIndexVersionV1;
-	fName.copy(outInfo.name, 15);
-	outInfo.kind = fKind;
-	outInfo.tree_offset = inDataFile.Size();
-	
-	CIteratorWrapper<map<string,uint32,CValueLess> > iter(fIndex);
-	auto_ptr<CIndex> n(CIndex::CreateFromIterator(kValueIndex, kCIndexVersionV1, iter, inDataFile));
-	inDataFile.Seek(0, SEEK_END);
-
-	outInfo.root = n->GetRoot();
-	outInfo.entries = n->GetCount();
-
-	if (VERBOSE >= 1)
-		cout << "done" << endl << "Wrote " << outInfo.entries << " entries." << endl;
-	
-	return true;
-}
-
 struct LexEntry
 {
 	const char*	word;
@@ -444,10 +312,10 @@ class CFullTextIndex
 	struct MergeInfo;
 
   public:
-					CFullTextIndex(const HUrl& inScratch);
+					CFullTextIndex(const HUrl& inScratch, uint32 inWeightBitCount);
 	virtual			~CFullTextIndex();
 	
-	void			ReleaseBuffer(uint32 inWeightBitCount);
+	void			ReleaseBuffer();
 	
 	void			SetStopWords(const vector<string>& inStopWords);
 
@@ -459,7 +327,7 @@ class CFullTextIndex
 						return lexicon.Store(inWord);
 					}
 
-	void			FlushDoc(uint32 inDocNr, uint32 inWeightBitCount);
+	void			FlushDoc(uint32 inDocNr);
 	
 	void			Merge();
 	
@@ -468,7 +336,7 @@ class CFullTextIndex
 	class CRunEntryIterator
 	{
 	  public:
-						CRunEntryIterator(CFullTextIndex& inIndex, uint32 inWeightBitCount);
+						CRunEntryIterator(CFullTextIndex& inIndex);
 						~CRunEntryIterator();
 		
 		bool			Next(uint32& outDoc, uint32& outTerm, uint32& outIx, uint8& outWeight);
@@ -494,9 +362,11 @@ class CFullTextIndex
 						return fStopWords.count(inTerm) > 0;
 					}
 
+	uint32			GetWeightBitCount() const		{ return fWeightBitCount; }
+
   private:
 	
-	void			FlushRun(uint32 inWeightBitCount);
+	void			FlushRun();
 
 	struct DocWord
 	{
@@ -589,6 +459,7 @@ class CFullTextIndex
 	CHashedSet		fStopWords;
 
 	CLexicon		lexicon;
+	uint32			fWeightBitCount;
 	DocWords		fDocWords;
 	uint32			fFTIndexCnt;
 	BufferEntry*	buffer;
@@ -598,8 +469,9 @@ class CFullTextIndex
 	HStreamBase*	fScratch;
 };
 
-CFullTextIndex::CFullTextIndex(const HUrl& inScratchUrl)
-	: fFTIndexCnt(0)
+CFullTextIndex::CFullTextIndex(const HUrl& inScratchUrl, uint32 inWeightBitCount)
+	: fWeightBitCount(inWeightBitCount)
+	, fFTIndexCnt(0)
 	, buffer(new BufferEntry[kBufferEntryCount])
 	, buffer_ix(0)
 	, fScratchUrl(inScratchUrl)
@@ -647,15 +519,15 @@ void CFullTextIndex::AddWord(uint8 inIndex, uint32 inWord, uint8 inFrequency)
 	}
 }
 
-void CFullTextIndex::FlushDoc(uint32 inDoc, uint32 inWeightBitCount)
+void CFullTextIndex::FlushDoc(uint32 inDoc)
 {
 	if (buffer_ix + fDocWords.size() >= kBufferEntryCount)
-		FlushRun(inWeightBitCount);
+		FlushRun();
 
 	// normalize the frequencies.
 	
 	float maxFreq = 1;
-	uint32 kMaxWeight = (1 << inWeightBitCount) - 1;
+	uint32 kMaxWeight = (1 << fWeightBitCount) - 1;
 	
 	for (DocWords::iterator w = fDocWords.begin(); w != fDocWords.end(); ++w)
 		if (w->freq > maxFreq)
@@ -684,7 +556,7 @@ void CFullTextIndex::FlushDoc(uint32 inDoc, uint32 inWeightBitCount)
 	fDocWords.clear();
 }
 
-void CFullTextIndex::FlushRun(uint32 inWeightBitCount)
+void CFullTextIndex::FlushRun()
 {
 	uint32 firstDoc = buffer[0].doc;	// the first doc in this run
 	
@@ -712,9 +584,9 @@ void CFullTextIndex::FlushRun(uint32 inWeightBitCount)
 		WriteGamma(bits, buffer[i].ix + 1);
 
 		assert(buffer[i].weight > 0);
-		assert(buffer[i].weight <= ((1 << inWeightBitCount) - 1));
+		assert(buffer[i].weight <= ((1 << fWeightBitCount) - 1));
 
-		WriteBinary(bits, buffer[i].weight, inWeightBitCount);
+		WriteBinary(bits, buffer[i].weight, fWeightBitCount);
 		
 		t = buffer[i].term;
 		d = buffer[i].doc;
@@ -725,9 +597,9 @@ void CFullTextIndex::FlushRun(uint32 inWeightBitCount)
 	buffer_ix = 0;
 }
 
-void CFullTextIndex::ReleaseBuffer(uint32 inWeightBitCount)
+void CFullTextIndex::ReleaseBuffer()
 {
-	FlushRun(inWeightBitCount);
+	FlushRun();
 	delete[] buffer;
 	buffer = NULL;
 	
@@ -738,8 +610,7 @@ void CFullTextIndex::ReleaseBuffer(uint32 inWeightBitCount)
 	}
 }
 
-CFullTextIndex::CRunEntryIterator::CRunEntryIterator(
-		CFullTextIndex& inIndex, uint32 inWeightBitCount)
+CFullTextIndex::CRunEntryIterator::CRunEntryIterator(CFullTextIndex& inIndex)
 	: fIndex(inIndex)
 {
 	fRunCount = fIndex.fRunInfo.size();
@@ -748,7 +619,8 @@ CFullTextIndex::CRunEntryIterator::CRunEntryIterator(
 	fEntryCount = 0;
 	for (RunInfoArray::iterator ri = fIndex.fRunInfo.begin(); ri != fIndex.fRunInfo.end(); ++ri)
 	{
-		MergeInfo* mi = new MergeInfo(*fIndex.fScratch, (*ri).offset, (*ri).count, inWeightBitCount);
+		MergeInfo* mi = new MergeInfo(*fIndex.fScratch,
+			(*ri).offset, (*ri).count, fIndex.GetWeightBitCount());
 		fMergeInfo[ri - fIndex.fRunInfo.begin()] = mi;
 		fEntryCount += mi->cnt + 1;
 	}
@@ -806,17 +678,63 @@ inline string CFullTextIndex::Lookup(uint32 inTerm)
 	return lexicon.GetString(inTerm);
 }
 
-class CTextIndexBase : public CIndexBase
+// --------------------------------------------------------------------
+//
+//
+
+class CFullTextIterator : public CIteratorBase
 {
   public:
-					CTextIndexBase(CFullTextIndex& inFullTextIndex,
+						CFullTextIterator(CFullTextIndex& inFullTextIndex,
+							vector<pair<uint32,int64> >& inLexicon);
+
+	virtual bool		Next(string& outString, int64& outValue);
+
+  private:
+	CFullTextIndex&							fFullText;
+	vector<pair<uint32,int64> >::iterator	fCurrent, fEnd;
+};
+
+CFullTextIterator::CFullTextIterator(CFullTextIndex& inFullTextIndex,
+		vector<pair<uint32,int64> >& inLexicon)
+	: fFullText(inFullTextIndex)
+	, fCurrent(inLexicon.begin())
+	, fEnd(inLexicon.end())
+{
+}
+
+bool CFullTextIterator::Next(string& outKey, int64& outValue)
+{
+	bool result = false;
+	if (fCurrent != fEnd)
+	{
+		result = true;
+
+		outKey = fFullText.Lookup(fCurrent->first);
+		outValue = fCurrent->second;
+		
+		++fCurrent;
+	}
+	return result;
+}
+
+// --------------------------------------------------------------------
+// 
+// 	classes for the various kinds of indices
+// 
+
+// CIndexBase is the base class for the various index types, these
+// classes are only used for building indices.
+
+class CIndexBase
+{
+  public:
+					CIndexBase(CFullTextIndex& inFullTextIndex,
 						const string& inName, uint16 inIndexNr,
-						const HUrl& inScratch, CIndexKind inKind,
-						uint32 inWeightBitCount);
-					~CTextIndexBase();
+						const HUrl& inScratch, CIndexKind inKind);
+	virtual 		~CIndexBase();
 	
-	virtual void	AddWord(const string& inWord, uint32 inFrequency);
-	virtual void	FlushDoc(uint32 inDocNr);
+	void			AddWord(const string& inWord, uint32 inFrequency = 1);
 	
 	virtual void	AddDocTerm(uint32 inDoc, uint8 inFrequency);
 	virtual void	FlushTerm(uint32 inTerm, uint32 inDocCount);
@@ -827,7 +745,12 @@ class CTextIndexBase : public CIndexBase
 	virtual bool	Empty() const			{ return fEmpty; }
 	uint16			GetIxNr() const			{ return fIndexNr; }
 
+	virtual int		Compare(const char* inA, uint32 inLengthA, const char* inB, uint32 inLengthB) const;
+
   protected:
+
+	string			fName;
+  	uint32			fKind;
 
 	CFullTextIndex&	fFullTextIndex;
 	uint16			fIndexNr;
@@ -849,14 +772,33 @@ class CTextIndexBase : public CIndexBase
 	uint64			fLastOffset;
 };
 
-CTextIndexBase::CTextIndexBase(CFullTextIndex& inFullTextIndex,
-		const string& inName, uint16 inIndexNr, const HUrl& inScratch,
-		CIndexKind inKind, uint32 inWeightBitCount)
-	: CIndexBase(inName, inKind)
+
+struct SortLex
+{
+			SortLex(CFullTextIndex& inFT, CIndexBase* inIndexBase)
+				: fFT(inFT), fBase(inIndexBase) {}
+	
+	inline
+	bool	operator()(const pair<uint32,uint32>& inA, const pair<uint32,uint32>& inB) const
+			{
+				string a = fFT.Lookup(inA.first);
+				string b = fFT.Lookup(inB.first);
+				return fBase->Compare(a.c_str(), a.length(), b.c_str(), b.length()) < 0;
+			}
+	
+	CFullTextIndex&	fFT;
+	CIndexBase*		fBase;
+};
+
+
+
+CIndexBase::CIndexBase(CFullTextIndex& inFullTextIndex, const string& inName,
+		uint16 inIndexNr, const HUrl& inScratch, CIndexKind inKind)
+	: fName(inName)
+	, fKind(inKind)
 	, fFullTextIndex(inFullTextIndex)
 	, fIndexNr(inIndexNr)
 	, fEmpty(true)
-	, fWeightBitCount(inWeightBitCount)
 	, fLastDoc(0)
 	, fBits(nil)
 	, fDocCount(0)
@@ -867,26 +809,29 @@ CTextIndexBase::CTextIndexBase(CFullTextIndex& inFullTextIndex,
 	, fLastOffset(0)
 {
 	fBitFile = new HTempFileStream(fBitUrl);
+	fWeightBitCount = fFullTextIndex.GetWeightBitCount();
 }
 
-CTextIndexBase::~CTextIndexBase()
+CIndexBase::~CIndexBase()
 {
 	delete fBits;
 	delete fRawIndex;
 	delete fBitFile;
 }
 
-void CTextIndexBase::AddWord(const string& inWord, uint32 inFrequency)
+int CIndexBase::Compare(const char* inA, uint32 inLengthA, const char* inB, uint32 inLengthB) const
+{
+	CIndexTraits<kTextIndex> comp;
+	return comp.Compare(inA, inLengthA, inB, inLengthB);
+}
+
+void CIndexBase::AddWord(const string& inWord, uint32 inFrequency)
 {
 	fFullTextIndex.AddWord(fIndexNr, inWord, inFrequency);
 	fEmpty = false;
 }
 
-void CTextIndexBase::FlushDoc(uint32 /*inDocNr*/)
-{
-}
-
-void CTextIndexBase::AddDocTerm(uint32 inDoc, uint8 inFrequency)
+void CIndexBase::AddDocTerm(uint32 inDoc, uint8 inFrequency)
 {
 	uint32 d;
 
@@ -920,12 +865,8 @@ void CTextIndexBase::AddDocTerm(uint32 inDoc, uint8 inFrequency)
 	fEmpty = false;
 }
 
-void CTextIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
+void CIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 {
-//#if P_DEBUG
-//	cout << fFullTextIndex.Lookup(inTerm) << endl;
-//#endif
-	
 	if (fDocCount > 0 and fBits != nil)
 	{
 		// flush the raw index bits
@@ -1019,61 +960,7 @@ void CTextIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 	fEmpty = true;
 }
 
-struct SortLex
-{
-			SortLex(CFullTextIndex& inFT, CIndexBase* inIndexBase)
-				: fFT(inFT), fBase(inIndexBase) {}
-	
-	inline
-	bool	operator()(const pair<uint32,uint32>& inA, const pair<uint32,uint32>& inB) const
-			{
-				string a = fFT.Lookup(inA.first);
-				string b = fFT.Lookup(inB.first);
-				return fBase->Compare(a.c_str(), a.length(), b.c_str(), b.length()) < 0;
-//				return fFT.Compare(inA.first, inB.first) < 0;
-			}
-	
-	CFullTextIndex&	fFT;
-	CIndexBase*		fBase;
-};
-
-class CFullTextIterator : public CIteratorBase
-{
-  public:
-						CFullTextIterator(CFullTextIndex& inFullTextIndex,
-							vector<pair<uint32,int64> >& inLexicon);
-
-	virtual bool		Next(string& outString, int64& outValue);
-
-  private:
-	CFullTextIndex&							fFullText;
-	vector<pair<uint32,int64> >::iterator	fCurrent, fEnd;
-};
-
-CFullTextIterator::CFullTextIterator(CFullTextIndex& inFullTextIndex,
-		vector<pair<uint32,int64> >& inLexicon)
-	: fFullText(inFullTextIndex)
-	, fCurrent(inLexicon.begin())
-	, fEnd(inLexicon.end())
-{
-}
-
-bool CFullTextIterator::Next(string& outKey, int64& outValue)
-{
-	bool result = false;
-	if (fCurrent != fEnd)
-	{
-		result = true;
-
-		outKey = fFullText.Lookup(fCurrent->first);
-		outValue = fCurrent->second;
-		
-		++fCurrent;
-	}
-	return result;
-}
-
-bool CTextIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPart& outInfo)
+bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPart& outInfo)
 {
 	if (fRawIndex == nil)	// shortcut in case we didn't collect any data
 		return false;
@@ -1154,7 +1041,96 @@ bool CTextIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SInde
 	return true;
 }
 
-class CTextIndex : public CTextIndexBase
+// CValueIndex, can only store one value per document and so
+// it should be unique
+
+class CValueIndex : public CIndexBase
+{
+  public:
+					CValueIndex(CFullTextIndex& inFullTextIndex, const string& inName,
+						uint16 inIndexNr, const HUrl& inScratch);
+	
+	virtual void	AddDocTerm(uint32 inDoc, uint8 inFrequency);
+	virtual void	FlushTerm(uint32 inTerm, uint32 inDocCount);
+
+	virtual bool	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
+	
+  private:
+	vector<uint32>	fDocs;
+	vector<pair<uint32,int64> >
+					fIndex;
+};
+
+CValueIndex::CValueIndex(CFullTextIndex& inFullTextIndex, const string& inName,
+		uint16 inIndexNr, const HUrl& inScratch)
+	: CIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kValueIndex)
+{
+}
+	
+void CValueIndex::AddDocTerm(uint32 inDoc, uint8 inFrequency)
+{
+	fDocs.push_back(inDoc);
+	fEmpty = false;
+}
+
+void CValueIndex::FlushTerm(uint32 inTerm, uint32 inDocCount)
+{
+	if (fDocs.size() != 1)
+	{
+		string term = fFullTextIndex.Lookup(inTerm);
+
+		cerr << endl
+			 << "Term " << term << " is not unique for index "
+			 << fName << ", it appears in document: ";
+
+		for (vector<uint32>::iterator d = fDocs.begin(); d != fDocs.end(); ++d)
+			cerr << *d << " ";
+
+		cerr << endl;
+	}
+	
+	if (fDocs.size() > 0)
+		fIndex.push_back(make_pair(inTerm, fDocs.back()));
+	
+	fDocs.clear();
+	fEmpty = true;
+}
+
+bool CValueIndex::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPart& outInfo)
+{
+	if (fIndex.size() == 0)
+		return false;
+	
+	if (VERBOSE >= 1)
+	{
+		cout << endl << "Writing index '" << fName << "'... ";
+		cout.flush();
+	}
+
+	outInfo.sig = kIndexPartSig;
+	outInfo.index_version = kCIndexVersionV1;
+	fName.copy(outInfo.name, 15);
+	outInfo.kind = fKind;
+
+	// construct the optimized b-tree
+	outInfo.tree_offset = inDataFile.Seek(0, SEEK_END);
+
+	sort(fIndex.begin(), fIndex.end(), SortLex(fFullTextIndex, this));
+
+	CFullTextIterator iter(fFullTextIndex, fIndex);
+	auto_ptr<CIndex> indx(CIndex::CreateFromIterator(fKind, outInfo.index_version, iter, inDataFile));
+	inDataFile.Seek(0, SEEK_END);
+
+	outInfo.root = indx->GetRoot();
+	outInfo.entries = fIndex.size();
+
+	if (VERBOSE >= 1)
+		cout << "done" << endl << "Wrote " << outInfo.entries << " entries." << endl;
+	
+	return true;
+}
+
+class CTextIndex : public CIndexBase
 {
   public:
 					CTextIndex(CFullTextIndex& inFullTextIndex,
@@ -1164,29 +1140,29 @@ class CTextIndex : public CTextIndexBase
 
 CTextIndex::CTextIndex(CFullTextIndex& inFullTextIndex,
 		const string& inName, uint16 inIndexNr, const HUrl& inScratch)
-	: CTextIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kTextIndex, 0)
+	: CIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kTextIndex)
 {
 }
 
-class CWeightedWordIndex : public CTextIndexBase
+class CWeightedWordIndex : public CIndexBase
 {
   public:
 					CWeightedWordIndex(CFullTextIndex& inFullTextIndex,
 						const string& inName, uint16 inIndexNr,
-						const HUrl& inScratch, uint32 inWeightBitCount);
+						const HUrl& inScratch);
 
 	virtual bool	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
 };
 
 CWeightedWordIndex::CWeightedWordIndex(CFullTextIndex& inFullTextIndex,
-		const string& inName, uint16 inIndexNr, const HUrl& inScratch, uint32 inWeightBitCount)
-	: CTextIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kWeightedIndex, inWeightBitCount)
+		const string& inName, uint16 inIndexNr, const HUrl& inScratch)
+	: CIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kWeightedIndex)
 {
 }
 
 bool CWeightedWordIndex::Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo)
 {
-	if (not CTextIndexBase::Write(inDataFile, inDocCount, outInfo))
+	if (not CIndexBase::Write(inDataFile, inDocCount, outInfo))
 		return false;
 	
 	outInfo.weight_offset = inDataFile.Seek(0, SEEK_END);
@@ -1210,7 +1186,7 @@ bool CWeightedWordIndex::Write(HStreamBase& inDataFile, uint32 inDocCount, SInde
 	return true;
 }
 
-class CDateIndex : public CTextIndexBase
+class CDateIndex : public CIndexBase
 {
   public:
 					CDateIndex(CFullTextIndex& inFullTextIndex,
@@ -1220,11 +1196,11 @@ class CDateIndex : public CTextIndexBase
 
 CDateIndex::CDateIndex(CFullTextIndex& inFullTextIndex,
 		const string& inName, uint16 inIndexNr, const HUrl& inScratch)
-	: CTextIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kDateIndex, 0)
+	: CIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kDateIndex)
 {
 }
 
-class CNumberIndex : public CTextIndexBase
+class CNumberIndex : public CIndexBase
 {
   public:
 					CNumberIndex(CFullTextIndex& inFullTextIndex,
@@ -1236,7 +1212,7 @@ class CNumberIndex : public CTextIndexBase
 
 CNumberIndex::CNumberIndex(CFullTextIndex& inFullTextIndex,
 		const string& inName, uint16 inIndexNr, const HUrl& inScratch)
-	: CTextIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kNumberIndex, 0)
+	: CIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kNumberIndex)
 {
 }
 
@@ -1252,7 +1228,7 @@ int CNumberIndex::Compare(const char* inA, uint32 inLengthA,
 CIndexer::CIndexer(const HUrl& inDb)
 	: fDb(inDb.GetURL())
 	, fFullTextIndex(nil)
-	, fNextTextIndexID(0)
+	, fNextIndexID(0)
 	, fFile(nil)
 	, fHeader(new SIndexHeader)
 	, fParts(nil)
@@ -1265,11 +1241,14 @@ CIndexer::CIndexer(const HUrl& inDb)
 	fHeader->entries = 0;
 	fHeader->weight_bit_count = WEIGHT_BIT_COUNT;
 	fHeader->array_compression_kind = kAC_SelectorCode;
+
+	HUrl url(fDb + ".fulltext_indx");
+	fFullTextIndex = new CFullTextIndex(url, fHeader->weight_bit_count);
 }
 
 CIndexer::CIndexer(HStreamBase& inFile, int64 inOffset, int64 inSize)
 	: fFullTextIndex(nil)
-	, fNextTextIndexID(0)
+	, fNextIndexID(0)
 	, fFile(&inFile)
 	, fOffset(inOffset)
 	, fSize(inSize)
@@ -1309,7 +1288,25 @@ CIndexer::~CIndexer()
 
 void CIndexer::SetStopWords(const vector<string>& inStopWords)
 {
-	GetFullTextIndex().SetStopWords(inStopWords);
+	fFullTextIndex->SetStopWords(inStopWords);
+}
+
+template<class INDEX_KIND>
+inline
+CIndexBase* CIndexer::GetIndexBase(const string& inIndex)
+{
+	CIndexBase* index = fIndices[inIndex];
+
+	if (index == NULL)
+	{
+		HUrl url(fDb + '.' + inIndex + "_indx");
+		index = fIndices[inIndex] =
+			new INDEX_KIND(*fFullTextIndex, inIndex, fNextIndexID++, url);
+	}
+	else if (dynamic_cast<INDEX_KIND*>(index) == NULL)
+		THROW(("Inconsistent use of indexes for index %s", inIndex.c_str()));
+
+	return index;
 }
 
 void CIndexer::IndexText(const string& inIndex, const string& inText, bool inIndexNrs)
@@ -1317,15 +1314,7 @@ void CIndexer::IndexText(const string& inIndex, const string& inText, bool inInd
 	if (inText.length() == 0)
 		return;
 	
-	CIndexBase* index = indexes[inIndex];
-	if (index == NULL)
-	{
-		HUrl url(fDb + '.' + inIndex + "_indx");
-		index = indexes[inIndex] =
-			new CTextIndex(GetFullTextIndex(), inIndex, fNextTextIndexID++, url);
-	}
-	else if (dynamic_cast<CTextIndex*>(index) == NULL)
-		THROW(("Inconsistent use of indexes for index %s", inIndex.c_str()));
+	CIndexBase* index = GetIndexBase<CTextIndex>(inIndex);
 
 	CTokenizer<255> tok(inText.c_str(), inText.length());
 	bool isWord, isNumber;
@@ -1362,15 +1351,7 @@ void CIndexer::IndexWord(const string& inIndex, const string& inText)
 {
 	if (inText.length() > 0)
 	{
-		CIndexBase* index = indexes[inIndex];
-		if (index == NULL)
-		{
-			HUrl url(fDb + '.' + inIndex + "_indx");
-			index = indexes[inIndex] =
-				new CTextIndex(GetFullTextIndex(), inIndex, fNextTextIndexID++, url);
-		}
-		else if (dynamic_cast<CTextIndex*>(index) == NULL)
-			THROW(("Inconsistent use of indexes for index %s", inIndex.c_str()));
+		CIndexBase* index = GetIndexBase<CTextIndex>(inIndex);
 
 		if (inText.length() > kMaxKeySize)
 			THROW(("Data error: length of key too long (%s)", inText.c_str()));
@@ -1429,12 +1410,12 @@ void CIndexer::IndexDate(const string& inIndex, const string& inText)
 
 	if (inText.length() > 0)
 	{
-		CIndexBase* index = indexes[inIndex];
+		CIndexBase* index = fIndices[inIndex];
 		if (index == NULL)
 		{
 			HUrl url(fDb + '.' + inIndex + "_indx");
-			index = indexes[inIndex] =
-				new CDateIndex(GetFullTextIndex(), inIndex, fNextTextIndexID++, url);
+			index = fIndices[inIndex] =
+				new CDateIndex(*fFullTextIndex, inIndex, fNextIndexID++, url);
 		}
 		else if (dynamic_cast<CDateIndex*>(index) == NULL)
 			THROW(("Inconsistent use of indexes for index %s", inIndex.c_str()));
@@ -1455,15 +1436,7 @@ void CIndexer::IndexNumber(const string& inIndex, const string& inText)
 
 	if (inText.length() > 0)
 	{
-		CIndexBase* index = indexes[inIndex];
-		if (index == NULL)
-		{
-			HUrl url(fDb + '.' + inIndex + "_indx");
-			index = indexes[inIndex] =
-				new CNumberIndex(GetFullTextIndex(), inIndex, fNextTextIndexID++, url);
-		}
-		else if (dynamic_cast<CNumberIndex*>(index) == NULL)
-			THROW(("Inconsistent use of indexes for index %s", inIndex.c_str()));
+		CIndexBase* index = GetIndexBase<CNumberIndex>(inIndex);
 	
 		index->AddWord(inText);
 	}
@@ -1471,11 +1444,7 @@ void CIndexer::IndexNumber(const string& inIndex, const string& inText)
 
 void CIndexer::IndexValue(const string& inIndex, const string& inText)
 {
-	CIndexBase* index = indexes[inIndex];
-	if (index == NULL)
-		index = indexes[inIndex] = new CValueIndex(inIndex);
-	else if (dynamic_cast<CValueIndex*>(index) == NULL)
-		THROW(("Inconsistent use of indexes for index %s", inIndex.c_str()));
+	CIndexBase* index = GetIndexBase<CValueIndex>(inIndex);
 
 	if (inText.length() > kMaxKeySize)
 		THROW(("Data error: length of unique key too long (%s)", inText.c_str()));
@@ -1485,15 +1454,7 @@ void CIndexer::IndexValue(const string& inIndex, const string& inText)
 
 void CIndexer::IndexWordWithWeight(const string& inIndex, const string& inText, uint32 inFrequency)
 {
-	CIndexBase* index = indexes[inIndex];
-	if (index == NULL)
-	{
-		HUrl url(fDb + '.' + inIndex + "_indx");
-		index = indexes[inIndex] = new CWeightedWordIndex(
-			GetFullTextIndex(), inIndex, fNextTextIndexID++, url, fHeader->weight_bit_count);
-	}
-	else if (dynamic_cast<CWeightedWordIndex*>(index) == NULL)
-		THROW(("Inconsistent use of indexes for index %s", inIndex.c_str()));
+	CIndexBase* index = GetIndexBase<CWeightedWordIndex>(inIndex);
 
 	if (inText.length() > kMaxKeySize)
 		THROW(("Data error: length of unique key too long (%s)", inText.c_str()));
@@ -1503,14 +1464,8 @@ void CIndexer::IndexWordWithWeight(const string& inIndex, const string& inText, 
 
 void CIndexer::FlushDoc()
 {
-	if (fFullTextIndex)
-		fFullTextIndex->FlushDoc(fHeader->entries, fHeader->weight_bit_count);
+	fFullTextIndex->FlushDoc(fHeader->entries);
 
-	map<string,CIndexBase*>::iterator indx;
-
-	for (indx = indexes.begin(); indx != indexes.end(); ++indx)
-		(*indx).second->FlushDoc(fHeader->entries);
-		
 	++fHeader->entries;
 }
 
@@ -1528,7 +1483,7 @@ void CIndexer::CreateIndex(HStreamBase& inFile,
 	
 	map<string,CIndexBase*>::iterator indx;
 	
-	for (indx = indexes.begin(); indx != indexes.end(); ++indx)
+	for (indx = fIndices.begin(); indx != fIndices.end(); ++indx)
 	{
 		if ((*indx).second->Empty())
 		{
@@ -1542,8 +1497,7 @@ void CIndexer::CreateIndex(HStreamBase& inFile,
 	if (inCreateAllTextIndex)
 		fHeader->count += 1; // for our allIndex
 
-	if (fFullTextIndex)
-		fFullTextIndex->ReleaseBuffer(fHeader->weight_bit_count);
+	fFullTextIndex->ReleaseBuffer();
 	
 	outOffset = inFile.Seek(0, SEEK_END);
 	inFile << *fHeader;
@@ -1553,115 +1507,106 @@ void CIndexer::CreateIndex(HStreamBase& inFile,
 	inFile.Write(fParts, sizeof(SIndexPart) * fHeader->count);
 
 	// optimize invariant
-	uint32 textIndexCount = fNextTextIndexID;
+	uint32 indexCount = fNextIndexID;
 
-	HAutoBuf<CTextIndexBase*> txtIndexBuf(new CTextIndexBase*[textIndexCount]);
-	CTextIndexBase** txtIndex = txtIndexBuf.get();
-	memset(txtIndex, 0, sizeof(CTextIndex*) * textIndexCount);
+	// create an ordered array of indices
+	HAutoBuf<CIndexBase*> indexBuf(new CIndexBase*[indexCount]);
+	CIndexBase** indices = indexBuf.get();
 
-	for (indx = indexes.begin(); indx != indexes.end(); ++indx)
-	{
-		if (dynamic_cast<CTextIndexBase*>((*indx).second) != nil)
-		{
-			CTextIndexBase* txtIx = static_cast<CTextIndexBase*>((*indx).second);
-			txtIndex[txtIx->GetIxNr()] = txtIx;
-		}
-	}
+	for (indx = fIndices.begin(); indx != fIndices.end(); ++indx)
+		indices[indx->second->GetIxNr()] = indx->second;
 	
-	CTextIndexBase* allIndex = nil;
+	CIndexBase* allIndex = nil;
 	if (inCreateAllTextIndex)
 	{
 		HUrl url(fDb + '.' + "alltext_indx");
-		allIndex = new CWeightedWordIndex(GetFullTextIndex(), kAllTextIndexName,
-							fHeader->count - 1, url, fHeader->weight_bit_count);
+		allIndex = new CWeightedWordIndex(
+					*fFullTextIndex, kAllTextIndexName, fHeader->count - 1, url);
 	}
 	
-	if (fFullTextIndex)
+	if (VERBOSE > 0)
 	{
-		if (VERBOSE > 0)
-		{
-			cout << endl << "Creating full text indexes... ";
-			cout.flush();
-		}
-
-		uint32 iDoc, lDoc, iTerm, iIx, lTerm = 0, i, tFreq;
-		uint8 iFreq;
-		CFullTextIndex::CRunEntryIterator iter(*fFullTextIndex, fHeader->weight_bit_count);
-
-		int64 vStep = iter.Count() / 10;
-		
-		// the next loop is very *hot*, make sure it is optimized as much as possible
-		if (iter.Next(iDoc, iTerm, iIx, iFreq))
-		{
-			lTerm = iTerm;
-			lDoc = iDoc;
-			tFreq = iFreq;
-
-			bool isStopWord = fFullTextIndex->IsStopWord(iTerm);
-
-			do
-			{
-				if (VERBOSE and (iter.Count() % vStep) == 0)
-				{
-					cout << (iter.Count() / vStep) << "... "; cout.flush();
-				}
-
-				if (allIndex and (lDoc != iDoc or lTerm != iTerm))
-				{
-					if (not isStopWord)
-						allIndex->AddDocTerm(lDoc, tFreq);
-
-					lDoc = iDoc;
-					tFreq = 0;
-				}
-				
-				if (lTerm != iTerm)
-				{
-					for (i = 0; i < textIndexCount; ++i)
-					{
-						if (txtIndex[i] != nil and not txtIndex[i]->Empty())
-							txtIndex[i]->FlushTerm(lTerm, fHeader->entries);
-					}
-					
-					if (allIndex and not isStopWord)
-						allIndex->FlushTerm(lTerm, fHeader->entries);
-
-					lTerm = iTerm;
-					tFreq = 0;
-					isStopWord = fFullTextIndex->IsStopWord(iTerm);
-				}
-				
-				txtIndex[iIx]->AddDocTerm(iDoc, iFreq);
-
-				tFreq += iFreq;
-			}
-			while (iter.Next(iDoc, iTerm, iIx, iFreq));
-		}
-	
-		for (i = 0; i < textIndexCount; ++i)
-		{
-			if (txtIndex[i] != nil)
-				txtIndex[i]->FlushTerm(lTerm, fHeader->entries);
-		}
-
-		if (allIndex and not allIndex->Empty())
-			allIndex->FlushTerm(lTerm, fHeader->entries);
-
-		if (VERBOSE > 0)
-			cout << "done" << endl;
+		cout << endl << "Creating full text indexes... ";
+		cout.flush();
 	}
+
+	uint32 iDoc, lDoc, iTerm, iIx, lTerm = 0, i, tFreq;
+	uint8 iFreq;
+	CFullTextIndex::CRunEntryIterator iter(*fFullTextIndex);
+
+	int64 vStep = iter.Count() / 10;
+	
+	// the next loop is very *hot*, make sure it is optimized as much as possible
+	if (iter.Next(iDoc, iTerm, iIx, iFreq))
+	{
+		lTerm = iTerm;
+		lDoc = iDoc;
+		tFreq = iFreq;
+
+		bool isStopWord = fFullTextIndex->IsStopWord(iTerm);
+
+		do
+		{
+			if (VERBOSE and (iter.Count() % vStep) == 0)
+			{
+				cout << (iter.Count() / vStep) << "... "; cout.flush();
+			}
+
+			if (allIndex and (lDoc != iDoc or lTerm != iTerm))
+			{
+				if (not isStopWord)
+					allIndex->AddDocTerm(lDoc, tFreq);
+
+				lDoc = iDoc;
+				tFreq = 0;
+			}
+			
+			if (lTerm != iTerm)
+			{
+				for (i = 0; i < indexCount; ++i)
+				{
+					if (indices[i] != nil and not indices[i]->Empty())
+						indices[i]->FlushTerm(lTerm, fHeader->entries);
+				}
+				
+				if (allIndex and not isStopWord)
+					allIndex->FlushTerm(lTerm, fHeader->entries);
+
+				lTerm = iTerm;
+				tFreq = 0;
+				isStopWord = fFullTextIndex->IsStopWord(iTerm);
+			}
+			
+			indices[iIx]->AddDocTerm(iDoc, iFreq);
+
+			tFreq += iFreq;
+		}
+		while (iter.Next(iDoc, iTerm, iIx, iFreq));
+	}
+
+	for (i = 0; i < indexCount; ++i)
+	{
+		if (indices[i] != nil and not indices[i]->Empty())
+			indices[i]->FlushTerm(lTerm, fHeader->entries);
+	}
+
+	if (allIndex and not allIndex->Empty())
+		allIndex->FlushTerm(lTerm, fHeader->entries);
+
+	if (VERBOSE > 0)
+		cout << "done" << endl;
 	
 	uint32 ix = 0;
-	for (indx = indexes.begin(); indx != indexes.end(); ++indx)
+	for (indx = fIndices.begin(); indx != fIndices.end(); ++indx)
 	{
-		if ((*indx).second != nil)
+		if (indx->second != nil)
 		{
-			if ((*indx).second->Write(inFile, fHeader->entries, fParts[ix]))
+			if (indx->second->Write(inFile, fHeader->entries, fParts[ix]))
 				++ix;
 			else
 				--fHeader->count;
 
-			delete (*indx).second;
+			delete indx->second;
 		}
 	}
 
@@ -1714,11 +1659,7 @@ struct CCompareIndexInfo
 // the value that can be stored to 44 bits, the same maximum as used in the
 // BTree structure
 
-#if P_DEBUG
-const uint32 kMergeIndexBufferPageSize = 1024;			// 1 kb pages
-#else
 const uint32 kMergeIndexBufferPageSize = 1024 * 1024;	// 1 Mb pages
-#endif
 
 class CMergeIndexBuffer
 {
@@ -2571,17 +2512,6 @@ CIndex* CIndexer::GetIndex(const string& inIndex) const
 	}
 	
 	return result;
-}
-
-CFullTextIndex&	CIndexer::GetFullTextIndex()
-{
-	if (fFullTextIndex == nil)
-	{
-		HUrl url(fDb + ".fulltext_indx");
-		fFullTextIndex = new CFullTextIndex(url);
-	}
-
-	return *fFullTextIndex;
 }
 
 void CIndexer::DumpIndex(const string& inIndex) const

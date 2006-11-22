@@ -55,6 +55,7 @@ class CIndexBase;
 class CFullTextIndex;
 class CIndexCache;
 class CIndex;
+class CIndexBase;
 class CIteratorBase;
 
 class CIndexer
@@ -121,14 +122,15 @@ class CIndexer
   private:
 
 	void			IndexText(const std::string& inIndex, const std::string& inText, bool inIndexNrs);
-	
-	CFullTextIndex&	GetFullTextIndex();
+
+	template<class INDEX_KIND>
+	CIndexBase*		GetIndexBase(const std::string& inIndex);
 	
 	std::string						fDb;
-	std::stringstream				doc_text;
-	std::map<std::string,CIndexBase*>indexes;
+	std::map<std::string,CIndexBase*>
+									fIndices;
 	CFullTextIndex*					fFullTextIndex;
-	uint16							fNextTextIndexID;
+	uint16							fNextIndexID;
 
 	// for existing indices
 	HStreamBase*					fFile;

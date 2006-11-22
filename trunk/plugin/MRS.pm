@@ -123,7 +123,6 @@ sub new {
 *Blast = *MRSc::MDatabank_Blast;
 *Index = *MRSc::MDatabank_Index;
 *Indices = *MRSc::MDatabank_Indices;
-*LoadDictionary = *MRSc::MDatabank_LoadDictionary;
 *SuggestCorrection = *MRSc::MDatabank_SuggestCorrection;
 *SetStopWords = *MRSc::MDatabank_SetStopWords;
 *StoreMetaData = *MRSc::MDatabank_StoreMetaData;
@@ -570,8 +569,6 @@ package MRS;
 *COMPRESSION = *MRSc::COMPRESSION;
 *COMPRESSION_LEVEL = *MRSc::COMPRESSION_LEVEL;
 *WEIGHT_BIT_COUNT = *MRSc::WEIGHT_BIT_COUNT;
-*DICTIONARY_MIN_TERM_OCCURRENCE = *MRSc::DICTIONARY_MIN_TERM_OCCURRENCE;
-*DICTIONARY_MIN_TERM_LENGTH = *MRSc::DICTIONARY_MIN_TERM_LENGTH;
 *COMPRESSION_DICTIONARY = *MRSc::COMPRESSION_DICTIONARY;
 *MDatabank_kWildCardString = *MRSc::MDatabank_kWildCardString;
 1;
