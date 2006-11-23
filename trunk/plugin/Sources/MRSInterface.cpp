@@ -122,16 +122,20 @@ class CStopwatch
 CStopwatch::CStopwatch(double& ioAccumulator)
 	: fAccumulator(ioAccumulator)
 {
-	getrusage(RUSAGE_SELF, &fStartTime);
+	if (VERBOSE > 1)
+		getrusage(RUSAGE_SELF, &fStartTime);
 }
 
 CStopwatch::~CStopwatch()
 {
-	struct rusage stop;
-	getrusage(RUSAGE_SELF, &stop);
-	
-	fAccumulator += (stop.ru_utime.tv_sec - fStartTime.ru_utime.tv_sec);
-	fAccumulator += 0.000001 * (stop.ru_utime.tv_usec - fStartTime.ru_utime.tv_usec);
+	if (VERBOSE > 1)
+	{
+		struct rusage stop;
+		getrusage(RUSAGE_SELF, &stop);
+		
+		fAccumulator += (stop.ru_utime.tv_sec - fStartTime.ru_utime.tv_sec);
+		fAccumulator += 0.000001 * (stop.ru_utime.tv_usec - fStartTime.ru_utime.tv_usec);
+	}
 }
 
 static void PrintStatistics()
@@ -571,7 +575,7 @@ void MDatabank::Merge(const string& inName, MDatabankArray inDbs, bool inCopyDat
 		result->fSafe->Commit();
 
 	// And now print out some statistics, if wanted of course
-	if (VERBOSE)
+	if (VERBOSE > 1)
 		PrintStatistics();
 }
 
@@ -897,7 +901,7 @@ void MDatabank::Finish(bool inCreateAllTextIndex)
 	}
 
 	// And now print out some statistics, if wanted of course
-	if (VERBOSE)
+	if (VERBOSE > 1)
 	{
 		PrintStatistics();
 		fImpl->PrintCreateStatistics();

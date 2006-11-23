@@ -218,6 +218,7 @@ Sources = \
 	./Sources/CQuery.cpp \
 	./Sources/CRankedQuery.cpp \
 	./Sources/CSequence.cpp \
+	./Sources/CTokenizer.cpp \
 	./Sources/CUtils.cpp \
 	./Sources/CTextTable.cpp \
 	./Sources/CThread.cpp \

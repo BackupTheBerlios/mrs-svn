@@ -1316,24 +1316,21 @@ void CIndexer::IndexText(const string& inIndex, const string& inText, bool inInd
 	
 	CIndexBase* index = GetIndexBase<CTextIndex>(inIndex);
 
-	CTokenizer<255> tok(inText.c_str(), inText.length());
+	CTokenizer tok(inText.c_str(), inText.length());
 	bool isWord, isNumber;
-	CTokenizer<255>::EntryText s;
 	
-	while (tok.GetToken(s, isWord, isNumber))
+	while (tok.GetToken(isWord, isNumber))
 	{
-		if (not (isWord or isNumber) or s[0] == 0)
+		uint32 l = tok.GetTokenLength();
+
+		if (not (isWord or isNumber) or l == 0)
 			continue;
 		
 		if (isNumber and not inIndexNrs)
 			continue;
 
-		char* c;
-		for (c = s; *c; ++c)
-			*c = static_cast<char>(tolower(*c));
-
-		if (c - s <= kMaxKeySize)
-			index->AddWord(s);
+		if (l <= kMaxKeySize)
+			index->AddWord(string(tok.GetTokenValue(), l));
 	}
 }
 
@@ -1356,7 +1353,7 @@ void CIndexer::IndexWord(const string& inIndex, const string& inText)
 		if (inText.length() > kMaxKeySize)
 			THROW(("Data error: length of key too long (%s)", inText.c_str()));
 	
-		index->AddWord(inText);
+		index->AddWord(tolower(inText));
 	}
 }
 
@@ -1449,7 +1446,7 @@ void CIndexer::IndexValue(const string& inIndex, const string& inText)
 	if (inText.length() > kMaxKeySize)
 		THROW(("Data error: length of unique key too long (%s)", inText.c_str()));
 
-	index->AddWord(inText);
+	index->AddWord(tolower(inText));
 }
 
 void CIndexer::IndexWordWithWeight(const string& inIndex, const string& inText, uint32 inFrequency)
@@ -1459,7 +1456,7 @@ void CIndexer::IndexWordWithWeight(const string& inIndex, const string& inText, 
 	if (inText.length() > kMaxKeySize)
 		THROW(("Data error: length of unique key too long (%s)", inText.c_str()));
 
-	index->AddWord(inText, inFrequency);
+	index->AddWord(tolower(inText), inFrequency);
 }
 
 void CIndexer::FlushDoc()
@@ -1547,9 +1544,9 @@ void CIndexer::CreateIndex(HStreamBase& inFile,
 
 		do
 		{
-			if (VERBOSE and (iter.Count() % vStep) == 0)
+			if (VERBOSE and iter.Count() != 0 and (iter.Count() % vStep) == 0)
 			{
-				cout << (iter.Count() / vStep) << "... "; cout.flush();
+				cout << (iter.Count() / vStep) << ' '; cout.flush();
 			}
 
 			if (allIndex and (lDoc != iDoc or lTerm != iTerm))

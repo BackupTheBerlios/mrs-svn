@@ -709,23 +709,20 @@ CQueryImp::IteratorForString(const string& inIndex, const string& inString)
 
 	CDocIterator* result = nil;
 	
-	CTokenizer<255> tok(inString.c_str(), inString.length());
+	CTokenizer tok(inString.c_str(), inString.length());
 	bool isWord, isNumber;
-	CTokenizer<255>::EntryText s;
 	vector<string> stringWords;
 	
-	while (tok.GetToken(s, isWord, isNumber))
+	while (tok.GetToken(isWord, isNumber))
 	{
-		if (not (isWord or isNumber) or s[0] == 0)
+		uint32 l = tok.GetTokenLength();
+		
+		if (not (isWord or isNumber) or l == 0)
 			continue;
 
-		char* c;
-		for (c = s; *c; ++c)
-			*c = static_cast<char>(tolower(*c));
-
-		if (c - s < kMaxKeySize)
+		if (l < kMaxKeySize)
 		{
-			stringWords.push_back(s);
+			stringWords.push_back(tok.GetTokenValue());
 			
 			vector<CDocIterator*> ixs;
 	
@@ -734,7 +731,7 @@ CQueryImp::IteratorForString(const string& inIndex, const string& inString)
 				if (inIndex == "*" or inIndex == fIndexNames[ix])
 				{
 					ixs.push_back(
-						fDatabank.CreateDocIterator(fIndexNames[ix], s, false, kOpContains));
+						fDatabank.CreateDocIterator(fIndexNames[ix], tok.GetTokenValue(), false, kOpContains));
 				}
 			}
 			

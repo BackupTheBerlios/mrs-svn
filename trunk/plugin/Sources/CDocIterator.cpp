@@ -679,9 +679,8 @@ bool CDbStringMatchIterator::Next(uint32& ioDoc, bool inSkip)
 		uint32 ix = 0;
 		deque<string> buffer;
 		
-		CTokenizer<255> tok(doc.c_str(), doc.length());
+		CTokenizer tok(doc.c_str(), doc.length());
 		bool isWord, isNumber;
-		CTokenizer<255>::EntryText s;
 		vector<string> stringWords;
 		
 		// KLUDGE ALERT!!!
@@ -691,16 +690,12 @@ bool CDbStringMatchIterator::Next(uint32& ioDoc, bool inSkip)
 		// 
 		// The real solution is to change the way data is stored. :-(
 		
-		while (tok.GetToken(s, isWord, isNumber))
+		while (tok.GetToken(isWord, isNumber))
 		{
-			if (not (isWord or isNumber) or s[0] == 0)
+			if (not (isWord or isNumber) or tok.GetTokenLength() == 0)
 				continue;
 
-			char* c;
-			for (c = s; *c; ++c)
-				*c = static_cast<char>(tolower(*c));
-			
-			if (fStringWords[ix] == s)
+			if (fStringWords[ix] == tok.GetTokenValue())
 			{
 				++ix;
 				
@@ -719,7 +714,7 @@ bool CDbStringMatchIterator::Next(uint32& ioDoc, bool inSkip)
 				// If so, we simply skip this word assuming it is a leading
 				// field identifier.
 				
-				int64 offset = tok.GetOffset() - (c - s) - 1;
+				int64 offset = tok.GetOffset() - tok.GetTokenLength() - 1;
 				if (offset < 0 or doc[offset] != '\n')
 				{
 					ix = 0;
