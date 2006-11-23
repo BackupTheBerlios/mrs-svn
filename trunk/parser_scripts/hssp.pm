@@ -1,6 +1,6 @@
 # Perl module voor het parsen van pdb
 #
-# $Id$
+# $Id: hssp.pm 18 2006-03-01 15:31:09Z hekkel $
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.
@@ -37,7 +37,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package go::parser;
+package hssp::parser;
 
 my $count = 0;
 
@@ -47,7 +47,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "go::parser";
+	return bless $self, "hssp::parser";
 }
 
 sub parse
@@ -58,55 +58,60 @@ sub parse
 	my ($doc, $m, $state);
 
 	$m = $self->{mrs};
-	$state = 0;
 	
-	while (my $line = <IN>)
-	{
-		last if (substr($line, 0, 9) eq '[Typedef]');
+	my $lookahead = <IN>;
+	
+	$state = 0;
 
-		if (substr($line, 0, 6) eq '[Term]')
-		{
-			if (defined $doc)
-			{
-				$m->Store($doc);
-				$m->FlushDocument;
-			}
+	# like dssp, assume there's only one record per parse call
+	
+	while (defined $lookahead)
+	{
+		my $line = $lookahead;
+		$lookahead = <IN>;
+		
+		$doc .= $line;
+		chomp($line);
 			
-			$doc = $line;
+		if ($state == 0 and $line =~ /^PDBID\s+(\S+)/o)
+		{
+			my $id = $1;
+			
+			$m->IndexValue('id', $id);
+			
 			$state = 1;
 		}
-		elsif ($line =~ /^(.+?):\s+(.+)/)
+		elsif ($state == 1)
 		{
-			$doc .= $line if ($state == 1);
-			chomp($line);
-
-			my $name = $1;
-			my $value = $2;
-			
-			if ($name eq 'id')
+			if ($line =~ /^## ALIGNMENTS/)
 			{
-				die "invalid id value" unless ($value =~ /GO:(\d+)/);
-				$value = $1;
-				$m->IndexValue('id', $value);
+				$state = 2;
 			}
-			else
+			elsif ($line =~ /^(\S+?)\s+(.*)/)
 			{
-				$m->IndexTextAndNumbers($name, $value);
-			} 
+				$line = $2;
+				
+				$line =~ s/(\w)\.(?=\w)/$1. /og
+					if ($1 eq 'AUTHOR');
+
+				$m->IndexText('text', $line);
+			}
 		}
 	}
 
-	if (defined $doc)
-	{
-		$m->Store($doc);
-		$m->FlushDocument;
-	}
+	$m->Store($doc);
+	$m->FlushDocument;
 }
 
-sub raw_files()
+sub raw_files
 {
 	my ($self, $raw_dir) = @_;
-	return "<$raw_dir/gene_ontology.obo";
+	
+	opendir DIR, $raw_dir;
+	my @result = grep { -e "$raw_dir/$_" and $_ =~ /\.hssp$/ } readdir DIR;
+	closedir DIR;
+	
+	return map { "<$raw_dir/$_" } @result;
 }
 
 1;

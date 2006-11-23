@@ -1,6 +1,6 @@
-# Perl module voor het parsen van pdb
+# Perl module voor het parsen van hugo
 #
-# $Id$
+# $Id: hugo.pm 18 2006-03-01 15:31:09Z hekkel $
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.
@@ -37,7 +37,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package pdbfinder2::parser;
+package hugo::parser;
 
 my $count = 0;
 
@@ -47,7 +47,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "pdbfinder2::parser";
+	return bless $self, "hugo::parser";
 }
 
 sub parse
@@ -55,90 +55,54 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my ($doc, $m, $state);
-
-	$m = $self->{mrs};
+	my $m = $self->{mrs};
 	
-	my $lookahead = <IN>;
-	$state = 0;
-
-	# skip over comment header
-	$lookahead = <IN> while (substr($lookahead, 0, 2) eq '//');
+	my ($doc, $last_id);
 	
-	while (defined $lookahead)
+	$last_id = "";
+	
+	while (my $line = <IN>)
 	{
-		my $line = $lookahead;
-		$lookahead = <IN>;
-		
-		$doc .= $line;
-		chomp($line);
-		
-		if (substr($line, 0, 2) eq '//')
-		{
-			if (defined $doc)
-			{
-				$m->Store($doc);
-				$m->FlushDocument;
-				
-				$doc = undef;
-			}
-			
-			$state = 0;
-		}
-		elsif ($state == 0)
-		{
-			if ($line =~ /^ID\s+:\s*(\S+)/o)
-			{
-				$m->IndexValue('id', $1);
-			}
-			elsif ($line =~ /^Chain/)
-			{
-				$state = 1;
-			}
-			elsif ($line =~ /^\s*(.+?)\s*:\s*(.*)/)
-			{
-				my ($key, $value) = (lc $1, $2);
-				
-				if ($key eq 'date')
-				{
-					$m->IndexDate('date', $value);
-				}
-				elsif ($key eq 't-nres-nucl' or
-					$key eq 't-nres-prot' or
-					$key eq 't-water-mols' or 
-					$key eq 'het-groups')
-				{
-					$m->IndexNumber($key, $value);
-				}
-				elsif ($key eq 'resolution' or
-					$key eq 'r-factor' or
-					$key eq 'free-r')
-				{
-					$m->IndexNumber($key, $value * 1000.0);
-				}
-				else
-				{
-					$value =~ s/(\w)\.(?=\w)/$1. /og
-						if ($key eq 'author');
+		my @flds = split(m/\t/, $line);
 
-					$m->IndexText($key, $value);
-				}
-			}
-		}
-	}
+		my $id = "$flds[0]:$flds[1]";
+		
+#HGNC
+		$m->IndexValue('id', $flds[0]);
+#Symbol
+		$m->IndexTextAndNumbers('symbol', $flds[1]);
+#Name
+		$m->IndexTextAndNumbers('name', $flds[2]);
+#Map
+		$m->IndexTextAndNumbers('map', $flds[3]);
+#MIM
+		$m->IndexTextAndNumbers('mim', $flds[4]);
+#PMID1
+		$m->IndexTextAndNumbers('pmid1', $flds[5]);
+#PMID2
+		$m->IndexTextAndNumbers('pmid2', $flds[6]);
+#Ref Seq
+		$m->IndexTextAndNumbers('refseq', $flds[7]);
+#Aliases
+		$m->IndexTextAndNumbers('aliases', $flds[8]);
+#Withdrawn Symbols
+		$m->IndexTextAndNumbers('withdrawn', $flds[9]);
+#Locus Link
+		$m->IndexTextAndNumbers('locuslink', $flds[10]);
+#GDB ID
+		$m->IndexTextAndNumbers('gdb', $flds[11]);
+#SWISSPROT
+		$m->IndexTextAndNumbers('swissprot', $flds[12]);
 
-	if (defined $doc)
-	{
-		$m->Store($doc);
+		$m->Store($line);
 		$m->FlushDocument;
 	}
 }
 
-sub raw_files
+sub raw_files()
 {
 	my ($self, $raw_dir) = @_;
-	
-	return "gunzip -c $raw_dir/PDBFIND2.TXT.gz |";
+	return "<$raw_dir/nomeids.txt";
 }
 
 1;

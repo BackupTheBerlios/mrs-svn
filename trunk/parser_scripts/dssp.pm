@@ -1,6 +1,6 @@
 # Perl module voor het parsen van pdb
 #
-# $Id$
+# $Id: dssp.pm 18 2006-03-01 15:31:09Z hekkel $
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.

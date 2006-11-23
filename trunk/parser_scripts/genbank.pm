@@ -1,6 +1,6 @@
 # MRS plugin for creating a db
 #
-# $Id$
+# $Id: genbank.pm 79 2006-05-30 08:36:36Z maarten $
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.

@@ -1,6 +1,6 @@
 # MRS plugin for creating an EMBL db
 #
-# $Id$
+# $Id: ligand.pm 26 2006-04-20 18:55:00Z maarten $
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.

@@ -1,6 +1,6 @@
-# MRS plugin for creating an EMBL db
+# Perl module voor het parsen van pdb
 #
-# $Id$
+# $Id: interpro.pm 18 2006-03-01 15:31:09Z hekkel $
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.
@@ -37,14 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package locuslink::parser;
-
-use strict;
+package interpro::parser;
 
 my $count = 0;
-
-our $COMPRESSION_LEVEL = 9;
-our $COMPRESSION = "zlib";
 
 sub new
 {
@@ -52,7 +47,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "locuslink::parser";
+	return bless $self, "interpro::parser";
 }
 
 sub parse
@@ -60,68 +55,106 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my ($id, $doc, $state, $m);
+	$| = 1;
 	
-	$state = 0;
-	$m = $self->{mrs};
+	my $m = $self->{mrs};
 	
-	my $lookahead = <IN>;
+	my ($doc, $last_id, $lookahead, $xml_header);
+	
+	$lookahead = <IN>;
+	while (defined $lookahead and not ($lookahead =~ /^\s*<interpro\s/))
+	{
+		$xml_header .= $lookahead;	
+		$lookahead = <IN>;
+	}
+
 	while (defined $lookahead)
 	{
 		my $line = $lookahead;
 		$lookahead = <IN>;
-
-		if ($line =~ /^>>\d+/)
+		
+		$doc .= $line;
+		
+		$line =~ s|^\s+||;
+		
+		if ($line =~ m|</interpro>|)
 		{
-			if (defined $doc)
-			{
-				$m->Store($doc);
-				$m->FlushDocument;
-			}
+			$m->Store($xml_header . $doc . "</interprodb>\n");
+			$m->FlushDocument;
 			
-			$doc = $line;
+			$doc = undef;
 		}
-		else
+		elsif ($line =~ m|^<interpro|)
 		{
-			$doc .= $line;
-			chomp($line);
-
-			if ($line =~ /^LOCUSID:\s+(\d+)/)
+			if ($line =~ m|id="(.+?)"|)
 			{
 				$m->IndexValue('id', $1);
 			}
-			elsif ($line =~ /(.+?):(.*)/)
+
+			if ($line =~ m|type="(.+?)"|)
 			{
-				my $fld = lc $1;
-				my $value = $2;
-				
-				my %fn = (
-					'organism' => 1,
-					'product' => 1,
-					'summary' => 1,
-					'omim' => 1,
-					'chr' => 1
-				);
-				
-				$fld = 'text' unless (defined $fn{$fld});
-				
-				$m->IndexText($fld, $value);
+				$m->IndexText('type', $1);
+			}
+
+			if ($line =~ m|short_name="(.+?)"|)
+			{
+				$m->IndexText('name', $1);
+			}
+		}
+		elsif ($line =~ m|^<db_xref|)
+		{
+			if ($line =~ m|dbkey="(.+?)"|)
+			{
+				$m->IndexText('xref', $1);
+			}
+
+			if ($line =~ m|name="(.+?)"|)
+			{
+				$m->IndexText('xref', $1);
+			}
+		}
+		elsif ($line =~ m|^<taxon_data|)
+		{
+			if ($line =~ m|name="(.+?)"|)
+			{
+				$m->IndexText('taxon', $1);
+			}
+		}
+		elsif ($line =~ m|^<classification|)
+		{
+			if ($line =~ m|id="(.+?)"|)
+			{
+				$m->IndexText('class', $1);
+			}
+		}
+		elsif ($line =~ m|^<name>(.+)</name>|)
+		{
+			$m->IndexText('name', $1);
+		}
+		elsif ($line =~ m|^<(\w+?)>(.+)</\1>|)
+		{
+			$m->IndexText(lc($1), $2);
+		}
+		elsif ($line =~ m|^<rel_ref ipr_ref="(.+?)"|)
+		{
+			$m->IndexText("rel", $1);
+		}
+		elsif ($line =~ m|^<abstract|)
+		{
+			while (defined $lookahead and not ($lookahead =~ m|^\s*</abstract|))
+			{
+				$doc .= $lookahead;
+				$m->IndexText('abstract', $lookahead);
+				$lookahead = <IN>;
 			}
 		}
 	}
-	
-	if (defined $doc)
-	{
-		$m->Store($doc);
-		$m->FlushDocument;
-	}
 }
 
-sub raw_files
+sub raw_files()
 {
 	my ($self, $raw_dir) = @_;
-	
-	return "gunzip -c $raw_dir/LL_tmpl.gz |";
+	return "gunzip -c $raw_dir/interpro.xml.gz|";
 }
 
 1;

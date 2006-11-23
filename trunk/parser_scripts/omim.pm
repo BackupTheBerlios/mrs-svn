@@ -1,6 +1,6 @@
-# MRS plugin for creating an EMBL db
+# Perl module voor het parsen van pdb
 #
-# $Id$
+# $Id: omim.pm 169 2006-11-10 08:02:05Z hekkel $
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.
@@ -37,14 +37,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package uniseq::parser;
-
-use strict;
-
-my $count = 0;
+package omim::parser;
 
 our $COMPRESSION_LEVEL = 9;
 our $COMPRESSION = "zlib";
+our @META_DATA_FIELDS = [ 'title' ];
+
+my $count = 0;
 
 sub new
 {
@@ -52,7 +51,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "uniseq::parser";
+	return bless $self, "omim::parser";
 }
 
 sub parse
@@ -60,78 +59,75 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my ($id, $doc, $state, $m);
-	
-	$state = 0;
+	my ($doc, $field, $title, $m);
+
 	$m = $self->{mrs};
 	
-	my $lookahead = <IN>;
-	while (defined $lookahead)
+	while (my $line = <IN>)
 	{
-		my $line = $lookahead;
-		$lookahead = <IN>;
-
-		if ($line =~ /^# Set/)
+		if ($line =~ /^\*RECORD/o)
 		{
-			if (defined $doc and defined $id)
+			if (defined $doc)
 			{
+				$m->StoreMetaData('title', lc $title) if defined $title;
 				$m->Store($doc);
 				$m->FlushDocument;
 			}
-
-			$id = undef;
-			$doc = $line;
-		}
-		elsif (substr($line, 0, 1) eq '>')
-		{
-			$doc .= $line;
-			chomp($line);
-
-			$m->IndexText('text', $line);
 			
-			if (not defined $id and $line =~ m|/ug=(\S+)|)
-			{
-				$id = $1;
-				$m->IndexValue('id', $id);
-			}
+			$doc = $line;
+			
+			$field = undef;
+			$title = undef;
+			$state = 1;
 		}
 		else
 		{
 			$doc .= $line;
+			chomp($line);
+			
+			if ($line =~ /^\*FIELD\* (..)/o)
+			{
+				$field = lc($1);
+			}
+			elsif ($field eq 'no')
+			{
+				$m->IndexValue('id', $line);
+			}
+			else
+			{
+				if (($field eq 'cd' or $field eq 'ed') and $line =~ m|(\d{1,2})/(\d{1,2})/(\d{4})|)
+				{
+					my $date = sprintf('%4.4d-%2.2d-%2.2d', $3, $1, $2);
+					
+					eval { $m->IndexDate("${field}_date", $date); };
+					
+					warn $@ if $@;
+				}
+				
+				if ($field eq 'ti' and not defined $title)
+				{
+					$title = $line;
+					$title =~ s/^\D?\d{6}\s//om;
+					$title = (split(m/;/, $title))[0];
+				}
+				
+				$m->IndexText($field, $line);
+			}
 		}
 	}
-	
-	if (defined $doc and defined $id)
+
+	if (defined $doc)
 	{
+		$m->StoreMetaData('title', lc $title) if defined $title;
 		$m->Store($doc);
 		$m->FlushDocument;
 	}
 }
 
-sub raw_files
+sub raw_files()
 {
 	my ($self, $raw_dir) = @_;
-
-	$raw_dir =~ s|[^/]+$||;
-	$raw_dir .= "unigene";
-
-
-	my @result;
-
-	opendir DIR, $raw_dir;
-	while (my $d = readdir DIR)
-	{
-		next unless -d "$raw_dir/$d";
-		next if substr($d, 0, 1) eq '_';
-
-		opendir D2, "$raw_dir/$d";
-		my @files = grep { -e "$raw_dir/$d/$_" and $_ =~ /\.seq\.all\.gz$/ } readdir D2;
-		push @result, join(' ', map { "$raw_dir/$d/$_" } @files) if scalar @files;
-		closedir D2;
-	}
-	closedir DIR;
-
-	return map { "gunzip -c $_ |" } @result;
+	return "gunzip -c $raw_dir/omim.txt.Z|";
 }
 
 1;

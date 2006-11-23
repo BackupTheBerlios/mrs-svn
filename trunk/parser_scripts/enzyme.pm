@@ -1,6 +1,6 @@
-# Perl module voor het parsen van pdb
+# MRS plugin for creating an enzyme.dat db
 #
-# $Id$
+# $Id: enzyme.pm 26 2006-04-20 18:55:00Z maarten $
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.
@@ -37,9 +37,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package hssp::parser;
+package enzyme::parser;
+
+use strict;
 
 my $count = 0;
+
+our $COMPRESSION_LEVEL = 9;
+our $COMPRESSION = "zlib";
 
 sub new
 {
@@ -47,7 +52,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "hssp::parser";
+	return bless $self, "enzyme::parser";
 }
 
 sub parse
@@ -55,63 +60,58 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my ($doc, $m, $state);
-
+	my ($id, $doc, $state, $m);
+	
+	$state = 0;
 	$m = $self->{mrs};
 	
 	my $lookahead = <IN>;
 	
-	$state = 0;
-
-	# like dssp, assume there's only one record per parse call
+	$lookahead = <IN>
+		while (substr($lookahead, 0, 2) eq 'CC');
+	$lookahead = <IN>
+		if (substr($lookahead, 0, 2) eq '//');
 	
 	while (defined $lookahead)
 	{
 		my $line = $lookahead;
 		$lookahead = <IN>;
-		
-		$doc .= $line;
-		chomp($line);
-			
-		if ($state == 0 and $line =~ /^PDBID\s+(\S+)/o)
-		{
-			my $id = $1;
-			
-			$m->IndexValue('id', $id);
-			
-			$state = 1;
-		}
-		elsif ($state == 1)
-		{
-			if ($line =~ /^## ALIGNMENTS/)
-			{
-				$state = 2;
-			}
-			elsif ($line =~ /^(\S+?)\s+(.*)/)
-			{
-				$line = $2;
-				
-				$line =~ s/(\w)\.(?=\w)/$1. /og
-					if ($1 eq 'AUTHOR');
 
-				$m->IndexText('text', $line);
+		$doc .= $line;
+
+		chomp($line);
+
+		if ($line eq '//')
+		{
+			$m->Store($doc);
+			$m->FlushDocument;
+
+			$id = undef;
+			$doc = undef;
+		}
+		elsif ($line =~ /^([A-Z]{2}) {3}/o)
+		{
+			my $fld = $1;
+
+			if ($line =~ /^ID +(\S+)/o)
+			{
+				$id = $1;
+				$m->IndexValue('id', $id);
+			}
+			else
+			{
+				my $txt = substr($line, 5);
+				$m->IndexText(lc($fld), $txt) if $txt;
 			}
 		}
 	}
-
-	$m->Store($doc);
-	$m->FlushDocument;
 }
 
 sub raw_files
 {
 	my ($self, $raw_dir) = @_;
 	
-	opendir DIR, $raw_dir;
-	my @result = grep { -e "$raw_dir/$_" and $_ =~ /\.hssp$/ } readdir DIR;
-	closedir DIR;
-	
-	return map { "<$raw_dir/$_" } @result;
+	return "<$raw_dir/enzyme.dat";
 }
 
 1;

@@ -1,6 +1,6 @@
-# Perl module voor het parsen van pdb
+# MRS plugin for creating an EMBL db
 #
-# $Id$
+# $Id: dbest.pm 18 2006-03-01 15:31:09Z hekkel $
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.
@@ -37,13 +37,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package omim::parser;
+package dbest::parser;
+
+use strict;
+
+my $count = 0;
 
 our $COMPRESSION_LEVEL = 9;
 our $COMPRESSION = "zlib";
-our @META_DATA_FIELDS = [ 'title' ];
-
-my $count = 0;
 
 sub new
 {
@@ -51,7 +52,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "omim::parser";
+	return bless $self, "dbest::parser";
 }
 
 sub parse
@@ -59,75 +60,104 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my ($doc, $field, $title, $m);
-
+	my ($id, $doc, $state, $m);
+	
+	$state = 0;
 	$m = $self->{mrs};
 	
-	while (my $line = <IN>)
+	my $lookahead = <IN>;
+	while (defined $lookahead)
 	{
-		if ($line =~ /^\*RECORD/o)
+		my $line = $lookahead;
+
+		$lookahead = <IN>;
+
+		$doc .= $line;
+
+		chomp($line);
+
+		if ($line eq '||')
 		{
-			if (defined $doc)
-			{
-				$m->StoreMetaData('title', lc $title) if defined $title;
-				$m->Store($doc);
-				$m->FlushDocument;
-			}
-			
-			$doc = $line;
-			
-			$field = undef;
-			$title = undef;
-			$state = 1;
+			$m->Store($doc);
+			$m->FlushDocument;
+
+			$id = undef;
+			$doc = undef;
 		}
 		else
 		{
-			$doc .= $line;
-			chomp($line);
-			
-			if ($line =~ /^\*FIELD\* (..)/o)
+			if ($line =~ m/^dbEST Id:\s+(\d+)/)
 			{
-				$field = lc($1);
+				$m->IndexValue('id', $1);
 			}
-			elsif ($field eq 'no')
+			elsif ($line =~ m/^EST name:\s+(.+)/)
 			{
-				$m->IndexValue('id', $line);
+				$m->IndexTextAndNumbers('source_est', $1);
 			}
-			else
+			elsif ($line =~ m/^Clone Id:\s+(.+)/)
 			{
-				if (($field eq 'cd' or $field eq 'ed') and $line =~ m|(\d{1,2})/(\d{1,2})/(\d{4})|)
+				$m->IndexText('clone', $1);
+			}
+			elsif ($line =~ m/^GenBank gi:\s+(.+)/)
+			{
+				$m->IndexTextAndNumbers('genbank_gi', $1);
+			}
+			elsif ($line =~ m/^GenBank Acc:\s+(.+)/)
+			{
+				$m->IndexTextAndNumbers('genbank_acc', $1);
+			}
+			elsif ($line =~ m/^Source:\s+(.+)/)
+			{
+				$m->IndexTextAndNumbers('source', $1);
+			}
+			elsif ($line =~ m/^Organism:\s+(.+)/)
+			{
+				$m->IndexText('organism', $1);
+			}
+			elsif ($line =~ m/^Lib Name:\s+(.+)/)
+			{
+				$m->IndexTextAndNumbers('lib_name', $1);
+			}
+			elsif ($line =~ m/^dbEST Lib id:\s+(.+)/)
+			{
+				$m->IndexTextAndNumbers('lib_id', $1);
+			}
+			elsif ($line =~ m/^DNA Type:\s+(.+)/)
+			{
+				$m->IndexText('dna_type', $1);
+			}
+			elsif ($line =~ m/^Map:\s+(.+)/)
+			{
+				$m->IndexTextAndNumbers('chr', $1);
+			}
+			elsif ($line =~ m/^GDB Id:\s+(.+)/)
+			{
+				$m->IndexTextAndNumbers('gdb', $1);
+			}
+			elsif ($line =~ m/^SEQUENCE/)
+			{
+				while (defined $lookahead and length($lookahead) > 0 and substr($lookahead, 0, 1) eq ' ')
 				{
-					my $date = sprintf('%4.4d-%2.2d-%2.2d', $3, $1, $2);
-					
-					eval { $m->IndexDate("${field}_date", $date); };
-					
-					warn $@ if $@;
+					$lookahead = <IN>;
 				}
-				
-				if ($field eq 'ti' and not defined $title)
-				{
-					$title = $line;
-					$title =~ s/^\D?\d{6}\s//om;
-					$title = (split(m/;/, $title))[0];
-				}
-				
-				$m->IndexText($field, $line);
+			}
+			elsif (length($line) > 16)
+			{
+				$m->IndexText('text', substr($line, 16, length($line) - 16));
 			}
 		}
 	}
-
-	if (defined $doc)
-	{
-		$m->StoreMetaData('title', lc $title) if defined $title;
-		$m->Store($doc);
-		$m->FlushDocument;
-	}
 }
 
-sub raw_files()
+sub raw_files
 {
 	my ($self, $raw_dir) = @_;
-	return "gunzip -c $raw_dir/omim.txt.Z|";
+	
+	opendir DIR, $raw_dir;
+	my @result = grep { -e "$raw_dir/$_" and $_ =~ /\.gz$/ } readdir DIR;
+	closedir DIR;
+	
+	return map { "gunzip -c $raw_dir/$_ |" } @result;
 }
 
 1;

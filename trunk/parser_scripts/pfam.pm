@@ -1,6 +1,6 @@
-# Perl module voor het parsen van pdb
+# MRS plugin for creating an pfam db
 #
-# $Id$
+# $Id: pfam.pm 18 2006-03-01 15:31:09Z hekkel $
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.
@@ -37,9 +37,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package mimmap::parser;
+package pfam::parser;
+
+use strict;
 
 my $count = 0;
+
+our $COMPRESSION_LEVEL = 9;
+our $COMPRESSION = "zlib";
 
 sub new
 {
@@ -47,7 +52,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "mimmap::parser";
+	return bless $self, "pfam::parser";
 }
 
 sub parse
@@ -55,77 +60,72 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my ($doc, $m, $state);
-
+	my ($doc, $state, $m);
+	
+	$state = 0;
 	$m = $self->{mrs};
 	
 	my $lookahead = <IN>;
-	$state = 0;
-	
-	my $id = 0;
-
 	while (defined $lookahead)
 	{
 		my $line = $lookahead;
 		$lookahead = <IN>;
-		
-		$doc .= $line;
-		chomp($line);
-		
-		if (substr($line, 0, 2) eq '//')
-		{
-			if (defined $doc)
-			{
-				$m->IndexValue('id', $id);
-				
-				$m->Store("ID      : $id\n$doc");
-				$m->FlushDocument;
-				
-				++$id;
-				
-				$doc = undef;
-			}
-			
-			$state = 0;
-		}
-		elsif ($state == 0)
-		{
-			if ($line =~ /^MIM#\s+:\s*(\S+)/o)
-			{
-				$m->IndexValue('id', $1);
-			}
-			elsif ($line =~ /^Date\s+:\s(\d+)\.(\d+)\.(\d+)/)
-			{
-				my ($year, $mon, $day) = ($1, $2, $3);
-				$year += 1900;
-				$year += 100 if $year < 1970;
-				
-				$m->IndexDate("date", sprintf("%4.4d-%2.2d-%2.2d", $year, $mon, $day));
-			}
-			elsif ($line =~ /^(.+?)\s*:(.*)/)
-			{
-				$m->IndexText(lc($1), $2);
-			}
-		}
-	}
 
-	if (defined $doc)
-	{
-		$m->Store($doc);
-		$m->FlushDocument;
+		$doc .= $line;
+
+		chomp($line);
+
+		if ($line eq '//')
+		{
+			$m->Store($doc);
+			$m->FlushDocument;
+
+			$doc = undef;
+		}
+		elsif (substr($line, 0, 5) eq '#=GF ')
+		{
+			my $field = substr($line, 5, 2);
+			my $value = substr($line, 10);
+
+			if ($field eq 'ID')
+			{
+				$m->IndexValue('id', $value);
+			}
+			elsif ($field eq 'AC' and $value =~ m/(P[BF]\d+)/)
+			{
+				$m->IndexValue('ac', $1);
+			}
+			elsif (substr($field, 0, 1) eq 'R')
+			{
+				$m->IndexText('ref', substr($line, 5));
+			}
+			else
+			{
+				$m->IndexText(lc($field), substr($line, 5));
+			}
+		}
+		elsif (substr($line, 0, 5) eq '#=GS ')
+		{
+			$m->IndexText('gs', substr($line, 5));
+		}
 	}
 }
 
 sub raw_files
 {
-	my ($self, $raw_dir) = @_;
-	
-	$raw_dir =~ s|[^/]+/?$||;
-	$raw_dir =~ s/raw/uncompressed/;
-	
-print "$raw_dir/omim/mimmap.txt\n";
+	my ($self, $raw_dir, $db) = @_;
 
-	return "$raw_dir/omim/mimmap.txt";
+	$raw_dir =~ s|/[^/]+/?$|/|;
+	
+	my $result;
+
+	$result = "gunzip -c $raw_dir/pfam/Pfam-A.full.gz|" if ($db eq 'pfama');
+	$result = "gunzip -c $raw_dir/pfam/Pfam-A.seed.gz|" if ($db eq 'pfamseed');
+	$result = "gunzip -c $raw_dir/pfam/Pfam-B.gz|" if ($db eq 'pfamb');
+	
+	die "unknown pfam db: $db\n" unless defined $result;
+	
+	return $result;
 }
 
 1;

@@ -1,6 +1,6 @@
 # MRS plugin for creating an EMBL db
 #
-# $Id$
+# $Id: uniuniq.pm 169 2006-11-10 08:02:05Z hekkel $
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.
@@ -37,7 +37,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package unigene::parser;
+package uniuniq::parser;
 
 use strict;
 
@@ -52,7 +52,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "unigene::parser";
+	return bless $self, "uniuniq::parser";
 }
 
 sub parse
@@ -71,58 +71,63 @@ sub parse
 		my $line = $lookahead;
 		$lookahead = <IN>;
 
-		$doc .= $line;
-
-		chomp($line);
-
-		if ($line eq '//')
+		if (substr($line, 0, 1) eq '>')
 		{
-			die "No ID specified for unigene record!\n"
-				unless defined $id;
-			$m->Store($doc);
-			$m->FlushDocument;
-
-			$id = undef;
-			$doc = undef;
-		}
-		elsif ($line =~ /^(\S+)\s+(.+?)\s*$/o)
-		{
-			my $fld = $1;
-			my $value = $2;
-
-			if ($fld eq 'ID' and $value =~ /(^\S+)/)
+			if (defined $doc)
 			{
-				$id = $1;
-				$m->IndexValue('id', $id);
+				$m->Store($doc);
+				$m->FlushDocument;
+			}
+			
+			$doc = $line;
+			
+			if ($line =~ /^>gnl\|UG\|(\S+) (.+)/)
+			{
+				$m->IndexValue('id', $1);
+				$m->IndexText('text', $2);
 			}
 			else
 			{
-				$m->IndexText(lc($fld), $value);
+				die "parse error\n";
 			}
 		}
+		else
+		{
+			$doc .= $line;
+		}
+	}
+	
+	if (defined $doc)
+	{
+		$m->Store($doc);
+		$m->FlushDocument;
 	}
 }
 
 sub raw_files
 {
-    my ($self, $raw_dir) = @_;
+	my ($self, $raw_dir) = @_;
 
-    my @result;
+	$raw_dir =~ s|[^/]+$||;
+	$raw_dir .= "unigene";
+	
 
-    opendir DIR, $raw_dir;
-    while (my $d = readdir DIR)
-    {
-        next unless -d "$raw_dir/$d";
+	my @result;
+
+	opendir DIR, $raw_dir;
+	while (my $d = readdir DIR)
+	{
+		next unless -d "$raw_dir/$d";
 		next if substr($d, 0, 1) eq '_';
 
-        opendir D2, "$raw_dir/$d";
-        my @files = grep { -e "$raw_dir/$d/$_" and $_ =~ /\.data\.gz$/ } readdir D2;
-        push @result, join(' ', map { "$raw_dir/$d/$_" } @files) if scalar @files;
-        closedir D2;
-    }
-    closedir DIR;
+		opendir D2, "$raw_dir/$d";
+		my @files = grep { -e "$raw_dir/$d/$_" and $_ =~ /\.seq\.uniq\.gz$/ } readdir D2;
+		push @result, join(' ', map { "$raw_dir/$d/$_" } @files) if scalar @files;
+		closedir D2;
+	}
+	closedir DIR;
 
-    return map { "gunzip -c $_ |" } @result;
+	return map { "gunzip -c $_ |" } @result;
 }
 
 1;

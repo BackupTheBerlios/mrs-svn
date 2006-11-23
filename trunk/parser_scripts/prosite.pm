@@ -1,6 +1,6 @@
-# MRS plugin for creating an enzyme.dat db
+# MRS plugin for creating an prosite.dat db
 #
-# $Id$
+# $Id: prosite.pm 179 2006-11-15 10:08:00Z hekkel $
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.
@@ -37,7 +37,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package enzyme::parser;
+package prosite::parser;
 
 use strict;
 
@@ -52,7 +52,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "enzyme::parser";
+	return bless $self, "prosite::parser";
 }
 
 sub parse
@@ -68,7 +68,7 @@ sub parse
 	my $lookahead = <IN>;
 	
 	$lookahead = <IN>
-		while (substr($lookahead, 0, 2) eq 'CC');
+		while (uc substr($lookahead, 0, 2) eq 'CC');
 	$lookahead = <IN>
 		if (substr($lookahead, 0, 2) eq '//');
 	
@@ -81,8 +81,10 @@ sub parse
 
 		chomp($line);
 
-		if ($line eq '//')
+		if (substr($line, 0, 2) eq '//')
 		{
+			die "No ID specified\n" unless defined $id;
+
 			$m->Store($doc);
 			$m->FlushDocument;
 
@@ -92,26 +94,51 @@ sub parse
 		elsif ($line =~ /^([A-Z]{2}) {3}/o)
 		{
 			my $fld = $1;
+			my $value = substr($line, 5);
 
-			if ($line =~ /^ID +(\S+)/o)
+			if ($fld eq 'ID' and $value =~ /^([A-Z0-9_]+); ([A-Z]+)/o)
 			{
+				die "Double ID: $id <=> $1\n" if defined $id;
 				$id = $1;
+				die "ID too short" unless length($id);
 				$m->IndexValue('id', $id);
+				$m->IndexWord('type', lc $2);
 			}
+			elsif ($fld =~ /MA|NR|PA/o)  # useless fields
+			{}
 			else
 			{
-				my $txt = substr($line, 5);
-				$m->IndexText(lc($fld), $txt) if $txt;
+				$m->IndexText(lc($fld), substr($line, 5));
 			}
 		}
 	}
+}
+
+sub version
+{
+	my ($self, $raw_dir) = @_;
+	my $vers;
+
+	open REL, "<$raw_dir/prosite.dat";
+
+	while (my $line = <REL>)
+	{
+		if ($line =~ /^CC   (Release [0-9.]+ [^.]+)\./) {
+			$vers = $1;
+			last;	
+		}
+	}	
+
+	close REL;
+
+	return $vers;
 }
 
 sub raw_files
 {
 	my ($self, $raw_dir) = @_;
 	
-	return "<$raw_dir/enzyme.dat";
+	return "<$raw_dir/prosite.dat";
 }
 
 1;

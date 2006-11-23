@@ -1,6 +1,6 @@
-# Perl module voor het parsen van pdb
+# MRS plugin for creating an prosite.doc db
 #
-# $Id$
+# $Id: prosite_doc.pm 179 2006-11-15 10:08:00Z hekkel $
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.
@@ -37,9 +37,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package interpro::parser;
+package prosite_doc::parser;
+
+use strict;
 
 my $count = 0;
+
+our $COMPRESSION_LEVEL = 9;
+our $COMPRESSION = "zlib";
 
 sub new
 {
@@ -47,7 +52,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "interpro::parser";
+	return bless $self, "prosite_doc::parser";
 }
 
 sub parse
@@ -55,106 +60,73 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	$| = 1;
+	my ($id, $doc, $state, $m);
 	
-	my $m = $self->{mrs};
+	$state = 0;
+	$m = $self->{mrs};
 	
-	my ($doc, $last_id, $lookahead, $xml_header);
+	my $lookahead = <IN>;
 	
-	$lookahead = <IN>;
-	while (defined $lookahead and not ($lookahead =~ /^\s*<interpro\s/))
-	{
-		$xml_header .= $lookahead;	
-		$lookahead = <IN>;
-	}
-
 	while (defined $lookahead)
 	{
 		my $line = $lookahead;
 		$lookahead = <IN>;
-		
+
 		$doc .= $line;
-		
-		$line =~ s|^\s+||;
-		
-		if ($line =~ m|</interpro>|)
+
+		chomp($line);
+
+		if ($line eq '{END}')
 		{
-			$m->Store($xml_header . $doc . "</interprodb>\n");
+			$m->Store($doc);
 			$m->FlushDocument;
-			
+
+			$id = undef;
 			$doc = undef;
 		}
-		elsif ($line =~ m|^<interpro|)
+		elsif ($line =~ /^\{(PDOC\d+)\}/o)
 		{
-			if ($line =~ m|id="(.+?)"|)
-			{
-				$m->IndexValue('id', $1);
-			}
-
-			if ($line =~ m|type="(.+?)"|)
-			{
-				$m->IndexText('type', $1);
-			}
-
-			if ($line =~ m|short_name="(.+?)"|)
-			{
-				$m->IndexText('name', $1);
-			}
+			$id = $1;
+			$m->IndexValue('id', $id);
 		}
-		elsif ($line =~ m|^<db_xref|)
+		else
 		{
-			if ($line =~ m|dbkey="(.+?)"|)
-			{
-				$m->IndexText('xref', $1);
-			}
-
-			if ($line =~ m|name="(.+?)"|)
-			{
-				$m->IndexText('xref', $1);
-			}
-		}
-		elsif ($line =~ m|^<taxon_data|)
-		{
-			if ($line =~ m|name="(.+?)"|)
-			{
-				$m->IndexText('taxon', $1);
-			}
-		}
-		elsif ($line =~ m|^<classification|)
-		{
-			if ($line =~ m|id="(.+?)"|)
-			{
-				$m->IndexText('class', $1);
-			}
-		}
-		elsif ($line =~ m|^<name>(.+)</name>|)
-		{
-			$m->IndexText('name', $1);
-		}
-		elsif ($line =~ m|^<(\w+?)>(.+)</\1>|)
-		{
-			$m->IndexText(lc($1), $2);
-		}
-		elsif ($line =~ m|^<rel_ref ipr_ref="(.+?)"|)
-		{
-			$m->IndexText("rel", $1);
-		}
-		elsif ($line =~ m|^<abstract|)
-		{
-			while (defined $lookahead and not ($lookahead =~ m|^\s*</abstract|))
-			{
-				$doc .= $lookahead;
-				$m->IndexText('abstract', $lookahead);
-				$lookahead = <IN>;
-			}
+			$m->IndexText('text', $line);
 		}
 	}
 }
 
-sub raw_files()
+sub version
+{
+    my ($self, $raw_dir) = @_;
+    my $vers;
+
+	$raw_dir =~ s/prosite_doc/prosite/;
+
+    open REL, "<$raw_dir/prosite.doc";
+
+    while (my $line = <REL>)
+    {
+        if ($line =~ /^(Release [0-9.]+ of [^.]+)\./) {
+            $vers = $1;
+            last;
+        }
+    }
+
+    close REL;
+    
+    warn "Version not found" unless defined $vers;
+
+    return $vers;
+}
+
+sub raw_files
 {
 	my ($self, $raw_dir) = @_;
-	return "gunzip -c $raw_dir/interpro.xml.gz|";
+	
+	$raw_dir =~ s/_doc$//;
+	
+	return "<$raw_dir/prosite.doc";
 }
 
 1;

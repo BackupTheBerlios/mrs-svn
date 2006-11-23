@@ -1,6 +1,6 @@
-# Perl module voor het parsen van pdb
+# MRS plugin for creating an EMBL db
 #
-# $Id$
+# $Id: locuslink.pm 18 2006-03-01 15:31:09Z hekkel $
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.
@@ -37,9 +37,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package goa::parser;
+package locuslink::parser;
+
+use strict;
 
 my $count = 0;
+
+our $COMPRESSION_LEVEL = 9;
+our $COMPRESSION = "zlib";
 
 sub new
 {
@@ -47,7 +52,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "goa::parser";
+	return bless $self, "locuslink::parser";
 }
 
 sub parse
@@ -55,54 +60,56 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my $m = $self->{mrs};
+	my ($id, $doc, $state, $m);
 	
-	my ($doc, $last_id);
+	$state = 0;
+	$m = $self->{mrs};
 	
-	$last_id = "";
-	
-	while (my $line = <IN>)
+	my $lookahead = <IN>;
+	while (defined $lookahead)
 	{
-		my @flds = split(m/\t/, $line);
+		my $line = $lookahead;
+		$lookahead = <IN>;
 
-		my $id = "$flds[0]:$flds[1]";
-		
-		if ($last_id ne $id and defined $doc)
+		if ($line =~ /^>>\d+/)
 		{
-			$m->Store($doc);
-			$m->FlushDocument;
+			if (defined $doc)
+			{
+				$m->Store($doc);
+				$m->FlushDocument;
+			}
 			
-			undef $doc;
+			$doc = $line;
 		}
-
-		$m->IndexText('db', $flds[0]);
-# db_object_id
-		$m->IndexText('acc', $flds[1]);
-# db_object_symbol
-		$m->IndexValue('id', $flds[2]);
-		$m->IndexText('qualifier', $flds[3]);
-		if ($flds[4] =~ /GO:(\d+)/)
+		else
 		{
-			$m->IndexWord('goid', $1);
-		}
-		$m->IndexText('db_reference', $flds[5]);
-		$m->IndexText('evidence', $flds[6]);
-		$m->IndexText('with', $flds[7]);
-		$m->IndexText('aspect', $flds[8]);
-		$m->IndexText('db_object_name', $flds[9]);
-		$m->IndexText('synonym', $flds[10]);
-		$m->IndexText('db_object_type', $flds[11]);
-		$m->IndexTextAndNumbers('taxon_id', $flds[12]);
-		if ($flds[13] =~ /(\d\d\d\d)(\d\d)(\d\d)/)
-		{
-			$m->IndexDate('date', "$1-$2-$3");
-		}
-		$m->IndexText('assigned_by', $flds[14]);
+			$doc .= $line;
+			chomp($line);
 
-		$doc .= $line;
-		$last_id = $id;
+			if ($line =~ /^LOCUSID:\s+(\d+)/)
+			{
+				$m->IndexValue('id', $1);
+			}
+			elsif ($line =~ /(.+?):(.*)/)
+			{
+				my $fld = lc $1;
+				my $value = $2;
+				
+				my %fn = (
+					'organism' => 1,
+					'product' => 1,
+					'summary' => 1,
+					'omim' => 1,
+					'chr' => 1
+				);
+				
+				$fld = 'text' unless (defined $fn{$fld});
+				
+				$m->IndexText($fld, $value);
+			}
+		}
 	}
-
+	
 	if (defined $doc)
 	{
 		$m->Store($doc);
@@ -110,10 +117,11 @@ sub parse
 	}
 }
 
-sub raw_files()
+sub raw_files
 {
 	my ($self, $raw_dir) = @_;
-	return "gunzip -c $raw_dir/gene_association.goa_uniprot.gz |";
+	
+	return "gunzip -c $raw_dir/LL_tmpl.gz |";
 }
 
 1;

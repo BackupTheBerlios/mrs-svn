@@ -1,6 +1,6 @@
-# MRS plugin for creating an prosite.dat db
+# Perl module voor het parsen van pdb
 #
-# $Id$
+# $Id: goa.pm 18 2006-03-01 15:31:09Z hekkel $
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.
@@ -37,14 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package prosite::parser;
-
-use strict;
+package goa::parser;
 
 my $count = 0;
-
-our $COMPRESSION_LEVEL = 9;
-our $COMPRESSION = "zlib";
 
 sub new
 {
@@ -52,7 +47,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "prosite::parser";
+	return bless $self, "goa::parser";
 }
 
 sub parse
@@ -60,85 +55,65 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my ($id, $doc, $state, $m);
+	my $m = $self->{mrs};
 	
-	$state = 0;
-	$m = $self->{mrs};
+	my ($doc, $last_id);
 	
-	my $lookahead = <IN>;
+	$last_id = "";
 	
-	$lookahead = <IN>
-		while (uc substr($lookahead, 0, 2) eq 'CC');
-	$lookahead = <IN>
-		if (substr($lookahead, 0, 2) eq '//');
-	
-	while (defined $lookahead)
+	while (my $line = <IN>)
 	{
-		my $line = $lookahead;
-		$lookahead = <IN>;
+		my @flds = split(m/\t/, $line);
 
-		$doc .= $line;
-
-		chomp($line);
-
-		if (substr($line, 0, 2) eq '//')
+		my $id = "$flds[0]:$flds[1]";
+		
+		if ($last_id ne $id and defined $doc)
 		{
-			die "No ID specified\n" unless defined $id;
-
 			$m->Store($doc);
 			$m->FlushDocument;
-
-			$id = undef;
-			$doc = undef;
+			
+			undef $doc;
 		}
-		elsif ($line =~ /^([A-Z]{2}) {3}/o)
+
+		$m->IndexText('db', $flds[0]);
+# db_object_id
+		$m->IndexText('acc', $flds[1]);
+# db_object_symbol
+		$m->IndexValue('id', $flds[2]);
+		$m->IndexText('qualifier', $flds[3]);
+		if ($flds[4] =~ /GO:(\d+)/)
 		{
-			my $fld = $1;
-			my $value = substr($line, 5);
-
-			if ($fld eq 'ID' and $value =~ /^([A-Z0-9_]+); ([A-Z]+)/o)
-			{
-				die "Double ID: $id <=> $1\n" if defined $id;
-				$id = $1;
-				die "ID too short" unless length($id);
-				$m->IndexValue('id', $id);
-				$m->IndexWord('type', lc $2);
-			}
-			elsif ($fld =~ /MA|NR|PA/o)  # useless fields
-			{}
-			else
-			{
-				$m->IndexText(lc($fld), substr($line, 5));
-			}
+			$m->IndexWord('goid', $1);
 		}
+		$m->IndexText('db_reference', $flds[5]);
+		$m->IndexText('evidence', $flds[6]);
+		$m->IndexText('with', $flds[7]);
+		$m->IndexText('aspect', $flds[8]);
+		$m->IndexText('db_object_name', $flds[9]);
+		$m->IndexText('synonym', $flds[10]);
+		$m->IndexText('db_object_type', $flds[11]);
+		$m->IndexTextAndNumbers('taxon_id', $flds[12]);
+		if ($flds[13] =~ /(\d\d\d\d)(\d\d)(\d\d)/)
+		{
+			$m->IndexDate('date', "$1-$2-$3");
+		}
+		$m->IndexText('assigned_by', $flds[14]);
+
+		$doc .= $line;
+		$last_id = $id;
+	}
+
+	if (defined $doc)
+	{
+		$m->Store($doc);
+		$m->FlushDocument;
 	}
 }
 
-sub version
+sub raw_files()
 {
 	my ($self, $raw_dir) = @_;
-	my $vers;
-
-	open REL, "<$raw_dir/prosite.dat";
-
-	while (my $line = <REL>)
-	{
-		if ($line =~ /^CC   (Release [0-9.]+ [^.]+)\./) {
-			$vers = $1;
-			last;	
-		}
-	}	
-
-	close REL;
-
-	return $vers;
-}
-
-sub raw_files
-{
-	my ($self, $raw_dir) = @_;
-	
-	return "<$raw_dir/prosite.dat";
+	return "gunzip -c $raw_dir/gene_association.goa_uniprot.gz |";
 }
 
 1;

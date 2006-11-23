@@ -1,6 +1,6 @@
-# Perl module voor het parsen van hugo
+# MRS plugin for creating an EMBL db
 #
-# $Id$
+# $Id: unigene.pm 169 2006-11-10 08:02:05Z hekkel $
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.
@@ -37,9 +37,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package hugo::parser;
+package unigene::parser;
+
+use strict;
 
 my $count = 0;
+
+our $COMPRESSION_LEVEL = 9;
+our $COMPRESSION = "zlib";
 
 sub new
 {
@@ -47,7 +52,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "hugo::parser";
+	return bless $self, "unigene::parser";
 }
 
 sub parse
@@ -55,54 +60,69 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my $m = $self->{mrs};
+	my ($id, $doc, $state, $m);
 	
-	my ($doc, $last_id);
+	$state = 0;
+	$m = $self->{mrs};
 	
-	$last_id = "";
-	
-	while (my $line = <IN>)
+	my $lookahead = <IN>;
+	while (defined $lookahead)
 	{
-		my @flds = split(m/\t/, $line);
+		my $line = $lookahead;
+		$lookahead = <IN>;
 
-		my $id = "$flds[0]:$flds[1]";
-		
-#HGNC
-		$m->IndexValue('id', $flds[0]);
-#Symbol
-		$m->IndexTextAndNumbers('symbol', $flds[1]);
-#Name
-		$m->IndexTextAndNumbers('name', $flds[2]);
-#Map
-		$m->IndexTextAndNumbers('map', $flds[3]);
-#MIM
-		$m->IndexTextAndNumbers('mim', $flds[4]);
-#PMID1
-		$m->IndexTextAndNumbers('pmid1', $flds[5]);
-#PMID2
-		$m->IndexTextAndNumbers('pmid2', $flds[6]);
-#Ref Seq
-		$m->IndexTextAndNumbers('refseq', $flds[7]);
-#Aliases
-		$m->IndexTextAndNumbers('aliases', $flds[8]);
-#Withdrawn Symbols
-		$m->IndexTextAndNumbers('withdrawn', $flds[9]);
-#Locus Link
-		$m->IndexTextAndNumbers('locuslink', $flds[10]);
-#GDB ID
-		$m->IndexTextAndNumbers('gdb', $flds[11]);
-#SWISSPROT
-		$m->IndexTextAndNumbers('swissprot', $flds[12]);
+		$doc .= $line;
 
-		$m->Store($line);
-		$m->FlushDocument;
+		chomp($line);
+
+		if ($line eq '//')
+		{
+			die "No ID specified for unigene record!\n"
+				unless defined $id;
+			$m->Store($doc);
+			$m->FlushDocument;
+
+			$id = undef;
+			$doc = undef;
+		}
+		elsif ($line =~ /^(\S+)\s+(.+?)\s*$/o)
+		{
+			my $fld = $1;
+			my $value = $2;
+
+			if ($fld eq 'ID' and $value =~ /(^\S+)/)
+			{
+				$id = $1;
+				$m->IndexValue('id', $id);
+			}
+			else
+			{
+				$m->IndexText(lc($fld), $value);
+			}
+		}
 	}
 }
 
-sub raw_files()
+sub raw_files
 {
-	my ($self, $raw_dir) = @_;
-	return "<$raw_dir/nomeids.txt";
+    my ($self, $raw_dir) = @_;
+
+    my @result;
+
+    opendir DIR, $raw_dir;
+    while (my $d = readdir DIR)
+    {
+        next unless -d "$raw_dir/$d";
+		next if substr($d, 0, 1) eq '_';
+
+        opendir D2, "$raw_dir/$d";
+        my @files = grep { -e "$raw_dir/$d/$_" and $_ =~ /\.data\.gz$/ } readdir D2;
+        push @result, join(' ', map { "$raw_dir/$d/$_" } @files) if scalar @files;
+        closedir D2;
+    }
+    closedir DIR;
+
+    return map { "gunzip -c $_ |" } @result;
 }
 
 1;

@@ -1,6 +1,6 @@
-# MRS plugin for creating an EMBL db
+# Perl module voor het parsen van pdb
 #
-# $Id$
+# $Id: go.pm 18 2006-03-01 15:31:09Z hekkel $
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.
@@ -37,14 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package uniuniq::parser;
-
-use strict;
+package go::parser;
 
 my $count = 0;
-
-our $COMPRESSION_LEVEL = 9;
-our $COMPRESSION = "zlib";
 
 sub new
 {
@@ -52,7 +47,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "uniuniq::parser";
+	return bless $self, "go::parser";
 }
 
 sub parse
@@ -60,18 +55,16 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my ($id, $doc, $state, $m);
-	
-	$state = 0;
-	$m = $self->{mrs};
-	
-	my $lookahead = <IN>;
-	while (defined $lookahead)
-	{
-		my $line = $lookahead;
-		$lookahead = <IN>;
+	my ($doc, $m, $state);
 
-		if (substr($line, 0, 1) eq '>')
+	$m = $self->{mrs};
+	$state = 0;
+	
+	while (my $line = <IN>)
+	{
+		last if (substr($line, 0, 9) eq '[Typedef]');
+
+		if (substr($line, 0, 6) eq '[Term]')
 		{
 			if (defined $doc)
 			{
@@ -80,23 +73,29 @@ sub parse
 			}
 			
 			$doc = $line;
+			$state = 1;
+		}
+		elsif ($line =~ /^(.+?):\s+(.+)/)
+		{
+			$doc .= $line if ($state == 1);
+			chomp($line);
+
+			my $name = $1;
+			my $value = $2;
 			
-			if ($line =~ /^>gnl\|UG\|(\S+) (.+)/)
+			if ($name eq 'id')
 			{
-				$m->IndexValue('id', $1);
-				$m->IndexText('text', $2);
+				die "invalid id value" unless ($value =~ /GO:(\d+)/);
+				$value = $1;
+				$m->IndexValue('id', $value);
 			}
 			else
 			{
-				die "parse error\n";
-			}
-		}
-		else
-		{
-			$doc .= $line;
+				$m->IndexTextAndNumbers($name, $value);
+			} 
 		}
 	}
-	
+
 	if (defined $doc)
 	{
 		$m->Store($doc);
@@ -104,30 +103,10 @@ sub parse
 	}
 }
 
-sub raw_files
+sub raw_files()
 {
 	my ($self, $raw_dir) = @_;
-
-	$raw_dir =~ s|[^/]+$||;
-	$raw_dir .= "unigene";
-	
-
-	my @result;
-
-	opendir DIR, $raw_dir;
-	while (my $d = readdir DIR)
-	{
-		next unless -d "$raw_dir/$d";
-		next if substr($d, 0, 1) eq '_';
-
-		opendir D2, "$raw_dir/$d";
-		my @files = grep { -e "$raw_dir/$d/$_" and $_ =~ /\.seq\.uniq\.gz$/ } readdir D2;
-		push @result, join(' ', map { "$raw_dir/$d/$_" } @files) if scalar @files;
-		closedir D2;
-	}
-	closedir DIR;
-
-	return map { "gunzip -c $_ |" } @result;
+	return "<$raw_dir/gene_ontology.obo";
 }
 
 1;

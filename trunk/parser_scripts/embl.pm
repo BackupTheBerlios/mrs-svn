@@ -1,6 +1,6 @@
 # MRS plugin for creating an EMBL db
 #
-# $Id$
+# $Id: embl.pm 131 2006-08-10 12:02:09Z hekkel $
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.

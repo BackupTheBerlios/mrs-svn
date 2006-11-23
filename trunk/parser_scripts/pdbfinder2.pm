@@ -1,6 +1,6 @@
-# MRS plugin for creating an EMBL db
+# Perl module voor het parsen van pdb
 #
-# $Id$
+# $Id: pdbfinder2.pm 79 2006-05-30 08:36:36Z maarten $
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.
@@ -37,14 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package dbest::parser;
-
-use strict;
+package pdbfinder2::parser;
 
 my $count = 0;
-
-our $COMPRESSION_LEVEL = 9;
-our $COMPRESSION = "zlib";
 
 sub new
 {
@@ -52,7 +47,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "dbest::parser";
+	return bless $self, "pdbfinder2::parser";
 }
 
 sub parse
@@ -60,92 +55,82 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my ($id, $doc, $state, $m);
-	
-	$state = 0;
+	my ($doc, $m, $state);
+
 	$m = $self->{mrs};
 	
 	my $lookahead = <IN>;
+	$state = 0;
+
+	# skip over comment header
+	$lookahead = <IN> while (substr($lookahead, 0, 2) eq '//');
+	
 	while (defined $lookahead)
 	{
 		my $line = $lookahead;
-
 		$lookahead = <IN>;
-
+		
 		$doc .= $line;
-
 		chomp($line);
-
-		if ($line eq '||')
+		
+		if (substr($line, 0, 2) eq '//')
 		{
-			$m->Store($doc);
-			$m->FlushDocument;
-
-			$id = undef;
-			$doc = undef;
+			if (defined $doc)
+			{
+				$m->Store($doc);
+				$m->FlushDocument;
+				
+				$doc = undef;
+			}
+			
+			$state = 0;
 		}
-		else
+		elsif ($state == 0)
 		{
-			if ($line =~ m/^dbEST Id:\s+(\d+)/)
+			if ($line =~ /^ID\s+:\s*(\S+)/o)
 			{
 				$m->IndexValue('id', $1);
 			}
-			elsif ($line =~ m/^EST name:\s+(.+)/)
+			elsif ($line =~ /^Chain/)
 			{
-				$m->IndexTextAndNumbers('source_est', $1);
+				$state = 1;
 			}
-			elsif ($line =~ m/^Clone Id:\s+(.+)/)
+			elsif ($line =~ /^\s*(.+?)\s*:\s*(.*)/)
 			{
-				$m->IndexText('clone', $1);
-			}
-			elsif ($line =~ m/^GenBank gi:\s+(.+)/)
-			{
-				$m->IndexTextAndNumbers('genbank_gi', $1);
-			}
-			elsif ($line =~ m/^GenBank Acc:\s+(.+)/)
-			{
-				$m->IndexTextAndNumbers('genbank_acc', $1);
-			}
-			elsif ($line =~ m/^Source:\s+(.+)/)
-			{
-				$m->IndexTextAndNumbers('source', $1);
-			}
-			elsif ($line =~ m/^Organism:\s+(.+)/)
-			{
-				$m->IndexText('organism', $1);
-			}
-			elsif ($line =~ m/^Lib Name:\s+(.+)/)
-			{
-				$m->IndexTextAndNumbers('lib_name', $1);
-			}
-			elsif ($line =~ m/^dbEST Lib id:\s+(.+)/)
-			{
-				$m->IndexTextAndNumbers('lib_id', $1);
-			}
-			elsif ($line =~ m/^DNA Type:\s+(.+)/)
-			{
-				$m->IndexText('dna_type', $1);
-			}
-			elsif ($line =~ m/^Map:\s+(.+)/)
-			{
-				$m->IndexTextAndNumbers('chr', $1);
-			}
-			elsif ($line =~ m/^GDB Id:\s+(.+)/)
-			{
-				$m->IndexTextAndNumbers('gdb', $1);
-			}
-			elsif ($line =~ m/^SEQUENCE/)
-			{
-				while (defined $lookahead and length($lookahead) > 0 and substr($lookahead, 0, 1) eq ' ')
+				my ($key, $value) = (lc $1, $2);
+				
+				if ($key eq 'date')
 				{
-					$lookahead = <IN>;
+					$m->IndexDate('date', $value);
+				}
+				elsif ($key eq 't-nres-nucl' or
+					$key eq 't-nres-prot' or
+					$key eq 't-water-mols' or 
+					$key eq 'het-groups')
+				{
+					$m->IndexNumber($key, $value);
+				}
+				elsif ($key eq 'resolution' or
+					$key eq 'r-factor' or
+					$key eq 'free-r')
+				{
+					$m->IndexNumber($key, $value * 1000.0);
+				}
+				else
+				{
+					$value =~ s/(\w)\.(?=\w)/$1. /og
+						if ($key eq 'author');
+
+					$m->IndexText($key, $value);
 				}
 			}
-			elsif (length($line) > 16)
-			{
-				$m->IndexText('text', substr($line, 16, length($line) - 16));
-			}
 		}
+	}
+
+	if (defined $doc)
+	{
+		$m->Store($doc);
+		$m->FlushDocument;
 	}
 }
 
@@ -153,11 +138,7 @@ sub raw_files
 {
 	my ($self, $raw_dir) = @_;
 	
-	opendir DIR, $raw_dir;
-	my @result = grep { -e "$raw_dir/$_" and $_ =~ /\.gz$/ } readdir DIR;
-	closedir DIR;
-	
-	return map { "gunzip -c $raw_dir/$_ |" } @result;
+	return "gunzip -c $raw_dir/PDBFIND2.TXT.gz |";
 }
 
 1;

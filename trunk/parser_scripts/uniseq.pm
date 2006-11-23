@@ -1,6 +1,6 @@
-# MRS plugin for creating an prosite.doc db
+# MRS plugin for creating an EMBL db
 #
-# $Id$
+# $Id: uniseq.pm 169 2006-11-10 08:02:05Z hekkel $
 #
 # Copyright (c) 2005
 #      CMBI, Radboud University Nijmegen. All rights reserved.
@@ -37,7 +37,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package prosite_doc::parser;
+package uniseq::parser;
 
 use strict;
 
@@ -52,7 +52,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "prosite_doc::parser";
+	return bless $self, "uniseq::parser";
 }
 
 sub parse
@@ -66,67 +66,72 @@ sub parse
 	$m = $self->{mrs};
 	
 	my $lookahead = <IN>;
-	
 	while (defined $lookahead)
 	{
 		my $line = $lookahead;
 		$lookahead = <IN>;
 
-		$doc .= $line;
-
-		chomp($line);
-
-		if ($line eq '{END}')
+		if ($line =~ /^# Set/)
 		{
-			$m->Store($doc);
-			$m->FlushDocument;
+			if (defined $doc and defined $id)
+			{
+				$m->Store($doc);
+				$m->FlushDocument;
+			}
 
 			$id = undef;
-			$doc = undef;
+			$doc = $line;
 		}
-		elsif ($line =~ /^\{(PDOC\d+)\}/o)
+		elsif (substr($line, 0, 1) eq '>')
 		{
-			$id = $1;
-			$m->IndexValue('id', $id);
+			$doc .= $line;
+			chomp($line);
+
+			$m->IndexText('text', $line);
+			
+			if (not defined $id and $line =~ m|/ug=(\S+)|)
+			{
+				$id = $1;
+				$m->IndexValue('id', $id);
+			}
 		}
 		else
 		{
-			$m->IndexText('text', $line);
+			$doc .= $line;
 		}
 	}
-}
-
-sub version
-{
-    my ($self, $raw_dir) = @_;
-    my $vers;
-
-	$raw_dir =~ s/prosite_doc/prosite/;
-
-    open REL, "<$raw_dir/prosite.doc";
-
-    while (my $line = <REL>)
-    {
-        if ($line =~ /^(Release [0-9.]+ of [^.]+)\./) {
-            $vers = $1;
-            last;
-        }
-    }
-
-    close REL;
-    
-    warn "Version not found" unless defined $vers;
-
-    return $vers;
+	
+	if (defined $doc and defined $id)
+	{
+		$m->Store($doc);
+		$m->FlushDocument;
+	}
 }
 
 sub raw_files
 {
 	my ($self, $raw_dir) = @_;
-	
-	$raw_dir =~ s/_doc$//;
-	
-	return "<$raw_dir/prosite.doc";
+
+	$raw_dir =~ s|[^/]+$||;
+	$raw_dir .= "unigene";
+
+
+	my @result;
+
+	opendir DIR, $raw_dir;
+	while (my $d = readdir DIR)
+	{
+		next unless -d "$raw_dir/$d";
+		next if substr($d, 0, 1) eq '_';
+
+		opendir D2, "$raw_dir/$d";
+		my @files = grep { -e "$raw_dir/$d/$_" and $_ =~ /\.seq\.all\.gz$/ } readdir D2;
+		push @result, join(' ', map { "$raw_dir/$d/$_" } @files) if scalar @files;
+		closedir D2;
+	}
+	closedir DIR;
+
+	return map { "gunzip -c $_ |" } @result;
 }
 
 1;
