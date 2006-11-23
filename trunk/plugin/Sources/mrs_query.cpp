@@ -153,6 +153,7 @@ int main(int argc, const char* argv[])
 	}
 	
 	MDatabank mrsDb(db);
+	
 	auto_ptr<MQueryResults> r;
 
 	if (queryWords.size() > 0)
@@ -185,7 +186,10 @@ int main(int argc, const char* argv[])
 		const char* id;
 		while (n-- > 0 and (id = r->Next()) != NULL)
 		{
-			string desc = mrsDb.GetMetaData(id, "title");
+			const char* title = mrsDb.GetMetaData(id, "title");
+			string desc;
+			if (title != NULL)
+				desc = title;
 			cout << id << '\t' << r->Score() << '\t' << desc << endl;
 		}
 	}
