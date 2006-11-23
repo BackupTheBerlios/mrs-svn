@@ -7,6 +7,7 @@
 #include <sstream>
 #include <cstdarg>
 #include <sys/stat.h>
+#include <signal.h>
 
 #include <boost/shared_ptr.hpp>
 
@@ -123,6 +124,7 @@ void WSDatabankTable::ReloadDbs()
 		try
 		{
 			MDatabankPtr db(new MDatabank(dbi->id));
+			db->PrefetchDocWeights("__ALL_TEXT__");
 			mDBs[dbi->id] = DBInfo(db, dbi->id);
 		}
 		catch (exception& e)
