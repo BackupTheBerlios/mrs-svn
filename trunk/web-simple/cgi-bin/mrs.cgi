@@ -1,4 +1,4 @@
-#!/opt/local/bin/perl
+#!/usr/bin/perl
 #
 # $Id: mrs.cgi,v 1.36 2005/10/27 10:59:11 maarten Exp $
 #
@@ -935,7 +935,7 @@ sub main()
 		# the search bar
 		
 	my $searchBox;
-	
+
 	if ($q->param('extended'))
 	{
 		print $q->p('This page is a work in progress, it is not intended for normal use.',
