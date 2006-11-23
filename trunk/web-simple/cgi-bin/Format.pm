@@ -31,7 +31,7 @@ sub link_url
 	$text =~ s/</&lt;/g;
 	$text =~ s/>/&gt;/g;
 	
-	$text =~ s|http://(([-\$_.A-Za-z0-9!*'(),/?=:&;[\]\|+]+\|%[0-9A-Fa-f]{2})+)|<a href='$&'>$&</a>|g;
+	$text =~ s|http://(([-\$_.A-Za-z0-9!*'(),/?=:&;[\]\|+]+\|%[0-9A-Fa-f]{2})+)|<a href='$&'>$&</a>|gi;
 	
 	return $text;
 }
