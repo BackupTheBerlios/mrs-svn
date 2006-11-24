@@ -620,7 +620,7 @@ CFullTextIndex::CRunEntryIterator::CRunEntryIterator(CFullTextIndex& inIndex)
 	for (RunInfoArray::iterator ri = fIndex.fRunInfo.begin(); ri != fIndex.fRunInfo.end(); ++ri)
 	{
 		MergeInfo* mi = new MergeInfo(*fIndex.fScratch,
-			(*ri).offset, (*ri).count, fIndex.GetWeightBitCount());
+			ri->offset, ri->count, fIndex.GetWeightBitCount());
 		fMergeInfo[ri - fIndex.fRunInfo.begin()] = mi;
 		fEntryCount += mi->cnt + 1;
 	}
@@ -742,7 +742,8 @@ class CIndexBase
 	virtual bool	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
 
 					// NOTE: empty is overloaded (i.e. used for two purposes)
-	virtual bool	Empty() const			{ return fEmpty; }
+	bool			Empty() const			{ return fEmpty; }
+	void			SetEmpty(bool inEmpty)	{ fEmpty = inEmpty; }
 	uint16			GetIxNr() const			{ return fIndexNr; }
 
 	virtual int		Compare(const char* inA, uint32 inLengthA, const char* inB, uint32 inLengthB) const;
@@ -1482,13 +1483,16 @@ void CIndexer::CreateIndex(HStreamBase& inFile,
 	
 	for (indx = fIndices.begin(); indx != fIndices.end(); ++indx)
 	{
-		if ((*indx).second->Empty())
+		if (indx->second->Empty())
 		{
-			delete (*indx).second;
-			(*indx).second = nil;
+			delete indx->second;
+			indx->second = nil;
 		}
 		else
+		{
+			indx->second->SetEmpty(true);	// reset flag
 			++fHeader->count;
+		}
 	}
 
 	if (inCreateAllTextIndex)
@@ -1922,7 +1926,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 		for (n = names.begin(); n != names.end(); ++n)
 		{
 			SIndexPart info = { kIndexPartSig, 0 };
-			(*n).copy(info.name, sizeof(info.name) - 1);
+			n->copy(info.name, sizeof(info.name) - 1);
 			md[ix].info.push_back(info);
 		}
 		

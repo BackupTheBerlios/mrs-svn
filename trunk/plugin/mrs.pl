@@ -55,11 +55,14 @@ my %opts;
 
 if ($action eq 'create')
 {
-	getopts('d:s:vp:P:b:w:', \%opts);
+	getopts('d:s:vtp:P:b:w:', \%opts);
 	
 	my $db = $opts{d} or &Usage();
 	
-	&Create($db, $opts{'s'}, $opts{v}, $opts{p}, $opts{P}, $opts{b}, $opts{w});
+	my $verbose = $opts{v};
+	$verbose = 2 if $opts{t};
+
+	&Create($db, $opts{'s'}, $verbose, $opts{p}, $opts{P}, $opts{b}, $opts{w});
 }
 elsif ($action eq 'merge')
 {
