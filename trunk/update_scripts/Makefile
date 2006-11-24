@@ -92,22 +92,27 @@ ${DBALLFLAGS:=.done}:
 
 daily: tools dirs ${DBDAILYFLAGS:=.done}
 	@ find $(FLAGSDIR) -type f | xargs rm
+	@ killall -HUP mrsws
 	echo "Daily update done"
 
 weekly: tools dirs ${DBWEEKLYFLAGS:=.done}
 	@ find $(FLAGSDIR) -type f | xargs rm
+	@ killall -HUP mrsws
 	echo "Weekly update done"
 
 all: tools dirs ${DBFLAGS:=.done}
 	@ find $(FLAGSDIR) -type f | xargs rm
+	@ killall -HUP mrsws
 	echo "Complete update done"
 
 alldailydata: tools dirs ${DBDAILYFLAGS:=.make}
 	@ find $(FLAGSDIR) -type f | xargs rm
+	@ killall -HUP mrsws
 	echo "Complete remake done"
 
 allweeklydata: tools dirs ${DBWEEKLYFLAGS:=.make}
 	@ find $(FLAGSDIR) -type f | xargs rm
+	@ killall -HUP mrsws
 	echo "Complete remake done"
 
 test:
@@ -115,4 +120,6 @@ test:
 
 ${ALL_DATABASES}: tools dirs
 	$(MAKE) $(FLAGSDIR)$@.done
+	@ killall -HUP mrsws
 	rm $(FLAGSDIR)$@.*
+
