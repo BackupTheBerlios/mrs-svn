@@ -1514,9 +1514,13 @@ void CIndexer::CreateIndex(HStreamBase& inFile,
 	// create an ordered array of indices
 	HAutoBuf<CIndexBase*> indexBuf(new CIndexBase*[indexCount]);
 	CIndexBase** indices = indexBuf.get();
+	memset(indices, 0, sizeof(CIndexBase*) * indexCount);
 
 	for (indx = fIndices.begin(); indx != fIndices.end(); ++indx)
-		indices[indx->second->GetIxNr()] = indx->second;
+	{
+		if (indx->second != nil)
+			indices[indx->second->GetIxNr()] = indx->second;
+	}
 	
 	CIndexBase* allIndex = nil;
 	if (inCreateAllTextIndex)
