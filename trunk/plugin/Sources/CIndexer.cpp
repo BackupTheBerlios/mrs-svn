@@ -800,6 +800,7 @@ CIndexBase::CIndexBase(CFullTextIndex& inFullTextIndex, const string& inName,
 	, fFullTextIndex(inFullTextIndex)
 	, fIndexNr(inIndexNr)
 	, fEmpty(true)
+	, fWeightBitCount(0)
 	, fLastDoc(0)
 	, fBits(nil)
 	, fDocCount(0)
@@ -810,7 +811,6 @@ CIndexBase::CIndexBase(CFullTextIndex& inFullTextIndex, const string& inName,
 	, fLastOffset(0)
 {
 	fBitFile = new HTempFileStream(fBitUrl);
-	fWeightBitCount = fFullTextIndex.GetWeightBitCount();
 }
 
 CIndexBase::~CIndexBase()
@@ -1159,6 +1159,7 @@ CWeightedWordIndex::CWeightedWordIndex(CFullTextIndex& inFullTextIndex,
 		const string& inName, uint16 inIndexNr, const HUrl& inScratch)
 	: CIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kWeightedIndex)
 {
+	fWeightBitCount = inFullTextIndex.GetWeightBitCount();
 }
 
 bool CWeightedWordIndex::Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo)
