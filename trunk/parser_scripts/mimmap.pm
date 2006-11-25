@@ -92,7 +92,7 @@ sub parse
 		{
 			if ($line =~ /^MIM#\s+:\s*(\S+)/o)
 			{
-				$m->IndexValue('id', $1);
+				$m->IndexWord('mim', $1);
 			}
 			elsif ($line =~ /^Date\s+:\s(\d+)\.(\d+)\.(\d+)/)
 			{
