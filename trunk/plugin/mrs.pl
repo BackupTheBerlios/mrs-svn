@@ -293,14 +293,32 @@ sub Create()
 	
 	# and the version for this db
 	
-	eval {
-		my $vers = $p->version($raw_dir, $db);
-		$mrs->SetVersion($vers);
-	};
+	my $vers;
 	
-	if ($@) {
-		print "$@\n";
+	eval {
+		$vers = $p->version($raw_dir, $db);
+	};
+
+	if (not defined $vers)
+	{
+		eval {
+			$vers = &FetchVersionDate($raw_dir);
+		};
 	}
+
+	if ($verbose)
+	{
+		if (defined $vers)
+		{
+			print "Setting version: $vers\n";
+		}
+		else
+		{
+			print "No version information found\n";
+		}
+	}
+
+	$mrs->SetVersion($vers) if defined $vers;
 	
 	if (defined $partNr)
 	{
@@ -655,4 +673,24 @@ sub SetProcTitle
 	if ($@) {
 		$PROGRAM_NAME = $title;
 	}
+}
+
+sub FetchVersionDate
+{
+	my ($raw_dir) = @_;
+	
+	opendir DIR, $raw_dir;
+	my @files = grep { -f("$raw_dir/$_") and $_ !~ /^\./ } readdir(DIR);
+	closedir(DIR);
+		
+	my $date = 0;
+	foreach my $f (@files)
+	{
+		my $sb = stat("$raw_dir/$f");
+		$date = $sb->mtime if $sb->mtime > $date;
+	}
+	
+	$date = stat($raw_dir)->mtime unless defined $date;
+	
+	return localtime $date;
 }
