@@ -12,9 +12,8 @@ struct DbInfo
 {
 	std::string			id;
 	std::string			name;
-	std::string			filter;
+	std::string			script;
 	std::string			url;
-	std::string			parser;
 	bool				blast;
 	bool				in_all;
 
@@ -34,5 +33,8 @@ class config_exception : public std::exception
 	char				msg[1024];
 };
 
-void ReadConfig(const std::string& inPath, std::string& outDataDir,
-	std::vector<DbInfo>& outDbInfo);
+void ReadConfig(
+	const std::string&		inPath,
+	std::string&			outDataDir,
+	std::string&			outFormatDir,
+	std::vector<DbInfo>&	outDbInfo);

@@ -21,7 +21,7 @@ class CfParser
   public:
 					CfParser(const string& inPath);
 	
-	void			Parse(string& outDataDir, vector<DbInfo>& outDbInfo);
+	void			Parse(string& outDataDir, string& outFormatDir, vector<DbInfo>& outDbInfo);
 
   private:
 	
@@ -60,6 +60,7 @@ class CfParser
 
 	vector<DbInfo>	fDbInfo;
 	string			fDataDir;
+	string			fFormatDir;
 };
 
 CfParser::CfParser(const string& inPath)
@@ -333,12 +334,13 @@ void CfParser::Match(int inToken)
 	}
 }
 
-void CfParser::Parse(string& outDataDir, vector<DbInfo>& outDbInfo)
+void CfParser::Parse(string& outDataDir, string& outFormatDir, vector<DbInfo>& outDbInfo)
 {
 	while (fLookahead != cfEOF)
 		ParseStatement();
 	
 	outDataDir = fDataDir;
+	outFormatDir = fFormatDir;
 	outDbInfo = fDbInfo;
 }
 
@@ -377,6 +379,8 @@ void CfParser::ParseAssignment(const string& inVariable)
 			Match(cfString);
 			if (inVariable == "$mrs_data")
 				fDataDir = value;
+			else if (inVariable == "$mrs_format")
+				fFormatDir = value;
 		}
 	}
 }
@@ -431,12 +435,10 @@ void CfParser::ParseHash()
 			fDbInfo.back().id = value;
 		else if (key == "name")
 			fDbInfo.back().name = value;
-		else if (key == "filter")
-			fDbInfo.back().filter = value;
 		else if (key == "url")
 			fDbInfo.back().url = value;
-		else if (key == "parser")
-			fDbInfo.back().parser = value;
+		else if (key == "script")
+			fDbInfo.back().script = value;
 		else if (key == "blast")
 			fDbInfo.back().blast = atoi(value.c_str()) != 0;
 		else if (key == "in_all")
@@ -451,9 +453,12 @@ void CfParser::ParseHash()
 	Match('}');
 }
 
-void ReadConfig(const std::string& inPath, std::string& outDataDir,
-	std::vector<DbInfo>& outDbInfo)
+void ReadConfig(
+	const string&		inPath,
+	string&				outDataDir,
+	string&				outFormatDir,
+	vector<DbInfo>&		outDbInfo)
 {
 	CfParser p(inPath);
-	p.Parse(outDataDir, outDbInfo);
+	p.Parse(outDataDir, outFormatDir, outDbInfo);
 }

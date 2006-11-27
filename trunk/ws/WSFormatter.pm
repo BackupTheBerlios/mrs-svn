@@ -1,6 +1,6 @@
 #!perl
 
-package Format;
+package MRS::Script;
 
 sub new
 {
@@ -9,7 +9,7 @@ sub new
 		name => 'default',
 		@_
 	};
-	my $result = bless $self, "Format";
+	my $result = bless $self, "MRS::Script";
 	return $result;
 }
 
@@ -47,6 +47,79 @@ sub describe
 	return $q->pre($text);
 }
 
+package MRS::Script::ParserInterface;
+
+# code needed for Find Similar
+
+sub new
+{
+	my $invocant = shift;
+	my $self = {
+		name => 'default',
+		text => '',
+		@_
+	};
+	my $result = bless $self, "MRS::Script::ParserInterface";
+	return $result;	
+}
+
+sub IndexText
+{
+	my ($self, $index, $text) = @_;
+	
+	$self->{text} .= "$text ";
+}
+
+sub IndexTextAndNumbers
+{
+	my ($self, $index, $text) = @_;
+	
+	$self->{text} .= "$text ";
+}
+
+sub IndexWord
+{
+	my ($self, $index, $text) = @_;
+	
+	$self->{text} .= "$text ";
+}
+
+sub IndexValue
+{
+	my ($self, $index, $text) = @_;
+	
+	$self->{text} .= "$text ";
+}
+
+sub IndexWordWithWeight
+{
+	my ($self, $index, $text, $freq) = @_;
+	
+	while ($freq-- > 0)
+	{
+		$self->{text} .= "$text ";
+	}
+}
+
+sub IndexDate
+{
+	my ($self, $index, $text) = @_;
+	
+	$self->{text} .= "$text ";
+}
+
+sub IndexNumber
+{
+	my ($self, $index, $text) = @_;
+	
+	$self->{text} .= "$text ";
+}
+
+sub AddSequence {}
+sub Store {}
+sub StoreMetaData {}
+sub FlushDocument {}
+
 package Embed::WSFormat;
 
 use strict;
@@ -55,17 +128,17 @@ use CGI;
 my $q = new CGI;
 my %formatters;
 
-sub getFormatter
+sub getScript
 {
-	my $name = shift;
-	
+	my ($mrs_format_dir, $name) = @_;
+
 	if ($name eq 'default')
 	{
-		$formatters{$name} = Format->new unless defined $formatters{$name};
+		$formatters{$name} = MRS::Script->new unless defined $formatters{$name};
 	}
 	else
 	{
-		my $plugin = "../web-simple/cgi-bin/Format_${name}.pm";
+		my $plugin = "${mrs_format_dir}${name}.pm";
 		my $mtime = -M $plugin;
 		
 		if (not defined $formatters{$name} or $formatters{$name}{mtime} != $mtime )
@@ -80,7 +153,7 @@ sub getFormatter
 	        die $@ if $@;
 	
 	        #cache it unless we're cleaning out each time
-			$formatters{$name} = "Format_$name"->new;
+			$formatters{$name} = "MRS::Script::$name"->new;
 	        $formatters{$name}{mtime} = $mtime;
 		}
 	}
@@ -90,7 +163,7 @@ sub getFormatter
 
 sub html
 {
-	my ($name, $text, $id) = @_;
+	my ($mrs_format_dir, $name, $text, $db, $id) = @_;
 	
 	my $result;
 	
@@ -98,7 +171,7 @@ sub html
 	{
 		my $url = undef;
 
-		my $fmt = &getFormatter($name);
+		my $fmt = &getScript($mrs_format_dir, $name);
 
 		$result = $fmt->pp($q, $text, $id, $url);
 	};
@@ -113,7 +186,7 @@ sub html
 
 sub title
 {
-	my ($name, $text, $id) = @_;
+	my ($mrs_format_dir, $name, $text, $db, $id) = @_;
 	
 	my $result;
 
@@ -121,7 +194,7 @@ sub title
 	{
 		my $url = undef;
 
-		my $fmt = &getFormatter($name);
+		my $fmt = &getScript($mrs_format_dir, $name);
 
 		$result = $fmt->describe($q, $text, $id, $url);
 	};
@@ -129,6 +202,36 @@ sub title
 	if ($@)
 	{
 		$result = "Error in formatting entry: $@";
+	}
+	
+	return $result;
+}
+
+sub indexed
+{
+	my ($mrs_format_dir, $name, $text, $db, $id) = @_;
+	
+	my $result;
+
+	eval
+	{
+		my $url = undef;
+
+		my $m = new MRS::Script::ParserInterface;
+
+		my $p = &getScript($mrs_format_dir, $name);
+		$p->{mrs} = $m;
+		
+		open TEXT, '<', \$text;
+		$p->parse(*TEXT, 0, $db, undef);
+		close TEXT;
+
+		$result = $m->{text};
+	};
+	
+	if ($@)
+	{
+		$result = "Error in indexing entry: $@";
 	}
 	
 	return $result;

@@ -40,9 +40,11 @@ struct WFormatTableImp
 							~WFormatTableImp();
 
 	string					Format(
+								const string&	inFormatDir,
 								const string&	inFormatter,
 								const string&	inFormat,
 								const string&	inText,
+								const string&	inDb,
 								const string&	inId);
 	
 	PerlInterpreter*		my_perl;
@@ -76,19 +78,25 @@ WFormatTableImp::~WFormatTableImp()
 }
 
 string WFormatTableImp::Format(
+	const string& inFormatDir,
 	const string& inFormatter,
 	const string& inFormat,
 	const string& inText,
+	const string& inDb,
 	const string& inId)
 {
 	dSP;                            /* initialize stack pointer      */
 	ENTER;                          /* everything created after here */
 	SAVETMPS;                       /* ...is a temporary variable.   */
 	PUSHMARK(SP);                   /* remember the stack pointer    */
+									/* push the format dir name onto the stack  */
+	XPUSHs(sv_2mortal(newSVpvn(inFormatDir.c_str(), inFormatDir.length())));
 									/* push the formatter name onto the stack  */
 	XPUSHs(sv_2mortal(newSVpvn(inFormatter.c_str(), inFormatter.length())));
 									/* push the text onto stack  */
 	XPUSHs(sv_2mortal(newSVpvn(inText.c_str(), inText.length())));
+									/* push the db onto stack  */
+	XPUSHs(sv_2mortal(newSVpvn(inId.c_str(), inDb.length())));
 									/* push the id onto stack  */
 	XPUSHs(sv_2mortal(newSVpvn(inId.c_str(), inId.length())));
 	PUTBACK;						/* make local stack pointer global */
@@ -130,11 +138,13 @@ WFormatTable& WFormatTable::Instance()
 }
 
 string WFormatTable::Format(
+	const string&	inFormatDir,
 	const string&	inFormatter,
 	const string&	inFormat,
 	const string&	inText,
+	const string&	inDb,
 	const string&	inId)
 {
-	return mImpl->Format(inFormatter, inFormat, inText, inId);
+	return mImpl->Format(inFormatDir, inFormatter, inFormat, inText, inDb, inId);
 }
 	

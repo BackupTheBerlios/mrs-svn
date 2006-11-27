@@ -4,6 +4,7 @@
 */
 
 #include <map>
+#include <set>
 #include <sstream>
 #include <cstdarg>
 #include <sys/stat.h>
@@ -21,6 +22,7 @@
 using namespace std;
 
 vector<DbInfo>	gDbInfo;
+string			gFormatDir;
 extern double system_time();
 
 typedef boost::shared_ptr<MDatabank>	MDatabankPtr;
@@ -31,7 +33,7 @@ class WSDatabankTable
 	static WSDatabankTable&	Instance();
 
 	MDatabankPtr		operator[](const string& inCode);
-	string				GetFormatter(const string& inCode);
+	string				GetScript(const string& inCode);
 	
 	void				ReloadDbs();
 	
@@ -40,7 +42,7 @@ class WSDatabankTable
 	struct DBInfo
 	{
 		MDatabankPtr	mDb;
-		string			mFormat;
+		string			mScript;
 		
 						DBInfo();
 						DBInfo(MDatabankPtr inDb, const string& inId);
@@ -74,13 +76,13 @@ WSDatabankTable::DBInfo::DBInfo(
 	const string&		inId)
 	: mDb(inDb)
 {
-	mFormat = "default";
+	mScript = "default";
 	
 	for (vector<DbInfo>::iterator dbi = gDbInfo.begin(); dbi != gDbInfo.end(); ++dbi)
 	{
 		if (dbi->id == inId)
 		{
-			mFormat = dbi->filter;
+			mScript = dbi->script;
 			break;
 		}
 	}
@@ -103,9 +105,9 @@ MDatabankPtr WSDatabankTable::operator[](const string& inCode)
 	return mDBs[inCode].mDb;
 }
 
-inline string WSDatabankTable::GetFormatter(const string& inCode)
+inline string WSDatabankTable::GetScript(const string& inCode)
 {
-	return mDBs[inCode].mFormat;
+	return mDBs[inCode].mScript;
 }
 
 void WSDatabankTable::ReloadDbs()
@@ -147,9 +149,8 @@ void GetDatabankInfo(const string& inDb, ns__DatabankInfo& outInfo)
 		{
 			outInfo.id = inDb;
 			outInfo.name = dbi->name;
-			outInfo.filter = dbi->filter;
+			outInfo.script = dbi->script;
 			outInfo.url = dbi->url;
-			outInfo.parser = dbi->parser;
 			outInfo.blastable = (dbi->blast != 0);
 			
 			outInfo.files.clear();
@@ -312,8 +313,8 @@ string GetTitle(
 		title = db->Get(inId);
 		if (title != NULL and *title != 0)
 			result = WFormatTable::Instance().Format(
-						WSDatabankTable::Instance().GetFormatter(inDb),
-						"title", title, inId);
+						gFormatDir, WSDatabankTable::Instance().GetScript(inDb),
+						"title", title, inDb, inId);
 	}
 	else
 		result = title;
@@ -386,7 +387,7 @@ ns__GetEntry(
 					THROW(("Entry %s not found in databank %s", id.c_str(), db.c_str()));
 					
 				entry = WFormatTable::Instance().Format(
-					WSDatabankTable::Instance().GetFormatter(db), "html", data, id);
+					gFormatDir, WSDatabankTable::Instance().GetScript(db), "html", data, db, id);
 				break;
 			}
 			
@@ -404,26 +405,31 @@ ns__GetEntry(
 	return result;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6
-ns__Find(
-	struct soap*				soap,
-	string						db,
+auto_ptr<MQueryResults>
+PerformSearch(
+	MDatabankPtr				db,
 	vector<string>				queryterms,
 	enum ns__Algorithm			algorithm,
 	bool						alltermsrequired,
-	string						booleanfilter,
-	int							resultoffset,
-	int							maxresultcount,
-	struct ns__FindResponse&	response)
+	string						booleanfilter)
 {
-	MDatabankPtr mrsDb = WSDatabankTable::Instance()[db];
-	auto_ptr<MQueryResults> r;
+	auto_ptr<MQueryResults> result;
 	
-	int result = SOAP_OK;
-
 	if (queryterms.size() > 0)
 	{
-		auto_ptr<MRankedQuery> q(mrsDb->RankedQuery("__ALL_TEXT__"));
+		// first determine the set of value indices, needed as a special case in ranked searches
+		set<string> valueIndices;
+
+		auto_ptr<MIndices> indices(db->Indices());
+		MIndex* index;
+		while ((index = indices->Next()) != NULL)
+		{
+			if (index->Type() == "valu")
+				valueIndices.insert(index->Code());
+			delete index;
+		}
+
+		auto_ptr<MRankedQuery> q(db->RankedQuery("__ALL_TEXT__"));
 	
 		switch (algorithm)
 		{
@@ -445,37 +451,57 @@ ns__Find(
 		}
 			
 		q->SetAllTermsRequired(alltermsrequired);
-	
+		
 		for (vector<string>::iterator qw = queryterms.begin(); qw != queryterms.end(); ++qw)
 			q->AddTerm(*qw, 1);
 		
 		auto_ptr<MBooleanQuery> m;
-		
 		if (booleanfilter.length())
-			m.reset(mrsDb->BooleanQuery(booleanfilter));
-	
-		r.reset(q->Perform(m.get()));
+			m.reset(db->BooleanQuery(booleanfilter));
+
+		result.reset(q->Perform(m.get()));
 	}
 	else if (booleanfilter.length() > 0)
-		r.reset(mrsDb->Find(booleanfilter, false));
+		result.reset(db->Find(booleanfilter, false));
+	
+	return result;
+}
+
+SOAP_FMAC5 int SOAP_FMAC6
+ns__Find(
+	struct soap*				soap,
+	string						db,
+	vector<string>				queryterms,
+	enum ns__Algorithm			algorithm,
+	bool						alltermsrequired,
+	string						booleanfilter,
+	int							resultoffset,
+	int							maxresultcount,
+	struct ns__FindResponse&	response)
+{
+	int result = SOAP_OK;
+
+	MDatabankPtr mrsDb = WSDatabankTable::Instance()[db];
+	
+	auto_ptr<MQueryResults> r =
+		PerformSearch(mrsDb, queryterms, algorithm, alltermsrequired, booleanfilter);
 	
 	if (r.get() != NULL)
 	{
 		response.count = r->Count(true);
 		
 		const char* id;
-		
 		while (resultoffset-- > 0 and (id = r->Next()) != NULL)
 			;
 		
 		while (maxresultcount-- > 0 and (id = r->Next()) != NULL)
 		{
 			ns__Hit h;
-			
-			h.db = db;
+
 			h.id = id;
 			h.score = r->Score();
-			h.title = GetTitle(db, id);
+			h.db = db;
+			h.title = GetTitle(db, h.id);
 			
 			response.hits.push_back(h);
 		}
@@ -508,46 +534,10 @@ ns__FindAll(
 			try
 			{
 				MDatabankPtr mrsDb = WSDatabankTable::Instance()[dbi->id];
-				auto_ptr<MQueryResults> r;
-				
-				if (queryterms.size() > 0)
-				{
-					auto_ptr<MRankedQuery> q(mrsDb->RankedQuery("__ALL_TEXT__"));
-				
-					switch (algorithm)
-					{
-						case Vector:
-							q->SetAlgorithm("vector");
-							break;
-						
-						case Dice:
-							q->SetAlgorithm("dice");
-							break;
-						
-						case Jaccard:
-							q->SetAlgorithm("jaccard");
-							break;
-						
-						default:
-							THROW(("Unsupported search algorithm"));
-							break;
-					}
-						
-					q->SetAllTermsRequired(alltermsrequired);
-				
-					for (vector<string>::iterator qw = queryterms.begin(); qw != queryterms.end(); ++qw)
-						q->AddTerm(*qw, 1);
-					
-					auto_ptr<MBooleanQuery> m;
-					
-					if (booleanfilter.length())
-						m.reset(mrsDb->BooleanQuery(booleanfilter));
-		
-					r.reset(q->Perform(m.get()));
-				}
-				else if (booleanfilter.length() > 0)
-					r.reset(mrsDb->Find(booleanfilter, false));
-				
+
+				auto_ptr<MQueryResults> r = 
+					PerformSearch(mrsDb, queryterms, algorithm, alltermsrequired, booleanfilter);
+	
 				if (r.get() != NULL)
 				{
 					ns__FindAllResult fa;
@@ -597,6 +587,87 @@ ns__SpellCheck(
 	{
 		result = soap_receiver_fault(soap,
 			"An error occurred while trying to get spelling suggestions",
+			e.what());
+	}
+
+	return result;
+}
+
+SOAP_FMAC5 int SOAP_FMAC6
+ns__FindSimilar(
+	struct soap*				soap,
+	string						db,
+	string						id,
+	enum ns__Algorithm			algorithm,
+	int							resultoffset,
+	int							maxresultcount,
+	struct ns__FindResponse&	response)
+{
+	int result = SOAP_OK;
+	
+	try
+	{
+		MDatabankPtr mrsDb = WSDatabankTable::Instance()[db];
+		
+		const char* data = mrsDb->Get(id);
+		
+		if (data == NULL)
+			THROW(("Entry '%s' not found in '%d'", id.c_str(), db.c_str()));
+
+		string entry = WFormatTable::Instance().Format(
+			gFormatDir, WSDatabankTable::Instance().GetScript(db), "indexed", data, db, id);
+		
+		auto_ptr<MRankedQuery> q(mrsDb->RankedQuery("__ALL_TEXT__"));
+	
+		switch (algorithm)
+		{
+			case Vector:
+				q->SetAlgorithm("vector");
+				break;
+			
+			case Dice:
+				q->SetAlgorithm("dice");
+				break;
+			
+			case Jaccard:
+				q->SetAlgorithm("jaccard");
+				break;
+			
+			default:
+				THROW(("Unsupported search algorithm"));
+				break;
+		}
+			
+		q->SetAllTermsRequired(false);
+		q->AddTermsFromText(entry);
+
+		auto_ptr<MQueryResults> r(q->Perform(NULL));
+
+		if (r.get() != NULL)
+		{
+			response.count = r->Count(true);
+			
+			const char* id;
+			while (resultoffset-- > 0 and (id = r->Next()) != NULL)
+				;
+			
+			while (maxresultcount-- > 0 and (id = r->Next()) != NULL)
+			{
+				ns__Hit h;
+	
+				h.id = id;
+				h.score = r->Score();
+				h.db = db;
+				h.title = GetTitle(db, h.id);
+				
+				response.hits.push_back(h);
+			}
+		}
+	}
+	catch (exception& e)
+	{
+		return soap_receiver_fault(soap,
+			(string("An error occurred while trying to get entry ") + id + " from db " + db).c_str(),
 			e.what());
 	}
 
@@ -674,7 +745,7 @@ int main()
 			if (gNeedReload)
 			{
 				string dataDir;
-				ReadConfig("mrs.conf", dataDir, gDbInfo);
+				ReadConfig("mrs.conf", dataDir, gFormatDir, gDbInfo);
 				
 				if (dataDir.length() > 0 and dataDir[dataDir.length() - 1] != '/')
 					dataDir += '/';
@@ -696,6 +767,7 @@ int main()
 				soap_print_fault(&soap, stderr);
 				break;
 			}
+
 			fprintf(stderr, "%d: accepted connection from IP=%ld.%ld.%ld.%ld socket=%d...", i,
 				(soap.ip >> 24)&0xFF, (soap.ip >> 16)&0xFF, (soap.ip >> 8)&0xFF, soap.ip&0xFF, s);
 			

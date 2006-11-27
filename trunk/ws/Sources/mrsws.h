@@ -28,9 +28,8 @@ struct ns__DatabankInfo
 {
 	xsd__string					id;
 	xsd__string					name;
-	xsd__string					parser;
 	xsd__string					url;
-	xsd__string					filter;
+	xsd__string					script;
 	bool						blastable;
 	std::vector<struct ns__FileInfo>
 								files;
@@ -122,8 +121,12 @@ int ns__SpellCheck(
 	xsd__string					queryterm,
 	std::vector<xsd__string>&	suggestions);
 
-//int ns__FindSimilar(xsd__string db, xsd__string id,
-//	enum ns__Algorithm algorithm = Vector, int resultoffset = 0, int maxresultcount = 15,
-//	struct ns__FindResponse& response);
+int ns__FindSimilar(
+	xsd__string					db,
+	xsd__string					id,
+	enum ns__Algorithm			algorithm = Vector,
+	int							resultoffset = 0,
+	int							maxresultcount = 15,
+	struct ns__FindResponse&	response);
 
 
