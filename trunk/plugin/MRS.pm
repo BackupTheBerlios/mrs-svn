@@ -211,6 +211,7 @@ package MRS::MRankedQuery;
 %OWNER = ();
 %ITERATORS = ();
 *AddTerm = *MRSc::MRankedQuery_AddTerm;
+*AddTermsFromText = *MRSc::MRankedQuery_AddTermsFromText;
 *SetAllTermsRequired = *MRSc::MRankedQuery_SetAllTermsRequired;
 *SetMaxReturn = *MRSc::MRankedQuery_SetMaxReturn;
 *SetAlgorithm = *MRSc::MRankedQuery_SetAlgorithm;

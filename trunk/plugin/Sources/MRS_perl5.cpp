@@ -4669,6 +4669,56 @@ XS(_wrap_MRankedQuery_AddTerm) {
 }
 
 
+XS(_wrap_MRankedQuery_AddTermsFromText) {
+    {
+        MRankedQuery *arg1 = (MRankedQuery *) 0 ;
+        std::string *arg2 = 0 ;
+        std::string temp2 ;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 2) || (items > 2)) {
+            SWIG_croak("Usage: MRankedQuery_AddTermsFromText(self,inText);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MRankedQuery,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MRankedQuery_AddTermsFromText. Expected _p_MRankedQuery");
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(1), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 2 of MRankedQuery_AddTermsFromText.");
+            } else {
+                temp2.assign(ptr, len);
+                arg2 = &temp2;
+            }
+        }
+        {
+            try {
+                (arg1)->AddTermsFromText((std::string const &)*arg2);
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
 XS(_wrap_MRankedQuery_SetAllTermsRequired) {
     {
         MRankedQuery *arg1 = (MRankedQuery *) 0 ;
@@ -6863,6 +6913,7 @@ static swig_command_info swig_commands[] = {
 {"MRSc::new_MBooleanQuery", _wrap_new_MBooleanQuery},
 {"MRSc::delete_MBooleanQuery", _wrap_delete_MBooleanQuery},
 {"MRSc::MRankedQuery_AddTerm", _wrap_MRankedQuery_AddTerm},
+{"MRSc::MRankedQuery_AddTermsFromText", _wrap_MRankedQuery_AddTermsFromText},
 {"MRSc::MRankedQuery_SetAllTermsRequired", _wrap_MRankedQuery_SetAllTermsRequired},
 {"MRSc::MRankedQuery_SetMaxReturn", _wrap_MRankedQuery_SetMaxReturn},
 {"MRSc::MRankedQuery_SetAlgorithm", _wrap_MRankedQuery_SetAlgorithm},

@@ -631,6 +631,18 @@ class MRankedQuery : public MRSObject<MRankedQuery, struct MRankedQueryImp>
 
 	void				AddTerm(const std::string& inTerm, unsigned long inFrequency);
 
+	/** \brief	Add terms from a string of text
+	 *
+	 *	This method tokenizes the \a inText parameter in the same way as the IndexText
+	 *	method of MDatabank. It uses the resulting tokens (words) to construct a new
+	 *	MRankedQuery object. Useful to do a <em>FindSimilar</em> kind of search.
+	 *	\param	inTerm	The term to include in this search
+	 *	\param	inFrequency
+	 *					The frequency for this term
+	 */
+
+	void				AddTermsFromText(const std::string& inText);
+
 //	I wish swig worked a bit better...
 //	int					MaxReturn;
 //	int					AllTermsRequired;

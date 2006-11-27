@@ -54,6 +54,7 @@ class CRankedQuery
 	virtual			~CRankedQuery();
 	
 	void			AddTerm(const std::string& inKey, uint32 inFrequency);
+	void			AddTermsFromText(const std::string& inText);
 	
 	void			PerformSearch(CDatabankBase& inDatabank,
 						const std::string& inIndex, const std::string& inAlgorithm,

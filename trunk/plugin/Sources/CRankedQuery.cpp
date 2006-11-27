@@ -52,6 +52,7 @@
 #include "CDatabank.h"
 #include "CIndexer.h"
 #include "CDocWeightArray.h"
+#include "CTokenizer.h"
 
 using namespace std;
 
@@ -283,6 +284,30 @@ void CRankedQuery::AddTerm(const string& inKey, uint32 inFrequency)
 	t->weight = inFrequency;
 	
 	fImpl->fTerms.push_back(t.release());
+}
+
+void CRankedQuery::AddTermsFromText(const string& inText)
+{
+	if (inText.length() == 0)
+		return;
+	
+	CTokenizer tok(inText.c_str(), inText.length());
+	bool isWord, isNumber;
+	
+	map<string,uint32> words;
+	
+	while (tok.GetToken(isWord, isNumber))
+	{
+		uint32 l = tok.GetTokenLength();
+
+		if (not (isWord or isNumber) or l == 0)
+			continue;
+		
+		words[string(tok.GetTokenValue(), l)] += 1;
+	}
+	
+	for (map<string,uint32>::iterator w = words.begin(); w != words.end(); ++w)
+		AddTerm(w->first, w->second);
 }
 
 struct Algorithm

@@ -244,7 +244,7 @@ sub Create()
 	# now load the MRS plugin for this databank
 	
 	push @INC, $script_dir;
-	my $parser = "${script}::parser";
+	my $parser = "MRS::Script::${script}";
 	require "$script.pm";
 	
 	# Set the MRS globals before creating an MRS object
@@ -298,13 +298,6 @@ sub Create()
 	eval {
 		$vers = $p->version($raw_dir, $db);
 	};
-
-	if (not defined $vers)
-	{
-		eval {
-			$vers = &FetchVersionDate($raw_dir);
-		};
-	}
 
 	if ($verbose)
 	{
@@ -675,9 +668,13 @@ sub SetProcTitle
 	}
 }
 
-sub FetchVersionDate
+package MRS::Script;
+
+# This is the base class for an MRS script
+
+sub version
 {
-	my ($raw_dir) = @_;
+	my ($self, $raw_dir, $db) = @_;
 	
 	opendir DIR, $raw_dir;
 	my @files = grep { -f("$raw_dir/$_") and $_ !~ /^\./ } readdir(DIR);
@@ -694,3 +691,5 @@ sub FetchVersionDate
 	
 	return localtime $date;
 }
+
+1;

@@ -1307,6 +1307,11 @@ void MRankedQuery::AddTerm(const string& inTerm, unsigned long inFrequency)
 	fImpl->fQuery->AddTerm(inTerm, inFrequency);
 }
 
+void MRankedQuery::AddTermsFromText(const string& inText)
+{
+	fImpl->fQuery->AddTermsFromText(inText);
+}
+
 void MRankedQuery::SetAlgorithm(const string& inAlgorithm)
 {
 	fImpl->fAlgorithm = inAlgorithm;
