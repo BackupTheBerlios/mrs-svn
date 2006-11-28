@@ -2040,30 +2040,42 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 				case kDateIndex:
 				case kNumberIndex:
 				{
-					vector<uint32> docs;
 					uint32 first = 0;
 					
+					boost::ptr_vector<CDbDocIteratorBase>	docIters;
+					uint32 count = 0;
+
 					for (i = 0; i < md.size(); ++i)
 					{
 						for (uint32 j = 0; j < v.size(); ++j)
 						{
 							if (v[j].first == i)
 							{
-								auto_ptr<CDbDocIteratorBase> docIter(
+								docIters.push_back(
 									CreateDbDocIterator(md[i].array_compression_kind, *md[i].data,
-										md[i].info[ix].bits_offset + v[j].second, md[i].count));
-							
-								uint32 doc;
-								while (docIter->Next(doc, false))
-									docs.push_back(doc + first);
-								
+										md[i].info[ix].bits_offset + v[j].second, md[i].count,
+										first));
+
+								count += docIters.back().Count();
 								break;
 							}
 						}
-
 						first += md[i].count;
 					}
 					
+					vector<uint32> docs;
+					docs.reserve(count);
+
+					for (i = 0; i < docIters.size(); ++i)
+					{
+						CDbDocIteratorBase& iter = docIters[i];
+						
+						uint32 doc;
+
+						while (iter.Next(doc, false))
+							docs.push_back(doc);
+					}
+
 					int64 offset = bitFile->Seek(0, SEEK_END);
 					if (offset > numeric_limits<uint32>::max())
 					{
@@ -2080,7 +2092,6 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 				
 				case kWeightedIndex:
 				{
-					vector<pair<uint32,uint8> > docs;
 					uint32 first = 0;
 					
 					boost::ptr_vector<CDbDocIteratorBase>	docIters;
@@ -2105,16 +2116,18 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					
 					float idf = log(1.0 + static_cast<double>(fHeader->entries) / count);
 
+					vector<pair<uint32,uint8> > docs;
+					docs.reserve(count);
+
 					for (i = 0; i < docIters.size(); ++i)
 					{
+						CDbDocIteratorBase& iter = docIters[i];
+						
 						uint32 doc;
 						uint8 freq;
 
-						while (docIters[i].Next(doc, freq, false))
+						while (iter.Next(doc, freq, false))
 						{
-							if (doc >= fHeader->entries)	// debug code added since we have a problem in an index
-								THROW(("Corrupt index %s for key %s", fParts[ix].name, s.c_str()));
-
 							docs.push_back(make_pair(doc, freq));
 
 							float wdt = freq * idf;
