@@ -61,6 +61,11 @@ END
 
 our @META_DATA_FIELDS = [ 'title' ];	# was [ 'title', 'species' ]
 
+our %MERGE_DBS = (
+	'uniprot'	=>	[ 'sprot', 'trembl' ],
+	'sp300'		=>	[ 'sp100', 'sp200' ]
+);
+
 our %INDICES = (
 	'id' => 'Identification',
 	'ac' => 'Accession number',
@@ -268,7 +273,7 @@ my %links = (
 
 	'UNIPROT'	=> {
 		match	=> qr[^(\S+)(?=;)]i,
-		result	=> '$q->a({-href=>"$url?db=sprot%2Btrembl&query=ac:$1"}, $1)'
+		result	=> '$q->a({-href=>"$url?db=uniprot&query=ac:$1"}, $1)'
 	},
 
 	'PDB'		=> {
@@ -882,7 +887,7 @@ END
 			foreach my $kw (@kw)
 			{
 				$kw =~ s/\.$//;
-				my $kw_url = $url . "?db=sprot%2Btrembl&query=";
+				my $kw_url = $url . "query.do?db=uniprot&query=";
 				foreach my $kww (split(m/\s/, $kw))
 				{
 					$kw_url .= "kw:$kww ";

@@ -249,6 +249,10 @@ END
 sub pp
 {
 	my ($this, $q, $text, $id) = @_;
+
+	$text =~ s/&/&amp;/g;
+	$text =~ s/</&lt;/g;
+	$text =~ s/>/&gt;/g;
 	
 	my $script = sprintf($jmol_script, $q->url(), $id);
 	
