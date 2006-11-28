@@ -1,9 +1,10 @@
 # $Id: sp_tr_nrdb.make,v 1.21 2004/02/18 13:24:22 dbman Exp $
 
 DATABANK			= uniprot
-MRSLIBS				= sprot trembl # uniprot
+MRSLIBS				= sprot trembl
+MRS_MERGE_LIBS		= uniprot
 MRSSCRIPT			= uniprot
-MRS_DICT_FILES		= sprot trembl sprot+trembl
+MRS_DICT_FILES		= sprot trembl uniprot
 
 include make.pre
 

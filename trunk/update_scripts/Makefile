@@ -88,31 +88,34 @@ ${DBALLFLAGS:=.done}:
 	touch $(STATUSDIR)$(@F)
 	touch $@
 
+tell_ws: FORCE
+	@ killall -HUP mrsws || echo 'mrsws does not seem to run'
+
 # the main rules
 
 daily: tools dirs ${DBDAILYFLAGS:=.done}
 	@ find $(FLAGSDIR) -type f | xargs rm
-	@ killall -HUP mrsws
+	@ $(MAKE) tell_ws
 	echo "Daily update done"
 
 weekly: tools dirs ${DBWEEKLYFLAGS:=.done}
 	@ find $(FLAGSDIR) -type f | xargs rm
-	@ killall -HUP mrsws
+	@ $(MAKE) tell_ws
 	echo "Weekly update done"
 
 all: tools dirs ${DBFLAGS:=.done}
 	@ find $(FLAGSDIR) -type f | xargs rm
-	@ killall -HUP mrsws
+	@ $(MAKE) tell_ws
 	echo "Complete update done"
 
 alldailydata: tools dirs ${DBDAILYFLAGS:=.make}
 	@ find $(FLAGSDIR) -type f | xargs rm
-	@ killall -HUP mrsws
+	@ $(MAKE) tell_ws
 	echo "Complete remake done"
 
 allweeklydata: tools dirs ${DBWEEKLYFLAGS:=.make}
 	@ find $(FLAGSDIR) -type f | xargs rm
-	@ killall -HUP mrsws
+	@ $(MAKE) tell_ws
 	echo "Complete remake done"
 
 test:
@@ -120,6 +123,6 @@ test:
 
 ${ALL_DATABASES}: tools dirs
 	$(MAKE) $(FLAGSDIR)$@.done
-	@ killall -HUP mrsws
+	@ $(MAKE) tell_ws
 	rm $(FLAGSDIR)$@.*
 

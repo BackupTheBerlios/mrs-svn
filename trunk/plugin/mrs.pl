@@ -66,12 +66,22 @@ if ($action eq 'create')
 }
 elsif ($action eq 'merge')
 {
-	getopts('d:P:lv', \%opts);
+	getopts('d:m:P:lvs:', \%opts);
 
-	my $db = $opts{d} or &Usage();
-	my $cnt = $opts{P} or &Usage();
+	if ($opts{d} and $opts{P})
+	{
+		my $db = $opts{d} or &Usage();
+		my $cnt = $opts{P} or &Usage();
 	
-	&Merge($db, $opts{v}, $cnt, $opts{l});
+		&Merge($db, $opts{v}, $cnt, $opts{l});
+	}
+	elsif ($opts{'m'})
+	{
+		&Merge2($opts{'m'}, $opts{v}, $opts{'s'}, $opts{l});
+	}
+	else {
+		&Usage();
+	}
 }
 elsif ($action eq 'weights')
 {
@@ -174,10 +184,12 @@ Usage:
         -w      stopword file to use
         -v      verbose
 
-    mrs merge -d databank -P total [-v]
+    mrs merge [-d databank -P total|-m databank [-s script]] [-v]
     
         -d      databank name
         -P      total number of parts
+        -m      databank to merge, parts are defined by script
+        -s      script to use with -m option (if other than default for databank)
         -l      link data instead of copying it
         -v      verbose
 
@@ -374,6 +386,51 @@ sub Merge()
 	{
 		my $part = new MRS::MDatabank("$db-$n.cmp")
 			or die "Could not find part $n: " . &MRS::errstr() . "\n";
+		
+		push @parts, $part;
+	}
+	
+	MRS::MDatabank::Merge("$data_dir/$db.cmp", \@parts, not $link);
+}
+
+sub Merge2()
+{
+	my ($db, $verbose, $script, $link) = @_;
+	
+	# define some globals
+	
+	my $script_dir = $ENV{MRS_SCRIPT_DIR};
+	my $data_dir = $ENV{MRS_DATA_DIR};
+	
+	$script_dir	= substr($script_dir, 7)	if (substr($script_dir, 0, 7) eq 'file://');
+	$data_dir	= substr($data_dir, 7)		if (substr($data_dir, 0, 7) eq 'file://');
+	
+	# now load the MRS plugin for this databank
+	
+	$script = $db unless defined $script;
+	
+	push @INC, $script_dir;
+	my $parser = "MRS::Script::${script}";
+	require "$script.pm";
+	
+	# Set the MRS globals before creating an MRS object
+
+	no strict 'refs';
+	
+	$verbose = 0 unless defined $verbose;
+	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
+
+	my $merge_databanks = "${parser}::MERGE_DBS"->{$db};
+	
+	die "No set of merge databanks defined in script $script" unless $merge_databanks;
+
+	# define some globals
+
+	my @parts;
+	foreach my $p (@{$merge_databanks})
+	{
+		my $part = new MRS::MDatabank($p)
+			or die "Could not find databank $p: " . &MRS::errstr() . "\n";
 		
 		push @parts, $part;
 	}
