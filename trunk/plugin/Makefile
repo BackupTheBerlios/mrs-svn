@@ -341,18 +341,18 @@ dist: FORCE
 	rm -rf dist/MRS-$(VERSION).tar.gz
 	cd dist; $(PERL) Makefile.PL INSTALLSCRIPT=$(INSTALL_DIR); $(MAKE) dist
 
-install: $(OUTPUT) blast query dist
+install: $(OUTPUT) mrs_blast mrs_query dist
 	cd dist; $(SUDO) $(MAKE) install
 	$(SUDO) install -m 755 mrs_blast /usr/local/bin/mrs_blast
 	$(SUDO) install -m 755 mrs_query /usr/local/bin/mrs_query
 
-blast: echo_flags lib Sources/mrs_blast.cpp
-	$(CC) $(CFLAGS) -o mrs_blast -ILib/Includes Sources/mrs_blast.cpp $(LIBNAME) $(LDFLAGS)
+mrs_blast: lib Sources/mrs_blast.cpp
+	$(CC) $(CFLAGS) -o $@ -ILib/Includes Sources/mrs_blast.cpp $(LIBNAME) $(LDFLAGS)
 	@ echo "Done"
 
-query: echo_flags lib Sources/mrs_query.cpp
+mrs_query: lib Sources/mrs_query.cpp
 	@ echo "=> "$@
-	@ $(CC) $(CFLAGS) -o mrs_query -ILib/Includes Sources/mrs_query.cpp $(LIBNAME) $(LDFLAGS)
+	@ $(CC) $(CFLAGS) -o $@ -ILib/Includes Sources/mrs_query.cpp $(LIBNAME) $(LDFLAGS)
 	@ echo "Done"
 
 tags: FORCE
