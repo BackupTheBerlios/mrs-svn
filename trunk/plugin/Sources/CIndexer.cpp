@@ -119,15 +119,20 @@ struct SIndexPart
 	int64			tree_offset;
 	uint32			root;
 	uint32			entries;
-	int64			weight_offset;
+	int64			weight_offset;	// new since V1
+	int64			tree_size;		// these are new since V2
+	int64			bits_size;
 	
 	// members that are implictly part of the above
 	CIndexVersion	index_version;
 };
 
 const uint32
-	kSIndexPartSize = 5 * sizeof(uint32) + 3 * sizeof(int64) + 16,
-	kSIndexPartSizeV0 = 5 * sizeof(uint32) + 2 * sizeof(int64) + 16;
+	kSIndexPartSizeV2 = 5 * sizeof(uint32) + 5 * sizeof(int64) + 16,	// V2
+	kSIndexPartSizeV1 = 5 * sizeof(uint32) + 3 * sizeof(int64) + 16,	// V1
+	kSIndexPartSizeV0 = 5 * sizeof(uint32) + 2 * sizeof(int64) + 16,	// V0
+	
+	kSIndexPartSize = kSIndexPartSizeV2;								// current
 
 HStreamBase& operator<<(HStreamBase& inData, const SIndexHeader& inStruct);
 HStreamBase& operator>>(HStreamBase& inData, SIndexHeader& inStruct);
@@ -190,7 +195,8 @@ HStreamBase& operator<<(HStreamBase& inData, const SIndexPart& inStruct)
 
 	data << inStruct.bits_offset << inStruct.tree_offset
 		 << inStruct.root << inStruct.entries
-		 << inStruct.weight_offset;
+		 << inStruct.weight_offset
+		 << inStruct.tree_size << inStruct.bits_size;
 	
 	return inData;
 }
@@ -234,8 +240,14 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexPart& inStruct)
 	
 	inStruct.weight_offset = 0;
 	
-	if (inStruct.size >= kSIndexPartSize)
+	if (inStruct.size >= kSIndexPartSizeV1)
 		data >> inStruct.weight_offset;
+
+	inStruct.tree_size = 0;
+	inStruct.bits_size = 0;
+
+	if (inStruct.size >= kSIndexPartSizeV2)
+		data >> inStruct.tree_size >> inStruct.bits_size;
 	
 	return inData;
 }
@@ -780,7 +792,7 @@ struct SortLex
 				: fFT(inFT), fBase(inIndexBase) {}
 	
 	inline
-	bool	operator()(const pair<uint32,uint32>& inA, const pair<uint32,uint32>& inB) const
+	bool	operator()(const pair<uint32,uint64>& inA, const pair<uint32,uint64>& inB) const
 			{
 				string a = fFT.Lookup(inA.first);
 				string b = fFT.Lookup(inB.first);
@@ -975,7 +987,6 @@ bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPar
 	outInfo.sig = kIndexPartSig;
 	fName.copy(outInfo.name, 15);
 	outInfo.kind = fKind;
-	outInfo.bits_offset = inDataFile.Seek(0, SEEK_END);
 
 	outInfo.index_version = kCIndexVersionV1;
 #if P_DEBUG
@@ -988,8 +999,11 @@ bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPar
 		outInfo.sig = kIndexPartSigV2;
 		outInfo.index_version = kCIndexVersionV2;
 	}
-	
+
 	// copy the bits to the data file
+	outInfo.bits_offset = inDataFile.Seek(0, SEEK_END);
+	outInfo.bits_size = fBitFile->Size();
+	
 	const int kBufSize = 4096;
 	HAutoBuf<char> b(new char[kBufSize]);
 	int64 k = fBitFile->Size();
@@ -1005,8 +1019,6 @@ bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPar
 	}
 
 	// construct the optimized b-tree
-	outInfo.tree_offset = inDataFile.Seek(0, SEEK_END);
-
 	vector<pair<uint32,int64> > lexicon;
 	lexicon.reserve(fRawIndexCnt);
 	
@@ -1029,10 +1041,13 @@ bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPar
 
 	sort(lexicon.begin(), lexicon.end(), SortLex(fFullTextIndex, this));
 
+	// construct the optimized b-tree
+	outInfo.tree_offset = inDataFile.Seek(0, SEEK_END);
+
 	CFullTextIterator iter(fFullTextIndex, lexicon);
 	auto_ptr<CIndex> indx(CIndex::CreateFromIterator(fKind, outInfo.index_version, iter, inDataFile));
-	inDataFile.Seek(0, SEEK_END);
 
+	outInfo.tree_size = inDataFile.Seek(0, SEEK_END) - outInfo.tree_offset;
 	outInfo.root = indx->GetRoot();
 	outInfo.entries = lexicon.size();
 	
@@ -1120,8 +1135,8 @@ bool CValueIndex::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPa
 
 	CFullTextIterator iter(fFullTextIndex, fIndex);
 	auto_ptr<CIndex> indx(CIndex::CreateFromIterator(fKind, outInfo.index_version, iter, inDataFile));
-	inDataFile.Seek(0, SEEK_END);
 
+	outInfo.tree_size = inDataFile.Seek(0, SEEK_END) - outInfo.tree_offset;
 	outInfo.root = indx->GetRoot();
 	outInfo.entries = fIndex.size();
 
@@ -1267,6 +1282,34 @@ CIndexer::CIndexer(HStreamBase& inFile, int64 inOffset, int64 inSize)
 		
 		if (strcmp(fParts[i].name, "*alltext*") == 0)
 			strcpy(fParts[i].name, kAllTextIndexName);
+	}
+	
+	for (uint32 i = 0; i < fHeader->count; ++i)	// backward compatibility, fill in tree_size and bits_size
+	{
+		if (fParts[i].tree_size != 0)	// not needed?
+			break;
+
+		int64 nextOffset = fOffset + fSize;
+		
+		if (i < fHeader->count - 1)
+		{
+			if (fParts[i + 1].bits_offset == 0)
+				nextOffset = fParts[i + 1].tree_offset;
+			else
+				nextOffset = min(fParts[i + 1].tree_offset, fParts[i + 1].bits_offset);
+		}
+		
+		if (fParts[i].bits_offset > fParts[i].tree_offset)
+		{
+			fParts[i].tree_size = fParts[i].bits_offset - fParts[i].tree_offset;
+			fParts[i].bits_size = nextOffset - fParts[i].bits_offset;
+		}
+		else
+		{
+			if (fParts[i].bits_offset > 0)
+				fParts[i].bits_size = fParts[i].tree_offset - fParts[i].bits_offset;
+			fParts[i].tree_size = nextOffset - fParts[i].tree_offset;
+		}
 	}
 
 	fDocWeights = new CDocWeightArray*[fHeader->count];
@@ -1638,6 +1681,7 @@ struct CMergeData
 							: count(0)
 							, indx(nil)
 							, data(nil)
+							, mappedBits(nil)
 						{
 						}
 
@@ -1648,6 +1692,7 @@ struct CMergeData
 	// cached data:
 	CIndex*				indx;
 	HStreamBase*		data;
+	HStreamBase*		mappedBits;
 };
 
 struct CCompareIndexInfo
@@ -1990,6 +2035,23 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 			
 			iter->Append(new CIteratorWrapper<CIndex>(*md[i].indx, delta), i);
 			
+			try	// see if we can memory map the bits section
+			{
+				HFileStream* df = dynamic_cast<HFileStream*>(md[i].data);
+				if (df != nil)
+				{
+					md[i].mappedBits = new HMMappedFileStream(*df,
+						md[i].info[ix].bits_offset, md[i].info[ix].bits_size);
+				}
+			}
+			catch (...) {}
+			
+			if (md[i].mappedBits == nil)
+			{
+				md[i].mappedBits = new HStreamView(*md[i].data,
+					md[i].info[ix].bits_offset, md[i].info[ix].bits_size);
+			}
+			
 			count += md[i].count;
 		}
 
@@ -2013,7 +2075,6 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 		fParts[ix].root = 0;
 		fParts[ix].bits_offset = 0;
 		
-//		list<pair<string,uint32> > indx;
 		CMergeIndexBuffer indx(fDb);
 		string s;
 		
@@ -2052,9 +2113,8 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 							if (v[j].first == i)
 							{
 								docIters.push_back(
-									CreateDbDocIterator(md[i].array_compression_kind, *md[i].data,
-										md[i].info[ix].bits_offset + v[j].second, md[i].count,
-										first));
+									CreateDbDocIterator(md[i].array_compression_kind, *md[i].mappedBits,
+										v[j].second, md[i].count, first));
 
 								count += docIters.back().Count();
 								break;
@@ -2104,8 +2164,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 							if (v[j].first == i)
 							{
 								docIters.push_back(CreateDbDocWeightIterator(md[i].array_compression_kind,
-									*md[i].data, md[i].info[ix].bits_offset + v[j].second, md[i].count,
-									first));
+									*md[i].mappedBits, v[j].second, md[i].count, first));
 
 								count += docIters.back().Count();
 								break;
@@ -2199,6 +2258,9 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 		{
 			delete md[i].indx;
 			md[i].indx = nil;
+			
+			delete md[i].mappedBits;
+			md[i].mappedBits = nil;
 		}
 
 		if (bitFile.get() != nil)
@@ -2375,37 +2437,17 @@ void CIndexer::PrintInfo()
 
 		cout << "  name:          " << p.name << endl;
 		
-		int64 nextOffset = fOffset + fSize;
-		int64 treeSize, bitsSize;
-		
-		if (ix < fHeader->count - 1)
-		{
-			if (fParts[ix + 1].bits_offset == 0)
-				nextOffset = fParts[ix + 1].tree_offset;
-			else
-				nextOffset = min(fParts[ix + 1].tree_offset, fParts[ix + 1].bits_offset);
-		}
-		
-		if (p.bits_offset > p.tree_offset)
-		{
-			treeSize = p.bits_offset - p.tree_offset;
-			bitsSize = nextOffset - p.bits_offset;
-		}
-		else
-		{
-			bitsSize = p.tree_offset - p.bits_offset;
-			treeSize = nextOffset - p.tree_offset;
-		}
-		
 		sig = reinterpret_cast<const char*>(&p.kind);
 		cout << "  kind:          " << sig[0] << sig[1] << sig[2] << sig[3] << endl;
-		cout << "  bits offset:   " << p.bits_offset << endl;
-		if (p.kind != kValueIndex)
-			cout << "  bits size:     " << bitsSize << endl;
 		cout << "  tree offset:   " << p.tree_offset << endl;
-		cout << "  tree size:     " << treeSize << endl;
+		cout << "  tree size:     " << p.tree_size << endl;
 		cout << "  root:          " << p.root << endl;
 		cout << "  entries:       " << p.entries << endl;
+		if (p.kind != kValueIndex)
+		{
+			cout << "  bits offset:   " << p.bits_offset << endl;
+			cout << "  bits size:     " << p.bits_size << endl;
+		}
 		cout << "  weight offset: " << p.weight_offset << endl;
 		
 		cout << endl;

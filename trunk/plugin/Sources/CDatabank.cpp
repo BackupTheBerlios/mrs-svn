@@ -842,7 +842,7 @@ void CDatabank::Merge(vector<CDatabank*>& inParts, bool inCopyData)
 		if ((*d)->fInfoContainer == nil)
 			continue;
 		
-		if (VERBOSE >= 1)
+		if (VERBOSE)
 		{
 			cout << "Copying info from " << (*d)->fPath.GetFileName() << " ";
 			cout.flush();
@@ -855,7 +855,7 @@ void CDatabank::Merge(vector<CDatabank*>& inParts, bool inCopyData)
 		while ((*d)->fInfoContainer->Next(cookie, s, kind))
 			fInfoContainer->Add(kind, s);
 
-		if (VERBOSE >= 1)
+		if (VERBOSE)
 			cout << " done" << endl;
 	}
 	

@@ -271,16 +271,28 @@ void CIBitStreamFileImp::read()
 }
 
 CIBitStream::CIBitStream(HStreamBase& inData, int64 inOffset)
-	: impl(new CIBitStreamFileImp(inData, inOffset, numeric_limits<int32>::max()))
-	, bit_offset(7)
+	: bit_offset(7)
 {
+	HMemoryStream* ms = dynamic_cast<HMemoryStream*>(&inData);
+	if (ms != nil)
+		impl = new CIBitStreamConstImp(
+			reinterpret_cast<const char*>(ms->Buffer()) + inOffset, 0);
+	else
+		impl = new CIBitStreamFileImp(inData, inOffset, numeric_limits<int32>::max());
+	
 	impl->get(byte);
 }
 
 CIBitStream::CIBitStream(HStreamBase& inData, int64 inOffset, uint32 inSize)
-	: impl(new CIBitStreamFileImp(inData, inOffset, static_cast<int32>(inSize)))
-	, bit_offset(7)
+	: bit_offset(7)
 {
+	HMemoryStream* ms = dynamic_cast<HMemoryStream*>(&inData);
+	if (ms != nil)
+		impl = new CIBitStreamConstImp(
+			reinterpret_cast<const char*>(ms->Buffer()) + inOffset, inSize);
+	else
+		impl = new CIBitStreamFileImp(inData, inOffset, static_cast<int32>(inSize));
+	
 	impl->get(byte);
 }
 
