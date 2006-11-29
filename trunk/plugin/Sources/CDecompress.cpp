@@ -93,7 +93,7 @@ struct CDecompressorImp
 	uint32			fKind;
 	int64			fDataOffset, fDataSize;
 	int64			fTableOffset, fTableSize;
-	uint32			fMetaDataCount;
+	uint32			fMetaDataCount, fPrefixLength;
 };
 
 CDecompressorImp::CDecompressorImp(HStreamBase& inFile, uint32 inKind,
@@ -106,6 +106,7 @@ CDecompressorImp::CDecompressorImp(HStreamBase& inFile, uint32 inKind,
 	, fTableOffset(inTableOffset)
 	, fTableSize(inTableSize)
 	, fMetaDataCount(inMetaDataCount)
+	, fPrefixLength(0)
 {
 }
 
@@ -242,7 +243,7 @@ string CBasicDecompressorImp::GetDocument(uint32 inDocNr)
 
 	assert(offset + size <= fDataSize);
 
-	return GetDocument(fDataOffset + offset, size);
+	return GetDocument(fDataOffset + fPrefixLength + offset, size);
 }
 
 string CBasicDecompressorImp::GetField(uint32 inDocNr, uint32 inFieldNr)
@@ -256,7 +257,7 @@ string CBasicDecompressorImp::GetField(uint32 inDocNr, uint32 inFieldNr)
 	assert(offset + size <= fDataSize);
 
 	HSwapStream<net_swapper> data(*fFile);
-	data.Seek(fDataOffset + offset, SEEK_SET);
+	data.Seek(fDataOffset + fPrefixLength + offset, SEEK_SET);
 	
 	uint32 offsetTableLength = sizeof(uint16) * fMetaDataCount;
 	
@@ -270,7 +271,7 @@ string CBasicDecompressorImp::GetField(uint32 inDocNr, uint32 inFieldNr)
 		offsets[ix] = offsets[ix - 1] + n;
 	}
 	
-	string result = GetDocument(fDataOffset + offset + offsetTableLength, size - offsetTableLength);
+	string result = GetDocument(fDataOffset + fPrefixLength + offset + offsetTableLength, size - offsetTableLength);
 	
 	if (inFieldNr < fMetaDataCount)
 		result = result.substr(offsets[inFieldNr], offsets[inFieldNr + 1] - offsets[inFieldNr]);
@@ -331,7 +332,7 @@ void CZLibDecompressorImp::Init()
 		fFile->Read(fDictionary, fDictLength);
 	}
 	
-	fDataOffset += sizeof(n) + n;
+	fPrefixLength = sizeof(n) + n;
 	
 	memset(&fZStream, 0, sizeof(fZStream));
 

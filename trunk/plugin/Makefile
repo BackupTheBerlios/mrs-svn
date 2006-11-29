@@ -346,11 +346,11 @@ install: $(OUTPUT) mrs_blast mrs_query dist
 	$(SUDO) install -m 755 mrs_blast /usr/local/bin/mrs_blast
 	$(SUDO) install -m 755 mrs_query /usr/local/bin/mrs_query
 
-mrs_blast: lib Sources/mrs_blast.cpp
+mrs_blast: $(LIBNAME) Sources/mrs_blast.cpp
 	$(CC) $(CFLAGS) -o $@ -ILib/Includes Sources/mrs_blast.cpp $(LIBNAME) $(LDFLAGS)
 	@ echo "Done"
 
-mrs_query: lib Sources/mrs_query.cpp
+mrs_query: $(LIBNAME) Sources/mrs_query.cpp
 	@ echo "=> "$@
 	@ $(CC) $(CFLAGS) -o $@ -ILib/Includes Sources/mrs_query.cpp $(LIBNAME) $(LDFLAGS)
 	@ echo "Done"
