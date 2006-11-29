@@ -1000,27 +1000,27 @@ bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPar
 		outInfo.index_version = kCIndexVersionV2;
 	}
 
-	// copy the bits to the data file
-	outInfo.bits_offset = inDataFile.Seek(0, SEEK_END);
-	outInfo.bits_size = fBitFile->Size();
-	
-	const int kBufSize = 4096;
-	HAutoBuf<char> b(new char[kBufSize]);
-	int64 k = fBitFile->Size();
-	fBitFile->Seek(0, SEEK_SET);
-	while (k > 0)
-	{
-		uint32 n = kBufSize;
-		if (n > k)
-			n = k;
-		fBitFile->Read(b.get(), n);
-		inDataFile.Write(b.get(), n);
-		k -= n;
-	}
-
-	// construct the optimized b-tree
 	vector<pair<uint32,int64> > lexicon;
 	lexicon.reserve(fRawIndexCnt);
+
+	// in the idea case we store the bits in the same order as their
+	// corresponding key in the BTree. That speeds up merging later on
+	// considerably.
+	// This smelss a bit like hacking...
+	// In case the bit sections is less than 4 Gb (32 bits wide) we
+	// store the length of the bit vector in the upper 32 bits of the second
+	// field of the pair in lexicon. 
+	
+	HAutoBuf<char> sortedBitBuffer(nil);
+	
+	try
+	{
+		if (fBitFile->Size() < numeric_limits<uint32>::max())
+			sortedBitBuffer.reset(new char[fBitFile->Size()]);
+	}
+	catch (...)
+	{
+	}
 	
 	fRawIndex->sync();
 	CIBitStream bits(fRawIndex->peek(), fRawIndex->size());
@@ -1035,11 +1035,71 @@ bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPar
 	while (fRawIndexCnt-- > 0)
 	{
 		term += ReadGamma(bits);
-		offset += ReadGamma(bits);
+		
+		int64 length = ReadGamma(bits);
+		
+		if (sortedBitBuffer.get() != nil)
+			lexicon.back().second |= (length << 32);
+		
+		offset += length;
+
 		lexicon.push_back(make_pair(term, offset));
 	}
-
+	
+	if (sortedBitBuffer.get() != nil)
+		lexicon.back().second |= ((fBitFile->Size() - offset) << 32);
+	
 	sort(lexicon.begin(), lexicon.end(), SortLex(fFullTextIndex, this));
+
+	// copy the bits to the data file
+	outInfo.bits_offset = inDataFile.Seek(0, SEEK_END);
+	outInfo.bits_size = fBitFile->Size();
+	
+	if (sortedBitBuffer.get() != nil)
+	{
+		int64 newOffset = 0;
+		
+		for (vector<pair<uint32,int64> >::iterator l = lexicon.begin(); l != lexicon.end(); ++l)
+		{
+			uint32 length = static_cast<uint32>(l->second >> 32);
+			uint32 offset = static_cast<uint32>(l->second);
+			
+			assert(newOffset + length <= outInfo.bits_size);
+			assert(offset + length <= outInfo.bits_size);
+			assert(length > 0);
+			
+			int32 r = fBitFile->PRead(sortedBitBuffer.get() + newOffset, length, offset);
+			assert(r == length); (void)r; // avoid compiler warnings
+
+			l->second = newOffset;
+			
+			newOffset += length;
+		}
+		
+		assert(newOffset == fBitFile->Size());
+		
+		inDataFile.Write(sortedBitBuffer.get(), outInfo.bits_size);
+		sortedBitBuffer.release();
+	}
+	else
+	{
+		if (VERBOSE)
+			cout << "Writing unsorted bits ";
+		
+		const int kBufSize = 4096;
+		HAutoBuf<char> b(new char[kBufSize]);
+		int64 k = fBitFile->Size();
+		fBitFile->Seek(0, SEEK_SET);
+		while (k > 0)
+		{
+			uint32 n = kBufSize;
+			if (n > k)
+				n = k;
+			fBitFile->Read(b.get(), n);
+			inDataFile.Write(b.get(), n);
+			k -= n;
+		}
+	}
 
 	// construct the optimized b-tree
 	outInfo.tree_offset = inDataFile.Seek(0, SEEK_END);
