@@ -666,6 +666,8 @@ void CDatabank::Merge(vector<CDatabank*>& inParts, bool inCopyData)
 	for (d = inParts.begin(); d != inParts.end(); ++d)
 		fDataHeader->count += (*d)->fDataParts.size();
 
+	fDataHeader->meta_data_count = inParts.front()->fDataHeader->meta_data_count;
+
 	if (fParts != nil)
 		delete[] fParts;
 
@@ -674,6 +676,35 @@ void CDatabank::Merge(vector<CDatabank*>& inParts, bool inCopyData)
 
 		// reserve space
 	(*fDataFile) << *fDataHeader;
+
+	if (fDataHeader->meta_data_count > 0)
+	{
+		CDatabank* p1 = inParts[0];
+		
+		for (uint32 i = 0; i < p1->fDataHeader->meta_data_count; ++i)
+		{
+			SMetaData md = {};
+			md.sig = kMetaDataSig;
+			md.size = sizeof(SMetaData);
+			strcpy(md.name, p1->fMetaData[i].name);
+			
+			*fDataFile << md;
+			
+			for (uint32 j = 1; j < inParts.size(); ++j)
+			{
+				CDatabank* p2 = inParts[j];
+
+				if (p1->fDataHeader->meta_data_count != p2->fDataHeader->meta_data_count)
+					THROW(("All parts should have the same meta data fields"));
+				
+				if (strcmp(p1->fMetaData[i].name, p2->fMetaData[i].name) != 0)
+					THROW(("All parts should have the same meta data fields"));
+			}
+		}
+	}
+
+	int64 partOffset = fDataFile->Tell();
+
 	for (uint32 ix = 0; ix < fDataHeader->count; ++ix)
 		*fDataFile << fParts[ix];
 	
@@ -734,7 +765,8 @@ void CDatabank::Merge(vector<CDatabank*>& inParts, bool inCopyData)
 	
 	fDataFile->Seek(fHeader->data_offset, SEEK_SET);
 	(*fDataFile) << *fDataHeader;
-
+	
+	fDataFile->Seek(partOffset, SEEK_SET);
 	for (uint32 i = 0; i < fDataHeader->count; ++i)
 		(*fDataFile) << fParts[i];
 
