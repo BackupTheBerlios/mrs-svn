@@ -311,6 +311,40 @@ class CDocVectorIterator : public CDocIterator
 	uint32			fCur, fRead;
 };
 
+/**	\brief	A bitmap iterator
+ *
+ *	The bitmap iterator is meant to be used in boolean searches like 'mw>100'
+ *	i.e. searches that result in large numbers of iterators that need to be
+ *	joined.
+ */
+
+class CDocBitVectorIterator : public CDocIterator
+{
+  public:
+					CDocBitVectorIterator(uint32 inMaxDocCount);
+					~CDocBitVectorIterator();
+
+	/**	\brief	Add a doc iterator to the result set
+	 *
+	 *	The \a inIter parameter is read and deleted by this method
+	 *	\param	inIter	The iterator whose result is to be added to this iterator
+	 */
+	void			Add(CDocIterator* inIter);
+	
+	virtual bool	Next(uint32& ioDoc, float& outScore, bool inSkip);
+	virtual bool	Next(uint32& ioDoc, bool inSkip);
+
+	virtual uint32	Count() const						{ return fCount; }
+	virtual uint32	Read() const						{ return fRead; }
+
+  private:
+	uint8*			fData;
+	uint32			fDocCount;
+	uint32			fCount;
+	uint32			fRead;
+	uint32			fCur;
+};
+
 class CSortDocIterator : public CDocIterator
 {
   public:

@@ -574,6 +574,83 @@ bool CDocFreqVectorIterator::Next(uint32& ioDoc, float& outFreq, bool inSkip)
 	return result;
 }
 
+// --------------------------------------------------------------------
+
+CDocBitVectorIterator::CDocBitVectorIterator(uint32 inMaxDocCount)
+	: fData(new uint8[(inMaxDocCount >> 3) + 1])
+	, fDocCount(inMaxDocCount)
+	, fCount(0)
+	, fRead(0)
+	, fCur(0)
+{
+	memset(fData, 0, (inMaxDocCount >> 3) + 1);
+}
+
+CDocBitVectorIterator::~CDocBitVectorIterator()
+{
+	delete[] fData;
+}
+
+void CDocBitVectorIterator::Add(CDocIterator* inIter)
+{
+	auto_ptr<CDocIterator> iter(inIter);
+	
+	uint32 docNr = 0;
+	while (iter->Next(docNr, false))
+	{
+		assert(docNr < fDocCount);
+		
+		uint32 byte = docNr >> 3;
+		uint32 bit = docNr & 0x07;
+		
+		assert(bit < 8);
+		assert(byte < (fDocCount >> 3) + 1);
+		
+		if ((fData[byte] & (1 << bit)) == 0)
+			++fCount;
+		
+		fData[byte] |= (1 << bit);
+	}
+}
+
+	
+bool CDocBitVectorIterator::Next(uint32& ioDoc, float& outScore, bool inSkip)
+{
+	outScore = 100;
+	return Next(ioDoc, inSkip);
+}
+
+bool CDocBitVectorIterator::Next(uint32& ioDoc, bool inSkip)
+{
+	bool result = false;
+	
+	if (fRead < fCount)
+	{
+		if (inSkip and ioDoc > fCur)
+			fCur = ioDoc;
+		
+		while (not result and fCur < fDocCount)
+		{
+			uint32 byte = fCur >> 3;
+			uint32 bit = fCur & 0x07;
+			
+			result = (fData[byte] & (1 << bit)) != 0;
+			
+			++fCur;
+		}
+		
+		if (result)
+		{
+			ioDoc = fCur;
+			++fRead;
+		}
+	}
+	
+	return result;
+}
+
+// --------------------------------------------------------------------
+
 bool CDocVectorIterator::Next(uint32& ioValue, bool inSkip)
 {
 	bool result = false;

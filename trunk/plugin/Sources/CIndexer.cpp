@@ -2437,7 +2437,20 @@ CDocIterator* CIndexer::CreateDocIterator(const string& inIndex, const string& i
 					for (vector<uint32>::iterator i = values.begin(); i != values.end(); ++i)
 						iters.push_back(new CDocNrIterator(*i));
 				}
-				else// if (or fParts[ix].kind == kDateIndex or fParts[ix].kind == kNumberIndex)
+//				else// if (or fParts[ix].kind == kDateIndex or fParts[ix].kind == kNumberIndex)
+				else if (values.size() > 100)
+				{
+					auto_ptr<CDocBitVectorIterator> bitIter(new CDocBitVectorIterator(fHeader->entries));
+					
+					for (vector<uint32>::iterator i = values.begin(); i != values.end(); ++i)
+					{
+						bitIter->Add(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
+							fParts[ix].bits_offset + *i, fHeader->entries));
+					}
+					
+					iters.push_back(bitIter.release());
+				}				
+				else
 				{
 					for (vector<uint32>::iterator i = values.begin(); i != values.end(); ++i)
 						iters.push_back(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,

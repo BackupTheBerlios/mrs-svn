@@ -56,7 +56,7 @@ using namespace std;
 
 const uint32
 	kBitBufferSize = 64,
-	kBitBufferExtend = 0x8000;
+	kBitBufferExtend = 1024;
 
 COBitStream::COBitStream()
 	: data(new char[kBitBufferSize])
