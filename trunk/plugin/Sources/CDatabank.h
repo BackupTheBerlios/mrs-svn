@@ -97,6 +97,8 @@ class CDatabankBase
 	virtual std::string	GetDocumentID(uint32 inDocNr) const;
 	virtual bool		GetDocumentNr(const std::string& inDocID, uint32& outDocNr) const;
 	uint32				GetDocumentNr(const std::string& inDocID) const;
+	
+	virtual bool		IsValidDocumentNr(uint32 inDocNr) const = 0;
 
 #ifndef NO_BLAST
 	virtual uint32		GetBlastDbCount() const = 0;
@@ -202,6 +204,7 @@ class CDatabank : public CDatabankBase
 	virtual std::string	GetDocumentID(uint32 inDocNr) const;
 	virtual bool		GetDocumentNr(const std::string& inDocID, uint32& outDocNr) const;
 
+	virtual bool		IsValidDocumentNr(uint32 inDocNr) const;
 	
 #ifndef NO_BLAST
 	virtual uint32		GetBlastDbCount() const;
@@ -317,6 +320,7 @@ class CDatabank : public CDatabankBase
 #ifndef NO_BLAST
 	SBlastIndexHeader*	fBlast;
 #endif
+	mutable uint8*	fOmitVector;
 };
 
 class CJoinedDatabank : public CDatabankBase
@@ -331,6 +335,8 @@ class CJoinedDatabank : public CDatabankBase
 
 	virtual std::string	GetDocumentID(uint32 inDocNr) const;
 	virtual bool		GetDocumentNr(const std::string& inDocID, uint32& outDocNr) const;
+
+	virtual bool		IsValidDocumentNr(uint32 inDocNr) const;
 
 #ifndef NO_BLAST
 	virtual uint32		GetBlastDbCount() const;
@@ -398,60 +404,6 @@ class CJoinedDatabank : public CDatabankBase
 	CJoinedIndexInfo*	fIndices;
 	uint32				fIndexCount;
 	uint32				fCount;
-};
-
-class CUpdatedDatabank : public CDatabank
-{
-  public:
-						CUpdatedDatabank(const HUrl& inFile, CDatabankBase* inOriginal);
-						~CUpdatedDatabank();
-
-	virtual uint32		Count() const;
-	virtual int64		GetRawDataSize() const;
-	virtual std::string	GetVersion() const;
-	virtual std::string	GetUUID() const;
-	virtual bool		IsUpToDate() const;
-	virtual void		PrintInfo();
-
-	virtual std::string	GetDocument(uint32 inDocNr);
-
-	virtual std::string	GetMetaData(uint32 inDocNr, const std::string& inName);
-
-	virtual std::string	GetDocumentID(uint32 inDocNr) const;
-	virtual bool		GetDocumentNr(const std::string& inDocID, uint32& outDocNr) const;
-
-#ifndef NO_BLAST
-	virtual uint32		GetBlastDbCount() const;
-	virtual int64		GetBlastDbLength() const;
-	virtual uint32		CountSequencesForDocument(uint32 inDocNr);
-	virtual void		GetSequence(uint32 inDocNr, uint32 inIndex,
-							CSequence& outSequence);
-#endif
-
-	virtual uint32		CountDocumentsContainingKey(const std::string& inIndex,
-							const std::string& inKey);
-
-	virtual CDocIterator* CreateDocIterator(const std::string& inIndex,
-							const std::string& inKey, bool inKeyIsPattern,
-							CQueryOperator inOperator);
-
-	virtual CDbDocIteratorBase*
-						GetDocWeightIterator(const std::string& inIndex,
-							const std::string& inKey);
-
-	virtual CDocWeightArray
-						GetDocWeights(const std::string& inIndex);
-	virtual uint32		GetMaxWeight() const;
-
-//	virtual void		RecalculateDocumentWeights(const std::string& inIndex);
-
-	virtual std::vector<std::string>
-						GetMetaDataFields() const;
-
-	virtual std::string	GetDbName() const;
-
-  private:
-	CDatabankBase*		fOriginal;
 };
 
 #endif // CDATABANK_H

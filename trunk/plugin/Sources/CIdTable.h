@@ -52,7 +52,11 @@ class CIdTable
 						int64 inSize);
 	virtual			~CIdTable();
 	
-	static void		Create(HStreamBase& inFile, CIndex& inIndex, uint32 inDocCount);
+	static void		Create(
+						HStreamBase&	inFile,
+						CIndex&			inIndex,
+						uint32			inDocCount,
+						uint8*			inOmitVector = nil);
 
 	std::string		GetID(uint32 inDocNr);
 	

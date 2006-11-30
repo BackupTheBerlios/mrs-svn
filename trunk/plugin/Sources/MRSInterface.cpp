@@ -44,6 +44,7 @@
 #include "MRSInterface.h"
 
 #include <boost/shared_ptr.hpp>
+#include <boost/regex.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -404,106 +405,43 @@ MDatabankImp::MDatabankImp(const string& inDatabank)
 			cout << "MRS_DATA_DIR is not defined" << endl;
 	}
 
-	string databank(inDatabank);
+	boost::regex re("\\+");
+	boost::sregex_token_iterator i(inDatabank.begin(), inDatabank.end(), re, -1), j;
+
+	vector<CDatabankBase*> parts;
 	
-	do
+	while (i != j)
 	{
-		string::size_type p = databank.find('|');
-		string db;
-		
-		if (p != string::npos)
-		{
-			db = databank.substr(0, p);
-			databank.erase(0, p + 1);
-		}
-		else
-		{
-			db = databank;
-			databank.clear();
-		}
+		string part = *i;
+		++i;
 		
 		HUrl url;
-		
-		string::size_type j = db.find('+');
-		if (j != string::npos)
-		{
-			// joined parts are only allowed before the first updating part...
-			
-			if (fDatabank.get() != nil)
-				THROW(("Joined parts can only occur before the first update part"));
-			
-			vector<CDatabankBase*> parts;
-			
-			do
-			{
-				string part;
-				
-				if (j != string::npos)
-				{
-					part = db.substr(0, j);
-					db.erase(0, j + 1);
-				}
-				else
-				{
-					part = db;
-					db.clear();
-				}
-				
-				HUrl url;
 	
-				// find the db to use and try to be intelligent...
-				
-				url.SetNativePath(part);
-				if (not HFile::Exists(url))
-					url.SetNativePath(part + kFileExtension);
-				if (not HFile::Exists(url) and data_dir != nil)
-					url.SetNativePath(string(data_dir) + '/' + part);
-				if (not HFile::Exists(url) and data_dir != nil)
-					url.SetNativePath(string(data_dir) + '/' + part + kFileExtension);
+		// find the db to use and try to be intelligent...
 		
-				if (not HFile::Exists(url))
-					THROW(("Databank not found: '%s'", part.c_str()));
+		url.SetNativePath(part);
+		if (not HFile::Exists(url))
+			url.SetNativePath(part + kFileExtension);
+		if (not HFile::Exists(url) and data_dir != nil)
+			url.SetNativePath(string(data_dir) + '/' + part);
+		if (not HFile::Exists(url) and data_dir != nil)
+			url.SetNativePath(string(data_dir) + '/' + part + kFileExtension);
 
-				if (VERBOSE)
-					cout << "Using file " << url.GetURL() << endl;
-				
-				parts.push_back(new CDatabank(url));
-					
-				j = db.find('+');
-			}
-			while (db.length());
-			
-			if (parts.size() == 0)
-				THROW(("no databanks specified"));
+		if (not HFile::Exists(url))
+			THROW(("Databank not found: '%s'", part.c_str()));
 
-			fDatabank.reset(new CJoinedDatabank(parts));
-		}
-		else
-		{
-
-			// find the db to use and try to be intelligent...
-			
-			url.SetNativePath(db);
-			if (not HFile::Exists(url))
-				url.SetNativePath(db + kFileExtension);
-			if (not HFile::Exists(url) and data_dir != nil)
-				url.SetNativePath(string(data_dir) + '/' + db);
-			if (not HFile::Exists(url) and data_dir != nil)
-				url.SetNativePath(string(data_dir) + '/' + db + ".cmp");
-	
-			if (not HFile::Exists(url))
-				THROW(("Databank not found: '%s'", db.c_str()));
-			
-			if (VERBOSE)
-				cout << "Using file " << url.GetURL() << endl;
-			
-			if (fDatabank.get() == nil)
-				fDatabank.reset(new CDatabank(url));
-			else
-				fDatabank.reset(new CUpdatedDatabank(url, fDatabank.release()));
-		}
+		if (VERBOSE)
+			cout << "Using file " << url.GetURL() << endl;
+		
+		parts.push_back(new CDatabank(url));
 	}
-	while (databank.length() != 0);
+	
+	if (parts.size() > 1)
+		fDatabank.reset(new CJoinedDatabank(parts));
+	else if (parts.size() == 1)
+		fDatabank.reset(parts.front());
+	else
+		THROW(("Databank '%s' not found", inDatabank.c_str()));
 }
 
 void MDatabankImp::PrintCreateStatistics()

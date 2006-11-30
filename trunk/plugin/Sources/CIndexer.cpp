@@ -63,6 +63,10 @@
 #endif
 #include <boost/functional/hash/hash.hpp>
 #include <boost/ptr_container/ptr_vector.hpp>
+#include <numeric>
+#include <boost/lambda/lambda.hpp>
+#include <boost/lambda/bind.hpp>
+#include <boost/lambda/algorithm.hpp>
 #include "HFile.h"
 #include "HUtils.h"
 #include "HError.h"
@@ -79,6 +83,7 @@
 #include "CDocWeightArray.h"
 
 using namespace std;
+using namespace boost::lambda;
 
 // Global, settable from the outside
 
@@ -2146,16 +2151,36 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 		
 		while (iter->Next(s, v))
 		{
-			if (fParts[ix].kind == kValueIndex and v.size() > 1)
-				cerr << "Duplicate key '" << s << "' in index '" << fParts[ix].name << '\'' << endl;
+			if (VERBOSE)
+			{
+				if (fParts[ix].kind == kValueIndex and v.size() > 1)
+					cerr << "Duplicate key '" << s << "' in index '" << fParts[ix].name << '\'' << endl;
+			}
 
 			++fParts[ix].entries;
 			
 			switch (fParts[ix].kind)
 			{
 				case kValueIndex:
-					indx.push_back(make_pair(s, v[0].second));
+				{
+					vector<pair<uint32,int64> >::iterator m;
+					
+					// in case of a duplicate ID we store the ID with the highest
+					// document ID. 
+					if (v.size() > 1)
+					{
+						m = max_element(v.begin(), v.end(),
+							bind(&pair<uint32,int64>::second, _1) < bind(&pair<uint32,int64>::second, _2));
+					
+						if (m == v.end())
+							THROW(("runtime error"));
+					}
+					else
+						m = v.begin();
+
+					indx.push_back(make_pair(s, m->second));
 					break;
+				}
 				
 				case kTextIndex:
 				case kDateIndex:

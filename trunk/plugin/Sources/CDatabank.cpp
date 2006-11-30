@@ -103,7 +103,15 @@ struct SHeader
 	int64		blast_ix_offset;
 	int64		blast_ix_size;
 	uuid_t		uuid;
+	int64		omit_vector_offset;		// a bit vector for records that are invalid
 };
+
+const uint32
+	kSHeaderSizeV0 = 2 * sizeof(uint32) + 11 * sizeof(int64),
+	kSHeaderSizeV1 = 2 * sizeof(uint32) + 11 * sizeof(int64) + sizeof(uuid_t),
+	kSHeaderSizeV2 = 2 * sizeof(uint32) + 11 * sizeof(int64) + sizeof(uuid_t) + sizeof(int64),
+	
+	kSHeaderSize = kSHeaderSizeV2;
 
 struct SDataHeader
 {
@@ -211,6 +219,11 @@ uint32 CDatabankBase::GetDocumentNr(const std::string& inDocID) const
 	if (not GetDocumentNr(inDocID, result))
 		THROW(("Document (%s) not found", inDocID.c_str()));
 	return result;
+}
+
+bool CDatabankBase::IsValidDocumentNr(uint32 inDocNr) const
+{
+	return true;
 }
 
 string CDatabankBase::GetDocument(const string& inDocumentID)
@@ -349,6 +362,7 @@ CDatabank::CDatabank(const HUrl& inUrl, const vector<string>& inMetaDataFields)
 #ifndef NO_BLAST
 	, fBlast(nil)
 #endif
+	, fOmitVector(nil)
 {
 	memset(fHeader, 0, sizeof(SHeader));
 	memset(fDataHeader, 0, sizeof(SDataHeader));
@@ -421,8 +435,11 @@ CDatabank::CDatabank(const HUrl& inUrl)
 #ifndef NO_BLAST
 	, fBlast(nil)
 #endif
+	, fOmitVector(nil)
 {
 	HFile::GetModificationTime(fPath, fModificationTime);
+	
+	assert(sizeof(SHeader) == kSHeaderSize);
 	
 	memset(fHeader, 0, sizeof(SHeader));
 	memset(fDataHeader, 0, sizeof(SDataHeader));
@@ -522,6 +539,7 @@ CDatabank::~CDatabank()
 	delete fBlast;
 	delete fBlastIndex;
 #endif
+	delete[] fOmitVector;
 }
 
 string CDatabank::GetDbName() const
@@ -793,9 +811,23 @@ void CDatabank::Merge(vector<CDatabank*>& inParts, bool inCopyData)
 		
 		fDataFile->Seek(0, SEEK_END);
 		fHeader->id_offset = fDataFile->Tell();
-		CIdTable::Create(*fDataFile, *idIndex.get(), fHeader->entries);
+		
+		// since we're merging we create an omit vector here
+		delete[] fOmitVector;
+		uint32 omitVectorSize = fHeader->entries >> 3;
+		if (fHeader->entries & 0x07)
+			omitVectorSize += 1;
+		
+		fOmitVector = new uint8[omitVectorSize];
+		memset(fOmitVector, 0, omitVectorSize);
+		
+		CIdTable::Create(*fDataFile, *idIndex.get(), fHeader->entries, fOmitVector);
+
 		fDataFile->Seek(0, SEEK_END);
 		fHeader->id_size = fDataFile->Tell() - fHeader->id_offset;
+		
+		fHeader->omit_vector_offset = fDataFile->Tell();
+		fDataFile->Write(fOmitVector, omitVectorSize);
 
 		if (VERBOSE >= 1)
 			cout << "done" << endl;
@@ -939,7 +971,55 @@ vector<string> CDatabank::GetMetaDataFields() const
 
 bool CDatabank::GetDocumentNr(const string& inDocID, uint32& outDocNr) const
 {
-	return GetIndexer()->GetDocumentNr(inDocID, outDocNr);
+	bool result = true;
+
+	// our ID table inserts document ID's with the pattern '#docnr'
+	// make sure we recognize those	
+	if (not GetIndexer()->GetDocumentNr(inDocID, outDocNr) and
+		inDocID.length() > 1 and
+		inDocID[0] == '#')
+	{
+		const char* p = inDocID.c_str() + 1;
+		
+		outDocNr = 0;
+	
+		// parse number		
+		while (isdigit(*p))
+		{
+			outDocNr = outDocNr * 10 + (*p - '0');
+			++p;
+		}
+		
+		if (*p != 0)
+			result = false;
+	}
+	
+	return result;
+}
+
+bool CDatabank::IsValidDocumentNr(uint32 inDocNr) const
+{
+	bool result = true;
+	
+	if (fHeader->omit_vector_offset > 0)
+	{
+		if (fOmitVector == nil)
+		{
+			uint32 omitVectorSize = fHeader->entries >> 3;
+			if (fHeader->entries & 0x07)
+				omitVectorSize += 1;
+			
+			fOmitVector = new uint8[omitVectorSize];
+			fDataFile->PRead(fOmitVector, omitVectorSize, fHeader->omit_vector_offset);
+		}
+		
+		uint32 byte = inDocNr >> 3;
+		uint32 bit = inDocNr & 0x07;
+		
+		result = (fOmitVector[byte] & (1 << bit)) == 0;
+	}
+	
+	return result;
 }
 
 #ifndef NO_BLAST
@@ -1158,6 +1238,7 @@ void CDatabank::PrintInfo()
 	cout << "  blast offset:  " << fHeader->blast_ix_offset << endl;
 	cout << "  blast size:    " << fHeader->blast_ix_size << endl;
 #endif
+	cout << "  omitvec offset:" << fHeader->omit_vector_offset << endl;
 	cout << endl;
 	
 	sig = reinterpret_cast<const char*>(&fDataHeader->sig);
@@ -1395,12 +1476,13 @@ HStreamBase& operator<<(HStreamBase& inData, SHeader& inStruct)
 	
 	data.Write(inStruct.uuid, sizeof(inStruct.uuid));
 	
+	data << inStruct.omit_vector_offset;
+	
 	return inData;
 }
 
 HStreamBase& operator>>(HStreamBase& inData, SHeader& inStruct)
 {
-	int64 offset = inData.Tell();
 	HSwapStream<net_swapper> data(inData);
 	
 	data.Read(&inStruct.sig, sizeof(inStruct.sig));
@@ -1412,21 +1494,12 @@ HStreamBase& operator>>(HStreamBase& inData, SHeader& inStruct)
 		 >> inStruct.id_offset >> inStruct.id_size
 		 >> inStruct.blast_ix_offset >> inStruct.blast_ix_size;
 	
-	data.Read(inStruct.uuid, sizeof(inStruct.uuid));
+	if (inStruct.size >= kSHeaderSizeV1)
+		data.Read(inStruct.uuid, sizeof(inStruct.uuid));
 	
-	if (inStruct.size != sizeof(inStruct))
-	{
-		SHeader t = { 0 };
-		
-		if (inStruct.size > sizeof(SHeader))
-			inStruct.size = sizeof(SHeader);
-		
-		memcpy(&t, &inStruct, inStruct.size);
-		inStruct = t;
-		
-		inData.Seek(offset + inStruct.size, SEEK_SET);
-	}
-	
+	if (inStruct.size >= kSHeaderSizeV2)
+		data >> inStruct.omit_vector_offset;
+
 	return inData;
 }
 
@@ -1717,6 +1790,17 @@ bool CJoinedDatabank::GetDocumentNr(const string& inDocID, uint32& outDocNr) con
 	return found;
 }
 
+bool CJoinedDatabank::IsValidDocumentNr(uint32 inDocNr) const
+{
+	bool result = false;
+	CDatabankBase* db;
+	
+	if (PartForDoc(inDocNr, db))
+		result = db->IsValidDocumentNr(inDocNr);
+
+	return result;
+}
+
 #ifndef NO_BLAST
 uint32 CJoinedDatabank::GetBlastDbCount() const
 {
@@ -1957,271 +2041,5 @@ string CJoinedDatabank::GetDbName() const
 		result += fParts[p].fDb->GetDbName();
 	}
 	return result;
-}
-
-// ---------------------------------------------------------------------------
-//
-//	Updated databank
-//
-
-CUpdatedDatabank::CUpdatedDatabank(const HUrl& inFile, CDatabankBase* inOriginal)
-	: CDatabank(inFile)
-	, fOriginal(inOriginal)
-{
-}
-
-CUpdatedDatabank::~CUpdatedDatabank()
-{
-	delete fOriginal;
-}
-
-string CUpdatedDatabank::GetDocument(uint32 inDocNr)
-{
-	if (inDocNr >= CDatabank::Count())
-		return fOriginal->GetDocument(inDocNr - CDatabank::Count());
-	else
-		return CDatabank::GetDocument(inDocNr);
-}
-
-string CUpdatedDatabank::GetMetaData(uint32 inDocNr, const std::string& inName)
-{
-	if (inDocNr >= CDatabank::Count())
-		return fOriginal->GetMetaData(inDocNr - CDatabank::Count(), inName);
-	else
-		return CDatabank::GetMetaData(inDocNr, inName);
-}
-
-#ifndef NO_BLAST
-void CUpdatedDatabank::GetSequence(uint32 inDocNr, uint32 inIndex,
-	CSequence& outSequence)
-{
-	if (inDocNr >= CDatabank::Count())
-		fOriginal->GetSequence(inDocNr - CDatabank::Count(), inIndex, outSequence);
-	else
-		CDatabank::GetSequence(inDocNr, inIndex, outSequence);
-}
-
-uint32 CUpdatedDatabank::CountSequencesForDocument(uint32 inDocNr)
-{
-	if (inDocNr >= CDatabank::Count())
-		return fOriginal->CountSequencesForDocument(inDocNr - CDatabank::Count());
-	else
-		return CDatabank::CountSequencesForDocument(inDocNr);
-}
-
-uint32 CUpdatedDatabank::GetBlastDbCount() const
-{
-	return fOriginal->GetBlastDbCount() + CDatabank::GetBlastDbCount();
-}
-
-int64 CUpdatedDatabank::GetBlastDbLength() const
-{
-	return fOriginal->GetBlastDbLength() + CDatabank::GetBlastDbLength();
-}
-#endif
-
-bool CUpdatedDatabank::GetDocumentNr(const string& inDocumentID, uint32& outDocNr) const
-{
-	bool result = CDatabank::GetDocumentNr(inDocumentID, outDocNr);
-	
-	if (not result and fOriginal->GetDocumentNr(inDocumentID, outDocNr))
-	{
-		result = true;
-		outDocNr += CDatabank::Count();
-	}
-	
-	return result;
-}
-
-string CUpdatedDatabank::GetDocumentID(uint32 inDocNr) const
-{
-	if (inDocNr >= CDatabank::Count())
-		return fOriginal->GetDocumentID(inDocNr - CDatabank::Count());
-	else
-		return CDatabank::GetDocumentID(inDocNr);
-}
-
-template<class T>
-class CUpdateIterator : public CDbDocIteratorBase
-{
-  public:
-						CUpdateIterator(CDatabankBase* inDb, CIndex* inOmit,
-							T* inOriginal);
-	virtual				~CUpdateIterator();
-	
-	virtual bool		Next(uint32& ioDoc, bool inSkip);
-	virtual bool		Next(uint32& ioDoc, uint8& outRank, bool inSkip);
-
-	virtual uint32		Count() const		{ return fOriginal ? fOriginal->Count() : 0; }
-	virtual uint32		Read() const		{ return fOriginal ? fOriginal->Read() : 0; }
-
-  protected:	
-	CDatabankBase*		fDb;
-	CIndex*				fOmit;
-	T*					fOriginal;
-};
-
-template<class T>
-CUpdateIterator<T>::CUpdateIterator(CDatabankBase* inDb, CIndex* inOmit, T* inOriginal)
-	: fDb(inDb)
-	, fOmit(inOmit)
-	, fOriginal(inOriginal)
-{
-}
-
-template<class T>
-CUpdateIterator<T>::~CUpdateIterator()
-{
-	delete fOriginal;
-	delete fOmit;
-}
-
-template<class T>
-bool CUpdateIterator<T>::Next(uint32& outDocNr, bool inSkip)
-{
-	THROW(("runtime error"));
-	return false;
-}
-
-template<class T>
-bool CUpdateIterator<T>::Next(uint32& outDocNr, uint8& outRank, bool inSkip)
-{
-	THROW(("runtime error"));
-	return false;
-}
-
-template<>
-bool CUpdateIterator<CDocIterator>::Next(uint32& outDocNr, bool inSkip)
-{
-	bool result = false;
-	while (not result and fOriginal != nil and fOriginal->Next(outDocNr, inSkip))
-	{
-		string id = fDb->GetDocumentID(outDocNr);
-
-		uint32 v;
-		if (not fOmit->GetValue(id, v))
-			result = true;
-	}
-	return result;
-}
-
-template<>
-bool CUpdateIterator<CDbDocIteratorBase>::Next(uint32& outDocNr, uint8& outRank, bool inSkip)
-{
-	bool result = false;
-	while (not result and fOriginal != nil and fOriginal->Next(outDocNr, outRank, inSkip))
-	{
-		string id = fDb->GetDocumentID(outDocNr);
-		
-		uint32 v;
-		if (not fOmit->GetValue(id, v))
-			result = true;
-//
-//cerr << id << " " << (result ? "returned" : "omitted") << endl;
-//
-	}
-	return result;
-}
-
-CDocIterator* CUpdatedDatabank::CreateDocIterator(const string& inIndex,
-	const string& inKey, bool inKeyIsPattern, CQueryOperator inOperator)
-{
-	CIndex* omit = GetIndexer()->GetIndex("id");
-	if (omit == nil)
-		THROW(("Update databank does not contain an id index"));
-
-	CDocIterator* a = CDatabank::CreateDocIterator(inIndex, inKey, inKeyIsPattern, inOperator);
-	CDocIterator* b = new CDocDeltaIterator(new CUpdateIterator<CDocIterator>(fOriginal, omit,
-		fOriginal->CreateDocIterator(inIndex, inKey, inKeyIsPattern, inOperator)), CDatabank::Count());
-	
-	return CDocUnionIterator::Create(a, b);
-}
-
-uint32 CUpdatedDatabank::Count() const
-{
-	return CDatabank::Count() + fOriginal->Count();
-}
-
-int64 CUpdatedDatabank::GetRawDataSize() const
-{
-	return CDatabank::GetRawDataSize() + fOriginal->GetRawDataSize();
-}
-
-void CUpdatedDatabank::PrintInfo()
-{
-	cout << "Original databank: " << endl;
-	fOriginal->PrintInfo();
-
-	cout << "Update databank: " << endl;
-	CDatabank::PrintInfo();
-}
-
-uint32 CUpdatedDatabank::CountDocumentsContainingKey(const string& inIndex, const string& inKey)
-{
-	return CDatabank::CountDocumentsContainingKey(inIndex, inKey) +
-		fOriginal->CountDocumentsContainingKey(inIndex, inKey);
-}
-
-string CUpdatedDatabank::GetVersion() const
-{
-	return fOriginal->GetVersion() + " | " + CDatabank::GetVersion();
-}
-
-string CUpdatedDatabank::GetUUID() const
-{
-	return fOriginal->GetUUID() + " | " + CDatabank::GetUUID();
-}
-
-bool CUpdatedDatabank::IsUpToDate() const
-{
-	return fOriginal->IsUpToDate() and CDatabank::IsUpToDate();
-}
-
-CDbDocIteratorBase* CUpdatedDatabank::GetDocWeightIterator(
-	const std::string& inIndex, const std::string& inKey)
-{
-	CIndex* omit = GetIndexer()->GetIndex("id");
-	if (omit == nil)
-		THROW(("Update databank does not contain an id index"));
-
-	CDbDocIteratorBase* a = CDatabank::GetDocWeightIterator(inIndex, inKey);
-	CDbDocIteratorBase* b = fOriginal->GetDocWeightIterator(inIndex, inKey);
-//	CDbDocIteratorBase* b = new CUpdateIterator<CDbDocIteratorBase>(fOriginal, omit,
-//		fOriginal->GetDocWeightIterator(inIndex, inKey));
-	
-	return new CMergedDbDocIterator(b, CDatabank::Count(), CDatabank::Count(),
-		a, 0, fOriginal->Count());
-}
-
-vector<string> CUpdatedDatabank::GetMetaDataFields() const
-{
-	set<string> fields;
-	
-	vector<string> n(CDatabank::GetMetaDataFields());
-	for (vector<string>::iterator m = n.begin(); m != n.end(); ++m)
-		fields.insert(*m);
-
-	n = fOriginal->GetMetaDataFields();
-	for (vector<string>::iterator m = n.begin(); m != n.end(); ++m)
-		fields.insert(*m);
-	
-	vector<string> result;
-	copy(fields.begin(), fields.end(), back_insert_iterator<vector<string> >(result));
-	return result;
-}
-
-string	CUpdatedDatabank::GetDbName() const
-{
-	return fOriginal->GetDbName() + '_' + CDatabank::GetDbName();
-}
-
-CDocWeightArray CUpdatedDatabank::GetDocWeights(const std::string& inIndex)
-{
-	return CDocWeightArray(CDatabank::GetDocWeights(inIndex), fOriginal->GetDocWeights(inIndex));
-}
-
-uint32 CUpdatedDatabank::GetMaxWeight() const
-{
-	return fOriginal->GetMaxWeight();
 }
 

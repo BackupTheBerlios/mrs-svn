@@ -213,7 +213,11 @@ struct CIdTableHelper
 					}
 };
 
-void CIdTable::Create(HStreamBase& inFile, CIndex& inIndex, uint32 inDocCount)
+void CIdTable::Create(
+	HStreamBase&	inFile,
+	CIndex&			inIndex,
+	uint32			inDocCount,
+	uint8*			inOmitVector)
 {
 	// Build the table in memory, let's pray it fits...
 	
@@ -233,9 +237,12 @@ void CIdTable::Create(HStreamBase& inFile, CIndex& inIndex, uint32 inDocCount)
 
 		if (helper.n != inDocCount)
 		{
-			cerr << "Number of entries in the id index (" << helper.n
-				 << ") does not equal the number of documents (" << inDocCount
-				 << "), this is an error" << endl;
+			if (inOmitVector == nil)
+			{
+				cerr << "Number of entries in the id index (" << helper.n
+					 << ") does not equal the number of documents (" << inDocCount
+					 << "), this might indicate an error" << endl;
+			}
 			
 			for (uint32 i = 0; i < inDocCount; ++i)
 			{
@@ -245,7 +252,15 @@ void CIdTable::Create(HStreamBase& inFile, CIndex& inIndex, uint32 inDocCount)
 					s << '#' << i;
 					helper.map[i] = helper.data.Store(s.str().c_str());
 					
-					cerr << "Adding id: " << s.str() << endl;
+					if (inOmitVector == nil)
+						cerr << "Adding id: " << s.str() << endl;
+					else
+					{
+						uint32 byte = i >> 3;
+						uint32 bit = i & 0x07;
+						
+						inOmitVector[byte] |= (1 << bit);
+					}
 				}
 			}
 		}

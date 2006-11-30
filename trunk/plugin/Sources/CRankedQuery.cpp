@@ -470,6 +470,10 @@ void CRankedQuery::PerformSearch(
 	
 	while (rdi->Next(d, false))
 	{
+		// skip over invalidated records
+		if (not inDatabank.IsValidDocumentNr(d))
+			continue;
+		
 		CDocScore ds;
 		ds.fRank = alg(A[d], Wd[d], Wq);
 		ds.fDocNr = d;

@@ -61,7 +61,7 @@ VERSION		= 3.0a1
 DEBUG		= 0
 DEFINES		= CPU_$(CPU) MINI_H_LIB
 BOOST		= /usr/include
-LIBS		= z m bz2
+LIBS		= z m bz2 boost_regex
 LIBPATHS	=  ./Lib/ /usr/local/lib/
 INCPATHS	= ./Lib/Includes/ ./Lib/X/ ./Lib/
 SYSINCPATHS	= /usr/include $(BOOST)
@@ -285,7 +285,7 @@ INCLUDES += $(JAVA_INC)
 endif
 
 # add the -L prefix to all library paths to search
-LINK_PATHS = $(foreach path, $(LIBPATHS), $(addprefix -L, $(path)))
+LINK_PATHS = $(foreach path, $(LIBPATHS) $(BOOST_LIB), $(addprefix -L, $(path)))
 
 # add the -l prefix to all libs to be linked against
 LINK_LIBS = $(foreach lib, $(LIBS), $(addprefix -l, $(lib)))
