@@ -129,39 +129,6 @@ typedef CDbDocIteratorBaseT<std::pair<uint32,uint8>, kAC_GolombCode>	CDbDocWeigh
 typedef CDbDocIteratorBaseT<uint32, kAC_SelectorCode>					CDbDocIteratorSC;
 typedef CDbDocIteratorBaseT<std::pair<uint32,uint8>, kAC_SelectorCode>	CDbDocWeightIteratorSC;
 
-class CMergedDbDocIterator : public CDbDocIteratorBase
-{
-  public:
-					CMergedDbDocIterator(CDbDocIteratorBase* inIterA, uint32 inDeltaA, uint32 inDbCountA,
-						CDbDocIteratorBase* inIterB, uint32 inDeltaB, uint32 inDbCountB);
-
-	virtual bool	Next(uint32& ioDoc, bool inSkip);
-	virtual bool	Next(uint32& ioDoc, uint8& ioRank, bool inSkip);
-
-	virtual uint32	Count() const						{ return fCount; }
-	virtual uint32	Read() const						{ return fRead; }
-
-  private:
-
-	struct CSubIter
-	{
-		uint32				fDocNr;
-		uint8				fRank;
-		uint32				fDelta;
-		CDbDocIteratorBase*	fIter;
-		
-		bool operator<(const CSubIter& inOther) const
-				{ return fRank > inOther.fRank or (fRank == inOther.fRank and fDocNr + fDelta < inOther.fDocNr + inOther.fDelta); }
-
-		bool operator>(const CSubIter& inOther) const
-				{ return fRank < inOther.fRank or (fRank == inOther.fRank and fDocNr + fDelta > inOther.fDocNr + inOther.fDelta); }
-	};
-
-	std::vector<CSubIter>	fIterators;
-	uint32					fCount;
-	uint32					fRead;
-};
-
 class CDocNrIterator : public CDocIterator
 {
   public:
