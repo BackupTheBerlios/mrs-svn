@@ -773,8 +773,19 @@ int main()
 			
 			double start = system_time();
 			
-			if (soap_serve(&soap) != SOAP_OK) // process RPC request
-				soap_print_fault(&soap, stderr); // print error
+			try
+			{
+				if (soap_serve(&soap) != SOAP_OK) // process RPC request
+					soap_print_fault(&soap, stderr); // print error
+			}
+			catch (const exception& e)
+			{
+				cout << endl << "Exception: " << e.what() << endl;
+			}
+			catch (...)
+			{
+				cout << endl << "Unknown exception" << endl;
+			}
 			
 			double end = system_time();
 			
