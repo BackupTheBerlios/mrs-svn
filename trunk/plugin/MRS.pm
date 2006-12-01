@@ -119,6 +119,7 @@ sub new {
 *Get = *MRSc::MDatabank_Get;
 *GetMetaData = *MRSc::MDatabank_GetMetaData;
 *GetDescription = *MRSc::MDatabank_GetDescription;
+*ContainsBlastIndex = *MRSc::MDatabank_ContainsBlastIndex;
 *Sequence = *MRSc::MDatabank_Sequence;
 *Blast = *MRSc::MDatabank_Blast;
 *Index = *MRSc::MDatabank_Index;

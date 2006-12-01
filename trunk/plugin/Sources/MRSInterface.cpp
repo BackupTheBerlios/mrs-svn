@@ -656,6 +656,11 @@ const char* MDatabank::GetDescription(const std::string& inEntryID)
 }
 
 #ifndef NO_BLAST
+bool MDatabank::ContainsBlastIndex() const
+{
+	return fImpl->fDatabank->GetBlastDbCount() > 0;
+}
+
 const char* MDatabank::Sequence(const string& inEntryID, unsigned long inIndex)
 {
 	const char* result = nil;

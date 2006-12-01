@@ -1064,6 +1064,7 @@ bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPar
 	{
 		int64 newOffset = 0;
 		
+		// this should be improved using readv...
 		for (vector<pair<uint32,int64> >::iterator l = lexicon.begin(); l != lexicon.end(); ++l)
 		{
 			uint32 length = static_cast<uint32>(l->second >> 32);
@@ -2151,7 +2152,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 		
 		while (iter->Next(s, v))
 		{
-			if (VERBOSE)
+			if (VERBOSE > 1)
 			{
 				if (fParts[ix].kind == kValueIndex and v.size() > 1)
 					cerr << "Duplicate key '" << s << "' in index '" << fParts[ix].name << '\'' << endl;

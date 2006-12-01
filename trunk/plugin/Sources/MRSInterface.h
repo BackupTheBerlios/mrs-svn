@@ -342,6 +342,15 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 
 #ifndef NO_BLAST
 
+	/**	\brief	Returns true if databank contains blast indices
+	 *
+	 *	To find out if you can perform a blast search against this databank
+	 *	you can call ContainsBlastIndex.
+	 *	\result			True or one in case the databank has a blast index
+	 */
+	 
+	 bool				ContainsBlastIndex() const;
+
 	/** \brief	Return sequence \a inIndex stored for document \a inEntryID
 	 *
 	 *	Protein sequences can be stored separately to make it possible to search

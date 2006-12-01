@@ -2984,6 +2984,46 @@ XS(_wrap_MDatabank_GetDescription) {
 }
 
 
+XS(_wrap_MDatabank_ContainsBlastIndex) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        bool result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: MDatabank_ContainsBlastIndex(self);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_ContainsBlastIndex. Expected _p_MDatabank");
+            }
+        }
+        {
+            try {
+                result = (bool)((MDatabank const *)arg1)->ContainsBlastIndex();
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        ST(argvi) = sv_newmortal();
+        sv_setiv(ST(argvi++), (IV) result);
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
 XS(_wrap_MDatabank_Sequence__SWIG_0) {
     {
         MDatabank *arg1 = (MDatabank *) 0 ;
@@ -6884,6 +6924,7 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MDatabank_Get", _wrap_MDatabank_Get},
 {"MRSc::MDatabank_GetMetaData", _wrap_MDatabank_GetMetaData},
 {"MRSc::MDatabank_GetDescription", _wrap_MDatabank_GetDescription},
+{"MRSc::MDatabank_ContainsBlastIndex", _wrap_MDatabank_ContainsBlastIndex},
 {"MRSc::MDatabank_Sequence", _wrap_MDatabank_Sequence},
 {"MRSc::MDatabank_Blast", _wrap_MDatabank_Blast},
 {"MRSc::MDatabank_Index", _wrap_MDatabank_Index},
