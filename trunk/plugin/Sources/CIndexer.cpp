@@ -2272,6 +2272,16 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 
 						while (iter.Next(doc, freq, false))
 						{
+							if (doc >= fHeader->entries)
+							{
+								cerr << "Error in index " << fParts[ix].name
+									 << " key " << s
+									 << ", docnr out of range: " << doc
+									 << endl;
+
+								break;
+							}							
+							
 							docs.push_back(make_pair(doc, freq));
 
 							float wdt = freq * idf;
@@ -2305,12 +2315,13 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 
 		auto_ptr<CIndex> indxOnDisk(CIndex::CreateFromIterator(fParts[ix].kind,
 			fParts[ix].index_version, mapIter, outData));
-		outData.Seek(0, SEEK_END);
+		fParts[ix].tree_size = outData.Seek(0, SEEK_END);
 		fParts[ix].root = indxOnDisk->GetRoot();
 		
 		if (fParts[ix].kind != kValueIndex)
 		{
 			fParts[ix].bits_offset = outData.Seek(0, SEEK_END);
+			fParts[ix].bits_size = bitFile->Size();
 			
 			char b[10240];
 			int64 k = bitFile->Size();
@@ -2469,8 +2480,12 @@ CDocIterator* CIndexer::CreateDocIterator(const string& inIndex, const string& i
 					
 					for (vector<uint32>::iterator i = values.begin(); i != values.end(); ++i)
 					{
-						bitIter->Add(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
-							fParts[ix].bits_offset + *i, fHeader->entries));
+						if (fParts[ix].kind == kWeightedIndex)
+							bitIter->Add(CreateDbDocWeightIterator(fHeader->array_compression_kind, *fFile,
+								fParts[ix].bits_offset + *i, fHeader->entries));
+						else
+							bitIter->Add(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
+								fParts[ix].bits_offset + *i, fHeader->entries));
 					}
 					
 					iters.push_back(bitIter.release());
@@ -2478,8 +2493,16 @@ CDocIterator* CIndexer::CreateDocIterator(const string& inIndex, const string& i
 				else
 				{
 					for (vector<uint32>::iterator i = values.begin(); i != values.end(); ++i)
-						iters.push_back(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
-							fParts[ix].bits_offset + *i, fHeader->entries));
+					{
+						if (fParts[ix].kind == kWeightedIndex)
+							iters.push_back(CreateDbDocWeightIterator(fHeader->array_compression_kind, *fFile,
+								fParts[ix].bits_offset + *i, fHeader->entries));
+						else
+							iters.push_back(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
+								fParts[ix].bits_offset + *i, fHeader->entries));
+//						iters.push_back(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
+//							fParts[ix].bits_offset + *i, fHeader->entries));
+					}
 				}
 			}
 		}
@@ -2493,7 +2516,10 @@ CDocIterator* CIndexer::CreateDocIterator(const string& inIndex, const string& i
 			{
 				if (fParts[ix].kind == kValueIndex)
 					iters.push_back(new CDocNrIterator(value));
-				else //if (fParts[ix].kind == kTextIndex or fParts[ix].kind == kDateIndex or fParts[ix].kind == kNumberIndex)
+				else if (fParts[ix].kind == kWeightedIndex)
+					iters.push_back(CreateDbDocWeightIterator(fHeader->array_compression_kind, *fFile,
+						fParts[ix].bits_offset + value, fHeader->entries));
+				else
 					iters.push_back(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
 						fParts[ix].bits_offset + value, fHeader->entries));
 			}
