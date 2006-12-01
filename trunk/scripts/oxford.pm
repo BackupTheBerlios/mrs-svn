@@ -39,7 +39,7 @@
 
 package MRS::Script::oxford;
 
-@ISA = "MRS::Script";
+our @ISA = "MRS::Script";
 
 our %INDICES = (
 	'id'		=> 'Unique ID',
@@ -73,6 +73,7 @@ sub cytoloc2number
    my $arm;
    my $band;
    my $subband;
+   my ($min, $max);
 
    # Get the argument
    my $localisation = shift @_;
@@ -168,8 +169,8 @@ sub cytoloc2number
            if ( $subband > 99 ) {
                die("band to big...$localisation\n");
            }
-           $addn = "9" if ( $subband < 10 );
-           $addz = "0" if ( $subband < 10 );
+           my $addn = "9" if ( $subband < 10 );
+           my $addz = "0" if ( $subband < 10 );
            $min .= "$subband$addz";
            $max .= "$subband$addn";
               }
