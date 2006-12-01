@@ -270,7 +270,7 @@ void CIdTable::Create(
 		p.count = 0;
 		p.offset[0] = kIdPageSize - sizeof(uint32) * 3;
 
-		for (uint32 i = 0; i < helper.n; ++i)
+		for (uint32 i = 0; i < inDocCount; ++i)
 		{
 			string id = helper.map[i];
 			if (not p.Store(id))
