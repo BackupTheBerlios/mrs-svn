@@ -107,6 +107,7 @@ struct ns__FindAllResult
 {
 	xsd__string					db;
 	unsigned long				count;
+	std::vector<struct ns__Hit>	hits;
 };
 
 int ns__FindAll(

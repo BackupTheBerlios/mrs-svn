@@ -512,6 +512,12 @@ ns__Find(
 	return result;
 }
 
+struct SortOnFirstHitScore
+{
+	bool operator()(const ns__FindAllResult& a, const ns__FindAllResult& b) const
+		{ return a.hits.front().score > b.hits.front().score; }
+};
+
 SOAP_FMAC5 int SOAP_FMAC6
 ns__FindAll(
 	struct soap*		soap,
@@ -541,8 +547,25 @@ ns__FindAll(
 				if (r.get() != NULL)
 				{
 					ns__FindAllResult fa;
+
 					fa.db = dbi->id;
 					fa.count = r->Count(true);
+					
+					const char* id;
+					int n = 5;
+					
+					while (n-- > 0 and (id = r->Next()) != NULL)
+					{
+						ns__Hit h;
+			
+						h.id = id;
+						h.score = r->Score();
+						h.db = dbi->id;
+						h.title = GetTitle(dbi->id, h.id);
+						
+						fa.hits.push_back(h);
+					}
+
 					response.push_back(fa);
 				}
 			}
@@ -551,6 +574,8 @@ ns__FindAll(
 				cerr << endl << "Skipping db " << dbi->id << endl;
 			}
 		}
+		
+		stable_sort(response.begin(), response.end(), SortOnFirstHitScore());
 	}
 	catch (exception& e)
 	{

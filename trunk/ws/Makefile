@@ -47,13 +47,12 @@ TARGET		= mrsws
 DEBUG		= 0
 DEFINES		= CPU_$(CPU) MINI_H_LIB
 WARNINGS	= -Wall -Wno-multichar
-BOOST		= ../boost_1_33_0/
 RDEFINES	= -DMACOS=0 -DUNIX=1
 LIBNAME		= mrs
 LIBS		= z expat m bz2 gsoap++
 LIBPATHS	=  ../plugin/Lib/ /usr/local/lib/ ../plugin/
 INCPATHS	= ../plugin/Lib/Includes/ ../plugin/Lib/X/ ../plugin/Lib/ ../plugin/Sources/
-SYSINCPATHS	= /usr/include ../plugin/Lib/loki $(BOOST)
+SYSINCPATHS	= /usr/include ../plugin/Lib/loki
 WARNINGS	=  -Wall -Wno-multichar -Wno-unknown-pragmas -Wno-long-long -Wno-sign-compare
 CFLAGS		= -fsigned-char -g -ffor-scope
 LDFLAGS		= -fdata-sections -g # -ffunction-sections
@@ -63,6 +62,8 @@ SOAPCPP2	= soapcpp2
 PERL		= /usr/bin/perl
 
 include make.config
+
+SYSINCPATHS	+= $(BOOST)
 
 LDFLAGS		+= $(shell $(PERL) -MExtUtils::Embed -e ldopts)
 
@@ -199,6 +200,7 @@ LINK_PATHS = $(foreach path, $(LIBPATHS), $(addprefix -L, $(path)))
 
 # add the -l prefix to all libs to be linked against
 LINK_LIBS = $(foreach lib, $(LIBS), $(addprefix -l, $(lib)))
+LINK_LIBS += $(BOOST_LIBS)
 
 # add to the linker flags 
 LDFLAGS += $(LINK_PATHS) $(LINK_LIBS)
