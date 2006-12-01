@@ -47,6 +47,13 @@ sub describe
 	return $q->pre($text);
 }
 
+sub script_dir
+{
+	my ($this, $script_dir) = @_;
+	$this->{script_dir} = $script_dir if defined $script_dir;
+	return $this->{script_dir};
+}
+
 package MRS::Script::ParserInterface;
 
 # code needed for Find Similar
@@ -134,7 +141,7 @@ sub getScript
 
 	if ($name eq 'default')
 	{
-		$formatters{$name} = MRS::Script->new unless defined $formatters{$name};
+		$formatters{$name} = MRS::Script->new(script_dir => $mrs_format_dir) unless defined $formatters{$name};
 	}
 	else
 	{
@@ -153,7 +160,7 @@ sub getScript
 	        die $@ if $@;
 	
 	        #cache it unless we're cleaning out each time
-			$formatters{$name} = "MRS::Script::$name"->new;
+			$formatters{$name} = "MRS::Script::$name"->new(script_dir => $mrs_format_dir);
 	        $formatters{$name}{mtime} = $mtime;
 		}
 	}
