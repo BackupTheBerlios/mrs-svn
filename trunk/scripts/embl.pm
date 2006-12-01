@@ -40,6 +40,7 @@
 package MRS::Script::embl;
 
 use strict;
+use POSIX qw/strftime/;
 
 our @ISA = "MRS::Script";
 
@@ -47,6 +48,10 @@ my $count = 0;
 
 our $COMPRESSION_LEVEL = 9;
 our $COMPRESSION = "zlib";
+
+our %MERGE_DBS = (
+	'embl'	=>	[ 'embl_release', 'embl_updates' ],
+);
 
 our @INDICES = (
 	'id' => 'Identification',
@@ -283,17 +288,6 @@ my %links = (
 		result	=> '$q->a({-href=>"http://www.gdb.org/gdb-bin/genera/accno?accessionNum=$1"}, $1)'
 	}
 );
-
-sub new
-{
-	my $invocant = shift;
-	my $self = {
-		name => 'embl',
-		@_
-	};
-	my $result = bless $self, "Format_embl";
-	return $result;
-}
 
 sub print_ref
 {

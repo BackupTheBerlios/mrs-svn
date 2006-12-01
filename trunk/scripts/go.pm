@@ -49,7 +49,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "go::parser";
+	return bless $self, "MRS::Script::go";
 }
 
 sub parse

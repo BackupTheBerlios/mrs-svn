@@ -62,6 +62,7 @@ sub parse
 	my $m = $self->{mrs};
 	
 	my ($doc, $last_id, $lookahead, $xml_header);
+	my ($date_created, $date_updated, $date_discontinued);
 	
 	$lookahead = <IN>;
 	while (defined $lookahead and not ($lookahead =~ /^\s*<Entrezgene-Set>/))
@@ -130,7 +131,8 @@ sub raw_files()
 	
 	my $gene2xml = `which gene2xml`;
 	chomp($gene2xml);
-	$gene2xml = "/usr/data/scripts/gene2xml" unless -x $gene2xml;
+	$gene2xml = "./gene2xml" unless -x $gene2xml;
+	$gene2xml = "gene2xml" unless -x $gene2xml;
 	
 	return "$gene2xml -i $raw_dir/All_Data.ags.gz -o stdout -b -c |";
 }
@@ -179,6 +181,8 @@ sub pp
 			warn "couldn't do $settings: $!" unless defined $return;
 			warn "couldn't run $settings" unless $return;
 		}
+
+		$mrs_bin_dir = "/usr/pkg/bin/" unless defined $mrs_bin_dir;
 	
 		open X, "$mrs_bin_dir/Xalan /tmp/input-$$.xml gene_xslt.xml|";
 		local($/) = undef;
@@ -190,7 +194,7 @@ sub pp
 	{
 		$result = $q->pre($@);
 	}
-	unlink "/tmp/input-$$.xml";
+#	unlink "/tmp/input-$$.xml";
 	
 	return $result;
 }
@@ -218,6 +222,8 @@ sub describe
 			warn "couldn't do $settings: $!" unless defined $return;
 			warn "couldn't run $settings" unless $return;
 		}
+
+		$mrs_bin_dir = "/usr/pkg/bin/" unless defined $mrs_bin_dir;
 	
 		open X, "$mrs_bin_dir/Xalan /tmp/input-$$.xml gene_list_xslt.xml|";
 		local($/) = undef;
@@ -229,7 +235,7 @@ sub describe
 	{
 		$result = $q->pre($@);
 	}
-	unlink "/tmp/input-$$.xml";
+#	unlink "/tmp/input-$$.xml";
 	
 	return $result;
 }

@@ -39,7 +39,7 @@
 
 package MRS::Script::goa;
 
-@our @ISA = "MRS::Script";
+our @ISA = "MRS::Script";
 
 my $count = 0;
 
@@ -49,7 +49,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "MRS::Script";
+	return bless $self, "MRS::Script::goa";
 }
 
 sub parse
