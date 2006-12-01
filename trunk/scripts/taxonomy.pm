@@ -56,7 +56,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "taxonomy::parser";
+	return bless $self, "MRS::Script::taxonomy";
 }
 
 sub parse

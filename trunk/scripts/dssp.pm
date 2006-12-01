@@ -119,6 +119,40 @@ sub raw_files
 
 # formatting
 
-# none...
+sub describe
+{
+	my ($this, $q, $text) = @_;
+	
+	my $header;
+	my $compnd = "";
+
+	open TXT, "<", \$text;
+	while (my $line = <TXT>)
+	{
+		if ($line =~ /^HEADER\s+(.+?)\s{3}/mo)
+		{
+			$header = lc($1) . ' ';
+		}
+		elsif ($line =~ /^COMPND   (MOLECULE: )?( |\d )(.+)/mo)
+		{
+			$compnd .= lc($3) . ' ';
+		}
+		elsif ($line =~ /^SOURCE/)
+		{
+			last;
+		}
+	}
+
+	my $desc;
+		
+	$desc = $header;
+
+	if ($compnd ne '')
+	{
+		$desc .= $q->br . $q->i($compnd);
+	}	
+	
+	return $desc;
+}
 
 1;

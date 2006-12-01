@@ -131,4 +131,19 @@ sub raw_files
 	return "<$raw_dir/prosite.doc";
 }
 
+# formatting
+
+sub describe
+{
+	my ($this, $q, $text) = @_;
+	
+	my $desc = $text;
+	
+	if ($text =~ m/\* (.+?)\s+\*/) {
+		$desc = $1;
+	}
+	
+	return $desc;
+}
+
 1;

@@ -68,7 +68,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "prosite::parser";
+	return bless $self, "MRS::Script::prosite";
 }
 
 sub parse
