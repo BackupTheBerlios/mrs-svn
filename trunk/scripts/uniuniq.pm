@@ -132,4 +132,18 @@ sub raw_files
 	return map { "gunzip -c $_ |" } @result;
 }
 
+# formatting
+
+sub describe
+{
+	my ($self, $q, $text) = @_;
+
+	my $title;
+	if ($text =~ m/\s(.+?)\s\/\w+=/) {
+		$title = $1;
+	}
+
+	return $title;
+}
+
 1;

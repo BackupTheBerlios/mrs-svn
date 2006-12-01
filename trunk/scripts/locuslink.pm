@@ -128,6 +128,23 @@ sub raw_files
 
 # formatting
 
+sub describe
+{
+	my ($self, $q, $text) = @_;
+	
+	my $desc;
 
+	if ($text =~ m/PREFERRED_GENE_NAME: (.+)/) {
+		$desc = $1;
+	}
+	elsif ($text =~ m/PREFERRED_PRODUCT: (.+)/) {
+		$desc = $1;
+	}
+	elsif ($text =~ m/PRODUCT: (.+)/) {
+		$desc = $1;
+	}
+
+	return $desc;
+}
 
 1;

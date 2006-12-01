@@ -39,7 +39,7 @@
 
 package MRS::Script::interpro;
 
-@ISA = "MRS::Script";
+our @ISA = "MRS::Script";
 
 my $count = 0;
 

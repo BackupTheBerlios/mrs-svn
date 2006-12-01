@@ -129,6 +129,16 @@ sub raw_files
 
 # formatting
 
+sub describe
+{
+	my ($self, $q, $text) = @_;
+	
+	my $title;
+	if ($text =~ m/TITLE\s+(.+)/) {
+		$title = $1;
+	}
 
+	return $title;
+}
 
 1;

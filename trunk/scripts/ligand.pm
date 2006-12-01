@@ -39,7 +39,7 @@
 
 package MRS::Script::ligand;
 
-@ISA = "MRS::Script";
+our @ISA = "MRS::Script";
 
 use strict;
 

@@ -183,8 +183,9 @@ sub pp
 		}
 
 		$mrs_bin_dir = "/usr/pkg/bin/" unless defined $mrs_bin_dir;
+		my $mrs_script_dir = $this->script_dir();
 	
-		open X, "$mrs_bin_dir/Xalan /tmp/input-$$.xml gene_xslt.xml|";
+		open X, "$mrs_bin_dir/Xalan /tmp/input-$$.xml $mrs_script_dir/gene_xslt.xml|";
 		local($/) = undef;
 		$result = <X>;
 		close X;
@@ -224,8 +225,9 @@ sub describe
 		}
 
 		$mrs_bin_dir = "/usr/pkg/bin/" unless defined $mrs_bin_dir;
+		my $mrs_script_dir = $this->script_dir();
 	
-		open X, "$mrs_bin_dir/Xalan /tmp/input-$$.xml gene_list_xslt.xml|";
+		open X, "$mrs_bin_dir/Xalan /tmp/input-$$.xml $mrs_script_dir/gene_list_xslt.xml|";
 		local($/) = undef;
 		$result = <X>;
 		close X;

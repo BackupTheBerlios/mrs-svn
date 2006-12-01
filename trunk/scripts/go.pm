@@ -37,7 +37,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package MRS::Script;
+package MRS::Script::go;
 
 our @ISA = "MRS::Script";
 
