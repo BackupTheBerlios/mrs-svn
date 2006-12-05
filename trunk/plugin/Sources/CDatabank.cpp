@@ -1423,7 +1423,11 @@ void CDatabank::FlushDocument()
 	if (VERBOSE >= 1 and (fIndexer->Count() % 1000) == 0)
 	{
 		cout << ".";
-		cout.flush();
+		
+		if ((fIndexer->Count() % 60000) == 0)
+			cout << ' ' << fIndexer->Count() << endl;
+		else
+			cout.flush();
 	}
 }
 
