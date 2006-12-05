@@ -732,7 +732,7 @@ void handler(int inSignal)
 	errno = old_errno;
 }
 
-int main()
+int main(int argc, const char* argv[])
 {
 	struct sigaction sa;
 	
@@ -745,83 +745,94 @@ int main()
 		
 	struct soap soap;
 	int m, s; // master and slave sockets
-	soap_init(&soap);
-
+	soap_init2(&soap, SOAP_IO_KEEPALIVE, SOAP_IO_KEEPALIVE|SOAP_C_UTFSTRING);
+	
+	if (argc < 2)
+	{
+		soap_serve(&soap);
+		soap_destroy(&soap);
+		soap_end(&soap);
+	}
+	else
+	{
 //	soap_set_recv_logfile(&soap, "recv.log"); // append all messages received in /logs/recv/service12.log
 //	soap_set_sent_logfile(&soap, "sent.log"); // append all messages sent in /logs/sent/service12.log
 //	soap_set_test_logfile(&soap, "test.log"); // no file name: do not save debug messages
 
-	m = soap_bind(&soap, "localhost", 8081, 100);
-	if (m < 0)
-		soap_print_fault(&soap, stderr);
-	else
-	{
-		gQuit = false;
-		gNeedReload = true;
-		
-		soap.accept_timeout = 1;	// timeout
-		
-		fprintf(stderr, "Socket connection successful: master socket = %d\n", m);
-		for (int i = 1; ; ++i)
-		{
-			if (gQuit)
-				break;
-			
-			if (gNeedReload)
-			{
-				string dataDir;
-				ReadConfig("mrs.conf", dataDir, gFormatDir, gDbInfo);
-				
-				if (dataDir.length() > 0 and dataDir[dataDir.length() - 1] != '/')
-					dataDir += '/';
-			
-				setenv("MRS_DATA_DIR", dataDir.c_str(), 1);
-				
-				WSDatabankTable::Instance().ReloadDbs();
-				
-				gNeedReload = false;
-			}
-			
-			s = soap_accept(&soap);
-			
-			if (s == SOAP_EOF)
-				continue;
-			
-			if (s < 0)
-			{
-				soap_print_fault(&soap, stderr);
-				break;
-			}
+		int port = atoi(argv[1]);
 
-			fprintf(stderr, "%d: accepted connection from IP=%ld.%ld.%ld.%ld socket=%d...", i,
-				(soap.ip >> 24)&0xFF, (soap.ip >> 16)&0xFF, (soap.ip >> 8)&0xFF, soap.ip&0xFF, s);
+		m = soap_bind(&soap, "localhost", port, 100);
+		if (m < 0)
+			soap_print_fault(&soap, stderr);
+		else
+		{
+			gQuit = false;
+			gNeedReload = true;
 			
-			double start = system_time();
+			soap.accept_timeout = 1;	// timeout
 			
-			try
+			fprintf(stderr, "Socket connection successful: master socket = %d\n", m);
+			for (int i = 1; ; ++i)
 			{
-				if (soap_serve(&soap) != SOAP_OK) // process RPC request
-					soap_print_fault(&soap, stderr); // print error
-			}
-			catch (const exception& e)
-			{
-				cout << endl << "Exception: " << e.what() << endl;
-			}
-			catch (...)
-			{
-				cout << endl << "Unknown exception" << endl;
-			}
-			
-			double end = system_time();
-			
-			fprintf(stderr, " request served in %.3g seconds\n", end - start);
-			soap_destroy(&soap); // clean up class instances
-			soap_end(&soap); // clean up everything and close socket
-		}
-	}
-	soap_done(&soap); // close master socket and detach environment
+				if (gQuit)
+					break;
+				
+				if (gNeedReload)
+				{
+					string dataDir;
+					ReadConfig("mrs.conf", dataDir, gFormatDir, gDbInfo);
+					
+					if (dataDir.length() > 0 and dataDir[dataDir.length() - 1] != '/')
+						dataDir += '/';
+				
+					setenv("MRS_DATA_DIR", dataDir.c_str(), 1);
+					
+					WSDatabankTable::Instance().ReloadDbs();
+					
+					gNeedReload = false;
+				}
+				
+				s = soap_accept(&soap);
+				
+				if (s == SOAP_EOF)
+					continue;
+				
+				if (s < 0)
+				{
+					soap_print_fault(&soap, stderr);
+					break;
+				}
 	
-	cout << "Quit" << endl;
+				fprintf(stderr, "%d: accepted connection from IP=%ld.%ld.%ld.%ld socket=%d...", i,
+					(soap.ip >> 24)&0xFF, (soap.ip >> 16)&0xFF, (soap.ip >> 8)&0xFF, soap.ip&0xFF, s);
+				
+				double start = system_time();
+				
+				try
+				{
+					if (soap_serve(&soap) != SOAP_OK) // process RPC request
+						soap_print_fault(&soap, stderr); // print error
+				}
+				catch (const exception& e)
+				{
+					cout << endl << "Exception: " << e.what() << endl;
+				}
+				catch (...)
+				{
+					cout << endl << "Unknown exception" << endl;
+				}
+				
+				double end = system_time();
+				
+				fprintf(stderr, " request served in %.3g seconds\n", end - start);
+				soap_destroy(&soap); // clean up class instances
+				soap_end(&soap); // clean up everything and close socket
+			}
+		}
+		soap_done(&soap); // close master socket and detach environment
+		
+		cout << "Quit" << endl;
+	}
 	
 	return 0;
 }
