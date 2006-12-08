@@ -1489,6 +1489,8 @@ void CBlastThread::Run()
 		{
 			for (vector<CSequence>::iterator t = targets.begin(); t != targets.end(); ++t)
 				mBlastQuery.Test(docNr, *t);
+			
+			targets.clear();
 		}
 		
 		mBlastQuery.Cleanup();
