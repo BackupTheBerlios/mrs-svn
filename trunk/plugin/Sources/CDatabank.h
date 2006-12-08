@@ -271,7 +271,7 @@ class CDatabank : public CDatabankBase
 	
 	HStreamBase&	GetDataFile()			{ return *fDataFile; }
 	HUrl			GetDataUrl()			{ return fPath; }
-	CIndexer*		GetIndexer() const;
+	const CIndexer*	GetIndexer() const		{ return fIndexer; }
 #ifndef NO_BLAST
 	CBlastIndex*	GetBlastIndex() const	{ return fBlastIndex; }
 #endif
@@ -303,8 +303,7 @@ class CDatabank : public CDatabankBase
 	HStreamBase*	fDataFile;
 	CCompressor*	fCompressor;
 	CPartList		fDataParts;
-	mutable CIndexer*
-					fIndexer;
+	CIndexer*		fIndexer;
 	bool			fReadOnly;
 	CDbInfo*		fInfoContainer;
 	CIdTable*		fIdTable;

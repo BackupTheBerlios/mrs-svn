@@ -214,7 +214,6 @@ Sources = \
 	./Sources/CIndexer.cpp \
 	./Sources/CIterator.cpp \
 	./Sources/CLexicon.cpp \
-	./Sources/CMutex.cpp \
 	./Sources/CQuery.cpp \
 	./Sources/CRankedQuery.cpp \
 	./Sources/CSequence.cpp \
@@ -225,12 +224,12 @@ Sources = \
 	./Lib/Generic/HStream.cpp \
 	./Lib/Generic/HError.cpp \
 	./Lib/Generic/HFile.cpp \
-	./Lib/Generic/HFileCache.cpp \
 	./Lib/Generic/HGlobals.cpp \
 	./Lib/Generic/HUrl.cpp \
 	./Lib/Generic/HUtils.cpp \
 	./Lib/Posix/HUnixFile.cpp \
 	./Lib/Posix/HUnixUtils.cpp \
+	./Lib/Posix/HMutex.cpp \
 	./Lib/uuid/clear.c \
 	./Lib/uuid/compare.c \
 	./Lib/uuid/copy.c \

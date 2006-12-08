@@ -76,6 +76,9 @@ CCArray<T>::CCArray(HStreamBase& inData, int64 inMax)
 	, data(NULL)
 	, table(NULL)
 {
+	if (cnt == 0)
+		THROW(("data size should be > 0"));
+	
 	Init(inMax);
 	
 	std::vector<char> buf;

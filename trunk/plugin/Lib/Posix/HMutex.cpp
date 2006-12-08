@@ -1,8 +1,3 @@
-/*	$Id$
-	Copyright Hekkelman Programmatuur b.v.
-	Created Tuesday September 12 2000 11:09:19
-*/
-
 /*-
  * Copyright (c) 2005
  *      CMBI, Radboud University Nijmegen. All rights reserved.
@@ -39,32 +34,46 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
  
-#ifndef HFILECACHE_H
-#define HFILECACHE_H
+#include "MRS.h"
 
-class HLocker;
+#include <sys/types.h>
+#include <sys/sem.h>
+#include <pthread.h>
 
-namespace HFileCache
+#include <iostream>
+
+#include "HError.h"
+#include "HMutex.h"
+
+using namespace std;
+
+struct HMutexImp
 {
-//	void Init();
-	void Cleanup();
-	
-	void BypassCache(bool inBypass);
+	pthread_mutex_t		m;
+};
 
-	int32 Read(int inFD, void* inBuffer, uint32 inSize, int64 inOffset);
-	int32 Write(int inFD, const void* inBuffer, uint32 inSize, int64 inOffset);
-	
-	char ReadChar(int inFD, int64 inOffset);
-	
-	void Truncate(int inFD, int64 inSize);
-	void Flush();
-	void Flush(int inFD);
-	void Purge(int inFD);
-
-	bool NextEOLN(int inFD, int64& ioOffset, uint32 inBlockSize,
-			int ioState[4], const char* inEOLN[4], const int inCharLength[4]);
-	bool NextEOLN(int inFD, int64& ioOffset, uint32 inBlockSize,
-			int& ioState, const char* inEOLN, const int inCharLength);
+HMutex::HMutex()
+	: _impl(new HMutexImp)
+{
+	if (pthread_mutex_init(&_impl->m, NULL) < 0)
+		THROW(("Failed to create mutex"));
 }
 
-#endif // HFILECACHE_H
+HMutex::~HMutex()
+{
+	pthread_mutex_destroy(&_impl->m);
+	delete _impl;
+}
+
+bool HMutex::Wait()
+{
+	if (pthread_mutex_lock(&_impl->m) < 0)
+		THROW(("Failed to lock mutex"));
+	return true;
+}
+
+void HMutex::Signal()
+{
+	if (pthread_mutex_unlock(&_impl->m) < 0)
+		THROW(("Failed to unlock mutex"));	
+}

@@ -459,6 +459,8 @@ CDatabank::CDatabank(const HUrl& inUrl)
 		THROW(("Invalid mrs data file"));
 	}
 	
+	fIndexer = new CIndexer(*fDataFile, fHeader->index_offset, fHeader->index_size);
+	
 	if (fHeader->info_size > 0)
 	{
 		HStreamView s(*fDataFile, fHeader->info_offset, fHeader->info_size);
@@ -578,9 +580,6 @@ void CDatabank::Finish(bool inCreateAllTextIndex)
 	
 	fIndexer->CreateIndex(*fDataFile, fHeader->index_offset,
 		fHeader->index_size, inCreateAllTextIndex);
-	delete fIndexer;
-	fIndexer = nil;
-	fIndexer = GetIndexer();
 
 	auto_ptr<CIndex> idIndex(fIndexer->GetIndex("id"));
 	if (idIndex.get() != nil)
@@ -1135,14 +1134,6 @@ string CDatabank::GetDocumentID(uint32 inDocNr) const
 		result = CDatabankBase::GetDocumentID(inDocNr);
 	
 	return result;
-}
-
-CIndexer* CDatabank::GetIndexer() const
-{
-	if (fIndexer == nil)
-		fIndexer = new CIndexer(*fDataFile,
-			fHeader->index_offset, fHeader->index_size);
-	return fIndexer;
 }
 
 long CDatabank::GetIndexCount()

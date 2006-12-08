@@ -46,7 +46,6 @@
 #include "HUtils.h"
 #include "HUrl.h"
 #include "HFile.h"
-#include "HFileCache.h"
 #include <vector>
 #include <iomanip>
 
@@ -73,11 +72,9 @@ CBlastIndex::CBlastIndex(const HUrl& inDb)
 {
 	fOffsetsUrl = HUrl(inDb.GetURL() + ".blast_offsets");
 	fBlastOffsets = new HTempFileStream(fOffsetsUrl);
-	fBlastOffsets->Truncate(0);
 
 	fDataUrl = HUrl(inDb.GetURL() + ".blast_data");
 	fBlastData = new HTempFileStream(fDataUrl);
-	fBlastData->Truncate(0);
 
 	// now init the table
 	(*fBlastOffsets) << fBlastData->Tell();

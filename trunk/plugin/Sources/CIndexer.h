@@ -81,23 +81,23 @@ class CIndexer
 						std::string& outType, uint32& outCount) const;
 
 	CDocIterator*	GetImpForPattern(const std::string& inIndex,
-						const std::string& inKey);
+						const std::string& inKey) const;
 	CDocIterator*	CreateDocIterator(const std::string& inIndex,
 						const std::string& inKey, bool inKeyIsPattern,
-						CQueryOperator inOperator);
+						CQueryOperator inOperator) const;
 	// It would be better to return CIndexIterator * here, but that
 	// gives trouble because that type needs inclusion of extra header
 	// files.
-	CIteratorBase*	GetIteratorForIndex(const std::string& inIndex);
-	CIteratorBase*	GetIteratorForIndexAndKey(const std::string& inIndex, const std::string& inKey);
+	CIteratorBase*	GetIteratorForIndex(const std::string& inIndex) const;
+	CIteratorBase*	GetIteratorForIndexAndKey(const std::string& inIndex, const std::string& inKey) const;
 	CIndex*			GetIndex(const std::string& inIndex) const;
 	
-	CDocWeightArray	GetDocWeights(const std::string& inIndex);
+	CDocWeightArray	GetDocWeights(const std::string& inIndex) const;
 	
 	CDbDocIteratorBase*
-					GetDocWeightIterator(const std::string& inIndex, const std::string& inKey);
+					GetDocWeightIterator(const std::string& inIndex, const std::string& inKey) const;
 	
-	void			PrintInfo();
+	void			PrintInfo() const;
 	void			DumpIndex(const std::string& inIndex) const;
 	void			Test();
 
@@ -112,7 +112,7 @@ class CIndexer
 	void			IndexWordWithWeight(const std::string& inIndex,	
 						const std::string& inText, uint32 inFrequency);
 
-	bool			GetDocumentNr(const std::string& inDocumentID, uint32& outDocNr);
+	bool			GetDocumentNr(const std::string& inDocumentID, uint32& outDocNr) const;
 
 	void			FlushDoc();
 

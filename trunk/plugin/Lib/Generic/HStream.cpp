@@ -50,9 +50,9 @@
 
 #include "HStream.h"
 #include "HFile.h"
-#include "HFileCache.h"
 #include "HError.h"
 #include "HByteSwap.h"
+#include "HMutex.h"
 
 #ifdef P_DEBUG
 #include <iostream>
@@ -64,7 +64,6 @@ using namespace std;
 
 HStreamBase::HStreamBase()
 	: fSwap(false)
-	, fBypass(false)
 {
 }
 
@@ -115,11 +114,6 @@ void HStreamBase::Truncate(int64 /*inSize*/)
 void HStreamBase::SetSwapBytes(bool inSwap)
 {
 	fSwap = inSwap;
-}
-
-void HStreamBase::SetBypassCache(bool inBypass)
-{
-	fBypass = inBypass;
 }
 
 void HStreamBase::ReadString(string& outString)
@@ -420,19 +414,21 @@ void HMemoryStream::Truncate(int64 inOffset)
 		fPointer = inOffset;
 }
 
-//HFileStream::HFileStream(int inFD)
-//{
-//	fFD = inFD;
-//	ThrowIfPOSIXErr(fFD);
-//}
-
 HFileStream::HFileStream(const HUrl& inURL, int inMode)
 	: fFD(0)
 	, fOffset(0)
+	, fSize(0)
 {
 	ThrowIfPOSIXErr(fFD = HFile::Open(inURL, inMode));
 	ThrowIfPOSIXErr(fSize = HFile::Seek(fFD, 0, SEEK_END));
 	ThrowIfPOSIXErr(HFile::Seek(fFD, 0, SEEK_SET));
+}
+
+HFileStream::HFileStream()
+	: fFD(0)
+	, fOffset(0)
+	, fSize(0)
+{
 }
 
 HFileStream::~HFileStream()
@@ -533,64 +529,251 @@ void HFileStream::Close()
 	fFD = -1;
 }
 
-//#if 0
+/*
+	Buffered stream. Alternative implementation for HFileCache.
+*/
+
+const uint32
+	kBufferBlockCount = 64,
+	kBufferBlockSize = 512;
+
+HBufferedFileStream::HBufferedFileStream()
+	: fBlocks(new BufferBlock[kBufferBlockCount])
+	, fMutex(new HMutex)
+{
+	Init();
+}
+
 HBufferedFileStream::HBufferedFileStream(const HUrl& inURL, int inMode)
 	: HFileStream(inURL, inMode)
+	, fBlocks(new BufferBlock[kBufferBlockCount])
+	, fMutex(new HMutex)
 {
+	Init();
 }
 
 HBufferedFileStream::~HBufferedFileStream()
 {
-	Close();
-}
-
-int32 HBufferedFileStream::PWrite(const void* inBuffer, uint32 inSize, int64 inOffset)
-{
-	if (GetBypassCache())
-		HFile::PWrite(fFD, inBuffer, inSize, inOffset);
-	else
-		HFileCache::Write(fFD, inBuffer, inSize, inOffset);
+	if (fFD >= 0)
+		Close();
 	
-	if (inOffset + inSize > fSize)
-		fSize = inOffset + inSize;
+	for (uint32 ix = 0; ix < kBufferBlockCount; ++ix)
+		delete[] fBlocks[ix].fText;
+
+	delete[] fBlocks;
+	fBlocks = nil;
 	
-	return static_cast<int32>(inSize);
+	delete fMutex;
 }
 
-int32 HBufferedFileStream::PRead(void* inBuffer, uint32 inSize, int64 inOffset)
+void HBufferedFileStream::Init()
 {
-	int32 result;
-	if (GetBypassCache())
-		result = HFile::PRead(fFD, inBuffer, inSize, inOffset);
-	else
-		result = HFileCache::Read(fFD, inBuffer, inSize, inOffset);
-	return result;
-}
-
-void HBufferedFileStream::Truncate(int64 inSize)
-{
-	HFileCache::Truncate(fFD, inSize);
-	HFileStream::Truncate(inSize);
+	for (uint32 ix = 0; ix < kBufferBlockCount; ++ix)
+	{
+		fBlocks[ix].fText = new char[kBufferBlockSize];
+		fBlocks[ix].fOffset = -1;
+		fBlocks[ix].fPageSize = 0;
+		fBlocks[ix].fDirty = false;
+		fBlocks[ix].fNext = fBlocks + ix + 1;
+		fBlocks[ix].fPrev = fBlocks + ix - 1;
+	}
+	
+	fBlocks[0].fPrev = nil;
+	fBlocks[kBufferBlockCount - 1].fNext = nil;
+	
+	fLRUHead = fBlocks;
+	fLRUTail = fBlocks + kBufferBlockCount - 1;
 }
 
 void HBufferedFileStream::Close()
 {
-	if (fFD >= 0)
+	if (fFD >= 0 and fBlocks != nil)
 	{
-		HFileCache::Flush(fFD);
-		HFileCache::Purge(fFD);
+		Flush();
+		HFileStream::Close();
 	}
-	
-	HFileStream::Close();
 }
 
-//#endif
+void HBufferedFileStream::Flush()
+{
+	for (uint32 ix = 0; ix < kBufferBlockCount; ++ix)
+	{
+		if (fBlocks[ix].fDirty and fBlocks[ix].fOffset >= 0)
+		{
+			HFileStream::PWrite(fBlocks[ix].fText, fBlocks[ix].fPageSize, fBlocks[ix].fOffset);
+			fBlocks[ix].fOffset = -1;
+		}
+	}
+}
+
+HBufferedFileStream::BufferBlock* HBufferedFileStream::GetBlock(int64 inOffset)
+{
+	StMutex lock(*fMutex);	// avoid corruption in cacheblocks due to multiple reads
+
+	BufferBlock* result = fLRUHead;
+	uint32 n = 0;
+	
+	while (result != nil and result->fOffset != inOffset)
+	{
+		result = result->fNext;
+		++n;
+	}
+
+	if (result == nil)
+	{
+		result = fLRUTail;
+		
+		if (result == nil)
+			THROW(("HBufferedFileStream cache error"));
+		
+		if (result->fDirty and result->fOffset >= 0)
+		{
+			HFileStream::PWrite(result->fText, result->fPageSize, result->fOffset);
+			result->fDirty = false;
+		}
+		
+		int32 r = HFileStream::PRead(result->fText, kBufferBlockSize, inOffset);
+		if (r < 0)
+			THROW(("Error reading data from offset %Ld", inOffset));
+		
+		result->fDirty = false;
+		result->fOffset = inOffset;
+		result->fPageSize = r;
+	}
+
+	if (result != fLRUHead and n > (kBufferBlockCount / 4))
+	{
+		if (result == fLRUTail)
+			fLRUTail = result->fPrev;
+		
+		if (result->fPrev)
+			result->fPrev->fNext = result->fNext;
+		if (result->fNext)
+			result->fNext->fPrev = result->fPrev;
+
+		result->fPrev = NULL;
+		result->fNext = fLRUHead;
+		fLRUHead->fPrev = result;
+		fLRUHead = result;
+	}
+	
+	return result;
+}
+
+int32 HBufferedFileStream::PWrite(const void* inBuffer, uint32 inSize, int64 inOffset)
+{
+	// short cut
+	if (inSize > kBufferBlockCount * kBufferBlockSize)
+	{
+		Flush();
+		return HFileStream::PWrite(inBuffer, inSize, inOffset);
+	}
+	
+	uint32 bOffset = 0;
+	int32 rr = static_cast<int32>(inSize);	// for now...
+
+	while (inSize > 0)
+	{
+		int64 blockStart = (inOffset / kBufferBlockSize) * kBufferBlockSize;
+
+		BufferBlock* e = GetBlock(blockStart);
+		e->fDirty = true;
+
+		if (e->fPageSize < kBufferBlockSize and 
+			inOffset - blockStart + inSize > e->fPageSize)
+		{
+			e->fPageSize = static_cast<int32>(inOffset - blockStart + inSize);
+			if (e->fPageSize > kBufferBlockSize)
+				e->fPageSize = kBufferBlockSize;
+		}
+
+		uint32 size = static_cast<uint32>(e->fPageSize - (inOffset - blockStart));
+
+		if (size > inSize)
+			size = inSize;
+
+		memcpy(e->fText + static_cast<uint32>(inOffset - blockStart),
+			reinterpret_cast<const char*>(inBuffer) + bOffset, size);
+
+		inSize -= size;
+		inOffset += static_cast<long>(size);
+		bOffset += size;
+	}
+
+	if (inOffset + inSize > fSize)
+		fSize = inOffset + inSize;
+
+	return rr;
+}
+
+int32 HBufferedFileStream::PRead(void* inBuffer, uint32 inSize, int64 inOffset)
+{
+	// short cut, bypass cache in case we're reading too much
+	if (inSize > kBufferBlockCount * kBufferBlockSize)
+	{
+		Flush();
+		return HFileStream::PRead(inBuffer, inSize, inOffset);
+	}
+	
+	uint32 bOffset = 0;
+	int32 rr = 0;
+	
+	while (inSize > 0)
+	{
+		int64 blockStart = (inOffset / kBufferBlockSize) * kBufferBlockSize;
+		
+		BufferBlock* e = GetBlock(blockStart);
+		
+		assert(e->fPageSize >= (inOffset - blockStart));
+
+		uint32 size = static_cast<uint32>(e->fPageSize - (inOffset - blockStart));
+		if (size > inSize)
+			size = inSize;
+		
+		if (size == 0)
+			break;
+
+		rr += size;
+		
+		memcpy(reinterpret_cast<char*>(inBuffer) + bOffset,
+			e->fText + static_cast<uint32>(inOffset - blockStart), size);
+
+		inSize -= size;
+		inOffset += size;
+		bOffset += size;
+	}
+	
+	return rr;
+}
+
+void HBufferedFileStream::Truncate(int64 inOffset)
+{
+	for (uint32 ix = 0; ix < kBufferBlockCount; ++ix)
+	{
+		if (fBlocks[ix].fOffset > inOffset)
+			fBlocks[ix].fOffset = -1;
+		else
+		{
+			fBlocks[ix].fPageSize = static_cast<int32>(inOffset - fBlocks[ix].fOffset);
+
+			if (fBlocks[ix].fPageSize > kBufferBlockSize)
+				fBlocks[ix].fPageSize = kBufferBlockSize;
+
+			if (fBlocks[ix].fPageSize > 0 and fBlocks[ix].fDirty and fBlocks[ix].fOffset >= 0)
+			{
+				HFileStream::PWrite(fBlocks[ix].fText, fBlocks[ix].fPageSize, fBlocks[ix].fOffset);
+				fBlocks[ix].fDirty = false;
+			}
+		}
+	}
+	
+	HFileStream::Truncate(inOffset);
+}
 
 HTempFileStream::HTempFileStream(const HUrl& inBaseName)
 	: fTempUrl(new HUrl)
 {
 	fFD = HFile::CreateTempFile(inBaseName.GetParent(), inBaseName.GetFileName(), *fTempUrl);
-	Truncate(0);
 	fOffset = 0;
 }
 
@@ -605,6 +788,7 @@ void HTempFileStream::Close()
 	
 	HFile::Unlink(*fTempUrl);
 	delete fTempUrl;
+	fTempUrl = nil;
 }
 
 // view
@@ -659,86 +843,6 @@ int64 HStreamView::Seek(int64 inOffset, int inMode)
 	
 	return fPointer;
 }
-
-///*
-//	Buffered stream. Alternative implementation for HFileCache.
-//*/
-//
-//const
-//	kBufferBlockCount = 32,
-//	kBufferBlockSize = 1024;
-//
-//HBufferedStream::HBufferedStream(HStreamBase* inStream, bool inOwner)
-//	: fBlocks(new BufferBlock[kBufferBlockCount])
-//	, fBlockCount(0)
-//	, fStream(inStream)
-//	, fOffset(0)
-//	, fOwner(inOwner)
-//{
-//	assert(inStream);
-//	ThrowIfNil(inStream);
-//	fSize = inStream->Size();
-//}
-//
-//HBufferedStream::HBufferedStream(HStreamBase& inStream)
-//	: fBlocks(new BufferBlock[kBufferBlockCount])
-//	, fBlockCount(0)
-//	, fStream(&inStream)
-//	, fSize(inStream.Size())
-//	, fOffset(0)
-//	, fOwner(false)
-//{
-//}
-//
-//HBufferedStream::~HBufferedStream()
-//{
-//	delete[] fBlocks;
-//	
-//	if (fOwner)
-//		delete fStream;
-//}
-//
-//int32 HBufferedStream::Write(const void* inBuffer, uint32 inSize)
-//{
-//	int32 w = PWrite(inBuffer, inSize, fOffset);
-//	if (w > 0)
-//	{
-//		fOffset += w;
-//		if (fOffset > fSize)
-//			fSize = fOffset;
-//	}
-//	return w;
-//}
-//
-//int32 HBufferedStream::PWrite(const void* inBuffer, uint32 inSize, int64 inOffset)
-//{
-//}
-//
-//int32 HBufferedStream::Read(void* inBuffer, uint32 inSize) = 0
-//{
-//	int32 r = PRead(inBuffer, inSize, fOffset);
-//}
-//
-//int32 HBufferedStream::PRead(void* inBuffer, uint32 inSize, int64 inOffset)
-//{
-//}
-//
-//int64 HBufferedStream::Seek(int64 inOffset, int inMode) = 0
-//{
-//}
-//
-//int64 HBufferedStream::Tell() const
-//{
-//}
-//
-//int64 HBufferedStream::Size() const
-//{
-//}
-//
-//void HBufferedStream::Flush()
-//{
-//}
-//
 
 HStringStream::HStringStream(std::string inData)
 	: fData(inData)

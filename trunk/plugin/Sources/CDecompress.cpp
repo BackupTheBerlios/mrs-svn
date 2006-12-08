@@ -44,7 +44,6 @@
 #include "HError.h"
 #include "HUtils.h"
 #include "HStream.h"
-#include "HFileCache.h"
 #include "HFile.h"
 
 #include "CDecompress.h"
@@ -143,56 +142,44 @@ void CDecompressorImp::CopyData(HStreamBase& outData, uint32& outKind,
 	int64& outDataOffset, int64& outDataSize,
 	int64& outTableOffset, int64& outTableSize)
 {
-	try
+	const int kBufferSize = 1024 * 1024 * 4;	// 4 Mb
+	HAutoBuf<char> buf(new char[kBufferSize]);
+	
+	outKind = fKind;
+	outDataOffset = outData.Seek(0, SEEK_END);
+	outDataSize = fDataSize;
+	
+	int64 k = fDataSize;
+	int64 o = fDataOffset;
+	while (k > 0)
 	{
-		HFileCache::BypassCache(true);
-
-		const int kBufferSize = 1024 * 1024 * 4;	// 4 Mb
-		HAutoBuf<char> buf(new char[kBufferSize]);
+		int64 n = k;
+		if (n > kBufferSize)
+			n = kBufferSize;
 		
-		outKind = fKind;
-		outDataOffset = outData.Seek(0, SEEK_END);
-		outDataSize = fDataSize;
+		fFile->PRead(buf.get(), static_cast<uint32>(n), o);
+		outData.Write(buf.get(), static_cast<uint32>(n));
 		
-		int64 k = fDataSize;
-		int64 o = fDataOffset;
-		while (k > 0)
-		{
-			int64 n = k;
-			if (n > kBufferSize)
-				n = kBufferSize;
-			
-			fFile->PRead(buf.get(), static_cast<uint32>(n), o);
-			outData.Write(buf.get(), static_cast<uint32>(n));
-			
-			k -= n;
-			o += n;
-		}
-
-		outTableOffset = outData.Tell();
-		outTableSize = fTableSize;
-		
-		k = fTableSize;
-		o = fTableOffset;
-		while (k > 0)
-		{
-			int64 n = k;
-			if (n > kBufferSize)
-				n = kBufferSize;
-			
-			fFile->PRead(buf.get(), static_cast<uint32>(n), o);
-			outData.Write(buf.get(), static_cast<uint32>(n));
-			
-			k -= n;
-			o += n;
-		}
-		
-		HFileCache::BypassCache(false);
+		k -= n;
+		o += n;
 	}
-	catch (...)
+
+	outTableOffset = outData.Tell();
+	outTableSize = fTableSize;
+	
+	k = fTableSize;
+	o = fTableOffset;
+	while (k > 0)
 	{
-		HFileCache::BypassCache(false);
-		throw;
+		int64 n = k;
+		if (n > kBufferSize)
+			n = kBufferSize;
+		
+		fFile->PRead(buf.get(), static_cast<uint32>(n), o);
+		outData.Write(buf.get(), static_cast<uint32>(n));
+		
+		k -= n;
+		o += n;
 	}
 }
 

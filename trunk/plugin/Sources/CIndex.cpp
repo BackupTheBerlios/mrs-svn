@@ -202,19 +202,19 @@ struct COnDiskDataV0
 	
 	uint32			GetValue(int32 inIndex) const
 					{
-						return e[-inIndex].value_;
+						return net_swapper::swap(e[-inIndex].value_);
 					}
 	void			SetValue(int32 inIndex, uint32 inValue)
 					{
-						e[-inIndex].value_ = inValue;
+						e[-inIndex].value_ = net_swapper::swap(inValue);
 					}
 	uint32			GetP(int32 inIndex) const
 					{
-						return e[-inIndex].p_;
+						return net_swapper::swap(e[-inIndex].p_);
 					}
 	void			SetP(int32 inIndex, uint32 inP)
 					{
-						e[-inIndex].p_ = inP;
+						e[-inIndex].p_ = net_swapper::swap(inP);
 					}
 	
 	static uint32	PageNrToAddr(uint32 inPageNr)	{ return inPageNr; }
@@ -227,26 +227,12 @@ struct COnDiskDataV0
 void COnDiskDataV0::SwapBytesNToH()
 {
 	n = byte_swapper::swap(n);
-
-	for (int32 i = 0; i < n; ++i)
-	{
-		e[-i].p_ = byte_swapper::swap(e[-i].p_);
-		e[-i].value_ = byte_swapper::swap(e[-i].value_);
-	}
-
 	p0 = byte_swapper::swap(p0);
 }
 
 void COnDiskDataV0::SwapBytesHToN()
 {
-	for (int32 i = 0; i < n; ++i)
-	{
-		e[-i].p_ = byte_swapper::swap(e[-i].p_);
-		e[-i].value_ = byte_swapper::swap(e[-i].value_);
-	}
-
 	n = byte_swapper::swap(n);
-
 	p0 = byte_swapper::swap(p0);
 }
 
@@ -267,19 +253,19 @@ struct COnDiskDataV1
 	
 	uint32			GetValue(int32 inIndex) const
 					{
-						return e[-inIndex].value_;
+						return net_swapper::swap(e[-inIndex].value_);
 					}
 	void			SetValue(int32 inIndex, uint32 inValue)
 					{
-						e[-inIndex].value_ = inValue;
+						e[-inIndex].value_ = net_swapper::swap(inValue);
 					}
 	uint32			GetP(int32 inIndex) const
 					{
-						return e[-inIndex].p_;
+						return net_swapper::swap(e[-inIndex].p_);
 					}
 	void			SetP(int32 inIndex, uint32 inP)
 					{
-						e[-inIndex].p_ = inP;
+						e[-inIndex].p_ = net_swapper::swap(inP);
 					}
 	
 	static uint32	PageNrToAddr(uint32 inPageNr)	{ return inPageNr; }
@@ -292,27 +278,13 @@ struct COnDiskDataV1
 void COnDiskDataV1::SwapBytesNToH()
 {
 	n = byte_swapper::swap(n);
-
-	for (int32 i = 0; i < n; ++i)
-	{
-		e[-i].p_ = byte_swapper::swap(e[-i].p_);
-		e[-i].value_ = byte_swapper::swap(e[-i].value_);
-	}
-
 	p0 = byte_swapper::swap(p0);
 	pp = byte_swapper::swap(pp);
 }
 
 void COnDiskDataV1::SwapBytesHToN()
 {
-	for (int32 i = 0; i < n; ++i)
-	{
-		e[-i].p_ = byte_swapper::swap(e[-i].p_);
-		e[-i].value_ = byte_swapper::swap(e[-i].value_);
-	}
-
 	n = byte_swapper::swap(n);
-
 	p0 = byte_swapper::swap(p0);
 	pp = byte_swapper::swap(pp);
 }
@@ -337,21 +309,29 @@ struct COnDiskDataV2
 
 	int64			GetValue(int32 inIndex) const
 					{
-						return e[-inIndex].d >> 24;
+						return net_swapper::swap(e[-inIndex].d) >> 24;
 					}
 	void			SetValue(int32 inIndex, int64 inValue)
 					{
-						e[-inIndex].d &= 0x0FFFFFFULL;
-						e[-inIndex].d |= inValue << 24;
+						int64 ev = net_swapper::swap(e[-inIndex].d);
+						
+						ev &= 0x0FFFFFFULL;
+						ev |= inValue << 24;
+						
+						e[-inIndex].d = net_swapper::swap(ev);
 					}
 	uint32			GetP(int32 inIndex) const
 					{
-						return e[-inIndex].d & 0x0FFFFFFULL;
+						return net_swapper::swap(e[-inIndex].d) & 0x0FFFFFFULL;
 					}
 	void			SetP(int32 inIndex, uint32 inP)
 					{
-						e[-inIndex].d &= ~0x0FFFFFFULL;
-						e[-inIndex].d |= (inP & 0x0FFFFFFULL);
+						int64 ev = net_swapper::swap(e[-inIndex].d);
+						
+						ev &= ~0x0FFFFFFULL;
+						ev |= (inP & 0x0FFFFFFULL);
+						
+						e[-inIndex].d = net_swapper::swap(ev);
 					}
 
 	static int64	PageNrToAddr(uint32 inPageNr)	{ return static_cast<int64>(inPageNr - 1) * kPageSize; }
@@ -364,21 +344,13 @@ struct COnDiskDataV2
 void COnDiskDataV2::SwapBytesNToH()
 {
 	n = byte_swapper::swap(n);
-
-	for (int32 i = 0; i < n; ++i)
-		e[-i].d = byte_swapper::swap(e[-i].d);
-
 	p0 = byte_swapper::swap(p0);
 	pp = byte_swapper::swap(pp);
 }
 
 void COnDiskDataV2::SwapBytesHToN()
 {
-	for (int32 i = 0; i < n; ++i)
-		e[-i].d = byte_swapper::swap(e[-i].d);
-
 	n = byte_swapper::swap(n);
-
 	p0 = byte_swapper::swap(p0);
 	pp = byte_swapper::swap(pp);
 }
@@ -756,9 +728,10 @@ void CIndexPage<DD>::Copy(CIndexPage& inFromPage, int32 inFromIndex, int32 inToI
 template<typename DD>
 void CIndexPage<DD>::Read()
 {
+//#if P_DEBUG
 //int64 offset = fBaseOffset + DD::PageNrToAddr(fOffset);
-//cerr << "reading page from offset: " << offset << " base offset = " << fBaseOffset << endl;
-//
+//cerr << "reading page from offset: " << offset << " (base offset = " << fBaseOffset << ", hex: " << hex << offset << dec << ')' << endl;
+//#endif
 	uint32 read = fFile->PRead(&fData, kPageSize, fBaseOffset + DD::PageNrToAddr(fOffset));
 	assert(read == kPageSize);
 	if (read != kPageSize)
@@ -810,7 +783,6 @@ void CIndexPage<DD>::Write()
 	fData.SwapBytesNToH();
 #endif
 }
-
 
 // ---------------------------------------------------------------------------
 // 
@@ -943,6 +915,7 @@ struct CIndexImp
 	virtual void	GetValuesForPattern(const string& inKey, vector<uint32>& outValues) const = 0;
 
 	virtual uint32	GetCount(uint32 inPage) const = 0;
+
 	virtual void	Visit(uint32 inPage, CIndex::VisitorBase& inVisitor) = 0;
 
 	virtual void	CreateFromIterator(CIteratorBase& inIter) = 0;
@@ -1003,6 +976,7 @@ struct CIndexImpT : public CIndexImp
 	virtual void	GetValuesForPattern(const string& inKey, vector<uint32>& outValues) const;
 
 	virtual uint32	GetCount(uint32 inPage) const;
+
 	virtual void	Visit(uint32 inPage, CIndex::VisitorBase& inVisitor);
 
 	virtual void	CreateFromIterator(CIteratorBase& inIter);
@@ -1569,6 +1543,28 @@ CIndex* CIndex::CreateFromIterator(uint32 inIndexKind, CIndexVersion inVersion, 
 {
 	int64 offset = inFile.Seek(0, SEEK_END);
 
+		// align the pages on disk
+	if (inVersion == kCIndexVersionV2)
+	{
+		if ((offset % kPageSize) != 0)
+		{
+			char b[kPageSize] = { };
+			
+			offset += inFile.Write(b, kPageSize - (offset % kPageSize));
+			assert((offset % kPageSize) == 0);
+		}
+	}
+	else
+	{
+		if (((offset + 1) % kPageSize) != 0)
+		{
+			char b[kPageSize] = { };
+			
+			offset += inFile.Write(b, kPageSize - ((offset + 1) % kPageSize));
+			assert(((offset + 1) % kPageSize) == 0);
+		}
+	}
+
 	auto_ptr<CIndex> result(new CIndex(inIndexKind, inVersion, inFile, offset, 0));
 	result->fImpl->CreateFromIterator(inData);
 	
@@ -1580,6 +1576,11 @@ CIndex* CIndex::CreateFromIterator(uint32 inIndexKind, CIndexVersion inVersion, 
 #endif
 	
 	return result.release();
+}
+
+int64 CIndex::GetOffset() const
+{
+	return fImpl->GetBaseOffset();
 }
 
 // access data

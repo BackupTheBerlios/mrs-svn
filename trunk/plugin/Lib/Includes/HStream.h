@@ -47,6 +47,7 @@
 #include "HByteSwap.h"
 
 class HUrl;
+class HMutex;
 class HMMappedFileStream;
 
 class HStreamBase
@@ -66,9 +67,6 @@ class HStreamBase
 	virtual int64	Size() const;
 	
 	void			SetSwapBytes(bool inSwap);
-
-	void			SetBypassCache(bool inBypass);
-	bool			GetBypassCache() const								{ return fBypass; }
 
 	HStreamBase&	operator>> (int8& d);
 	HStreamBase&	operator>> (int16& d);
@@ -103,7 +101,6 @@ class HStreamBase
 	
   private:
 	bool			fSwap;
-	bool			fBypass;
 
 					HStreamBase(const HStreamBase&);
 	HStreamBase&	operator=(const HStreamBase&);
@@ -167,7 +164,6 @@ class HFileStream : public HStreamBase
 {
 	friend class	HMMappedFileStream;
   public:
-					HFileStream(int inFD);
 					HFileStream(const HUrl& inURL, int inMode);
 					~HFileStream();
 
@@ -181,7 +177,7 @@ class HFileStream : public HStreamBase
 	virtual void	Truncate(int64 inOffset);
 
   protected:
-					HFileStream() {}
+					HFileStream();
 					HFileStream (const HFileStream&);
 	void			operator = (const HFileStream&);
 
@@ -192,29 +188,45 @@ class HFileStream : public HStreamBase
 	int64			fSize;
 };
 
-//typedef HFileStream HBufferedFileStream;
-//
-//#if 0
 class HBufferedFileStream : public HFileStream
 {
   public:
 					HBufferedFileStream(const HUrl& inURL, int inMode);
-					~HBufferedFileStream();
-
+	virtual			~HBufferedFileStream();
+	
 	virtual int32	PWrite(const void* inBuffer, uint32 inSize, int64 inOffset);
 	virtual int32	PRead(void* inBuffer, uint32 inSize, int64 inOffset);
+
 	virtual void	Truncate(int64 inOffset);
+	
+	void			Flush();
 
   protected:
-					HBufferedFileStream() {}
+					HBufferedFileStream();
 
 	virtual void	Close();
 
   private:
-					HBufferedFileStream (const HBufferedFileStream&);
-	void			operator = (const HBufferedFileStream&);
+
+	void			Init();
+
+	struct BufferBlock
+	{
+		int64			fOffset;
+		char*			fText;
+		BufferBlock*	fNext;
+		BufferBlock*	fPrev;
+		int32			fPageSize;
+		bool			fDirty;
+	};
+
+	BufferBlock*	GetBlock(int64 inOffset);
+	
+	BufferBlock*	fBlocks;
+	BufferBlock*	fLRUHead;
+	BufferBlock*	fLRUTail;
+	HMutex*			fMutex;
 };
-//#endif
 
 class HTempFileStream : public HBufferedFileStream
 {
@@ -239,46 +251,6 @@ class HMMappedFileStream : public HMemoryStream
 	struct HMMappedFileStreamImp*	fImpl;
 //	void*			fBasePtr;
 };
-
-//class HBufferedStream : public HStreamBase
-//{
-//  public:
-//  	// watch out...
-//					HBufferedStream(HStreamBase* inStream, bool inOwner);
-//					HBufferedStream(HStreamBase& inStream);
-//	virtual			~HBufferedStream();
-//	
-//	virtual int32	Write(const void* inBuffer, uint32 inSize);
-//	virtual int32	PWrite(const void* inBuffer, uint32 inSize, int64 inOffset);
-//
-//	virtual int32	Read(void* inBuffer, uint32 inSize);
-//	virtual int32	PRead(void* inBuffer, uint32 inSize, int64 inOffset);
-//	
-//	virtual int64	Seek(int64 inOffset, int inMode);
-//	virtual int64	Tell() const;
-//	virtual int64	Size() const;
-//
-//	void			Flush();
-//
-//  private:
-//
-//	uint32			GetBlock(int64 inOffset);
-//
-//	struct BufferBlock
-//	{
-//		int32		fPageSize;
-//		int64		fOffset;
-//		bool		fDirty;
-//		char*		fText;
-//	};
-//	
-//	BufferBlock*	fBlocks;
-//	uint32			fBlockCount;
-//	HStreamBase*	fStream;
-//	int64			fSize;
-//	int64			fOffset;
-//	bool			fOwner;
-//};
 
 template<class T>
 class HSwapStream : public HStreamBase

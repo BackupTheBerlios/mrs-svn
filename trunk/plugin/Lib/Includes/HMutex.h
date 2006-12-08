@@ -34,25 +34,25 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
  
-#ifndef CMUTEX_H
-#define CMUTEX_H
+#ifndef HMUTEX_H
+#define HMUTEX_H
 
-class CMutex
+class HMutex
 {
   public:
-					CMutex();
-					~CMutex();
+					HMutex();
+					~HMutex();
 	bool			Wait();
 	void			Signal();
 
   private:
-	struct CMutexImp*	_impl;
+	struct HMutexImp*	_impl;
 };
 
 class StMutex
 {
   public:
-					StMutex(CMutex& inMutex)
+					StMutex(HMutex& inMutex)
 						: fMutex(inMutex)
 					{
 						fMutex.Wait();
@@ -62,7 +62,7 @@ class StMutex
 						fMutex.Signal();
 					}
   private:
-	CMutex&			fMutex;
+	HMutex&			fMutex;
 };
 
-#endif // CMUTEX_H
+#endif // HMUTEX_H

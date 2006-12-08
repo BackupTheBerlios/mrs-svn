@@ -50,7 +50,7 @@
 
 #include "HUtils.h"
 #include "HError.h"
-#include "HFileCache.h"
+#include "HMutex.h"
 
 #include "CQuery.h"
 #include "CSequence.h"
@@ -61,7 +61,6 @@
 #include "CBlast.h"
 
 #include "CThread.h"
-#include "CMutex.h"
 
 using namespace std;
 
@@ -1336,7 +1335,7 @@ template<int WordSize>
 bool CBlastQuery<WordSize>::Test(uint32 inDocNr, const CSequence& inTarget)
 {
 	bool result = false;
-	
+
 	// short cut
 	if (inTarget.length() < 2 * WordSize)
 		return result;
@@ -1450,7 +1449,7 @@ class CBlastThread : public CThread
 {
   public:
 								CBlastThread(CBlastQueryBase& inBlastQuery, CDatabankBase& inDb,
-										CDocIterator& inIter, CMutex& inMutex)
+										CDocIterator& inIter, HMutex& inMutex)
 									: mBlastQuery(inBlastQuery)
 									, mIter(inIter)
 									, mDb(inDb)
@@ -1473,7 +1472,7 @@ class CBlastThread : public CThread
 	CDatabankBase&				mDb;
 	static uint32				sRead;	// for the counter
 	static uint32				sModulo;
-	CMutex&						mLock;
+	HMutex&						mLock;
 };
 
 uint32 CBlastThread::sRead;
@@ -1533,7 +1532,7 @@ bool CBlastThread::Next(uint32& outDocNr, vector<CSequence>& outTargets)
 			
 			break;
 		}
-		
+
 		mLock.Signal();
 	}
 
@@ -1627,11 +1626,8 @@ bool CBlast::Find(CDatabankBase& inDb, CDocIterator& inIter)
 
 	if (THREADS > 1)
 	{
-		// our file cache implementation is NOT thread safe!!!
-		HFileCache::BypassCache(true);
+		HMutex lock;
 		
-		CMutex lock;
-
 		vector<CBlastQueryBase*> queries;
 		vector<CBlastThread*> threads;
 		for (uint32 n = 0; n < THREADS; ++n)
@@ -1660,7 +1656,7 @@ bool CBlast::Find(CDatabankBase& inDb, CDocIterator& inIter)
 //			queries.push_back(new CBlastQuery<3>(mImpl->mQuery, mImpl->mMatrix, whiStaticData,
 //				inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
 			threads.push_back(new CBlastThread(*queries.back(), inDb, inIter, lock));
-			
+
 			threads.back()->Start();
 		}
 	

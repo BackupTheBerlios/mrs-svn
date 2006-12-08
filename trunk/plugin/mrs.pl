@@ -55,14 +55,14 @@ my %opts;
 
 if ($action eq 'create')
 {
-	getopts('d:s:vtp:P:b:w:', \%opts);
+	getopts('d:s:vtp:P:b:w:r:', \%opts);
 	
 	my $db = $opts{d} or &Usage();
 	
 	my $verbose = $opts{v};
 	$verbose = 2 if $opts{t};
 
-	&Create($db, $opts{'s'}, $verbose, $opts{p}, $opts{P}, $opts{b}, $opts{w});
+	&Create($db, $opts{'s'}, $verbose, $opts{p}, $opts{P}, $opts{b}, $opts{w}, $opts{r});
 }
 elsif ($action eq 'merge')
 {
@@ -233,7 +233,7 @@ END
 
 sub Create()
 {
-	my ($db, $script, $verbose, $partNr, $partCount, $weight_bit_count, $stopwordsfile) = @_;
+	my ($db, $script, $verbose, $partNr, $partCount, $weight_bit_count, $stopwordsfile, $rawfiles) = @_;
 	
 	$script = $db unless defined $script;
 	$verbose = 0 unless defined $verbose;
@@ -301,7 +301,13 @@ sub Create()
 	
 	# Ask the parser object for the list of files to process
 	
-	my @raw_files = $p->raw_files($raw_dir, $db);
+	my @raw_files;
+	if ($rawfiles) {
+		@raw_files = split(m/,/, $rawfiles);
+	}
+	else {
+		@raw_files = $p->raw_files($raw_dir, $db);
+	}
 	
 	# and the version for this db
 	

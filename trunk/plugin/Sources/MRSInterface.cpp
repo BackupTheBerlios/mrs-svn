@@ -60,7 +60,6 @@
 #include "HError.h"
 #include "HStream.h"
 #include "HFile.h"
-#include "HFileCache.h"
 #include "HUtils.h"
 
 #include "CDatabank.h"
@@ -834,8 +833,6 @@ void MDatabank::Finish(bool inCreateAllTextIndex)
 		CStopwatch sw(fImpl->fFinishTime);
 
 		fImpl->GetDB()->Finish(inCreateAllTextIndex);
-		
-		HFileCache::Flush();
 		
 		fImpl->Close();
 		

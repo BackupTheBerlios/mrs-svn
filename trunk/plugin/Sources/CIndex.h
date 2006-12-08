@@ -147,6 +147,8 @@ class CIndex
 	uint32				GetCount() const;
 	uint32				GetKind() const;
 
+	int64				GetOffset() const;	// on disk, needed by CIndexer since pages will be aligned on disk
+
 #if P_DEBUG
 	void				Dump() const;
 #endif

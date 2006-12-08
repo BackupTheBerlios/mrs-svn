@@ -1108,11 +1108,11 @@ bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPar
 	}
 
 	// construct the optimized b-tree
-	outInfo.tree_offset = inDataFile.Seek(0, SEEK_END);
 
 	CFullTextIterator iter(fFullTextIndex, lexicon);
 	auto_ptr<CIndex> indx(CIndex::CreateFromIterator(fKind, outInfo.index_version, iter, inDataFile));
 
+	outInfo.tree_offset = indx->GetOffset();
 	outInfo.tree_size = inDataFile.Seek(0, SEEK_END) - outInfo.tree_offset;
 	outInfo.root = indx->GetRoot();
 	outInfo.entries = lexicon.size();
@@ -1195,13 +1195,12 @@ bool CValueIndex::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPa
 	outInfo.kind = fKind;
 
 	// construct the optimized b-tree
-	outInfo.tree_offset = inDataFile.Seek(0, SEEK_END);
-
 	sort(fIndex.begin(), fIndex.end(), SortLex(fFullTextIndex, this));
 
 	CFullTextIterator iter(fFullTextIndex, fIndex);
 	auto_ptr<CIndex> indx(CIndex::CreateFromIterator(fKind, outInfo.index_version, iter, inDataFile));
 
+	outInfo.tree_offset = indx->GetOffset();
 	outInfo.tree_size = inDataFile.Seek(0, SEEK_END) - outInfo.tree_offset;
 	outInfo.root = indx->GetRoot();
 	outInfo.entries = fIndex.size();
@@ -1739,6 +1738,12 @@ void CIndexer::CreateIndex(HStreamBase& inFile,
 
 	for (ix = 0; ix < fHeader->count; ++ix)
 		inFile << fParts[ix];
+	
+	delete fFullTextIndex;
+	fFullTextIndex = nil;
+
+	fDocWeights = new CDocWeightArray*[fHeader->count];
+	memset(fDocWeights, 0, sizeof(CDocWeightArray*) * fHeader->count);
 }
 
 struct CMergeData
@@ -2000,7 +2005,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 	
 	for (p = inParts.begin(); p != inParts.end(); ++p)
 	{
-		CIndexer* index = (*p)->GetIndexer();
+		const CIndexer* index = (*p)->GetIndexer();
 
 		fHeader->entries += index->fHeader->entries;
 		
@@ -2137,7 +2142,6 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 			memset(dw, 0, sizeof(float) * fHeader->entries);
 		}
 
-		fParts[ix].tree_offset = outData.Seek(0, SEEK_END);
 		fParts[ix].root = 0;
 		fParts[ix].bits_offset = 0;
 		
@@ -2316,6 +2320,8 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 
 		auto_ptr<CIndex> indxOnDisk(CIndex::CreateFromIterator(fParts[ix].kind,
 			fParts[ix].index_version, mapIter, outData));
+		
+		fParts[ix].tree_offset = indxOnDisk->GetOffset();
 		fParts[ix].tree_size = outData.Seek(0, SEEK_END);
 		fParts[ix].root = indxOnDisk->GetRoot();
 		
@@ -2394,7 +2400,7 @@ void CIndexer::GetIndexInfo(uint32 inIndexNr, string& outCode,
 }
 
 CDocIterator* CIndexer::GetImpForPattern(const string& inIndex,
-	const string& inValue)
+	const string& inValue) const
 {
 	string index = inIndex;
 	if (index != kAllTextIndexName)
@@ -2435,7 +2441,7 @@ CDocIterator* CIndexer::GetImpForPattern(const string& inIndex,
 }
 
 CDocIterator* CIndexer::CreateDocIterator(const string& inIndex, const string& inKey,
-	bool inKeyIsPattern, CQueryOperator inOperator)
+	bool inKeyIsPattern, CQueryOperator inOperator) const
 {
 	vector<CDocIterator*> iters;
 
@@ -2535,7 +2541,7 @@ uint32 CIndexer::Count() const
 	return fHeader->entries;
 }
 
-void CIndexer::PrintInfo()
+void CIndexer::PrintInfo() const
 {
 	const char* sig = reinterpret_cast<const char*>(&fHeader->sig);
 	
@@ -2593,7 +2599,7 @@ class CIndexIteratorWrapper : public CIteratorWrapper<CIndex>
 	auto_ptr<CIndex>	fIndex;
 };
 
-CIteratorBase* CIndexer::GetIteratorForIndex(const string& inIndex)
+CIteratorBase* CIndexer::GetIteratorForIndex(const string& inIndex) const
 {
 	auto_ptr<CIndex> indx(GetIndex(inIndex));
 	CIteratorWrapper<CIndex>* result = nil;
@@ -2607,7 +2613,7 @@ CIteratorBase* CIndexer::GetIteratorForIndex(const string& inIndex)
 	return result;
 }
 
-CIteratorBase* CIndexer::GetIteratorForIndexAndKey(const string& inIndex, const string& inKey)
+CIteratorBase* CIndexer::GetIteratorForIndexAndKey(const string& inIndex, const string& inKey) const
 {
 	auto_ptr<CIndex> indx(GetIndex(inIndex));
 	CIteratorWrapper<CIndex>* result = nil;
@@ -2621,7 +2627,7 @@ CIteratorBase* CIndexer::GetIteratorForIndexAndKey(const string& inIndex, const 
 	return result;
 }
 
-CDocWeightArray CIndexer::GetDocWeights(const std::string& inIndex)
+CDocWeightArray CIndexer::GetDocWeights(const std::string& inIndex) const
 {
 	string index = inIndex;
 	if (index != kAllTextIndexName)
@@ -2639,7 +2645,7 @@ CDocWeightArray CIndexer::GetDocWeights(const std::string& inIndex)
 		THROW(("No document weight vector found for index %s", inIndex.c_str()));
 	
 	if (fDocWeights == nil)
-		fDocWeights = new CDocWeightArray*[fHeader->count];
+		THROW(("fDocWeights is nil"));
 	
 	if (fDocWeights[ix] == nil)
 	{
@@ -2653,7 +2659,7 @@ CDocWeightArray CIndexer::GetDocWeights(const std::string& inIndex)
 	return *fDocWeights[ix];
 }
 
-CDbDocIteratorBase* CIndexer::GetDocWeightIterator(const string& inIndex, const string& inKey)
+CDbDocIteratorBase* CIndexer::GetDocWeightIterator(const string& inIndex, const string& inKey) const
 {
 	string index = inIndex;
 	if (index != kAllTextIndexName)
@@ -2713,7 +2719,7 @@ void CIndexer::DumpIndex(const string& inIndex) const
 #endif
 }
 
-bool CIndexer::GetDocumentNr(const string& inDocumentID, uint32& outDocNr)
+bool CIndexer::GetDocumentNr(const string& inDocumentID, uint32& outDocNr) const
 {
 	bool result = true;
 	auto_ptr<CIndex> index(GetIndex("id"));
