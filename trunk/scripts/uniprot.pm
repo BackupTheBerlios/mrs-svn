@@ -63,7 +63,14 @@ our @META_DATA_FIELDS = [ 'title' ];	# was [ 'title', 'species' ]
 
 our %MERGE_DBS = (
 	'uniprot'	=>	[ 'sprot', 'trembl' ],
-	'sp300'		=>	[ 'sp100', 'sp200' ]
+	'sp300'		=>	[ 'sp100', 'sp200' ],
+	'sp301'		=>	[ 'sp100', 'sp201' ],
+	'spa'		=>	[ 'sp100', 'sp200' ],
+	'spb'		=>	[ 'sp300', 'sp400' ],
+	'spc'		=>	[ 'spa', 'spb' ],
+	's_sprot'	=>	[ 'sprot' ],
+	's_trembl'	=>	[ 'trembl' ],
+	's_uniprot'	=>	[ 's_sprot', 's_trembl' ],
 );
 
 our %INDICES = (
@@ -202,39 +209,6 @@ sub parse
 			}
 		}
 	}
-}
-
-sub version
-{
-	my ($self, $raw_dir, $db) = @_;
-	
-	$raw_dir =~ s'(sprot|trembl)/?$'uniprot';
-
-	open RELDATE, "<$raw_dir/reldate.txt";
-	
-	my $vers;
-	
-	while (my $line = <RELDATE>)
-	{
-		if ($db eq 'sprot' and $line =~ /Swiss-Prot/) {
-			$vers = $line;
-			last;
-		}
-		elsif ($db eq 'trembl' and $line =~ /TrEMBL/) {
-			$vers = $line;
-			last;
-		}
-		elsif ($db eq 'uniprot' and $line =~ /Swiss-Prot/) {
-			$vers = $line;
-			last;
-		}
-	}
-
-	die "Unknown db: $db" unless defined $vers;
-
-	chomp($vers);
-
-	return $vers;
 }
 
 sub raw_files
@@ -1172,6 +1146,55 @@ sub to_fasta
 	$seq =~ s/(.{60})/$1\n/g;
 	
 	return ">$id\n$seq\n";
+}
+
+sub meta_info
+{
+	my ($self, $raw_dir, $db) = @_;
+	
+	my $version = $self->version($raw_dir, $db);
+	
+	my $name;
+	if ($db eq 'sprot') {
+		$name = 'SwissProt';
+	}
+	elsif ($db eq 'trembl') {
+		$name = 'TrEMBL';
+	}
+	elsif ($db eq 'uniprot') {
+		$name = 'Uniprot';
+	}
+	else {
+		$name = $db;
+	}
+	
+	$raw_dir =~ s|$db/?$|uniprot|;
+
+	open RELDATE, "<$raw_dir/reldate.txt";
+	
+	my $version;
+	
+	while (my $line = <RELDATE>)
+	{
+		if ($db eq 'sprot' and $line =~ /Swiss-Prot/) {
+			$version = $line;
+			last;
+		}
+		elsif ($db eq 'trembl' and $line =~ /TrEMBL/) {
+			$version = $line;
+			last;
+		}
+		elsif ($db eq 'uniprot' and $line =~ /Swiss-Prot/) {
+			$version = $line;
+			last;
+		}
+	}
+
+	$version = 'unknown uniprot version' unless defined $version;
+
+	chomp($version);
+
+	return ($name, $version, 'http://www.ebi.ac.uk/uniprot/index.html', 'protein');
 }
 
 1;
