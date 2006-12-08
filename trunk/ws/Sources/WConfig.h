@@ -14,12 +14,10 @@ struct DbInfo
 	std::string			name;
 	std::string			script;
 	std::string			url;
-	bool				blast;
 	bool				in_all;
 
 						DbInfo()
-							: blast(false)
-							, in_all(false) {}
+							: in_all(false) {}
 };
 
 class config_exception : public std::exception

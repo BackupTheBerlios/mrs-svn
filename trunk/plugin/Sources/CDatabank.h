@@ -46,6 +46,7 @@
 #include <string>
 #include <cstring>
 #include <set>
+#include <map>
 
 #include "HUrl.h"
 
@@ -120,6 +121,11 @@ class CDatabankBase
 	virtual void		PrintInfo() = 0;
 //	virtual void		DumpIndex(const std::string& inIndex);
 
+	virtual std::string	GetName() const = 0;
+	virtual std::string	GetInfoURL() const = 0;
+	virtual std::string	GetScriptName() const = 0;
+	virtual std::string	GetSection() const = 0;
+	
 	virtual bool		IsUpToDate() const = 0;
 
 	virtual CIteratorBase*
@@ -182,11 +188,15 @@ class CDatabank : public CDatabankBase
 							// two constructors, for perl plugin interface
 						CDatabank(const HUrl& inFile);
 						CDatabank(const HUrl& inFile,
-							const std::vector<std::string>& inMetaDataFields);
+							const std::vector<std::string>& inMetaDataFields,
+							const std::string& inName, const std::string& inVersion,
+							const std::string& inURL, const std::string& inScriptName,
+							const std::string& inSection);
 					
 						~CDatabank();
 
-	void				Merge(std::vector<CDatabank*>& inParts, bool inCopyData);
+	void				Merge(std::vector<CDatabank*>& inParts,
+							bool inCopyData);
 	virtual void		DumpIndex(const std::string& inIndex);
 	virtual CIteratorBase*
 						GetIteratorForIndex(const std::string& inIndex);
@@ -237,8 +247,6 @@ class CDatabank : public CDatabankBase
 #endif
 	void				FlushDocument();
 
-	void				SetVersion(const std::string& inVersion);
-
 	void				Finish(bool inCreateAllTextIndex);
 	
 	virtual uint32		Count() const;
@@ -246,6 +254,11 @@ class CDatabank : public CDatabankBase
 	virtual std::string	GetVersion() const;
 	virtual std::string	GetUUID() const;
 	virtual bool		IsUpToDate() const;
+
+	virtual std::string	GetName() const;
+	virtual std::string	GetInfoURL() const;
+	virtual std::string	GetScriptName() const;
+	virtual std::string	GetSection() const;
 	
 	virtual long		GetIndexCount();
 	virtual	void		GetIndexInfo(uint32 inIndexNr, std::string& outCode,
@@ -279,6 +292,10 @@ class CDatabank : public CDatabankBase
 #endif
 
 	virtual std::string	GetDbName() const;
+
+  protected:
+
+	bool			GetInfo(uint32 inKind, uint32 inIndex, std::string& outText) const;
 	
   private:
 
@@ -352,6 +369,12 @@ class CJoinedDatabank : public CDatabankBase
 	virtual std::string	GetVersion() const;
 	virtual std::string	GetUUID() const;
 	virtual bool		IsUpToDate() const;
+
+	virtual std::string	GetName() const;
+	virtual std::string	GetInfoURL() const;
+	virtual std::string	GetScriptName() const;
+	virtual std::string	GetSection() const;
+
 	virtual void		PrintInfo();
 	virtual long		GetIndexCount();
 	virtual	void		GetIndexInfo(uint32 inIndexNr, std::string& outCode,

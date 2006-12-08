@@ -104,6 +104,10 @@ sub new {
 *Count = *MRSc::MDatabank_Count;
 *GetVersion = *MRSc::MDatabank_GetVersion;
 *GetUUID = *MRSc::MDatabank_GetUUID;
+*GetName = *MRSc::MDatabank_GetName;
+*GetInfoURL = *MRSc::MDatabank_GetInfoURL;
+*GetScriptName = *MRSc::MDatabank_GetScriptName;
+*GetSection = *MRSc::MDatabank_GetSection;
 *GetFilePath = *MRSc::MDatabank_GetFilePath;
 *IsUpToDate = *MRSc::MDatabank_IsUpToDate;
 *GetRawDataSize = *MRSc::MDatabank_GetRawDataSize;
@@ -137,7 +141,6 @@ sub new {
 *IndexNumber = *MRSc::MDatabank_IndexNumber;
 *AddSequence = *MRSc::MDatabank_AddSequence;
 *FlushDocument = *MRSc::MDatabank_FlushDocument;
-*SetVersion = *MRSc::MDatabank_SetVersion;
 *Finish = *MRSc::MDatabank_Finish;
 *CreateDictionary = *MRSc::MDatabank_CreateDictionary;
 sub DESTROY {

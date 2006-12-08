@@ -184,11 +184,20 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	 *	\param inPath	The fully qualified path to the mrs file to create.
 	 *	\param inMetaDataFields
 	 * 					The list of meta data fields you want to create in this databank.
+	 *	\param	inName	The pretty name for the databank
+	 *	\param	inVersion
+	 *					The version string for this databank
+	 *	\param	inURL	The url pointing to a website containing information about this databank
+	 *	\param	inScriptName
+	 *					The name of the script used to create (and format) this databank
 	 *	\return			The newly created databank.
 	 *	\see			Finish
 	 */
 
-	static MDatabank*	Create(const std::string& inPath, MStringArray inMetaDataFields);
+	static MDatabank*	Create(const std::string& inPath, MStringArray inMetaDataFields,
+							const std::string& inName, const std::string& inVersion,
+							const std::string& inURL, const std::string& inScriptName,
+							const std::string& inSection);
 
 	/**	\brief	Merge several databanks into one
 	 *
@@ -206,13 +215,23 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	 *					source databanks may not be deleted or you can no longer use the
 	 *					merged databank. The UUID of the source databanks is recorded and
 	 *					used to determine if they are still valid.
+	 *	\param	inName	The pretty name for the databank
+	 *	\param	inURL	The url pointing to a website containing information about this databank
+	 *	\param	inScriptName
+	 *					The name of the script used to create (and format) this databank
 	 */
 
-	static void			Merge(const std::string& inPath, MDatabankArray inDbs, bool inCopyData);
+	static void			Merge(const std::string& inPath, MDatabankArray inDbs, bool inCopyData,	
+							const std::string& inName, const std::string& inURL,
+							const std::string& inScriptName, const std::string& inSection);
 
 	long				Count();			/**< \brief Return the number of documents in this databank */
 	std::string			GetVersion();		/**< \brief Return the version string for this databank */
 	std::string			GetUUID();			/**< \brief Return the UUID for this databank */
+	std::string			GetName();			/**< \brief Return the pretty name for this databank */
+	std::string			GetInfoURL();		/**< \brief Return the URL pointing to information about this databank */
+	std::string			GetScriptName();	/**< \brief Return the name of the script used for processing this databank */
+	std::string			GetSection();		/**< \brief Return the section to which this databank belongs (protein, literature, etc.) */
 	std::string			GetFilePath();		/**< \brief Return the path to the file for this databank */
 	bool				IsUpToDate();		/**< \brief Checks to see if our data still resides on disk */
 	long long			GetRawDataSize();	/**< \brief Return the original data size (size of all Stored documents) */
@@ -316,6 +335,21 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	
 	const char*			Get(const std::string& inEntryID);
 
+#ifndef SWIG
+	/** \brief	Return a document by ID
+	 *
+	 *	This method returns the stored document by \a inEntryID in \a outDocument.
+	 *	This method is thread safe.
+	 *	\param	inEntryID
+	 *					The documents ID.
+	 *	\param	outDocument
+	 *					The text of the document
+	 *	\result			True if this document existed, false otherwise.
+	 */
+	
+	bool				Get(const std::string& inEntryID, std::string& outDocument);
+#endif
+
 	/** \brief	Return the content of a meta data field for a document specified by ID
 	 *
 	 *	This method returns the content of the meta data field \a inFieldName for the document specified by \a inEntryID.
@@ -327,6 +361,24 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	 */
 	
 	const char*			GetMetaData(const std::string& inEntryID, const std::string& inFieldName);
+
+#ifndef SWIG
+	/** \brief	Return the content of a meta data field for a document specified by ID
+	 *
+	 *	This method returns the content of the meta data field \a inFieldName for the document specified by \a inEntryID.
+	 *	This method is thread safe.
+	 *	\param	inEntryID
+	 *					The document ID.
+	 *	\param	inFieldName
+	 *					The meta data field name.
+	 *	\param	outText
+	 *					The text of the meta data field
+	 *	\result			True if this document existed, false otherwise.
+	 */
+	
+	bool				GetMetaData(const std::string& inEntryID, const std::string& inFieldName,
+							std::string& outText);
+#endif
 	
 	/** \brief	Return the description of a document
 	 *
@@ -339,6 +391,23 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	 */
 	
 	const char*			GetDescription(const std::string& inEntryID);
+	
+#ifndef SWIG
+	/** \brief	Return the description of a document
+	 *
+	 *	By definition the first meta data field contains the description (or title if you prefer)
+	 *	for a document. This method returns the content of that first meta data field for the 
+	 *	document specified by \a inEntryID.
+	 *	This method is thread safe.
+	 *	\param	inEntryID
+	 *					The documents ID.
+	 *	\param	outText
+	 *					The text of the description
+	 *	\result			True if this document existed, false otherwise.
+	 */
+	
+	bool				GetDescription(const std::string& inEntryID, std::string& outText);
+#endif
 
 #ifndef NO_BLAST
 
@@ -366,6 +435,28 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	 */
 
 	const char*			Sequence(const std::string& inEntryID, unsigned long inIndex = 0);
+
+#ifndef SWIG
+	/** \brief	Return sequence \a inIndex stored for document \a inEntryID
+	 *
+	 *	Protein sequences can be stored separately to make it possible to search
+	 *	them using the BLAST algorithm. This method retrieves a sequence by \a inEntryID
+	 *	and \a inIndex. The index is required for databanks like PDB where you can have
+	 *	more than one sequence per document.
+	 *	This method is thread safe.
+	 *	\param	inEntryID
+	 *					The documents ID.
+	 *	\param	inIndex
+	 *					The index number for the sequence to return. Numbering is 0 based
+	 *					so you pass 0 for the first sequence.
+	 *	\param	outSequence
+	 *					The sequence
+	 *	\result			True if this document existed, false otherwise.
+	 */
+
+	bool				Sequence(const std::string& inEntryID, unsigned long inIndex,
+							std::string& outSequence);
+#endif
 
 	/** \brief	Perform a blast search
 	 *
@@ -542,15 +633,6 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 
 	void				FlushDocument();
 
-	/** \brief	Store a version string along with the databank
-	 *
-	 *	Insert the version information for the raw data from which this databank was constructed.
-	 *	\param	inVersion
-	 *					The text for the version string
-	 */
-
-	void				SetVersion(const std::string& inVersion);
-
 	/** \brief	Create the final MRS file.
 	 *
 	 *	When all documents have been processed you can ask MRS to create the final .cmp file
@@ -579,7 +661,10 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 							long inMinOccurrence, long inMinWordLength);
 
   private:
-						MDatabank(const std::string& inName, const MStringArray& inMetaDataFields);
+						MDatabank(const std::string& inName, const MStringArray& inMetaDataFields,
+							const std::string& inName, const std::string& inVersion,
+							const std::string& inURL, const std::string& inScriptName,
+							const std::string& inSection);
 };
 
 /** \brief	An object that represents a boolean query
@@ -709,7 +794,7 @@ class MQueryResults : public MRSObject<MQueryResults, struct MQueryResultsImp>
 	/** \brief	Return the next document ID or NULL if there is none.
 	 *
 	 *	The Next method returns the next document ID or NULL if you've hit the end
-	 *	of the result list.
+	 *	of the result list. This version is NOT thread safe.
 	 */
 
 	const char*			Next();
@@ -722,6 +807,19 @@ class MQueryResults : public MRSObject<MQueryResults, struct MQueryResultsImp>
 	 */
 
 	unsigned long		Score() const;
+
+//#ifndef SWIG
+//	/** \brief	Return the next document ID, thread safe version
+//	 *
+//	 *	The Next method returns the next document ID or false if you've hit the end
+//	 *	of the result list. This is the thread safe version.
+//	 *	\param	outID		The ID string will be returned here
+//	 *	\param	outScore	The score for this ID
+//	 *	\result				True if there was a next ID, false otherwise
+//	 */
+//
+//	bool				Next(std::string& outID, float& outScore);
+//#endif
 
 	/**	\brief	Skip over a number of results
 	 *

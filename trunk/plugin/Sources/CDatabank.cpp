@@ -348,8 +348,10 @@ void CDatabankBase::GetStopWords(std::set<std::string>& outStopWords) const
 	Implementations
 */
 
-CDatabank::CDatabank(const HUrl& inUrl, const vector<string>& inMetaDataFields)
-	: fPath(inUrl)
+CDatabank::CDatabank(const HUrl& inPath, const vector<string>& inMetaDataFields,
+		const string& inName, const string& inVersion, const string& inURL, const string& inScriptName,
+		const string& inSection)
+	: fPath(inPath)
 	, fModificationTime(0)
 	, fDataFile(NULL)
 	, fCompressor(NULL)
@@ -415,10 +417,18 @@ CDatabank::CDatabank(const HUrl& inUrl, const vector<string>& inMetaDataFields)
 	fParts[0].sig = kPartSig;
 	*fDataFile << fParts[0];
 	
-	fCompressor = new CCompressor(*fDataFile, inUrl);
-	fIndexer = new CIndexer(inUrl);
+	fCompressor = new CCompressor(*fDataFile, inPath);
+	fIndexer = new CIndexer(inPath);
 
-//	fInfoContainer = new CDbInfo;
+	fInfoContainer = new CDbInfo;
+	
+	fInfoContainer->Add('name', inName);
+	fInfoContainer->Add('scrp', inScriptName);
+	fInfoContainer->Add('iurl', inURL);
+	fInfoContainer->Add('sect', inSection);
+
+	if (inVersion.length() > 0)
+		fInfoContainer->Add('vers', inVersion);
 }
 
 CDatabank::CDatabank(const HUrl& inUrl)
@@ -871,8 +881,8 @@ void CDatabank::Merge(vector<CDatabank*>& inParts, bool inCopyData)
 
 	// Merge info
 	
-	fInfoContainer = new CDbInfo;
-	
+	assert(fInfoContainer);
+
 	for (d = inParts.begin(); d != inParts.end(); ++d)
 	{
 		if ((*d)->fInfoContainer == nil)
@@ -889,7 +899,10 @@ void CDatabank::Merge(vector<CDatabank*>& inParts, bool inCopyData)
 		uint32 kind;
 		
 		while ((*d)->fInfoContainer->Next(cookie, s, kind))
-			fInfoContainer->Add(kind, s);
+		{
+			if (kind != 'scrp' and kind != 'name' and kind != 'iurl' and kind != 'sect')
+				fInfoContainer->Add(kind, s);
+		}
 
 		if (VERBOSE)
 			cout << " done" << endl;
@@ -1093,12 +1106,30 @@ int64 CDatabank::GetRawDataSize() const
 	return result;
 }
 
+bool CDatabank::GetInfo(uint32 inKind, uint32 inIndex, string& outText) const
+{
+	bool result = false;
+	
+	if (fInfoContainer != nil)
+	{
+		uint32 cookie = 0, k;
+		
+		while (inIndex-- > 0 and fInfoContainer->Next(cookie, outText, k, inKind))
+			;
+		
+		if (fInfoContainer->Next(cookie, outText, k, inKind))
+			result = true;
+	}
+	
+	return result;
+}
+
 string CDatabank::GetVersion() const
 {
-	string vers, s, l;
-	uint32 cookie = 0, k;
+	uint32 ix = 0;
+	string s, l, vers;
 	
-	while (fInfoContainer and fInfoContainer->Next(cookie, s, k, 'vers'))
+	while (GetInfo('vers', ix++, s))
 	{
 		if (s != l)		// avoid adding a duplicate version string
 		{
@@ -1110,9 +1141,6 @@ string CDatabank::GetVersion() const
 		}
 	}
 	
-//	if (vers.length() == 0)
-//		vers = "no version information available";
-	
 	return vers;
 }
 
@@ -1121,6 +1149,46 @@ string CDatabank::GetUUID() const
 	char suuid[40];
 	uuid_unparse(fHeader->uuid, suuid);
 	return suuid;
+}
+
+string CDatabank::GetName() const
+{
+	string result;
+	
+	if (not GetInfo('name', 0, result))
+		result = GetDbName();
+
+	return result;
+}
+
+string CDatabank::GetInfoURL() const
+{
+	string result;
+	
+	if (not GetInfo('iurl', 0, result))
+		result = kEmptyString;
+
+	return result;
+}
+
+string CDatabank::GetScriptName() const
+{
+	string result;
+	
+	if (not GetInfo('scrp', 0, result))
+		result = kEmptyString;
+
+	return result;
+}
+
+string CDatabank::GetSection() const
+{
+	string result;
+	
+	if (not GetInfo('sect', 0, result))
+		result = kEmptyString;
+
+	return result;
 }
 
 bool CDatabank::IsUpToDate() const
@@ -1218,6 +1286,13 @@ void CDatabank::PrintInfo()
 	cout << "Header:" << endl;
 	cout << "  signature:     " << sig[0] << sig[1] << sig[2] << sig[3] << endl;
 	cout << "  uuid:          " << suuid << endl;
+	
+	cout << "  name:          " << GetName() << endl;
+	cout << "  version:       " << GetVersion() << endl;
+	cout << "  url:           " << GetInfoURL() << endl;
+	cout << "  script:        " << GetScriptName() << endl;
+	cout << "  section:       " << GetSection() << endl;
+	
 	cout << "  size:          " << fHeader->size << endl;
 	cout << "  entries:       " << fHeader->entries << endl;
 	cout << "  data offset:   " << fHeader->data_offset << endl;
@@ -1427,13 +1502,6 @@ void CDatabank::FlushDocument()
 		else
 			cout.flush();
 	}
-}
-
-void CDatabank::SetVersion(const string& inVersion)
-{
-	if (fInfoContainer == nil)
-		fInfoContainer = new CDbInfo;
-	fInfoContainer->Add('vers', inVersion);
 }
 
 CDocIterator* CDatabank::CreateDocIterator(const string& inIndex,
@@ -2007,12 +2075,53 @@ string CJoinedDatabank::GetUUID() const
 	return uuid;
 }
 
+string CJoinedDatabank::GetName() const
+{
+	string result;
+	for (uint32 p = 0; p < fPartCount; ++p)
+	{
+		if (p > 0)
+			result += " + ";
+		result += fParts[p].fDb->GetName();
+	}
+	return result;
+}
+
+string CJoinedDatabank::GetInfoURL() const
+{
+	string result;
+	for (uint32 p = 0; p < fPartCount; ++p)
+	{
+		if (p > 0)
+			result += " + ";
+		result += fParts[p].fDb->GetInfoURL();
+	}
+	return result;
+}
+
+string CJoinedDatabank::GetScriptName() const
+{
+	string result;
+	for (uint32 p = 0; p < fPartCount; ++p)
+	{
+		if (p > 0)
+			result += " + ";
+		result += fParts[p].fDb->GetScriptName();
+	}
+	return result;
+}
+
+string CJoinedDatabank::GetSection() const
+{
+	return fParts[0].fDb->GetSection();
+}
+
 bool CJoinedDatabank::IsUpToDate() const
 {
 	bool result = true;
 	
-	for (uint32 p = 0; p < fPartCount; ++p)
-		result = result and fParts[p].fDb->IsUpToDate();
+	for (uint32 p = 0; result and p < fPartCount; ++p)
+		result = fParts[p].fDb->IsUpToDate();
 	
 	return result;
 }

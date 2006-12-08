@@ -1567,13 +1567,23 @@ XS(_wrap_MDatabank_Create) {
     {
         std::string *arg1 = 0 ;
         SwigValueWrapper<std::vector<std::string > > arg2 ;
+        std::string *arg3 = 0 ;
+        std::string *arg4 = 0 ;
+        std::string *arg5 = 0 ;
+        std::string *arg6 = 0 ;
+        std::string *arg7 = 0 ;
         MDatabank *result;
         std::string temp1 ;
+        std::string temp3 ;
+        std::string temp4 ;
+        std::string temp5 ;
+        std::string temp6 ;
+        std::string temp7 ;
         int argvi = 0;
         dXSARGS;
         
-        if ((items < 2) || (items > 2)) {
-            SWIG_croak("Usage: MDatabank_Create(inPath,inMetaDataFields);");
+        if ((items < 7) || (items > 7)) {
+            SWIG_croak("Usage: MDatabank_Create(inPath,inMetaDataFields,inName,inVersion,inURL,inScriptName,inSection);");
         }
         {
             STRLEN len;
@@ -1615,8 +1625,58 @@ XS(_wrap_MDatabank_Create) {
             arg2 = a;
         }
         {
+            STRLEN len;
+            const char *ptr = SvPV(ST(2), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 3 of MDatabank_Create.");
+            } else {
+                temp3.assign(ptr, len);
+                arg3 = &temp3;
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(3), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 4 of MDatabank_Create.");
+            } else {
+                temp4.assign(ptr, len);
+                arg4 = &temp4;
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(4), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 5 of MDatabank_Create.");
+            } else {
+                temp5.assign(ptr, len);
+                arg5 = &temp5;
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(5), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 6 of MDatabank_Create.");
+            } else {
+                temp6.assign(ptr, len);
+                arg6 = &temp6;
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(6), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 7 of MDatabank_Create.");
+            } else {
+                temp7.assign(ptr, len);
+                arg7 = &temp7;
+            }
+        }
+        {
             try {
-                result = (MDatabank *)MDatabank::Create((std::string const &)*arg1,arg2);
+                result = (MDatabank *)MDatabank::Create((std::string const &)*arg1,arg2,(std::string const &)*arg3,(std::string const &)*arg4,(std::string const &)*arg5,(std::string const &)*arg6,(std::string const &)*arg7);
                 
             }
             
@@ -1644,12 +1704,20 @@ XS(_wrap_MDatabank_Merge) {
         std::string *arg1 = 0 ;
         SwigValueWrapper<std::vector<MDatabank * > > arg2 ;
         bool arg3 ;
+        std::string *arg4 = 0 ;
+        std::string *arg5 = 0 ;
+        std::string *arg6 = 0 ;
+        std::string *arg7 = 0 ;
         std::string temp1 ;
+        std::string temp4 ;
+        std::string temp5 ;
+        std::string temp6 ;
+        std::string temp7 ;
         int argvi = 0;
         dXSARGS;
         
-        if ((items < 3) || (items > 3)) {
-            SWIG_croak("Usage: MDatabank_Merge(inPath,inDbs,inCopyData);");
+        if ((items < 7) || (items > 7)) {
+            SWIG_croak("Usage: MDatabank_Merge(inPath,inDbs,inCopyData,inName,inURL,inScriptName,inSection);");
         }
         {
             STRLEN len;
@@ -1691,8 +1759,48 @@ XS(_wrap_MDatabank_Merge) {
         }
         arg3 = SvIV(ST(2)) ? true : false;
         {
+            STRLEN len;
+            const char *ptr = SvPV(ST(3), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 4 of MDatabank_Merge.");
+            } else {
+                temp4.assign(ptr, len);
+                arg4 = &temp4;
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(4), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 5 of MDatabank_Merge.");
+            } else {
+                temp5.assign(ptr, len);
+                arg5 = &temp5;
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(5), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 6 of MDatabank_Merge.");
+            } else {
+                temp6.assign(ptr, len);
+                arg6 = &temp6;
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(6), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 7 of MDatabank_Merge.");
+            } else {
+                temp7.assign(ptr, len);
+                arg7 = &temp7;
+            }
+        }
+        {
             try {
-                MDatabank::Merge((std::string const &)*arg1,arg2,arg3);
+                MDatabank::Merge((std::string const &)*arg1,arg2,arg3,(std::string const &)*arg4,(std::string const &)*arg5,(std::string const &)*arg6,(std::string const &)*arg7);
                 
             }
             
@@ -1816,6 +1924,182 @@ XS(_wrap_MDatabank_GetUUID) {
         {
             try {
                 result = (arg1)->GetUUID();
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        {
+            if (argvi >= items) EXTEND(sp, 1);	// bump stack ptr, if needed
+            char *data = const_cast<char*>((&result)->data());
+            sv_setpvn(ST(argvi) = sv_newmortal(), data, (&result)->size());
+            ++argvi;
+        }
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MDatabank_GetName) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        std::string result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: MDatabank_GetName(self);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_GetName. Expected _p_MDatabank");
+            }
+        }
+        {
+            try {
+                result = (arg1)->GetName();
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        {
+            if (argvi >= items) EXTEND(sp, 1);	// bump stack ptr, if needed
+            char *data = const_cast<char*>((&result)->data());
+            sv_setpvn(ST(argvi) = sv_newmortal(), data, (&result)->size());
+            ++argvi;
+        }
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MDatabank_GetInfoURL) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        std::string result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: MDatabank_GetInfoURL(self);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_GetInfoURL. Expected _p_MDatabank");
+            }
+        }
+        {
+            try {
+                result = (arg1)->GetInfoURL();
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        {
+            if (argvi >= items) EXTEND(sp, 1);	// bump stack ptr, if needed
+            char *data = const_cast<char*>((&result)->data());
+            sv_setpvn(ST(argvi) = sv_newmortal(), data, (&result)->size());
+            ++argvi;
+        }
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MDatabank_GetScriptName) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        std::string result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: MDatabank_GetScriptName(self);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_GetScriptName. Expected _p_MDatabank");
+            }
+        }
+        {
+            try {
+                result = (arg1)->GetScriptName();
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        {
+            if (argvi >= items) EXTEND(sp, 1);	// bump stack ptr, if needed
+            char *data = const_cast<char*>((&result)->data());
+            sv_setpvn(ST(argvi) = sv_newmortal(), data, (&result)->size());
+            ++argvi;
+        }
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MDatabank_GetSection) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        std::string result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: MDatabank_GetSection(self);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_GetSection. Expected _p_MDatabank");
+            }
+        }
+        {
+            try {
+                result = (arg1)->GetSection();
                 
             }
             
@@ -4094,56 +4378,6 @@ XS(_wrap_MDatabank_FlushDocument) {
         {
             try {
                 (arg1)->FlushDocument();
-                
-            }
-            
-            catch (const std::exception& e) {
-                gErrStr = e.what();
-                SWIG_croak(e.what());
-            }
-            catch (...) {
-                gErrStr = "Unknown exception";
-                SWIG_croak("unknown exception");
-            }
-        }
-        
-        XSRETURN(argvi);
-        fail:
-        ;
-    }
-    croak(Nullch);
-}
-
-
-XS(_wrap_MDatabank_SetVersion) {
-    {
-        MDatabank *arg1 = (MDatabank *) 0 ;
-        std::string *arg2 = 0 ;
-        std::string temp2 ;
-        int argvi = 0;
-        dXSARGS;
-        
-        if ((items < 2) || (items > 2)) {
-            SWIG_croak("Usage: MDatabank_SetVersion(self,inVersion);");
-        }
-        {
-            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
-                SWIG_croak("Type error in argument 1 of MDatabank_SetVersion. Expected _p_MDatabank");
-            }
-        }
-        {
-            STRLEN len;
-            const char *ptr = SvPV(ST(1), len);
-            if (!ptr) {
-                SWIG_croak("Undefined variable in argument 2 of MDatabank_SetVersion.");
-            } else {
-                temp2.assign(ptr, len);
-                arg2 = &temp2;
-            }
-        }
-        {
-            try {
-                (arg1)->SetVersion((std::string const &)*arg2);
                 
             }
             
@@ -6909,6 +7143,10 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MDatabank_Count", _wrap_MDatabank_Count},
 {"MRSc::MDatabank_GetVersion", _wrap_MDatabank_GetVersion},
 {"MRSc::MDatabank_GetUUID", _wrap_MDatabank_GetUUID},
+{"MRSc::MDatabank_GetName", _wrap_MDatabank_GetName},
+{"MRSc::MDatabank_GetInfoURL", _wrap_MDatabank_GetInfoURL},
+{"MRSc::MDatabank_GetScriptName", _wrap_MDatabank_GetScriptName},
+{"MRSc::MDatabank_GetSection", _wrap_MDatabank_GetSection},
 {"MRSc::MDatabank_GetFilePath", _wrap_MDatabank_GetFilePath},
 {"MRSc::MDatabank_IsUpToDate", _wrap_MDatabank_IsUpToDate},
 {"MRSc::MDatabank_GetRawDataSize", _wrap_MDatabank_GetRawDataSize},
@@ -6942,7 +7180,6 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MDatabank_IndexNumber", _wrap_MDatabank_IndexNumber},
 {"MRSc::MDatabank_AddSequence", _wrap_MDatabank_AddSequence},
 {"MRSc::MDatabank_FlushDocument", _wrap_MDatabank_FlushDocument},
-{"MRSc::MDatabank_SetVersion", _wrap_MDatabank_SetVersion},
 {"MRSc::MDatabank_Finish", _wrap_MDatabank_Finish},
 {"MRSc::MDatabank_CreateDictionary", _wrap_MDatabank_CreateDictionary},
 {"MRSc::delete_MDatabank", _wrap_delete_MDatabank},

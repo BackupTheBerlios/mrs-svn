@@ -281,8 +281,18 @@ sub Create()
 	my @meta_data_fields = [];
 	@meta_data_fields = @{"${parser}::META_DATA_FIELDS"} if @{"${parser}::META_DATA_FIELDS"};
 
-	my $mrs = MRS::MDatabank::Create($fileName, @meta_data_fields)
-		or die "Could not create new databank $db: " . &MRS::errstr();
+	# Now we can create the parser object
+	
+	my $p = new $parser();
+	
+	# collect meta information for this databank
+	
+	my ($name, $version, $url, $section) = $p->meta_info($raw_dir, $db);
+	
+	my $mrs = MRS::MDatabank::Create($fileName, @meta_data_fields,
+		$name, $version, $url, $script, $section) or die "Could not create new databank $db: " . &MRS::errstr();
+
+	$p->{mrs} = $mrs;
 
 	# protect the new born file
 	chmod 0400, "$data_dir/$cmp_name.cmp" if not $exists;
@@ -295,10 +305,6 @@ sub Create()
 		$mrs->SetStopWords(\@stopWords);
 	}
 
-	# Now we can create the parser object
-	
-	my $p = new $parser(mrs => $mrs);
-	
 	# Ask the parser object for the list of files to process
 	
 	my @raw_files;
@@ -310,26 +316,6 @@ sub Create()
 	}
 	
 	# and the version for this db
-	
-	my $vers;
-	
-	eval {
-		$vers = $p->version($raw_dir, $db);
-	};
-
-	if ($verbose)
-	{
-		if (defined $vers)
-		{
-			print "Setting version: $vers\n";
-		}
-		else
-		{
-			print "No version information found\n";
-		}
-	}
-
-	$mrs->SetVersion($vers) if defined $vers;
 	
 	if (defined $partNr)
 	{
@@ -407,10 +393,12 @@ sub Merge2()
 	
 	my $script_dir = $ENV{MRS_SCRIPT_DIR};
 	my $data_dir = $ENV{MRS_DATA_DIR};
+	my $raw_dir = $ENV{MRS_RAW_DIR};
 	
 	$script_dir	= substr($script_dir, 7)	if (substr($script_dir, 0, 7) eq 'file://');
 	$data_dir	= substr($data_dir, 7)		if (substr($data_dir, 0, 7) eq 'file://');
-	
+	$raw_dir	= substr($raw_dir, 7)		if (substr($raw_dir, 0, 7) eq 'file://');
+		
 	# now load the MRS plugin for this databank
 	
 	$script = $db unless defined $script;
@@ -440,8 +428,10 @@ sub Merge2()
 		
 		push @parts, $part;
 	}
+
+	my ($name, $version, $url, $section) = $parser->meta_info($raw_dir, $db);
 	
-	MRS::MDatabank::Merge("$data_dir/$db.cmp", \@parts, not $link);
+	MRS::MDatabank::Merge("$data_dir/$db.cmp", \@parts, $link ? 0 : 1, "$name", "$url", "$script", "$section");
 }
 
 sub Query()
@@ -747,12 +737,24 @@ sub version
 	foreach my $f (@files)
 	{
 		my $sb = stat("$raw_dir/$f");
-		$date = $sb->mtime if $sb->mtime > $date;
+		
+		if (defined $sb) {
+			$date = $sb->mtime if $sb->mtime > $date;
+		}
 	}
 	
 	$date = stat($raw_dir)->mtime unless defined $date;
 	
 	return localtime $date;
+}
+
+sub meta_info
+{
+	my ($self, $raw_dir, $db) = @_;
+	
+	my $version = $self->version($raw_dir, $db);
+	
+	return ($db, $version, "", "other");
 }
 
 1;

@@ -159,7 +159,9 @@ static void PrintStatistics()
 struct MDatabankImp
 {
 					MDatabankImp(const string& inDatabank);
-					MDatabankImp(const string& inDatabank, const vector<string>& inMetaDataFields);
+					MDatabankImp(const string& inDatabank, const vector<string>& inMetaDataFields,
+						const string& inName, const string& inVersion, const string& inURL,
+						const string& inScriptName, const string& inSection);
 
 	CDatabank*		GetDB()
 					{
@@ -367,7 +369,8 @@ struct MRankedQueryImp
 
 const char MDatabank::kWildCardString[] = "*";
 
-MDatabankImp::MDatabankImp(const string& inDatabank, const vector<string>& inMetaDataFields)
+MDatabankImp::MDatabankImp(const string& inDatabank, const vector<string>& inMetaDataFields,
+	const string& inName, const string& inVersion, const string& inURL, const string& inScriptName, const string& inSection)
 	: fStoreTime(0)
 	, fFlushTime(0)
 	, fIndexTime(0)
@@ -385,7 +388,7 @@ MDatabankImp::MDatabankImp(const string& inDatabank, const vector<string>& inMet
 	if (VERBOSE)
 		cout << "Creating databank " << url.GetURL() << endl;
 	
-	fDatabank.reset(new CDatabank(url, inMetaDataFields));
+	fDatabank.reset(new CDatabank(url, inMetaDataFields, inName, inVersion, inURL, inScriptName, inSection));
 }
 
 MDatabankImp::MDatabankImp(const string& inDatabank)
@@ -480,24 +483,28 @@ MDatabank::MDatabank(const string& inDatabank)
 {
 }
 
-MDatabank::MDatabank(const string& inDatabank, const vector<string>& inMetaDataFields)
-	: MRSObject<MDatabank, struct MDatabankImp>(new MDatabankImp(inDatabank, inMetaDataFields))
+MDatabank::MDatabank(const string& inDatabank, const vector<string>& inMetaDataFields,
+	const string& inName, const string& inVersion, const string& inURL, const string& inScriptName, const string& inSection)
+	: MRSObject<MDatabank, struct MDatabankImp>(new MDatabankImp(inDatabank, inMetaDataFields,
+		inName, inVersion, inURL, inScriptName, inSection))
 {
 }
 
-MDatabank* MDatabank::Create(const string& inName, vector<string> inMetaDataFields)
+MDatabank* MDatabank::Create(const string& inPath, vector<string> inMetaDataFields,
+	const string& inName, const string& inVersion, const string& inURL, const string& inScriptName, const string& inSection)
 {
-	return new MDatabank(inName, inMetaDataFields);
+	return new MDatabank(inPath, inMetaDataFields, inName, inVersion, inURL, inScriptName, inSection);
 }
 
-void MDatabank::Merge(const string& inName, MDatabankArray inDbs, bool inCopyData)
+void MDatabank::Merge(const string& inPath, MDatabankArray inDbs, bool inCopyData,
+	const string& inName, const string& inURL, const string& inScriptName, const string& inSection)
 {
 	if (inDbs.size() == 0 or inDbs.front() == nil)
 		THROW(("Invalid array of databanks passed to Merge"));
 	
 	vector<string> metaData = inDbs[0]->fImpl->GetDB()->GetMetaDataFields();
 	
-	auto_ptr<MDatabankImp> result(new MDatabankImp(inName, metaData));
+	auto_ptr<MDatabankImp> result(new MDatabankImp(inPath, metaData, inName, "", inURL, inScriptName, inSection));
 	
 	vector<CDatabank*> dbs;
 	for (vector<MDatabank*>::const_iterator db = inDbs.begin(); db != inDbs.end(); ++db)
@@ -529,6 +536,26 @@ string MDatabank::GetVersion()
 string MDatabank::GetUUID()
 {
 	return fImpl->fDatabank->GetUUID();
+}
+
+string MDatabank::GetName()
+{
+	return fImpl->fDatabank->GetName();
+}
+
+string MDatabank::GetInfoURL()
+{
+	return fImpl->fDatabank->GetInfoURL();
+}
+
+string MDatabank::GetScriptName()
+{
+	return fImpl->fDatabank->GetScriptName();
+}
+
+string MDatabank::GetSection()
+{
+	return fImpl->fDatabank->GetSection();
 }
 
 bool MDatabank::IsUpToDate()
@@ -614,8 +641,25 @@ const char* MDatabank::Get(const string& inEntryID)
 	return result;
 }
 
-const char* MDatabank::GetMetaData(
-	const std::string& inEntryID, const std::string& inFieldName)
+bool MDatabank::Get(const string& inEntryID, string& outText)
+{
+	bool result = false;
+	
+	try
+	{
+		outText = fImpl->fDatabank->GetDocument(inEntryID);
+		result = true;
+	}
+	catch (exception& e)
+	{
+		outText.clear();
+		gErrStr = e.what();
+	}
+	
+	return result;
+}
+
+const char* MDatabank::GetMetaData(const string& inEntryID, const string& inFieldName)
 {
 	const char* result = nil;
 	
@@ -632,7 +676,26 @@ const char* MDatabank::GetMetaData(
 	return result;
 }
 
-const char* MDatabank::GetDescription(const std::string& inEntryID)
+bool MDatabank::GetMetaData(const string& inEntryID, const string& inFieldName,
+		string& outText)
+{
+	bool result = false;
+	
+	try
+	{
+		outText = fImpl->fDatabank->GetMetaData(inEntryID, inFieldName);
+		result = true;
+	}
+	catch (exception& e)
+	{
+		outText.clear();
+		gErrStr = e.what();
+	}
+	
+	return result;
+}
+
+const char* MDatabank::GetDescription(const string& inEntryID)
 {
 	const char* result = nil;
 	
@@ -648,6 +711,29 @@ const char* MDatabank::GetDescription(const std::string& inEntryID)
 	}
 	catch (exception& e)
 	{
+		gErrStr = e.what();
+	}
+	
+	return result;
+}
+
+bool MDatabank::GetDescription(const string& inEntryID, string& outText)
+{
+	bool result = false;
+	
+	try
+	{
+		MStringArray mf(fImpl->fDatabank->GetMetaDataFields());
+		
+		if (mf.size() > 0)
+		{
+			outText = fImpl->fDatabank->GetMetaData(inEntryID, mf[0].c_str());
+			result = true;
+		}
+	}
+	catch (exception& e)
+	{
+		outText.clear();
 		gErrStr = e.what();
 	}
 	
@@ -671,6 +757,24 @@ const char* MDatabank::Sequence(const string& inEntryID, unsigned long inIndex)
 	}
 	catch (exception& e)
 	{
+		gErrStr = e.what();
+	}
+	
+	return result;
+}
+
+bool MDatabank::Sequence(const string& inEntryID, unsigned long inIndex, string& outSequence)
+{
+	bool result = false;
+	
+	try
+	{
+		outSequence = fImpl->fDatabank->GetSequence(inEntryID, inIndex);
+		result = true;
+	}
+	catch (exception& e)
+	{
+		outSequence.clear();
 		gErrStr = e.what();
 	}
 	
@@ -821,12 +925,6 @@ void MDatabank::FlushDocument()
 	fImpl->GetDB()->FlushDocument();
 }
 
-void MDatabank::SetVersion(const string& inVersion)
-{
-	CStopwatch sw(fImpl->fStoreTime);
-	fImpl->GetDB()->SetVersion(inVersion);
-}
-
 void MDatabank::Finish(bool inCreateAllTextIndex)
 {
 	{
@@ -855,7 +953,7 @@ void MDatabank::Finish(bool inCreateAllTextIndex)
 
 // stupid swig...
 // now we have to pass the indices contatenated as a string, separated by colon
-void MDatabank::CreateDictionary(std::string inIndices, long inMinOccurrence, long inMinWordLength)
+void MDatabank::CreateDictionary(string inIndices, long inMinOccurrence, long inMinWordLength)
 {
 	vector<string> indices;
 	
@@ -912,6 +1010,21 @@ const char* MQueryResults::Next()
 
 	return result;
 }
+
+//bool MQueryResults::Next(string& outID, float& outScore)
+//{
+//	bool result = false;
+//	uint32 docNr;
+//	
+//	if (fImpl->Next(docNr))
+//	{
+//		outID = fImpl->fDatabank->GetDocumentID(docNr);
+//		outScore = fImpl->fScore;
+//		result = true;
+//	}
+//
+//	return result;
+//}
 
 unsigned long MQueryResults::Score() const
 {
@@ -1140,12 +1253,12 @@ unsigned long MBlastHsp::SubjectStart()
 	return fImpl->fSubjectStart;
 }
 
-std::string MBlastHsp::QueryAlignment()
+string MBlastHsp::QueryAlignment()
 {
 	return fImpl->fQueryAlignment;
 }
 
-std::string MBlastHsp::SubjectAlignment()
+string MBlastHsp::SubjectAlignment()
 {
 	return fImpl->fSubjectAlignment;
 }

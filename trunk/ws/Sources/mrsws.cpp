@@ -153,7 +153,7 @@ void GetDatabankInfo(const string& inDb, ns__DatabankInfo& outInfo)
 			outInfo.name = dbi->name;
 			outInfo.script = dbi->script;
 			outInfo.url = dbi->url;
-			outInfo.blastable = (dbi->blast != 0);
+			outInfo.blastable = false;
 			
 			outInfo.files.clear();
 			
@@ -161,7 +161,7 @@ void GetDatabankInfo(const string& inDb, ns__DatabankInfo& outInfo)
 			char* last = NULL;
 			const char* dbn;
 			
-			while ((dbn = strtok_r(first, "+|", &last)) != NULL)
+			while ((dbn = strtok_r(first, "+", &last)) != NULL)
 			{
 				first = NULL;
 
@@ -175,6 +175,9 @@ void GetDatabankInfo(const string& inDb, ns__DatabankInfo& outInfo)
 				fi.path = db->GetFilePath();
 				fi.entries = db->Count();
 				fi.raw_data_size = db->GetRawDataSize();
+				
+				if (db->ContainsBlastIndex())
+					outInfo.blastable = true;
 				
 				struct stat sb;
 				string path = fi.path;
@@ -307,19 +310,15 @@ string GetTitle(
 {
 	MDatabankPtr db(WSDatabankTable::Instance()[inDb]);
 
-	const char* title = db->GetMetaData(inId, "title");
 	string result;
 	
-	if (title == NULL or *title == 0)
+	if (not db->GetMetaData(inId, "title", result) and
+		db->Get(inId, result))
 	{
-		title = db->Get(inId);
-		if (title != NULL and *title != 0)
-			result = WFormatTable::Instance().Format(
-						gFormatDir, WSDatabankTable::Instance().GetScript(inDb),
-						"title", title, inDb, inId);
+		result = WFormatTable::Instance().Format(
+					gFormatDir, WSDatabankTable::Instance().GetScript(inDb),
+					"title", result, inDb, inId);
 	}
-	else
-		result = title;
 	
 	return result;
 }
@@ -338,15 +337,11 @@ ns__GetEntry(
 	{
 		MDatabankPtr mrsDb = WSDatabankTable::Instance()[db];
 		
-		const char* data = NULL;
-		
 		switch (format)
 		{
 			case plain:
-				data = mrsDb->Get(id);
-				if (data == NULL)
+				if (not mrsDb->Get(id, entry))
 					THROW(("Entry %s not found in databank %s", id.c_str(), db.c_str()));
-				entry = data;
 				break;
 			
 			case title:
@@ -355,24 +350,18 @@ ns__GetEntry(
 			
 			case fasta:
 			{
-				data = mrsDb->Sequence(id, 0);
-				if (data == NULL)
+				string sequence;
+				if (not mrsDb->Sequence(id, 0, sequence))
 					THROW(("Sequence for entry %s not found in databank %s", id.c_str(), db.c_str()));
 				
-				string sequence;
-				while (*data != 0)
+				string::size_type n = 0;
+				while (n + 72 < sequence.length())
 				{
-					sequence += *data++;
-					if ((sequence.length() + 1) % 73 == 0)
-						sequence += '\n';
+					sequence.insert(sequence.begin() + n + 72, 1, '\n');
+					n += 73;
 				}
 				
-				const char* descData = mrsDb->GetMetaData(id, "title");
-				string desc;
-				
-				if (descData != NULL)
-					desc = descData;
-
+				string desc = GetTitle(db, id);
 				for (string::iterator c = desc.begin(); c != desc.end(); ++c)
 					if (*c == '\n') *c = ' ';
 
@@ -384,12 +373,11 @@ ns__GetEntry(
 			
 			case html:
 			{
-				data = mrsDb->Get(id);
-				if (data == NULL)
+				if (not mrsDb->Get(id, entry))
 					THROW(("Entry %s not found in databank %s", id.c_str(), db.c_str()));
 					
 				entry = WFormatTable::Instance().Format(
-					gFormatDir, WSDatabankTable::Instance().GetScript(db), "html", data, db, id);
+					gFormatDir, WSDatabankTable::Instance().GetScript(db), "html", entry, db, id);
 				break;
 			}
 			
@@ -707,9 +695,8 @@ ns__FindSimilar(
 	{
 		MDatabankPtr mrsDb = WSDatabankTable::Instance()[db];
 		
-		const char* data = mrsDb->Get(id);
-		
-		if (data == NULL)
+		string data;
+		if (not mrsDb->Get(id, data))
 			THROW(("Entry '%s' not found in '%d'", id.c_str(), db.c_str()));
 
 		string entry = WFormatTable::Instance().Format(
