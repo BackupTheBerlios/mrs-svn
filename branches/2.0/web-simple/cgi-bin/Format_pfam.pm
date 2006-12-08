@@ -13,7 +13,7 @@ our @ISA = "Format";
 
 my @links = (
 	{
-		match	=> qr|^(#=GF DR\s+PFAMA;\s)(\S+)(?=;)|,
+		match	=> qr|^(#=GF DR\s+PFAMA;\s)(PF\d+)|,
 		result	=> '$1.$q->a({-href=>"$url?db=pfama&query=ac:$2"}, $2)'
 	},
 	{
@@ -25,8 +25,8 @@ my @links = (
 		result	=> '$1.$q->a({-href=>"$url?db=pdb&id=$2"}, $2)'
 	},
 	{
-		match	=> qr|^(#=GS .+AC )(\S+)|,
-		result	=> '$1.$q->a({-href=>"$url?db=sprot%2Btrembl&query=ac:$2"}, $2)'
+		match	=> qr|^(#=GS .+AC )([A-Z0-9]+)|,
+		result	=> '$1.$q->a({-href=>"$url?db=uniprot&query=ac:$2"}, $2)'
 	},
 	{
 		match	=> qr|^(#=GF DR\s+PROSITE;\s)(\S+)(?=;)|,
