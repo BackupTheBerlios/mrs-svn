@@ -44,6 +44,7 @@
 #include "HFile.h"
 #include "HError.h"
 #include "HStream.h"
+#include "HMutex.h"
 #include <iostream>
 #include <deque>
 #include <set>
@@ -172,11 +173,13 @@ HStreamBase& operator>>(HStreamBase& inData, SBlastIndexHeader& inStruct);
 
 CDatabankBase::CDatabankBase()
 	: fDictionary(nil)
+	, fLock(new HMutex)
 {
 }
 
 CDatabankBase::~CDatabankBase()
 {
+	delete fLock;
 	delete fDictionary;
 }
 
@@ -329,6 +332,8 @@ void CDatabankBase::CreateDictionaryForIndexes(const vector<string>& inIndexName
 
 vector<string> CDatabankBase::SuggestCorrection(const string& inKey)
 {
+	StMutex lock(*fLock);
+	
 	if (fDictionary == nil)
 		fDictionary = new CDictionary(*this);
 
@@ -1002,6 +1007,8 @@ bool CDatabank::IsValidDocumentNr(uint32 inDocNr) const
 	
 	if (fHeader->omit_vector_offset > 0)
 	{
+		StMutex lock(*fLock);
+
 		if (fOmitVector == nil)
 		{
 			uint32 omitVectorSize = fHeader->entries >> 3;

@@ -54,6 +54,7 @@
 #include "CSequence.h"
 
 class HStreamBase;
+class HMutex;
 class CDecompressor;
 class CCompressor;
 class CIndexer;
@@ -172,6 +173,7 @@ class CDatabankBase
 
   protected:
 	CDictionary*		fDictionary;
+	HMutex*				fLock;
 };
 
 class CDatabank : public CDatabankBase

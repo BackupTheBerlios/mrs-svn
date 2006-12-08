@@ -11,10 +11,12 @@
 #include <signal.h>
 
 #include <boost/shared_ptr.hpp>
+#include <boost/ptr_container/ptr_vector.hpp>
 
 #include "soapH.h"
 #include "mrsws.nsmap"
 #include "MRSInterface.h"
+#include "CThread.h"
 #include "WConfig.h"
 #include "WError.h"
 #include "WFormat.h"
@@ -518,6 +520,68 @@ struct SortOnFirstHitScore
 		{ return a.hits.front().score > b.hits.front().score; }
 };
 
+class CSearchThread : public CThread
+{
+  public:
+					CSearchThread(
+						string				dbName,
+						MDatabankPtr		db,
+						vector<string>		queryterms,
+						enum ns__Algorithm	algorithm,
+						bool				alltermsrequired,
+						string				booleanfilter);
+
+	auto_ptr<MQueryResults>
+					Results()				{ return fResults; }
+	string			Db()					{ return fDbName; }
+	
+  protected:
+	
+	virtual void	Run();
+
+  private:
+	auto_ptr<MQueryResults>
+						fResults;
+	string				fDbName;
+	MDatabankPtr		fDB;
+	vector<string>		fQueryterms;
+	enum ns__Algorithm	fAlgorithm;
+	bool				fAlltermsrequired;
+	string				fBooleanfilter;
+};
+
+CSearchThread::CSearchThread(
+	string				dbName,
+	MDatabankPtr		db,
+	vector<string>		queryterms,
+	enum ns__Algorithm	algorithm,
+	bool				alltermsrequired,
+	string				booleanfilter)
+	: fDbName(dbName)
+	, fDB(db)
+	, fQueryterms(queryterms)
+	, fAlgorithm(algorithm)
+	, fAlltermsrequired(alltermsrequired)
+	, fBooleanfilter(booleanfilter)
+{
+}
+
+void CSearchThread::Run()
+{
+	try
+	{
+		fResults = PerformSearch(fDB, fQueryterms, fAlgorithm, fAlltermsrequired, fBooleanfilter);
+	}
+	catch (exception& e)
+	{
+		cout << "exception in CSearchThread::Run: " << e.what() << endl;
+	}
+	catch (...)
+	{
+		cout << "unknown exception in CSearchThread::Run" << endl;
+	}
+}
+
 SOAP_FMAC5 int SOAP_FMAC6
 ns__FindAll(
 	struct soap*		soap,
@@ -532,6 +596,8 @@ ns__FindAll(
 	
 	try
 	{
+		boost::ptr_vector<CSearchThread> threads;
+		
 		for (vector<DbInfo>::iterator dbi = gDbInfo.begin(); dbi != gDbInfo.end(); ++dbi)
 		{
 			if (not dbi->in_all)
@@ -540,38 +606,45 @@ ns__FindAll(
 			try
 			{
 				MDatabankPtr mrsDb = WSDatabankTable::Instance()[dbi->id];
-
-				auto_ptr<MQueryResults> r = 
-					PerformSearch(mrsDb, queryterms, algorithm, alltermsrequired, booleanfilter);
-	
-				if (r.get() != NULL)
-				{
-					ns__FindAllResult fa;
-
-					fa.db = dbi->id;
-					fa.count = r->Count(true);
-					
-					const char* id;
-					int n = 5;
-					
-					while (n-- > 0 and (id = r->Next()) != NULL)
-					{
-						ns__Hit h;
-			
-						h.id = id;
-						h.score = r->Score();
-						h.db = dbi->id;
-						h.title = GetTitle(dbi->id, h.id);
-						
-						fa.hits.push_back(h);
-					}
-
-					response.push_back(fa);
-				}
+				
+				threads.push_back(new CSearchThread(dbi->id, mrsDb, queryterms, algorithm, alltermsrequired, booleanfilter));
+				threads.back().Start();
 			}
 			catch (...)
 			{
 				cerr << endl << "Skipping db " << dbi->id << endl;
+			}
+		}
+		
+		for (boost::ptr_vector<CSearchThread>::iterator t = threads.begin(); t != threads.end(); ++t)
+		{
+			t->Join();
+			
+			auto_ptr<MQueryResults> r = t->Results();
+			
+			if (r.get() != NULL)
+			{
+				ns__FindAllResult fa;
+
+				fa.db = t->Db();
+				fa.count = r->Count(true);
+				
+				const char* id;
+				int n = 5;
+				
+				while (n-- > 0 and (id = r->Next()) != NULL)
+				{
+					ns__Hit h;
+		
+					h.id = id;
+					h.score = r->Score();
+					h.db = fa.db;
+					h.title = GetTitle(h.db, h.id);
+					
+					fa.hits.push_back(h);
+				}
+
+				response.push_back(fa);
 			}
 		}
 		
@@ -734,27 +807,41 @@ void handler(int inSignal)
 
 int main(int argc, const char* argv[])
 {
-	struct sigaction sa;
-	
-	sa.sa_handler = handler;
-	sa.sa_flags = 0;
-	sigemptyset(&sa.sa_mask);
-	
-	sigaction(SIGINT, &sa, NULL);
-	sigaction(SIGHUP, &sa, NULL);
-		
-	struct soap soap;
-	int m, s; // master and slave sockets
-	soap_init2(&soap, SOAP_IO_KEEPALIVE, SOAP_IO_KEEPALIVE|SOAP_C_UTFSTRING);
-	
 	if (argc < 2)
 	{
+		struct soap soap;
+		
+		soap_init(&soap);
+
+		string dataDir;
+		ReadConfig("mrs.conf", dataDir, gFormatDir, gDbInfo);
+		
+		if (dataDir.length() > 0 and dataDir[dataDir.length() - 1] != '/')
+			dataDir += '/';
+	
+		setenv("MRS_DATA_DIR", dataDir.c_str(), 1);
+					
+		WSDatabankTable::Instance().ReloadDbs();
+					
 		soap_serve(&soap);
 		soap_destroy(&soap);
 		soap_end(&soap);
 	}
 	else
 	{
+		struct sigaction sa;
+		
+		sa.sa_handler = handler;
+		sa.sa_flags = 0;
+		sigemptyset(&sa.sa_mask);
+		
+		sigaction(SIGINT, &sa, NULL);
+		sigaction(SIGHUP, &sa, NULL);
+			
+		struct soap soap;
+		int m, s; // master and slave sockets
+		soap_init2(&soap, SOAP_IO_KEEPALIVE, SOAP_IO_KEEPALIVE|SOAP_C_UTFSTRING);
+		
 //	soap_set_recv_logfile(&soap, "recv.log"); // append all messages received in /logs/recv/service12.log
 //	soap_set_sent_logfile(&soap, "sent.log"); // append all messages sent in /logs/sent/service12.log
 //	soap_set_test_logfile(&soap, "test.log"); // no file name: do not save debug messages

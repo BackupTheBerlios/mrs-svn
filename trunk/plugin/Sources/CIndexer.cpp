@@ -70,6 +70,7 @@
 #include "HFile.h"
 #include "HUtils.h"
 #include "HError.h"
+#include "HMutex.h"
 
 #include "CIndex.h"
 #include "CIterator.h"
@@ -2649,11 +2650,18 @@ CDocWeightArray CIndexer::GetDocWeights(const std::string& inIndex) const
 	
 	if (fDocWeights[ix] == nil)
 	{
-		HFileStream* file = dynamic_cast<HFileStream*>(fFile);
-		if (file == nil)
-			THROW(("Stream should be a file in GetDocWeights"));
-	
-		fDocWeights[ix] = new CDocWeightArray(*file, fParts[ix].weight_offset, fHeader->entries);
+		// lock and try again...
+		static HMutex mutex;
+		StMutex lock(mutex);
+		
+		if (fDocWeights[ix] == nil)
+		{
+			HFileStream* file = dynamic_cast<HFileStream*>(fFile);
+			if (file == nil)
+				THROW(("Stream should be a file in GetDocWeights"));
+		
+			fDocWeights[ix] = new CDocWeightArray(*file, fParts[ix].weight_offset, fHeader->entries);
+		}
 	}
 	
 	return *fDocWeights[ix];
