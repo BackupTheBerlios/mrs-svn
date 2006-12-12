@@ -8,7 +8,7 @@ include make.pre
 
 # what to make
 
-DB_URL = ftp://ftp.ncbi.nih.gov/refseq/LocusLink
+DB_URL = ftp://ftp.ncbi.nih.gov/refseq/LocusLink/ARCHIVE
 MIRROR_INCLUDE = LL_tmpl.*
 
 ZIPFILES = $(SRCDIR)LL_tmpl.gz
