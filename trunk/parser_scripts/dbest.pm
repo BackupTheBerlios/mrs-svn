@@ -37,9 +37,11 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package dbest::parser;
+package MRS::Script::dbest;
 
 use strict;
+
+our @ISA = "MRS::Script";
 
 my $count = 0;
 
@@ -52,7 +54,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "dbest::parser";
+	return bless $self, "MRS::Script::dbest";
 }
 
 sub parse
@@ -158,6 +160,42 @@ sub raw_files
 	closedir DIR;
 	
 	return map { "gunzip -c $raw_dir/$_ |" } @result;
+}
+
+# formatting
+
+sub describe
+{
+	my ($this, $q, $text) = @_;
+	
+	my $est = "";
+	my $os = "";
+	my $lib = "";
+	my $done = 0;
+
+	foreach my $line (split(m/\n/, $text))
+	{
+		if ($line =~ /EST name:\s+(.+)/)
+		{
+			$est = $1;
+			++$done;
+		}
+		elsif ($line =~ /Organism:\s+(.+)/)
+		{
+			$os = $1;
+			++$done;
+		}
+		elsif ($line =~ /Lib Name:\s+(.+)/)
+		{
+			$lib = $1;
+			++$done;
+		}
+		
+		last if $done == 3;
+	}
+	
+	$os = $q->em($os);
+	return "$est $os $lib";
 }
 
 1;

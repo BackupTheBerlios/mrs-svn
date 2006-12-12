@@ -37,7 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package locuslink::parser;
+package MRS::Script::locuslink;
+
+our @ISA = "MRS::Script";
 
 use strict;
 
@@ -52,7 +54,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "locuslink::parser";
+	return bless $self, "MRS::Script::locuslink";
 }
 
 sub parse
@@ -122,6 +124,27 @@ sub raw_files
 	my ($self, $raw_dir) = @_;
 	
 	return "gunzip -c $raw_dir/LL_tmpl.gz |";
+}
+
+# formatting
+
+sub describe
+{
+	my ($self, $q, $text) = @_;
+	
+	my $desc;
+
+	if ($text =~ m/PREFERRED_GENE_NAME: (.+)/) {
+		$desc = $1;
+	}
+	elsif ($text =~ m/PREFERRED_PRODUCT: (.+)/) {
+		$desc = $1;
+	}
+	elsif ($text =~ m/PRODUCT: (.+)/) {
+		$desc = $1;
+	}
+
+	return $desc;
 }
 
 1;

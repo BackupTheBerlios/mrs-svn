@@ -37,7 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package pdbfinder2::parser;
+package MRS::Script::pdbfinder2;
+
+our @ISA = "MRS::Script";
 
 my $count = 0;
 
@@ -47,7 +49,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "pdbfinder2::parser";
+	return bless $self, "MRS::Script::pdbfinder2";
 }
 
 sub parse
@@ -139,6 +141,29 @@ sub raw_files
 	my ($self, $raw_dir) = @_;
 	
 	return "gunzip -c $raw_dir/PDBFIND2.TXT.gz |";
+}
+
+# formatting
+
+sub pp
+{
+	my ($this, $q, $text, $id) = @_;
+	
+	return $q->pre($text);
+}
+
+sub describe
+{
+	my ($this, $q, $text) = @_;
+	
+	my $desc = "";
+	
+	if ($text =~ /^Header\s+:\s*(.+)/mo)
+	{
+		$desc = lc($1);
+	}
+	
+	return $desc;
 }
 
 1;

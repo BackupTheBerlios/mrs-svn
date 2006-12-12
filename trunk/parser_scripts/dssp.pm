@@ -37,7 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package dssp::parser;
+package MRS::Script::dssp;
+
+our @ISA = "MRS::Script";
 
 my $count = 0;
 
@@ -47,7 +49,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "dssp::parser";
+	return bless $self, "MRS::Script::dssp";
 }
 
 sub parse
@@ -113,6 +115,44 @@ sub raw_files
 	closedir DIR;
 	
 	return map { "<$raw_dir/$_" } @result;
+}
+
+# formatting
+
+sub describe
+{
+	my ($this, $q, $text) = @_;
+	
+	my $header;
+	my $compnd = "";
+
+	open TXT, "<", \$text;
+	while (my $line = <TXT>)
+	{
+		if ($line =~ /^HEADER\s+(.+?)\s{3}/mo)
+		{
+			$header = lc($1) . ' ';
+		}
+		elsif ($line =~ /^COMPND   (MOLECULE: )?( |\d )(.+)/mo)
+		{
+			$compnd .= lc($3) . ' ';
+		}
+		elsif ($line =~ /^SOURCE/)
+		{
+			last;
+		}
+	}
+
+	my $desc;
+		
+	$desc = $header;
+
+	if ($compnd ne '')
+	{
+		$desc .= $q->br . $q->i($compnd);
+	}	
+	
+	return $desc;
 }
 
 1;

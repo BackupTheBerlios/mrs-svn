@@ -37,7 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package uniseq::parser;
+package MRS::Script::uniseq;
+
+our @ISA = "MRS::Script";
 
 use strict;
 
@@ -52,7 +54,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "uniseq::parser";
+	return bless $self, "MRS::Script::uniseq";
 }
 
 sub parse
@@ -133,5 +135,7 @@ sub raw_files
 
 	return map { "gunzip -c $_ |" } @result;
 }
+
+# formatting
 
 1;

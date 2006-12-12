@@ -37,7 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package gene::parser;
+package MRS::Script::gene;
+
+our @ISA = "MRS::Script";
 
 my $count = 0;
 
@@ -47,7 +49,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "gene::parser";
+	return bless $self, "MRS::Script::gene";
 }
 
 sub parse
@@ -60,6 +62,7 @@ sub parse
 	my $m = $self->{mrs};
 	
 	my ($doc, $last_id, $lookahead, $xml_header);
+	my ($date_created, $date_updated, $date_discontinued);
 	
 	$lookahead = <IN>;
 	while (defined $lookahead and not ($lookahead =~ /^\s*<Entrezgene-Set>/))
@@ -128,9 +131,115 @@ sub raw_files()
 	
 	my $gene2xml = `which gene2xml`;
 	chomp($gene2xml);
-	$gene2xml = "/usr/data/scripts/gene2xml" unless -x $gene2xml;
+	$gene2xml = "./gene2xml" unless -x $gene2xml;
+	$gene2xml = "gene2xml" unless -x $gene2xml;
 	
 	return "$gene2xml -i $raw_dir/All_Data.ags.gz -o stdout -b -c |";
+}
+
+# formatting
+
+my @links = (
+	{
+		match	=> qr|^(#=GF DR\s+PFAMA;\s)(\S+)(?=;)|i,
+		result	=> '$1.$q->a({-href=>"$url?db=pfama&query=ac:$2"}, $2)'
+	},
+	{
+		match	=> qr|^(#=GF DR\s+PFAMB;\s)(\S+)(?=;)|i,
+		result	=> '$1.$q->a({-href=>"$url?db=pfamb&query=ac:$2"}, $2)'
+	},
+	{
+		match	=> qr|^(#=GF DR\s+PDB;\s)(\S+)|i,
+		result	=> '$1.$q->a({-href=>"$url?db=pdb&id=$2"}, $2)'
+	},
+	{
+		match	=> qr|^(#=GS .+AC )(\S+)|i,
+		result	=> '$1.$q->a({-href=>"$url?db=sprot%2Btrembl&query=ac:$2"}, $2)'
+	},
+);
+
+sub pp
+{
+	my ($this, $q, $text) = @_;
+
+	$text =~ s/<\!DOCTYPE.+?>\n(<Entrezgene-Set>)?/<Entrezgene-Set>/;
+
+	my $result;
+
+	eval
+	{
+		open X, ">/tmp/input-$$.xml";
+		print X $text;
+		close X;
+
+		our $mrs_bin_dir;
+		
+		my $settings = 'mrs.conf';
+		unless (my $return = do $settings)
+		{
+			warn "couldn't parse $settings: $@" if $@;
+			warn "couldn't do $settings: $!" unless defined $return;
+			warn "couldn't run $settings" unless $return;
+		}
+
+		$mrs_bin_dir = "/usr/pkg/bin/" unless defined $mrs_bin_dir;
+		my $mrs_script_dir = $this->script_dir();
+	
+		open X, "$mrs_bin_dir/Xalan /tmp/input-$$.xml $mrs_script_dir/gene_xslt.xml|";
+		local($/) = undef;
+		$result = <X>;
+		close X;
+	};
+	
+	if ($@)
+	{
+		$result = $q->pre($@);
+	}
+#	unlink "/tmp/input-$$.xml";
+	
+	return $result;
+}
+
+sub describe
+{
+	my ($this, $q, $text) = @_;
+
+	$text =~ s/<\!DOCTYPE.+?>\n(<Entrezgene-Set>)?/<Entrezgene-Set>/;
+
+	my $result;
+
+	eval
+	{
+		open X, ">/tmp/input-$$.xml";
+		print X $text;
+		close X;
+
+		our $mrs_bin_dir;
+		
+		my $settings = 'mrs.conf';
+		unless (my $return = do $settings)
+		{
+			warn "couldn't parse $settings: $@" if $@;
+			warn "couldn't do $settings: $!" unless defined $return;
+			warn "couldn't run $settings" unless $return;
+		}
+
+		$mrs_bin_dir = "/usr/pkg/bin/" unless defined $mrs_bin_dir;
+		my $mrs_script_dir = $this->script_dir();
+	
+		open X, "$mrs_bin_dir/Xalan /tmp/input-$$.xml $mrs_script_dir/gene_list_xslt.xml|";
+		local($/) = undef;
+		$result = <X>;
+		close X;
+	};
+	
+	if ($@)
+	{
+		$result = $q->pre($@);
+	}
+#	unlink "/tmp/input-$$.xml";
+	
+	return $result;
 }
 
 1;

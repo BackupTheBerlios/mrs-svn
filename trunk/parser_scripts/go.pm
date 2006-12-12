@@ -37,7 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package go::parser;
+package MRS::Script::go;
+
+our @ISA = "MRS::Script";
 
 my $count = 0;
 
@@ -47,7 +49,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "go::parser";
+	return bless $self, "MRS::Script::go";
 }
 
 sub parse
@@ -107,6 +109,39 @@ sub raw_files()
 {
 	my ($self, $raw_dir) = @_;
 	return "<$raw_dir/gene_ontology.obo";
+}
+
+# formatting
+
+sub pp
+{
+	my ($this, $q, $text) = @_;
+	
+	my $url = $q->url({-full=>1}) . "?db=go&id=";
+	
+	$text =~ s/&/&amp;/g;
+	$text =~ s/</&lt;/g;
+	$text =~ s/>/&gt;/g;
+	
+	$text =~ s|http://(\S+)|<a href='$&'>$&</a>|g;
+
+	$text =~ s|(?<!id: )(GO:)(\d+)|<a href=$url$2>$1$2</a>|g;
+	
+	return $q->pre($text);
+}
+
+sub describe
+{
+	my ($this, $q, $text) = @_;
+	
+	my $desc = "";
+	
+	if ($text =~ /^name:\s*(.+)/mo)
+	{
+		$desc = $1;
+	}
+	
+	return $desc;
 }
 
 1;

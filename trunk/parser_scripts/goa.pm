@@ -37,7 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package goa::parser;
+package MRS::Script::goa;
+
+our @ISA = "MRS::Script";
 
 my $count = 0;
 
@@ -47,7 +49,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "goa::parser";
+	return bless $self, "MRS::Script::goa";
 }
 
 sub parse
@@ -114,6 +116,69 @@ sub raw_files()
 {
 	my ($self, $raw_dir) = @_;
 	return "gunzip -c $raw_dir/gene_association.goa_uniprot.gz |";
+}
+
+# formatting
+
+sub pp
+{
+	my ($this, $q, $text) = @_;
+	
+	my $url = "<a href='" . $q->url({-full=>1}) . "?db=";
+	my $result = "";
+	
+	foreach my $line (split(m/\n/, $text))
+	{
+		chomp($line);
+		my @fields = split(m/\t/, $line);
+	
+		my @labels = (
+			'DB: ',
+			'DB_Object_ID: ',
+			'DB_Object_Symbol: ',
+			'Qualifier: ',
+			'GOid: ',
+			'DB:Reference: ',
+			'Evidence: ',
+			'With: ',
+			'Aspect: ',
+			'DB_Object_Name: ',
+			'Synonym: ',
+			'DB_Object_Type: ',
+			'Taxon_ID: ',
+			'Date: ',
+			'Assigned_By: '
+		);
+	
+		for (my $n = 0; $n < 15; ++$n)
+		{
+			my $value = $fields[$n];
+	
+			$value = "${url}uniprot&id=$value'>$value</a>" if ($n == 2);
+			$value = "${url}uniprot&query=ac:$value'>$value</a>" if ($n == 1);
+			$value =~ s|(GO:)(\d+)|${url}go\&id=$2'>$1$2</a>|g if ($n == 4);
+			
+			my $line = $labels[$n] . $value . "\n";
+			
+			$result .= $line;
+		}
+		
+		$result .= "\n\n";
+	}
+
+	return $q->pre($result);
+}
+
+sub describe
+{
+	my ($this, $q, $text) = @_;
+
+	chomp($text);
+	my @fields = split(m/\t/, $text);
+	
+	my $desc = $fields[9];
+	
+	return $desc;
 }
 
 1;

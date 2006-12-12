@@ -37,7 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package hssp::parser;
+package MRS::Script::hssp;
+
+our @ISA = "MRS::Script";
 
 my $count = 0;
 
@@ -47,7 +49,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "hssp::parser";
+	return bless $self, "MRS::Script::hssp";
 }
 
 sub parse
@@ -112,6 +114,53 @@ sub raw_files
 	closedir DIR;
 	
 	return map { "<$raw_dir/$_" } @result;
+}
+
+# formatting
+
+sub pp
+{
+	my ($this, $q, $text) = @_;
+	
+	my $url1 = $q->url({-full=>1}) . "?db=uniprot&id=";
+	my $url2 = $q->url({-full=>1}) . "?db=pdb&id=";
+	
+	$text =~ s/&/&amp;/g;
+	$text =~ s/</&lt;/g;
+	$text =~ s/>/&gt;/g;
+	
+	$text =~ s|http://(\S+)|<a href='$&'>$&</a>|g;
+
+	$text =~ s
+	{
+		^(\s+\d+\s:\s)(\S+)(\s+)(\d\w\w\w)?(?=\s+\d)
+	}
+	{
+		if (defined $4 and length($4))
+		{
+			"$1" . $q->a({-href=>"$url1$2"}, $2) . $3 . 
+				$q->a({-href=>"$url2$4"}, $4);
+		}
+		else {
+			"$1" . $q->a({-href=>"$url1$2"}, $2) . $3;
+		}
+	}mxge;
+	
+	return $q->pre($text);
+}
+
+sub describe
+{
+	my ($this, $q, $text) = @_;
+	
+	my $desc = "";
+	
+	if ($text =~ /^HEADER\s+(.+)/mo)
+	{
+		$desc = lc($1);
+	}
+	
+	return $desc;
 }
 
 1;

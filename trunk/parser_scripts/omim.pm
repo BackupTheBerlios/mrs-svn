@@ -37,11 +37,30 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package omim::parser;
+package MRS::Script::omim;
+
+our @ISA = "MRS::Script";
 
 our $COMPRESSION_LEVEL = 9;
 our $COMPRESSION = "zlib";
 our @META_DATA_FIELDS = [ 'title' ];
+
+our %INDICES = (
+	'no' => 'Number',
+	'id' => 'Number',
+	'ti' => 'Title',
+	'mn' => 'Mini-Mim',
+	'av' => 'Allelic variation',
+	'tx' => 'Text',
+	'sa' => 'See also',
+	'rf' => 'References',
+	'cs' => 'Clinical Synopsis',
+	'cn' => 'Contributor name',
+	'cd' => 'Creation name',
+	'cd_date' => 'Creation date',
+	'ed' => 'Edit history',
+	'ed_date' => 'Edit history (date)',
+);
 
 my $count = 0;
 
@@ -51,7 +70,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "omim::parser";
+	return bless $self, "MRS::Script::omim";
 }
 
 sub parse
@@ -59,7 +78,7 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my ($doc, $field, $title, $m);
+	my ($doc, $field, $title, $m, $state);
 
 	$m = $self->{mrs};
 	
@@ -128,6 +147,121 @@ sub raw_files()
 {
 	my ($self, $raw_dir) = @_;
 	return "gunzip -c $raw_dir/omim.txt.Z|";
+}
+
+# formatting
+
+sub pp
+{
+	my ($this, $q, $text) = @_;
+	
+	my %labels = (
+		AV => 'Allelic variation',
+		CD => 'Creation date',
+		CN => 'Contributor name',
+		CS => 'Clinical Synopsis',
+		ED => 'Edit history',
+		MN => 'Mini-Mim',
+		NO => 'Number',
+		RF => 'References',
+		SA => 'See Also',
+		TI => 'Title',
+		TX => 'Text',
+	);
+
+	$text = $this->link_url($text);
+	
+	$text =~ s/^\*RECORD\*\s+//;
+	
+	my @fields = split(/^\*FIELD\* /om, $text);
+
+	my $url = $q->url({-full=>1});
+	
+	my @data;
+	
+	foreach my $f (@fields)
+	{
+		my $code;
+		
+		if ($f =~ /^(\w\w)\s/)
+		{
+			$code = $1;
+			my $label = $code;
+			$label = $labels{$label} if defined $labels{$label};
+			
+			push @data, $q->h3($label);
+			
+			$f = substr($f, 3);
+		}
+
+		if ($code eq 'CS')
+		{
+			my @dl;
+			foreach my $p (split(/\n\n/, $f))
+			{
+				my ($dt, $dd) = split(/:/, $p);
+				push @dl, $q->dt($q->b("$dt:")), $q->dd($dd);
+			}
+			push @data, $q->dl(@dl);
+			next;
+		}
+
+		if ($code eq 'CN' or $code eq 'ED')
+		{
+			$f = join($q->br, split(/\n/, $f));
+			push @data, $q->p($f);
+			next;
+		}
+
+		if ($code eq 'RF' and 0)
+		{
+			my @dl;
+			foreach my $p (split(/\n\n/, $f))
+			{
+				my ($dt, $dd) = split(/:/, $p);
+				push @dl, $q->dt("$dt:"), $q->dd($dd);
+			}
+			push @data, $q->dl(@dl);
+			next;
+		}
+		
+		foreach my $p (split(/\n\n/, $f))
+		{
+			if ($code eq 'TX' or $code eq 'AV')
+			{
+				$p =~ s|\((\S+?;\s+)?(\d{6})\)|($1<a class='bluelink' href='?db=omim\&id=$2'>$2</a>)|g;
+				$p =~ s|\((\S+?;\s+)?(\d{6})\.(\d{4})\)|($1<a class='bluelink' href='?db=omim\&id=$2#.$3'>$2.$3</a>)|g;
+				
+				$p =~ s|^[A-Z ]+$|<h4>$&</h4>|mg;
+			}
+			
+			if ($code eq 'AV')
+			{
+				$p =~ s|^\.(\d{4})|<a name='.$1'>.$1</a>|mg;
+			}
+			
+			push @data, $q->p($p);
+		}
+	}
+	
+	return join("\n", @data);
+}
+
+sub describe
+{
+	my ($this, $q, $text) = @_;
+	
+	$text =~ s/^\*RECORD\*\s+//;
+	
+	my @fields = split(m/^\*FIELD\* /om, $text);
+	my %f = map { substr($_, 0, 2) => substr($_, 2) } @fields;
+	
+	my $desc = $f{TI};
+	
+	$desc =~ s/^\D?\d{6}\s//om;
+	$desc = (split(m/;/, $desc))[0];
+	
+	return $desc;
 }
 
 1;

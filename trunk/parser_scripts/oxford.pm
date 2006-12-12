@@ -37,7 +37,25 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package oxford::parser;
+package MRS::Script::oxford;
+
+our @ISA = "MRS::Script";
+
+our %INDICES = (
+	'id'		=> 'Unique ID',
+	'llhid'		=> 'Human EntrezGene ID',
+	'hsym'		=> 'Human Symbol',
+	'loc'		=> 'Human Chr',
+	'acc'		=> 'Mouse MGI Acc ID',
+	'llmid'		=> 'Mouse EntrezGene ID',
+	'msym'		=> 'Mouse Symbol',
+	'chr'		=> 'Mouse Chr',
+	'cm'		=> 'Mouse cM',
+	'cb'		=> 'Mouse Band',
+	'data'		=> 'Data Attributes',
+	'loc_min'	=> 'Cytoloc number min',
+	'loc_max'	=> 'Cytoloc number max'
+);
 
 my $count = 0;
 
@@ -55,6 +73,7 @@ sub cytoloc2number
    my $arm;
    my $band;
    my $subband;
+   my ($min, $max);
 
    # Get the argument
    my $localisation = shift @_;
@@ -150,8 +169,8 @@ sub cytoloc2number
            if ( $subband > 99 ) {
                die("band to big...$localisation\n");
            }
-           $addn = "9" if ( $subband < 10 );
-           $addz = "0" if ( $subband < 10 );
+           my $addn = "9" if ( $subband < 10 );
+           my $addz = "0" if ( $subband < 10 );
            $min .= "$subband$addz";
            $max .= "$subband$addn";
               }
@@ -258,7 +277,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "oxford::parser";
+	return bless $self, "MRS::Script::oxford";
 }
 
 sub parse
@@ -365,5 +384,63 @@ sub raw_files()
 	return "<$raw_dir/HMD_Human3.rpt";
 }
 
+# formatting
+
+sub pp
+{
+	my ($this, $q, $text) = @_;
+	
+#	my $url = "<a href='" . $q->url({-full=>1}) . "?db=";
+	my $result;
+	
+	chomp($text);
+	my @fields = split(m/\t/, $text);
+
+	my @labels = (
+		'ID',
+		'Human EntrezGene ID',
+		'Human Symbol',
+		'Human Chr',
+		'Mouse MGI Acc ID',
+		'Mouse EntrezGene ID',
+		'Mouse Symbol',
+		'Mouse Chr',
+		'Mouse cM',
+		'Mouse Band',
+		'Data Attributes',
+		'Cytoloc number min',
+		'Cytoloc number max'
+	);
+	
+	my @rows;
+	
+	push @rows, $q->Tr(
+		$q->th('Field'),
+		$q->th('Value')
+	);
+	
+	for (my $n = 0; $n < scalar @fields; ++$n)
+	{
+		push @rows, $q->Tr(
+			$q->td($labels[$n]),
+			$q->td($fields[$n])
+		);
+	}
+
+	return $q->div({-class=>'list'},
+		$q->table({-cellspacing=>'0', -cellpadding=>'0'}, @rows));
+}
+
+sub describe
+{
+	my ($this, $q, $text) = @_;
+
+	chomp($text);
+	my @fields = split(m/\t/, $text);
+	
+	my $desc = "Human: $fields[1]; Mouse: $fields[5]";
+	
+	return $desc;
+}
 
 1;

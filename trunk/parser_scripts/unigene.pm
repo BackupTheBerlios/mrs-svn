@@ -37,7 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package unigene::parser;
+package MRS::Script::unigene;
+
+our @ISA = "MRS::Script";
 
 use strict;
 
@@ -52,7 +54,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "unigene::parser";
+	return bless $self, "MRS::Script::unigene";
 }
 
 sub parse
@@ -123,6 +125,20 @@ sub raw_files
     closedir DIR;
 
     return map { "gunzip -c $_ |" } @result;
+}
+
+# formatting
+
+sub describe
+{
+	my ($self, $q, $text) = @_;
+	
+	my $title;
+	if ($text =~ m/TITLE\s+(.+)/) {
+		$title = $1;
+	}
+
+	return $title;
 }
 
 1;

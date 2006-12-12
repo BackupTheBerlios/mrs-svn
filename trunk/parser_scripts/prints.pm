@@ -37,7 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package prints::parser;
+package MRS::Script::prints;
+
+our @ISA = "MRS::Script";
 
 use strict;
 use Data::Dumper;
@@ -50,7 +52,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "prints::parser";
+	return bless $self, "MRS::Script::prints";
 }
 
 sub parse
@@ -135,6 +137,79 @@ sub raw_files
 	my ($self, $raw_dir, $db) = @_;
 	
 	return "gzcat $raw_dir/prints*.dat.gz|";
+}
+
+# formatting
+
+sub pp
+{
+	my ($this, $q, $text, $id, $url) = @_;
+	
+	if (not defined $url or length($url) == 0) {
+		my $url = $q->url({-full=>1});
+	}
+	
+	$text =~ s/&/&amp;/g;
+	$text =~ s/</&lt;/g;
+	$text =~ s/>/&gt;/g;
+	
+	my %links;
+	
+	open TEXT, "<", \$text;
+	while (my $line = <TEXT>)
+	{
+		if ($line =~ m/^(tp|st);\s*(.+)/)
+		{
+			foreach my $id (split(m/\s+/, $2))
+			{
+				$links{$id} = $q->a({-href=>"$url?db=sprot%2Btrembl&query=id:$id%20OR%20ac:$id"}, $id);
+			}
+		}
+	}
+	close TEXT;
+	
+	foreach my $id (keys %links)
+	{
+		$text =~ s/\b$id\b/$links{$id}/g;
+	}
+	
+	return $q->pre($text);
+}
+
+sub describe
+{
+	my ($this, $q, $text) = @_;
+	
+	my $desc = "";
+	my $state = 0;
+
+	foreach my $line (split(m/\n/, $text))
+	{
+		if (substr($line, 0, 3) eq 'gt;')
+		{
+			$state = 1;
+			$desc .= substr($line, 3);
+		}
+		elsif ($state == 1)
+		{
+			last;
+		}
+	}
+	
+	return $desc;
+}
+
+sub to_field_name
+{
+	my ($this, $id) = @_;
+	
+	my %n = (
+		'gd' => 'Description',
+	);
+
+	my $result = $n{$id};
+	$result = $id unless defined $result;
+	return $result;
 }
 
 1;

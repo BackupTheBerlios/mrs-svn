@@ -37,7 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package ligand::parser;
+package MRS::Script::ligand;
+
+our @ISA = "MRS::Script";
 
 use strict;
 
@@ -52,7 +54,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "ligand::parser";
+	return bless $self, "MRS::Script::ligand";
 }
 
 sub parse
@@ -132,5 +134,7 @@ sub raw_files
 	
 	return "<$raw_dir";
 }
+
+# formatting
 
 1;

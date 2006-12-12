@@ -37,7 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package prosite_doc::parser;
+package MRS::Script::prosite_doc;
+
+our @ISA = "MRS::Script";
 
 use strict;
 
@@ -52,7 +54,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "prosite_doc::parser";
+	return bless $self, "MRS::Script::prosite_doc";
 }
 
 sub parse
@@ -127,6 +129,21 @@ sub raw_files
 	$raw_dir =~ s/_doc$//;
 	
 	return "<$raw_dir/prosite.doc";
+}
+
+# formatting
+
+sub describe
+{
+	my ($this, $q, $text) = @_;
+	
+	my $desc = $text;
+	
+	if ($text =~ m/\* (.+?)\s+\*/) {
+		$desc = $1;
+	}
+	
+	return $desc;
 }
 
 1;

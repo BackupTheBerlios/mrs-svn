@@ -1,4 +1,4 @@
-# Perl module voor het parsen van pdb
+# Perl module voor het parsen van interpro
 #
 # $Id: interpro.pm 18 2006-03-01 15:31:09Z hekkel $
 #
@@ -37,7 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package interpro::parser;
+package MRS::Script::interpro;
+
+our @ISA = "MRS::Script";
 
 my $count = 0;
 
@@ -47,7 +49,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "interpro::parser";
+	return bless $self, "MRS::Script::interpro";
 }
 
 sub parse
@@ -155,6 +157,83 @@ sub raw_files()
 {
 	my ($self, $raw_dir) = @_;
 	return "gunzip -c $raw_dir/interpro.xml.gz|";
+}
+
+# formatting
+
+my @links = (
+	{
+		match	=> qr|^(#=GF DR\s+PFAMA;\s)(\S+)(?=;)|i,
+		result	=> '$1.$q->a({-href=>"$url?db=pfama&query=ac:$2"}, $2)'
+	},
+	{
+		match	=> qr|^(#=GF DR\s+PFAMB;\s)(\S+)(?=;)|i,
+		result	=> '$1.$q->a({-href=>"$url?db=pfamb&query=ac:$2"}, $2)'
+	},
+	{
+		match	=> qr|^(#=GF DR\s+PDB;\s)(\S+)|i,
+		result	=> '$1.$q->a({-href=>"$url?db=pdb&id=$2"}, $2)'
+	},
+	{
+		match	=> qr|^(#=GS .+AC )(\S+)|i,
+		result	=> '$1.$q->a({-href=>"$url?db=uniprot&query=ac:$2"}, $2)'
+	},
+);
+
+my $stylesheet=<<'END';
+<?xml version="1.0"?>
+
+<xsl:stylesheet>
+	<xsl:template match="dbinfo">
+		<tr>
+			<td><xsl:value-of select="@dbname"/></td>
+			<td><xsl:value-of select="@version"/></td>
+			<td><xsl:value-of select="@entry_count"/></td>
+			<td><xsl:value-of select="@file_date"/></td>
+		</tr>
+	</xsl:template>
+
+	<xsl:template match="release">
+		<table>
+			<xsl:apply-templates/>
+		</table>
+	</xsl:template>
+
+</xsl:stylesheet>
+END
+#'
+
+sub pp
+{
+	my ($this, $q, $text) = @_;
+	
+	my $parser = XML::XSLT->new(Source => "interpro_xslt.xml");
+	
+	my $xml = $parser->serve($text, xml_declaration=>0, http_headers=>0);
+	
+	$xml =~ s|#PUBMED#(\d+)|<a href="http://www.ncbi.nlm.nih.gov/entrez/utils/qmap.cgi?uid=$1&amp;form=6&amp;db=m&amp;Dopt=r">$1</a>|g;
+	$xml =~ s|#INTERPRO#(IPR\d+)|<a href="mrs.cgi?db=interpro&amp;id=$1">$1</a>|g;
+	$xml =~ s|#PDB#(.{4})|<a href="mrs.cgi?db=pdb&amp;id=$1">$1</a>|g;
+
+	return $xml;
+}
+
+sub describe
+{
+	my ($this, $q, $text) = @_;
+	
+	my $desc;
+
+	foreach my $line (split(m/\n/, $text))
+	{
+		if ($line =~ m|<name>(.+)</name>|)
+		{
+			$desc = $1;
+			last;
+		}
+	}
+	
+	return $desc;
 }
 
 1;

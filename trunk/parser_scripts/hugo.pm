@@ -37,7 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package hugo::parser;
+package MRS::Script::hugo;
+
+@ISA = "MRS::Script";
 
 my $count = 0;
 
@@ -47,7 +49,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "hugo::parser";
+	return bless $self, "MRS::Script::hugo";
 }
 
 sub parse
@@ -104,5 +106,7 @@ sub raw_files()
 	my ($self, $raw_dir) = @_;
 	return "<$raw_dir/nomeids.txt";
 }
+
+# formatting
 
 1;

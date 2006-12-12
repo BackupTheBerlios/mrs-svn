@@ -37,7 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package taxonomy::parser;
+package MRS::Script::taxonomy;
+
+our @ISA = "MRS::Script";
 
 use strict;
 use POSIX qw(strftime);
@@ -54,7 +56,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "taxonomy::parser";
+	return bless $self, "MRS::Script::taxonomy";
 }
 
 sub parse
@@ -116,6 +118,55 @@ sub raw_files
 {
 	my ($self, $raw_dir, $db) = @_;
 	return "<$raw_dir/taxonomy.dat";
+}
+
+# formatting
+
+sub pp
+{
+	my ($this, $q, $text) = @_;
+	
+	my $url = $q->url({-full=>1}) . "?db=taxonomy&id=";
+	
+	$text =~ s/&/&amp;/g;
+	$text =~ s/</&lt;/g;
+	$text =~ s/>/&gt;/g;
+	
+	$text =~ s|http://(\S+)|<a href='$&'>$&</a>|g;
+
+	$text =~ s|^(PARENT ID\s+:\s+)(\d+)|$1<a href=$url$2>$2</a>|mo;
+	
+	return $q->pre($text);
+}
+
+sub describe
+{
+	my ($this, $q, $text) = @_;
+	
+	my $desc = "";
+	
+	my ($common_name, $scientific_name);
+	
+	if ($text =~ /^SCIENTIFIC NAME\s+:\s+(.+)/mo)
+	{
+		$scientific_name = $1;
+	}
+
+	if ($text =~ /^COMMON NAME\s+:\s+(.+)/mo)
+	{
+		$common_name = $1;
+	}
+	
+	if (defined $scientific_name and defined $common_name)
+	{
+		$desc = $q->em($scientific_name) . " ($common_name)";
+	}
+	else
+	{
+		$desc = $q->em($scientific_name);
+	}
+	
+	return $desc;
 }
 
 1;

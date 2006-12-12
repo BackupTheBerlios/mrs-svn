@@ -37,7 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package mimmap::parser;
+package MRS::Script::mimmap;
+
+our @ISA = "MRS::Script";
 
 my $count = 0;
 
@@ -47,7 +49,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "mimmap::parser";
+	return bless $self, "MRS::Script::mimmap";
 }
 
 sub parse
@@ -122,10 +124,10 @@ sub raw_files
 	
 	$raw_dir =~ s|[^/]+/?$||;
 	$raw_dir =~ s/raw/uncompressed/;
-	
-print "$raw_dir/omim/mimmap.txt\n";
 
 	return "$raw_dir/omim/mimmap.txt";
 }
+
+# formatting
 
 1;

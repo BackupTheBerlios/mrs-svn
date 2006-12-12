@@ -37,7 +37,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package uniuniq::parser;
+package MRS::Script::uniuniq;
+
+our @ISA = "MRS::Script";
 
 use strict;
 
@@ -52,7 +54,7 @@ sub new
 	my $self = {
 		@_
 	};
-	return bless $self, "uniuniq::parser";
+	return bless $self, "MRS::Script::uniuniq";
 }
 
 sub parse
@@ -128,6 +130,20 @@ sub raw_files
 	closedir DIR;
 
 	return map { "gunzip -c $_ |" } @result;
+}
+
+# formatting
+
+sub describe
+{
+	my ($self, $q, $text) = @_;
+
+	my $title;
+	if ($text =~ m/\s(.+?)\s\/\w+=/) {
+		$title = $1;
+	}
+
+	return $title;
 }
 
 1;
