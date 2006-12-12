@@ -41,12 +41,15 @@ package MRS::Script::go;
 
 our @ISA = "MRS::Script";
 
-my $count = 0;
-
 sub new
 {
 	my $invocant = shift;
 	my $self = {
+		name		=> 'GO',
+		url			=> 'http://www.geneontology.org/',
+		section		=> 'gene',
+		meta		=> [ 'title' ],
+		raw_files	=> qr/gene_ontology\.obo/,
 		@_
 	};
 	return bless $self, "MRS::Script::go";
@@ -93,6 +96,7 @@ sub parse
 			}
 			else
 			{
+				$m->StoreMetaData('title', $value) if $name eq 'name';
 				$m->IndexTextAndNumbers($name, $value);
 			} 
 		}
@@ -104,14 +108,6 @@ sub parse
 		$m->FlushDocument;
 	}
 }
-
-sub raw_files()
-{
-	my ($self, $raw_dir) = @_;
-	return "<$raw_dir/gene_ontology.obo";
-}
-
-# formatting
 
 sub pp
 {
@@ -128,20 +124,6 @@ sub pp
 	$text =~ s|(?<!id: )(GO:)(\d+)|<a href=$url$2>$1$2</a>|g;
 	
 	return $q->pre($text);
-}
-
-sub describe
-{
-	my ($this, $q, $text) = @_;
-	
-	my $desc = "";
-	
-	if ($text =~ /^name:\s*(.+)/mo)
-	{
-		$desc = $1;
-	}
-	
-	return $desc;
 }
 
 1;

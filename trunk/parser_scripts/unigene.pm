@@ -41,17 +41,14 @@ package MRS::Script::unigene;
 
 our @ISA = "MRS::Script";
 
-use strict;
-
-my $count = 0;
-
-our $COMPRESSION_LEVEL = 9;
-our $COMPRESSION = "zlib";
-
 sub new
 {
 	my $invocant = shift;
 	my $self = {
+		name		=> 'Unigene',
+		url			=> 'http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=unigene',
+		section		=> 'gene',
+		meta		=> [ 'title' ],
 		@_
 	};
 	return bless $self, "MRS::Script::unigene";
@@ -99,6 +96,7 @@ sub parse
 			}
 			else
 			{
+				$m->StoreMetaData('title', $value) if $fld eq 'TITLE';
 				$m->IndexText(lc($fld), $value);
 			}
 		}
@@ -107,7 +105,9 @@ sub parse
 
 sub raw_files
 {
-    my ($self, $raw_dir) = @_;
+    my ($self) = @_;
+
+	my $raw_dir = $self->{raw_dir} or die "raw_dir is not defined\n";
 
     my @result;
 
@@ -125,20 +125,6 @@ sub raw_files
     closedir DIR;
 
     return map { "gunzip -c $_ |" } @result;
-}
-
-# formatting
-
-sub describe
-{
-	my ($self, $q, $text) = @_;
-	
-	my $title;
-	if ($text =~ m/TITLE\s+(.+)/) {
-		$title = $1;
-	}
-
-	return $title;
 }
 
 1;

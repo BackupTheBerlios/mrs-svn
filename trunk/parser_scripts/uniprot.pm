@@ -49,19 +49,6 @@ my $commentLine1 = "CC   -------------------------------------------------------
 my $commentLine2 = "CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms";
 my $commentLine3 = "CC   Distributed under the Creative Commons Attribution-NoDerivs License";
 
-our $COMPRESSION_LEVEL = 9;
-our $COMPRESSION = "zlib";
-our $COMPRESSION_DICTIONARY=<<END;
-$commentLine1
-$commentLine2
-$commentLine3
-$commentLine1
-END
-
-our %MERGE_DBS = (
-	uniprot		=> [ 'sprot', 'trembl' ],
-);
-
 our %INDICES = (
 	id			=> 'Identification',
 	ac			=> 'Accession number',
@@ -84,28 +71,53 @@ our %INDICES = (
 	mw			=> 'Molecular weight',
 );
 
-my %NAMES = (
-	sprot		=>	'Swiss-Prot',
-	trembl		=>	'TrEMBL'
-);
-
 sub new
 {
 	my $invocant = shift;
 
+	my $copyright_comment=<<END;
+$commentLine1
+$commentLine2
+$commentLine3
+$commentLine1
+END
+
+	my %merge_databanks = (
+		uniprot => [ 'sprot', 'trembl' ],
+		sp300	=> [ 'sp100', 'sp200' ],		# for debugging purposes
+	);
+
 	my $self = {
-		url		=> 'http://www.ebi.ac.uk/uniprot/index.html',
-		section	=> 'protein',
-		meta	=> [ 'title' ],
+		url						=> 'http://www.ebi.ac.uk/uniprot/index.html',
+		section					=> 'protein',
+		meta					=> [ 'title' ],
+		merge					=> \%merge_databanks,
+		compression				=> 'zlib',
+		compression_level		=> 9,
+		compression_dictionary	=> $copyright_comment,
 		@_
 	};
 	
 	if (defined $self->{db})
 	{
+		$self->{raw_dir} =~ s'(sprot|trembl)/?$'uniprot';
+
+		my %FILES = (
+			sprot	=> qr/uniprot_sprot\.dat\.gz$/,
+			trembl	=> qr/uniprot_trembl\.dat\.gz$/,
+		);
+		
+		$self->{raw_files} = $FILES{$self->{db}};
+		$self->{raw_files} = qr/\.dat\.gz$/ unless defined $self->{raw_files};
+
+		my %NAMES = (
+			sprot		=> 'Swiss-Prot',
+			trembl		=> 'TrEMBL',
+			uniprot		=> 'UniProt KB',
+		);
+
 		$self->{name} = $NAMES{$self->{db}};
 		$self->{name} = $self->{db} unless defined $self->{name};
-	
-		$self->{version} = &version($self->{raw_dir}, $self->{db});
 	}
 	
 	return bless $self, "MRS::Script::uniprot";
@@ -113,7 +125,10 @@ sub new
 
 sub version
 {
-	my ($raw_dir, $db) = @_;
+	my ($self) = @_;
+
+	my $raw_dir = $self->{raw_dir} or die "raw_dir is not defined\n";
+	my $db = $self->{db} or die "db is not defined\n";
 	
 	$raw_dir =~ s|$db/?$|uniprot|;
 	my $version;
@@ -244,25 +259,6 @@ sub parse
 		}
 	}
 }
-
-sub raw_files
-{
-	my ($self, $raw_dir, $db) = @_;
-	
-	$raw_dir =~ s'(sprot|trembl)/?$'uniprot';
-
-	if ($db eq 'sprot') {
-		return "gzcat $raw_dir/uniprot_sprot.dat.gz|";
-	}
-	elsif ($db eq 'trembl') {
-		return "gzcat $raw_dir/uniprot_trembl.dat.gz|";
-	}
-	else {
-		return "gzcat $raw_dir/$db.dat.gz|";
-	}
-}
-
-# formatting
 
 my %links = (
 	'EMBL'	=>	{

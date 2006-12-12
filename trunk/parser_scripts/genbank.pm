@@ -43,17 +43,45 @@ use strict;
 
 our @ISA = "MRS::Script";
 
-my $count = 0;
-
-our $COMPRESSION_LEVEL = 7;
-our $COMPRESSION = "zlib";
-
 sub new
 {
 	my $invocant = shift;
+
+	my %merge_databanks = (
+		refseq		=>	[ 'refseq_release', 'refseq_updates' ],
+		genbank		=>	[ 'genbank_release', 'genbank_updates' ],
+	);
+
 	my $self = {
+		meta		=> [ 'title' ],
+		merge		=> \%merge_databanks,
+		raw_files	=> qr/\.gz$/,
 		@_
 	};
+	
+	my %NAME = (
+		genbank				=> 'Genbank',
+		refseq				=> 'REFSEQ',
+	);
+	
+	my %URL = (
+		genbank				=> 'http://www.ncbi.nlm.nih.gov/Genbank/GenbankOverview.html',
+		refseq				=> 'http://www.ncbi.nlm.nih.gov/RefSeq/',
+	);
+	
+	my %SECTION = (
+		genbank				=> 'nucleotide',
+		refseq				=> 'other',
+	);
+	
+	if (defined $self->{db}) {
+		my ($dbn, $sn) = split(m/_/, $self->{db});
+		$self->{url} = $URL{$self->{dbn}};
+		$self->{name} = $NAME{$self->{dbn}};
+		
+		$self->{name} .= " $sn" if defined $sn;
+	}
+
 	return bless $self, "MRS::Script::genbank";
 }
 
@@ -62,7 +90,7 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my ($doc, $id, $m, $done, $field, $prot);
+	my ($doc, $id, $m, $done, $field, $prot, $title);
 	
 	$done = 0;
 	$m = $self->{mrs};
@@ -82,12 +110,15 @@ sub parse
 
 		if ($line eq '//')
 		{
+			$m->StoreMetaData('title', $title);
+			
 			$m->Store($doc);
 			$m->FlushDocument;
 
 			$doc = undef;
 			$field = undef;
 			$id = undef;
+			$title = undef;
 			$done = 0;
 		}
 		elsif (not $done)
@@ -173,7 +204,7 @@ sub parse
 
 				if ($field eq 'accession')
 				{
-					my @acc = split(/\s/, $text);
+					my @acc = split(m/\s/, $text);
 					
 					if (scalar @acc >= 1)
 					{
@@ -193,35 +224,25 @@ sub parse
 						warn "no accessions?\n" unless ();
 					}
 				}
-				elsif ($field eq 'locus' and $text =~ /^(\S+)(\s+\d+ (aa|bp)?.+)/o)
+				elsif ($field eq 'locus' and $text =~ m/^(\S+)(\s+\d+ (aa|bp)?.+)/o)
 				{
-#					$m->IndexValue('id', $1);
 					$m->IndexText('locus', $2);
 					$prot = $3 eq 'aa';
 				}
-				elsif ($field eq 'version' and $text =~ /GI:(\d+)/o)
+				elsif ($field eq 'version' and $text =~ m/GI:(\d+)/o)
 				{
 					$m->IndexWord('gi', $1);
+				}
+				elsif ($field eq 'definition')
+				{
+					$title .= ' ' if defined $title;
+					$title .= $text;
+					$m->IndexText($field, $text);
 				}
 				else
 				{
 					$m->IndexText($field, $text) if defined $text;
 				}
-#				elsif ($field eq 'accession' or
-#					   $field eq 'comment' or
-#					   $field eq 'contig' or
-#					   $field eq 'dbsource' or
-#					   $field eq 'definition' or
-#					   $field eq 'keywords' or
-#					   $field eq 'organism' or
-#					   $field eq 'source')
-#				{
-#					$m->IndexText($field, $text);
-#				}
-#				else
-#				{
-#					warn "skipping $field in $line\n"
-#				}
 			}
 		}
 	}
@@ -229,7 +250,10 @@ sub parse
 
 sub version
 {
-	my ($self, $raw_dir, $db) = @_;
+	my ($self) = @_;
+
+	my $raw_dir = $self->{raw_dir} or die "raw_dir is not defined\n";
+	my $db = $self->{db} or die "db is not defined\n";
 	
 	my $vers;
 	
@@ -253,17 +277,6 @@ sub version
 	chomp($vers);
 
 	return $vers;
-}
-
-sub raw_files
-{
-	my ($self, $raw_dir) = @_;
-
-	opendir DIR, $raw_dir;
-	my @result = grep { -e "$raw_dir/$_" and $_ =~ m/\.gz$/ } readdir DIR;
-	closedir DIR;
-	
-	return map { "gunzip -c $raw_dir/$_ |" } @result;
 }
 
 #formatting
@@ -301,66 +314,6 @@ sub pp
 	}
 	
 	return $q->pre($text);
-}
-
-sub to_fasta
-{
-	my ($this, $q, $text) = @_;
-	
-	my ($id, $seq, $state);
-	
-	$state = 0;
-	$seq = "";
-	
-	foreach my $line (split(m/\n/, $text))
-	{
-		if ($state == 0 and $line =~ /^ACCESSION\s+(\S+)/)
-		{
-			$id = $1;
-			$state = 1;
-		}
-		elsif ($state == 1 and substr($line, 0, 6) eq 'ORIGIN')
-		{
-			$state = 2;
-		}
-		elsif ($state == 2 and substr($line, 0, 2) ne '//')
-		{
-			$line =~ s/^\s*\d+\s+//g;
-			$line =~ s/\s+//g;
-			$seq .= $line;
-		}
-	}
-	
-	$seq =~ s/(.{60})/$1\n/g;
-	
-	return $q->pre(">$id\n$seq\n");
-}
-
-sub describe
-{
-	my ($this, $q, $text) = @_;
-	
-	my $desc = "";
-	my $state = 0;
-
-	foreach my $line (split(m/\n/, $text))
-	{
-		if ($state == 0 and substr($line, 0, 10) eq 'DEFINITION')
-		{
-			$state = 1;
-			$desc .= substr($line, 12);
-		}
-		elsif ($state == 1 and substr($line, 0, 12) eq '            ')
-		{
-			$desc .= ' ' . substr($line, 12);
-		}
-		elsif ($state == 1)
-		{
-			last;
-		}
-	}
-	
-	return $desc;
 }
 
 1;

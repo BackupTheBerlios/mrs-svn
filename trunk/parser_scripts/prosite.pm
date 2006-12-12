@@ -55,17 +55,15 @@ our %INDICES = (
 	'type' => 'Type (PATTERN, MATRIX or RULE)'
 );
 
-use strict;
-
-my $count = 0;
-
-our $COMPRESSION_LEVEL = 9;
-our $COMPRESSION = "zlib";
-
 sub new
 {
 	my $invocant = shift;
 	my $self = {
+		name		=> 'Prosite',
+		url			=> 'http://www.expasy.org/prosite/',
+		section		=> 'function',
+		meta		=> [ 'title' ],
+		raw_files	=> qr/prosite\.dat/,
 		@_
 	};
 	return bless $self, "MRS::Script::prosite";
@@ -124,7 +122,8 @@ sub parse
 			{}
 			else
 			{
-				$m->IndexText(lc($fld), substr($line, 5));
+				$m->StoreMetaData('title', $value) if $fld eq 'DE';
+				$m->IndexText(lc($fld), $value);
 			}
 		}
 	}
@@ -149,15 +148,6 @@ sub version
 
 	return $vers;
 }
-
-sub raw_files
-{
-	my ($self, $raw_dir) = @_;
-	
-	return "<$raw_dir/prosite.dat";
-}
-
-# formatting
 
 sub pp
 {
@@ -203,61 +193,6 @@ sub pp
 	}
 	
 	return $q->pre($result);
-}
-
-sub describe
-{
-	my ($this, $q, $text) = @_;
-	
-	my $desc = "";
-	my $state = 0;
-
-	foreach my $line (split(m/\n/, $text))
-	{
-		if (substr($line, 0, 2) eq 'DE')
-		{
-			$state = 1;
-			$desc .= substr($line, 5);
-		}
-		elsif ($state == 1)
-		{
-			last;
-		}
-	}
-	
-	return $desc;
-}
-
-sub to_fasta
-{
-	my ($this, $q, $text) = @_;
-	
-	my ($id, $seq, $state);
-	
-	$state = 0;
-	$seq = "";
-	
-	foreach my $line (split(m/\n/, $text))
-	{
-		if ($state == 0 and $line =~ /^ID\s+(\S+)/)
-		{
-			$id = $1;
-			$state = 1;
-		}
-		elsif ($state == 1 and substr($line, 0, 2) eq 'SQ')
-		{
-			$state = 2;
-		}
-		elsif ($state == 2 and substr($line, 0, 2) ne '//')
-		{
-			$line =~ s/\s+//g;
-			$seq .= $line;
-		}
-	}
-	
-	$seq =~ s/(.{60})/$1\n/g;
-	
-	return $q->pre(">$id\n$seq\n");
 }
 
 1;

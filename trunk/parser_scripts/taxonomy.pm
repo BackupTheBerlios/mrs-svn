@@ -41,19 +41,15 @@ package MRS::Script::taxonomy;
 
 our @ISA = "MRS::Script";
 
-use strict;
-use POSIX qw(strftime);
-use File::stat;
-
-my $count = 0;
-
-our $COMPRESSION_LEVEL = 7;
-our $COMPRESSION = "zlib";
-
 sub new
 {
 	my $invocant = shift;
 	my $self = {
+		name		=> 'Taxonomy',
+		section		=> 'other',
+		url			=> 'http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=Taxonomy',
+		meta		=> [ 'title' ],
+		raw_files	=> qr/taxonomy\.dat/,
 		@_
 	};
 	return bless $self, "MRS::Script::taxonomy";
@@ -64,9 +60,8 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my ($id, $doc, $state, $m);
+	my ($id, $doc, $m, $sn, $cn);
 	
-	$state = 0;
 	$m = $self->{mrs};
 	
 	while (my $line = <IN>)
@@ -77,6 +72,11 @@ sub parse
 		
 		if ($line eq '//')
 		{
+			my $n = $sn;
+			$n .= " $cn" if defined $cn;
+			
+			$m->StoreMetaData('title', $n);
+
 			$m->Store($doc);
 			$m->FlushDocument;
 
@@ -98,29 +98,14 @@ sub parse
 			}
 			else
 			{
+				$sn = $value if $fld eq 'SCIENTIFIC NAME';
+				$cn = $value if $fld eq 'COMMON NAME';
+				
 				$m->IndexText('text', $value);
 			}
 		}
 	}
 }
-
-sub version
-{
-	my ($self, $raw_dir, $db) = @_;
-	
-	my $file_date = stat("$raw_dir/taxonomy.dat")->mtime;
-	my $vers = strftime("%d-%b-%Y, %H:%M:%S", localtime($file_date));	
-
-	return $vers;
-}
-
-sub raw_files
-{
-	my ($self, $raw_dir, $db) = @_;
-	return "<$raw_dir/taxonomy.dat";
-}
-
-# formatting
 
 sub pp
 {
@@ -137,36 +122,6 @@ sub pp
 	$text =~ s|^(PARENT ID\s+:\s+)(\d+)|$1<a href=$url$2>$2</a>|mo;
 	
 	return $q->pre($text);
-}
-
-sub describe
-{
-	my ($this, $q, $text) = @_;
-	
-	my $desc = "";
-	
-	my ($common_name, $scientific_name);
-	
-	if ($text =~ /^SCIENTIFIC NAME\s+:\s+(.+)/mo)
-	{
-		$scientific_name = $1;
-	}
-
-	if ($text =~ /^COMMON NAME\s+:\s+(.+)/mo)
-	{
-		$common_name = $1;
-	}
-	
-	if (defined $scientific_name and defined $common_name)
-	{
-		$desc = $q->em($scientific_name) . " ($common_name)";
-	}
-	else
-	{
-		$desc = $q->em($scientific_name);
-	}
-	
-	return $desc;
 }
 
 1;

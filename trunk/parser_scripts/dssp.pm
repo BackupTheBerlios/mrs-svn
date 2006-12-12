@@ -41,12 +41,16 @@ package MRS::Script::dssp;
 
 our @ISA = "MRS::Script";
 
-my $count = 0;
-
 sub new
 {
 	my $invocant = shift;
 	my $self = {
+		name		=> 'DSSP',
+		url			=> 'http://www.cmbi.kun.nl/gv/dssp/',
+		section		=> 'structure',
+		compression	=> 'bzip',
+		meta		=> [ 'title' ],
+		raw_files	=> qr/\.dssp$/,
 		@_
 	};
 	return bless $self, "MRS::Script::dssp";
@@ -57,37 +61,43 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my ($doc, $m, $state);
+	my ($doc, $m, $state, $title);
 
 	$m = $self->{mrs};
-	
-	my $lookahead = <IN>;
 	
 	# we assume we have only one record per parse call.
 
 	$state = 0;
+	$compound = "";
 	
-	while (defined $lookahead)
+	while (my $line = <IN>)
 	{
-		my $line = $lookahead;
-		$lookahead = <IN>;
-
 		$doc .= $line;
 		chomp($line);
 			
 		if ($state == 0 and $line =~ /^HEADER(.+?)\d\d-[A-Z]{3}-\d\d\s+(.{4})/o)
 		{
+			$title = $1;
+
 			my $id = $2;
 			
 			$m->IndexValue('id', $id);
 			
 			$state = 1;
+			$title =~ s/\s+$//;
 		}
 		elsif ($state == 1)
 		{
 			if ($line =~ /^## ALIGNMENTS/)
 			{
 				$state = 2;
+			}
+			elsif ($line =~ /^COMPND   (MOLECULE: )?( |\d )(.+)/mo)
+			{
+				my $cmp = $3;
+				$cmp =~ s/\s+;?\s*$//;
+				
+				$title .= '; ' . lc($cmp);
 			}
 			elsif ($line =~ /^AUTHOR\s+(.+)/)
 			{
@@ -101,58 +111,11 @@ sub parse
 			}
 		}
 	}
+	
+	$m->StoreMetaData('title', $title);
 
 	$m->Store($doc);
 	$m->FlushDocument;
-}
-
-sub raw_files
-{
-	my ($self, $raw_dir) = @_;
-	
-	opendir DIR, $raw_dir;
-	my @result = grep { -e "$raw_dir/$_" and $_ =~ /\.dssp$/ } readdir DIR;
-	closedir DIR;
-	
-	return map { "<$raw_dir/$_" } @result;
-}
-
-# formatting
-
-sub describe
-{
-	my ($this, $q, $text) = @_;
-	
-	my $header;
-	my $compnd = "";
-
-	open TXT, "<", \$text;
-	while (my $line = <TXT>)
-	{
-		if ($line =~ /^HEADER\s+(.+?)\s{3}/mo)
-		{
-			$header = lc($1) . ' ';
-		}
-		elsif ($line =~ /^COMPND   (MOLECULE: )?( |\d )(.+)/mo)
-		{
-			$compnd .= lc($3) . ' ';
-		}
-		elsif ($line =~ /^SOURCE/)
-		{
-			last;
-		}
-	}
-
-	my $desc;
-		
-	$desc = $header;
-
-	if ($compnd ne '')
-	{
-		$desc .= $q->br . $q->i($compnd);
-	}	
-	
-	return $desc;
 }
 
 1;

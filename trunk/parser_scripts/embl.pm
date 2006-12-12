@@ -44,16 +44,7 @@ use POSIX qw/strftime/;
 
 our @ISA = "MRS::Script";
 
-my $count = 0;
-
-our $COMPRESSION_LEVEL = 9;
-our $COMPRESSION = "zlib";
-
-our %MERGE_DBS = (
-	'embl'	=>	[ 'embl_release', 'embl_updates' ],
-);
-
-our @INDICES = (
+our %INDICES = (
 	'id' => 'Identification',
 	'ac' => 'Accession number',
 	'cc' => 'Comments and Notes',
@@ -77,12 +68,35 @@ our @INDICES = (
 	'length' => 'Sequence length'
 );
 
+my %NAMES = (
+	embl			=>	'Nucleotide (EMBL)',
+	embl_release	=>	'EMBL Release',
+	embl_updates	=>	'EMBL Updates',
+);
+
 sub new
 {
 	my $invocant = shift;
+
+	our %merge_databanks = (
+		'embl'	=>	[ 'embl_release', 'embl_updates' ],
+	);
+	
 	my $self = {
+		url			=> 'http://www.ebi.ac.uk/embl/index.html',
+		section		=> 'nucleotide',
+		meta		=> [ 'title' ],
+		merge		=> \%merge_databanks,
+		raw_files	=> qr/\.dat\.gz$/,
 		@_
 	};
+	
+	if (defined $self->{db})
+	{
+		$self->{name} = $NAMES{$self->{db}};
+		$self->{name} = $self->{db} unless defined $self->{name};
+	}
+	
 	return bless $self, "MRS::Script::embl";
 }
 
@@ -91,9 +105,8 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my ($id, $doc, $state, $m);
+	my ($id, $doc, $m, $title);
 	
-	$state = 0;
 	$m = $self->{mrs};
 	
 	my $lookahead = <IN>;
@@ -108,11 +121,14 @@ sub parse
 
 		if ($line eq '//')
 		{
+			$m->StoreMetaData('title', $title);
+			
 			$m->Store($doc);
 			$m->FlushDocument;
 
 			$id = undef;
 			$doc = undef;
+			$title = undef;
 		}
 		elsif ($line =~ /^([A-Z]{2}) {3}(.+)/o)
 		{
@@ -130,6 +146,13 @@ sub parse
 				$m->IndexWord('dc', lc($flds[4]));
 				$m->IndexWord('td', lc($flds[5]));
 				$flds[6] =~ m/(\d+)/ && $m->IndexNumber('length', $1);
+			}
+			elsif ($fld eq 'DE')
+			{
+				$m->IndexText('de', $text);
+
+				$title .= ' ' if defined $title;
+				$title .= $text;
 			}
 			elsif (substr($fld, 0, 1) eq 'R')
 			{
@@ -161,7 +184,7 @@ sub parse
 			}			
 			elsif ($fld ne 'SQ' and $fld ne 'XX' and $fld ne 'SV')
 			{
-				$m->IndexText(lc($fld), substr($line, 5));
+				$m->IndexText(lc($fld), $text);
 			}
 		}
 	}
@@ -169,7 +192,11 @@ sub parse
 
 sub version
 {
-	my ($self, $raw_dir, $db) = @_;
+	my ($self) = @_;
+
+	my $raw_dir = $self->{raw_dir} or die "raw_dir is not defined\n";
+	my $db = $self->{db} or die "db is not defined\n";
+
 	my $vers;
 	
 	if ($db eq 'embl_release')
@@ -192,17 +219,6 @@ sub version
 	chomp($vers);
 
 	return $vers;
-}
-
-sub raw_files
-{
-	my ($self, $raw_dir) = @_;
-	
-	opendir DIR, $raw_dir;
-	my @result = grep { -e "$raw_dir/$_" and $_ =~ /\.dat\.gz$/ } readdir DIR;
-	closedir DIR;
-	
-	return map { "gunzip -c $raw_dir/$_ |" } sort @result;
 }
 
 # formatting
@@ -764,62 +780,6 @@ sub pp
 	return $q->div({-class=>'entry'},
 		$q->table({-cellspacing=>'0', -cellpadding=>'0', -width=>'100%'}, @rows));
 
-}
-
-sub describe
-{
-	my ($this, $q, $text) = @_;
-	
-	my $desc = "";
-	my $state = 0;
-
-	foreach my $line (split(m/\n/, $text))
-	{
-		if (substr($line, 0, 2) eq 'DE')
-		{
-			$state = 1;
-			$desc .= substr($line, 4);
-		}
-		elsif ($state == 1)
-		{
-			last;
-		}
-	}
-	
-	return $desc;
-}
-
-sub to_fasta
-{
-	my ($this, $q, $text) = @_;
-	
-	my ($id, $seq, $state);
-	
-	$state = 0;
-	$seq = "";
-	
-	foreach my $line (split(m/\n/, $text))
-	{
-		if ($state == 0 and $line =~ /^ID\s+(\S+)/)
-		{
-			$id = $1;
-			$state = 1;
-		}
-		elsif ($state == 1 and substr($line, 0, 2) eq 'SQ')
-		{
-			$state = 2;
-		}
-		elsif ($state == 2 and substr($line, 0, 2) ne '//')
-		{
-			$line =~ s/\s+//g;
-			$line =~ s/\d+//g;
-			$seq .= $line;
-		}
-	}
-	
-	$seq =~ s/(.{60})/$1\n/g;
-	
-	return $q->pre(">$id\n$seq\n");
 }
 
 1;

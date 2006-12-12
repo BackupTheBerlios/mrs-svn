@@ -43,15 +43,15 @@ our @ISA = "MRS::Script";
 
 use strict;
 
-my $count = 0;
-
-our $COMPRESSION_LEVEL = 9;
-our $COMPRESSION = "zlib";
-
 sub new
 {
 	my $invocant = shift;
 	my $self = {
+		name		=> 'LocusLink',
+		url			=> 'http://www.ncbi.nlm.nih.gov/projects/LocusLink/',
+		section		=> 'other',
+		meta		=> [ 'title' ],
+		raw_files	=> qr/LL_tmpl\.gz/,
 		@_
 	};
 	return bless $self, "MRS::Script::locuslink";
@@ -62,9 +62,8 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my ($id, $doc, $state, $m);
+	my ($id, $doc, $m, $title);
 	
-	$state = 0;
 	$m = $self->{mrs};
 	
 	my $lookahead = <IN>;
@@ -77,6 +76,7 @@ sub parse
 		{
 			if (defined $doc)
 			{
+				$m->StoreMetaData('title', $title);
 				$m->Store($doc);
 				$m->FlushDocument;
 			}
@@ -96,6 +96,13 @@ sub parse
 			{
 				my $fld = lc $1;
 				my $value = $2;
+
+				if ($fld eq 'preferred_gene_name' or $fld eq 'preferred_product') {
+					$title = $value;
+				}
+				elsif ($fld eq 'product' and not defined $title) {
+					$title = $value;
+				}
 				
 				my %fn = (
 					'organism' => 1,
@@ -114,37 +121,10 @@ sub parse
 	
 	if (defined $doc)
 	{
+		$m->StoreMetaData('title', $title);
 		$m->Store($doc);
 		$m->FlushDocument;
 	}
-}
-
-sub raw_files
-{
-	my ($self, $raw_dir) = @_;
-	
-	return "gunzip -c $raw_dir/LL_tmpl.gz |";
-}
-
-# formatting
-
-sub describe
-{
-	my ($self, $q, $text) = @_;
-	
-	my $desc;
-
-	if ($text =~ m/PREFERRED_GENE_NAME: (.+)/) {
-		$desc = $1;
-	}
-	elsif ($text =~ m/PREFERRED_PRODUCT: (.+)/) {
-		$desc = $1;
-	}
-	elsif ($text =~ m/PRODUCT: (.+)/) {
-		$desc = $1;
-	}
-
-	return $desc;
 }
 
 1;

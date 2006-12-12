@@ -41,10 +41,6 @@ package MRS::Script::omim;
 
 our @ISA = "MRS::Script";
 
-our $COMPRESSION_LEVEL = 9;
-our $COMPRESSION = "zlib";
-our @META_DATA_FIELDS = [ 'title' ];
-
 our %INDICES = (
 	'no' => 'Number',
 	'id' => 'Number',
@@ -62,12 +58,15 @@ our %INDICES = (
 	'ed_date' => 'Edit history (date)',
 );
 
-my $count = 0;
-
 sub new
 {
 	my $invocant = shift;
 	my $self = {
+		name		=> 'OMIM - Online Mendelian Inheritance in Man™',
+		url			=> 'http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=OMIM',
+		section		=> 'literature',
+		meta		=> [ 'title' ],
+		raw_files	=> qr/omim\.txt\.Z/,
 		@_
 	};
 	return bless $self, "MRS::Script::omim";
@@ -142,14 +141,6 @@ sub parse
 		$m->FlushDocument;
 	}
 }
-
-sub raw_files()
-{
-	my ($self, $raw_dir) = @_;
-	return "gunzip -c $raw_dir/omim.txt.Z|";
-}
-
-# formatting
 
 sub pp
 {
@@ -245,23 +236,6 @@ sub pp
 	}
 	
 	return join("\n", @data);
-}
-
-sub describe
-{
-	my ($this, $q, $text) = @_;
-	
-	$text =~ s/^\*RECORD\*\s+//;
-	
-	my @fields = split(m/^\*FIELD\* /om, $text);
-	my %f = map { substr($_, 0, 2) => substr($_, 2) } @fields;
-	
-	my $desc = $f{TI};
-	
-	$desc =~ s/^\D?\d{6}\s//om;
-	$desc = (split(m/;/, $desc))[0];
-	
-	return $desc;
 }
 
 1;

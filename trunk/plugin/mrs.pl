@@ -55,88 +55,90 @@ my %opts;
 
 if ($action eq 'create')
 {
-	getopts('d:s:vtp:P:b:w:r:', \%opts);
+	getopts('d:s:vp:P:b:w:r:', \%opts);
 	
 	my $db = $opts{d} or &Usage();
 	
-	my $verbose = $opts{v};
-	$verbose = 2 if $opts{t};
+	$MRS::VERBOSE = 1 if $opts{v};
 
-	&Create($db, $opts{'s'}, $verbose, $opts{p}, $opts{P}, $opts{b}, $opts{w}, $opts{r});
+	&Create($db, $opts{'s'}, $opts{p}, $opts{P}, $opts{b}, $opts{w}, $opts{r});
 }
 elsif ($action eq 'merge')
 {
 	getopts('d:m:P:lvs:', \%opts);
+
+	$MRS::VERBOSE = 1 if $opts{v};
 
 	if ($opts{d} and $opts{P})
 	{
 		my $db = $opts{d} or &Usage();
 		my $cnt = $opts{P} or &Usage();
 	
-		&Merge($db, $opts{v}, $cnt, $opts{l});
+		&Merge($db, $opts{'s'}, $cnt, $opts{l});
 	}
 	elsif ($opts{'m'})
 	{
-		&Merge2($opts{'m'}, $opts{v}, $opts{'s'}, $opts{l});
+		&Merge2($opts{'m'}, $opts{'s'}, $opts{l});
 	}
 	else {
 		&Usage();
 	}
 }
-elsif ($action eq 'weights')
-{
-	getopts('d:i:v', \%opts);
-
-	my $db = $opts{d} or &Usage();
-	my $ix = $opts{i} or &Usage();
-	
-	&Weights($db, $opts{v}, $ix);
-}
 elsif ($action eq 'query')
 {
 	getopts('d:q:vr:', \%opts);
+
+	$MRS::VERBOSE = 1 if $opts{v};
 
 	my $db = $opts{d} or &Usage();
 	my $q = $opts{'q'};
 	my $r = $opts{'r'};
 	
-	&Query($db, $opts{v}, $q, $r);
+	&Query($db, $q, $r);
 }
 elsif ($action eq 'entry')
 {
 	getopts('d:e:v', \%opts);
 
+	$MRS::VERBOSE = 1 if $opts{v};
+
 	my $db = $opts{d} or &Usage();
 	my $e = $opts{'e'};
 	
-	&Entry($db, $e, $opts{v});
+	&Entry($db, $e);
 }
 elsif ($action eq 'blast')
 {
 	getopts('d:q:vi:', \%opts);
 
+	$MRS::VERBOSE = 1 if $opts{v};
+
 	my $db = $opts{d} or &Usage();
 	my $q = $opts{'q'};
 	my $i = $opts{i} or &Usage();
 	
-	&Blast($db, $opts{v}, $q, $i);
+	&Blast($db, $q, $i);
 }
 elsif ($action eq 'info')
 {
 	getopts('d:v', \%opts);
 
+	$MRS::VERBOSE = 1 if $opts{v};
+
 	my $db = $opts{d} or &Usage();
 
-	&Info($db, $opts{v});
+	&Info($db);
 }
 elsif ($action eq 'dict')
 {
 	getopts('d:i:n:l:v', \%opts);
 
+	$MRS::VERBOSE = 1 if $opts{v};
+
 	my $db = $opts{d} or &Usage();
 	my $ix = $opts{i} or &Usage();
 
-	&Dict($db, $ix, $opts{n}, $opts{l}, $opts{v});
+	&Dict($db, $ix, $opts{n}, $opts{l});
 }
 elsif ($action eq 'dump_index')
 {
@@ -151,10 +153,12 @@ elsif ($action eq 'spellcheck')
 {
 	getopts('d:k:v', \%opts);
 
+	$MRS::VERBOSE = 1 if $opts{v};
+
 	my $db = $opts{d} or &Usage();
 	my $kw = $opts{k} or &Usage();
 
-	&SpellCheck($db, $kw, $opts{v});
+	&SpellCheck($db, $kw);
 }
 elsif ($action eq 'version')
 {
@@ -231,12 +235,34 @@ END
 		exit(1);
 }
 
+sub LoadParser
+{
+	my ($script, $db) = @_;
+
+	my $script_dir = $ENV{MRS_SCRIPT_DIR};
+	my $raw_dir = $ENV{MRS_RAW_DIR} . $db;
+
+	$script_dir	= substr($script_dir, 7)	if (substr($script_dir, 0, 7) eq 'file://');
+	$raw_dir	= substr($raw_dir, 7)		if (substr($raw_dir, 0, 7) eq 'file://');
+	
+	push @INC, $script_dir;
+	require "$script.pm";
+
+	my $parser = "MRS::Script::${script}";
+	
+	# Now we can create the parser object
+	
+	my $p = new $parser(raw_dir => $raw_dir, db => $db) or die "Failed to create parser for $script\n";
+
+	return $p;
+}
+
 sub Create()
 {
-	my ($db, $script, $verbose, $partNr, $partCount, $weight_bit_count, $stopwordsfile, $rawfiles) = @_;
+	my ($db, $script, $partNr, $partCount, $weight_bit_count, $stopwordsfile, $rawfiles) = @_;
 	
 	$script = $db unless defined $script;
-	$verbose = 0 unless defined $verbose;
+
 	die 'part number and total part count should both be specified'
 		unless ((defined $partNr) == (defined $partCount));
 	die 'partNr incorrect, should be 1 <= partNr <= total'
@@ -245,52 +271,27 @@ sub Create()
 	
 	# define some globals
 	
-	my $script_dir = $ENV{MRS_SCRIPT_DIR};
 	my $data_dir = $ENV{MRS_DATA_DIR};
-	my $raw_dir = $ENV{MRS_RAW_DIR} . $db;
-	
-	$script_dir	= substr($script_dir, 7)	if (substr($script_dir, 0, 7) eq 'file://');
 	$data_dir	= substr($data_dir, 7)		if (substr($data_dir, 0, 7) eq 'file://');
-	$raw_dir	= substr($raw_dir, 7)		if (substr($raw_dir, 0, 7) eq 'file://');
 	
-	# now load the MRS plugin for this databank
-	
-	push @INC, $script_dir;
-	my $parser = "MRS::Script::${script}";
-	require "$script.pm";
-	
+	my $p = &LoadParser($script, $db);
+
 	# Set the MRS globals before creating an MRS object
 
-	no strict 'refs';
-	
-	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
-	$MRS::COMPRESSION = ${"${parser}::COMPRESSION"}
-		if defined ${"${parser}::COMPRESSION"};
-	$MRS::COMPRESSION_LEVEL = ${"${parser}::COMPRESSION_LEVEL"}
-		if defined ${"${parser}::COMPRESSION_LEVEL"};
-	$MRS::COMPRESSION_DICTIONARY = ${"${parser}::COMPRESSION_DICTIONARY"}
-		if defined ${"${parser}::COMPRESSION_DICTIONARY"};
+	$MRS::COMPRESSION = $p->{compression}						if defined $p->{compression};
+	$MRS::COMPRESSION_LEVEL = $p->{compression_level}			if defined $p->{compression_level};
+	$MRS::COMPRESSION_DICTIONARY = $p->{compression_dictionary}	if defined $p->{compression_dictionary};
 	$MRS::WEIGHT_BIT_COUNT = $weight_bit_count;
-	
+
 	my $cmp_name = $db;
 	$cmp_name .= "-$partNr" if defined $partNr;
 
 	my $fileName = "$data_dir/$cmp_name.cmp";
 	my $exists = -f $fileName;
 
-	my @meta_data_fields = [];
-	@meta_data_fields = @{"${parser}::META_DATA_FIELDS"} if @{"${parser}::META_DATA_FIELDS"};
-
-	# Now we can create the parser object
-	
-	my $p = new $parser();
-	
-	# collect meta information for this databank
-	
-	my ($name, $version, $url, $section) = $p->meta_info($raw_dir, $db);
-	
-	my $mrs = MRS::MDatabank::Create($fileName, @meta_data_fields,
-		$name, $version, $url, $script, $section) or die "Could not create new databank $db: " . &MRS::errstr();
+	my $mrs = MRS::MDatabank::Create($fileName, $p->meta,
+		$p->name, $p->version, $p->url, $script, $p->section) or
+			die "Could not create new databank $db: " . &MRS::errstr();
 
 	$p->{mrs} = $mrs;
 
@@ -312,7 +313,7 @@ sub Create()
 		@raw_files = split(m/,/, $rawfiles);
 	}
 	else {
-		@raw_files = $p->raw_files($raw_dir, $db);
+		@raw_files = $p->raw_files;
 	}
 	
 	# and the version for this db
@@ -330,7 +331,7 @@ sub Create()
 		my $length = $n;
 		$length = $fileCount - ($n * ($partCount - 1)) if ($partNr == $partCount);
 		
-		if ($verbose)
+		if ($MRS::VERBOSE)
 		{
 			print "processing $fileCount files in $partCount parts, using $n files per part\n";
 			print "now processing part $partNr containing $length files\n";
@@ -348,9 +349,9 @@ sub Create()
 	{
 		SetProcTitle(sprintf("[%d/%d] MRS: '%s'", $n++, $m, $r));
 		
-		print "$r\n" if $verbose;
+		print "$r\n" if $MRS::VERBOSE;
 		open IN, $r;
-		$p->parse(*IN, $verbose, $db, $r);
+		$p->parse(*IN, $MRS::VERBOSE, $db, $r);
 		close IN;
 	}
 	
@@ -363,12 +364,11 @@ sub Create()
 
 sub Merge()
 {
-	my ($db, $verbose, $cnt, $link) = @_;
+	my ($db, $script, $cnt, $link) = @_;
 	
-	$verbose = 0 unless defined $verbose;
-	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
+	$script = $db unless defined $script;
 
-	# define some globals
+	my $p = &LoadParser($script, $db);
 	
 	my $data_dir = $ENV{MRS_DATA_DIR};
 	$data_dir	= substr($data_dir, 7)		if (substr($data_dir, 0, 7) eq 'file://');
@@ -382,41 +382,28 @@ sub Merge()
 		push @parts, $part;
 	}
 	
-	MRS::MDatabank::Merge("$data_dir/$db.cmp", \@parts, not $link);
+	MRS::MDatabank::Merge("$data_dir/$db.cmp", \@parts, $link ? 0 : 1,
+		$p->name, $p->url, $script, $p->section);
 }
 
 sub Merge2()
 {
-	my ($db, $verbose, $script, $link) = @_;
+	my ($db, $script, $link) = @_;
 	
 	# define some globals
 	
-	my $script_dir = $ENV{MRS_SCRIPT_DIR};
 	my $data_dir = $ENV{MRS_DATA_DIR};
-	my $raw_dir = $ENV{MRS_RAW_DIR};
-	
-	$script_dir	= substr($script_dir, 7)	if (substr($script_dir, 0, 7) eq 'file://');
 	$data_dir	= substr($data_dir, 7)		if (substr($data_dir, 0, 7) eq 'file://');
-	$raw_dir	= substr($raw_dir, 7)		if (substr($raw_dir, 0, 7) eq 'file://');
 		
 	# now load the MRS plugin for this databank
 	
 	$script = $db unless defined $script;
 	
-	push @INC, $script_dir;
-	my $parser = "MRS::Script::${script}";
-	require "$script.pm";
-	
-	# Set the MRS globals before creating an MRS object
+	my $p = &LoadParser($script, $db);
 
-	no strict 'refs';
+	my $merge_databanks = $p->merge($db);
 	
-	$verbose = 0 unless defined $verbose;
-	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
-
-	my $merge_databanks = "${parser}::MERGE_DBS"->{$db};
-	
-	die "No set of merge databanks defined in script $script" unless $merge_databanks;
+	die "No set of merge databanks defined in script $script" unless ref($merge_databanks) eq 'ARRAY';
 
 	# define some globals
 
@@ -428,31 +415,26 @@ sub Merge2()
 		
 		push @parts, $part;
 	}
-
-	my ($name, $version, $url, $section) = $parser->meta_info($raw_dir, $db);
 	
-	MRS::MDatabank::Merge("$data_dir/$db.cmp", \@parts, $link ? 0 : 1, "$name", "$url", "$script", "$section");
+	MRS::MDatabank::Merge("$data_dir/$db.cmp", \@parts, $link ? 0 : 1,
+		$p->name, $p->url, $script, $p->section);
 }
 
 sub Query()
 {
-	my ($db, $verbose, $q, $r) = @_;
-	
-	$verbose = 0 unless defined $verbose;
-	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
+	my ($db, $q, $r) = @_;
 	
 	my $d = new MRS::MDatabank($db);
 	
-#	my $s = $d->Find($q, 1);
-	
-		my $rq = $d->RankedQuery('*alltext*');
-		
-		foreach my $w (split(m/\s+/, $r)) {
-			$rq->AddTerm($w, 1);
-		}
-		
-	my $s = $rq->Perform;
+	my $s = $d->Find($q, 1);
 
+#	my $rq = $d->RankedQuery('__ALL_TEXT__');
+#		
+#	foreach my $w (split(m/\s+/, $r)) {
+#		$rq->AddTerm($w, 1);
+#	}
+#		
+#	my $s = $rq->Perform;
 
 	if ($s)
 	{
@@ -471,10 +453,7 @@ sub Query()
 
 sub Entry()
 {
-	my ($db, $entry, $verbose) = @_;
-	
-	$verbose = 0 unless defined $verbose;
-	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
+	my ($db, $entry) = @_;
 	
 	my $d = new MRS::MDatabank($db);
 	
@@ -483,10 +462,7 @@ sub Entry()
 
 sub Blast()
 {
-	my ($db, $verbose, $q, $i) = @_;
-	
-	$verbose = 0 unless defined $verbose;
-	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
+	my ($db, $q, $i) = @_;
 	
 	open INPUT, "<$i";
 	my $line = <INPUT>;
@@ -537,9 +513,7 @@ sub printNumber
 
 sub Info()
 {
-	my ($db, $verbose) = @_;
-	
-	$MRS::VERBOSE = $verbose if defined $verbose;
+	my ($db) = @_;
 	
 	my $m = new MRS::MDatabank($db);
 
@@ -626,24 +600,18 @@ $count, $key
 
 sub Dict()
 {
-	my ($db, $ix, $min_occurrence, $min_wordlength, $verbose) = @_;
+	my ($db, $ix, $min_occurrence, $min_wordlength) = @_;
 	my $m = new MRS::MDatabank($db);
 	
 	$min_occurrence = 1 unless defined $min_occurrence;
 	$min_wordlength = 1 unless defined $min_wordlength;
 	
-	$verbose = 0 unless defined $verbose;
-	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
-
 	$m->CreateDictionary($ix, $min_occurrence, $min_wordlength);
 }
 
 sub SpellCheck()
 {
-	my ($db, $kw, $verbose) = @_;
-
-	$verbose = 0 unless defined $verbose;
-	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
+	my ($db, $kw) = @_;
 
 	my $m = new MRS::MDatabank($db);
 	
@@ -662,18 +630,6 @@ sub Version()
 	my $m = new MRS::MDatabank($db);
 
 	print $m->GetVersion() . "\n";
-}
-
-sub Weights()
-{
-	my ($db, $verbose, $ix) = @_;
-		
-	$verbose = 0 unless defined $verbose;
-	$MRS::VERBOSE = $verbose;	# increase to get more diagnostic output
-
-	my $m = new MRS::MDatabank($db);
-	
-	$m->RecalcDocWeights($ix);
 }
 
 sub ReadStopWords()
@@ -723,38 +679,100 @@ sub SetProcTitle
 
 package MRS::Script;
 
+use Data::Dumper;
+use File::stat;
+
 # This is the base class for an MRS script
 
 sub version
 {
-	my ($self, $raw_dir, $db) = @_;
+	my ($self, $version) = @_;
 	
-	opendir DIR, $raw_dir;
-	my @files = grep { -f("$raw_dir/$_") and $_ !~ /^\./ } readdir(DIR);
-	closedir(DIR);
-		
-	my $date = 0;
-	foreach my $f (@files)
-	{
-		my $sb = stat("$raw_dir/$f");
-		
-		if (defined $sb) {
-			$date = $sb->mtime if $sb->mtime > $date;
+	if (defined $version) {
+		$self->{version} = $version;
+	}
+	else {
+		my $raw_dir = $self->{raw_dir} or die "raw_dir is not defined\n";
+		my $db = $self->{db} or die "db is not defined\n";
+
+		opendir DIR, $raw_dir;
+		my @files = grep { -f("$raw_dir/$_") and $_ !~ /^\./ } readdir(DIR);
+		closedir(DIR);
+			
+		my $date = 0;
+		foreach my $f (@files)
+		{
+			my $sb = stat("$raw_dir/$f");
+			
+			if (defined $sb) {
+				$date = $sb->mtime if $sb->mtime > $date;
+			}
 		}
+		
+		$date = stat($raw_dir)->mtime unless defined $date;
+	
+		$self->{version} = localtime $date;
 	}
 	
-	$date = stat($raw_dir)->mtime unless defined $date;
-	
-	return localtime $date;
+	return $self->{version};
 }
 
-sub meta_info
+sub url
 {
-	my ($self, $raw_dir, $db) = @_;
+	my ($self, $url) = @_;
+	$self->{url} = $url if defined $url;
+	return $self->{url};
+}
+
+sub name
+{
+	my ($self, $name) = @_;
+	$self->{name} = $name if defined $name;
+	return $self->{name};
+}
+
+sub section
+{
+	my ($self, $section) = @_;
+	$self->{section} = $section if defined $section;
+	return $self->{section};
+}
+
+sub meta
+{
+	my ($self, $meta) = @_;
+	$self->{meta} = $meta if defined $meta;
+	return $self->{meta};
+}
+
+sub merge
+{
+	my ($self, $db) = @_;
+	die "No merge set defined for db $db\n" unless scalar($self->{merge}->{$db});
+	return $self->{merge}->{$db};
+}
+
+sub raw_files
+{
+	my ($self) = @_;
 	
-	my $version = $self->version($raw_dir, $db);
+	my $raw_files = $self->{raw_files};
+	$raw_files = qr/.*/ unless defined $raw_files;
 	
-	return ($db, $version, "", "other");
+	my $raw_dir = $self->{raw_dir};
+
+	opendir DIR, $raw_dir or die "Could not open raw dir $raw_dir\n";
+	my @raw_files = grep { -e "$raw_dir/$_" and $_ =~ m/$raw_files/ } readdir(DIR);
+	closedir DIR;
+	
+	return map {
+		if ($_ =~ m/\.(gz|Z)$/) {
+			"gunzip -c $raw_dir/$_ |";
+		}
+		else {
+			"<$raw_dir/$_";
+		}
+	} @raw_files;
 }
 
 1;

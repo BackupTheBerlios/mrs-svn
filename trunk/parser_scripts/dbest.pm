@@ -43,15 +43,15 @@ use strict;
 
 our @ISA = "MRS::Script";
 
-my $count = 0;
-
-our $COMPRESSION_LEVEL = 9;
-our $COMPRESSION = "zlib";
-
 sub new
 {
 	my $invocant = shift;
 	my $self = {
+		url				=> 'http://www.ncbi.nlm.nih.gov/dbEST/',
+		section			=> 'nucleotide',
+		meta			=> [ 'title' ],
+		name			=> 'dbEST',
+		raw_files		=> qr/\.gz$/,
 		@_
 	};
 	return bless $self, "MRS::Script::dbest";
@@ -62,9 +62,8 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my ($id, $doc, $state, $m);
+	my ($id, $doc, $m, $est, $os, $lib);
 	
-	$state = 0;
 	$m = $self->{mrs};
 	
 	my $lookahead = <IN>;
@@ -80,11 +79,16 @@ sub parse
 
 		if ($line eq '||')
 		{
+			$m->StoreMetaData('title', "$est; $os; $lib");
+			
 			$m->Store($doc);
 			$m->FlushDocument;
 
 			$id = undef;
 			$doc = undef;
+			$est = undef;
+			$os = undef;
+			$lib = undef;
 		}
 		else
 		{
@@ -94,7 +98,8 @@ sub parse
 			}
 			elsif ($line =~ m/^EST name:\s+(.+)/)
 			{
-				$m->IndexTextAndNumbers('source_est', $1);
+				$est = $1;
+				$m->IndexTextAndNumbers('source_est', $est);
 			}
 			elsif ($line =~ m/^Clone Id:\s+(.+)/)
 			{
@@ -114,11 +119,13 @@ sub parse
 			}
 			elsif ($line =~ m/^Organism:\s+(.+)/)
 			{
-				$m->IndexText('organism', $1);
+				$os = $1;
+				$m->IndexText('organism', $os);
 			}
 			elsif ($line =~ m/^Lib Name:\s+(.+)/)
 			{
-				$m->IndexTextAndNumbers('lib_name', $1);
+				$lib = $1;
+				$m->IndexTextAndNumbers('lib_name', $lib);
 			}
 			elsif ($line =~ m/^dbEST Lib id:\s+(.+)/)
 			{
@@ -149,53 +156,6 @@ sub parse
 			}
 		}
 	}
-}
-
-sub raw_files
-{
-	my ($self, $raw_dir) = @_;
-	
-	opendir DIR, $raw_dir;
-	my @result = grep { -e "$raw_dir/$_" and $_ =~ /\.gz$/ } readdir DIR;
-	closedir DIR;
-	
-	return map { "gunzip -c $raw_dir/$_ |" } @result;
-}
-
-# formatting
-
-sub describe
-{
-	my ($this, $q, $text) = @_;
-	
-	my $est = "";
-	my $os = "";
-	my $lib = "";
-	my $done = 0;
-
-	foreach my $line (split(m/\n/, $text))
-	{
-		if ($line =~ /EST name:\s+(.+)/)
-		{
-			$est = $1;
-			++$done;
-		}
-		elsif ($line =~ /Organism:\s+(.+)/)
-		{
-			$os = $1;
-			++$done;
-		}
-		elsif ($line =~ /Lib Name:\s+(.+)/)
-		{
-			$lib = $1;
-			++$done;
-		}
-		
-		last if $done == 3;
-	}
-	
-	$os = $q->em($os);
-	return "$est $os $lib";
 }
 
 1;

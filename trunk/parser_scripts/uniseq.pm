@@ -41,17 +41,14 @@ package MRS::Script::uniseq;
 
 our @ISA = "MRS::Script";
 
-use strict;
-
-my $count = 0;
-
-our $COMPRESSION_LEVEL = 9;
-our $COMPRESSION = "zlib";
-
 sub new
 {
 	my $invocant = shift;
 	my $self = {
+		name		=> 'UniSeq',
+		url			=> 'http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=unigene',
+		section		=> 'gene',
+#		meta		=> [ 'title' ],
 		@_
 	};
 	return bless $self, "MRS::Script::uniseq";
@@ -114,9 +111,10 @@ sub raw_files
 {
 	my ($self, $raw_dir) = @_;
 
+	my $raw_dir = $self->{raw_dir} or die "raw_dir is not defined\n";
+
 	$raw_dir =~ s|[^/]+$||;
 	$raw_dir .= "unigene";
-
 
 	my @result;
 
@@ -135,7 +133,5 @@ sub raw_files
 
 	return map { "gunzip -c $_ |" } @result;
 }
-
-# formatting
 
 1;

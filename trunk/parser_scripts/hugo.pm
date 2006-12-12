@@ -47,6 +47,11 @@ sub new
 {
 	my $invocant = shift;
 	my $self = {
+		name		=> 'Hugo nomenclature',
+		url			=> 'http://www.gene.ucl.ac.uk/nomenclature/',
+		section		=> 'gene',
+		meta		=> [ 'title' ],
+		raw_files	=> qr/nomeids\.txt/,
 		@_
 	};
 	return bless $self, "MRS::Script::hugo";
@@ -96,17 +101,11 @@ sub parse
 #SWISSPROT
 		$m->IndexTextAndNumbers('swissprot', $flds[12]);
 
+		$m->StoreMetaData('title', $flds[2]);
+
 		$m->Store($line);
 		$m->FlushDocument;
 	}
 }
-
-sub raw_files()
-{
-	my ($self, $raw_dir) = @_;
-	return "<$raw_dir/nomeids.txt";
-}
-
-# formatting
 
 1;

@@ -41,19 +41,20 @@ package MRS::Script::prosite_doc;
 
 our @ISA = "MRS::Script";
 
-use strict;
-
-my $count = 0;
-
-our $COMPRESSION_LEVEL = 9;
-our $COMPRESSION = "zlib";
-
 sub new
 {
 	my $invocant = shift;
 	my $self = {
+		name		=> 'Prosite Documentation',
+		url			=> 'http://www.expasy.org/prosite/',
+		section		=> 'function',
+		meta		=> [ 'title' ],
+		raw_files	=> qr/prosite\.doc/,
 		@_
 	};
+	
+	$self->{raw_dir} =~ s|_doc/?$|| if defined $self->{raw_dir};
+	
 	return bless $self, "MRS::Script::prosite_doc";
 }
 
@@ -91,6 +92,10 @@ sub parse
 			$id = $1;
 			$m->IndexValue('id', $id);
 		}
+		elsif ($line =~ m/\* (.+?)\s+\*/) {
+			$m->StoreMetaData('title', $1);
+			$m->IndexText('text', $1);
+		}
 		else
 		{
 			$m->IndexText('text', $line);
@@ -100,9 +105,10 @@ sub parse
 
 sub version
 {
-    my ($self, $raw_dir) = @_;
+    my ($self) = @_;
     my $vers;
 
+	my $raw_dir = $self->{raw_dir} or die "raw_dir is not defined\n";
 	$raw_dir =~ s/prosite_doc/prosite/;
 
     open REL, "<$raw_dir/prosite.doc";
@@ -120,30 +126,6 @@ sub version
     warn "Version not found" unless defined $vers;
 
     return $vers;
-}
-
-sub raw_files
-{
-	my ($self, $raw_dir) = @_;
-	
-	$raw_dir =~ s/_doc$//;
-	
-	return "<$raw_dir/prosite.doc";
-}
-
-# formatting
-
-sub describe
-{
-	my ($this, $q, $text) = @_;
-	
-	my $desc = $text;
-	
-	if ($text =~ m/\* (.+?)\s+\*/) {
-		$desc = $1;
-	}
-	
-	return $desc;
 }
 
 1;

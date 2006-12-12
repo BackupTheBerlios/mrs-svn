@@ -41,8 +41,6 @@ package MRS::Script::pdb;
 
 our @ISA = "MRS::Script";
 
-our $COMPRESSION = "bzip";
-
 my %aa_map = (
 	'ALA'	=>	'A',
 	'ARG'	=>	'R',
@@ -70,9 +68,37 @@ sub new
 {
 	my $invocant = shift;
 	my $self = {
+		name		=> 'PDB',
+		url			=> 'http://www/rcsb.org/pdb/',
+		section		=> 'structure',
+		meta		=> [ 'title' ],
+		compression	=> 'bzip',
 		@_
 	};
 	return bless $self, "MRS::Script::pdb";
+}
+
+sub GetTitle
+{
+	my ($header, $compound, $title) = @_;
+	
+	my $desc;
+		
+	if ($title and $title ne '')
+	{
+		$desc = $q->b($title) . ' (' . $header . ')';
+	}
+	else
+	{
+		$desc = $header;
+	}
+
+	if ($compound and $compound ne '')
+	{
+		$desc .= $q->br . $q->i($compound);
+	}	
+	
+	return $desc;
 }
 
 sub parse
@@ -82,7 +108,7 @@ sub parse
 	
 	($self, *IN, $verbose) = @_;
 	
-	my ($doc, $state, $m, %seq, $sequence, $seq_chain_id);
+	my ($doc, $state, $m, %seq, $sequence, $seq_chain_id, $header, $compound, $title);
 	
 	$state = 0;
 	$m = $self->{mrs};
@@ -93,6 +119,7 @@ sub parse
 		{
 			if (defined $doc)
 			{
+				$m->StoreMetaData('title', &GetTitle($header, $title, $compound));
 				$m->Store($doc);
 
 				foreach my $ch (keys %seq)
@@ -110,11 +137,13 @@ sub parse
 			}
 			
 			$doc = $line;
+			$header = $1;
+			$title = undef;
+			$compound = undef;
 			
 			$m->IndexText('text', $1);
 			$m->IndexValue('id', $2);
 
-#			$field = undef;
 			$state = 1;
 		}
 		elsif ($state == 1)
@@ -133,7 +162,18 @@ sub parse
 #				els
 				if ($fld eq 'TITLE')
 				{
+					$title .= lc $text;
 					$m->IndexText('title', $text);
+				}
+				elsif ($fld eq 'COMPND')
+				{
+					if ($text =~ m/MOLECULE: (.+)/) {
+						$compound .= lc $1 . ' ';
+					}
+					elsif ($text =~ m/EC: (.+)/) {
+						$compound .= 'EC: ' . lc $1 . ' ';
+					}
+					$m->IndexText('compnd', $text);
 				}
 				elsif ($fld eq 'AUTHOR')
 				{
@@ -197,6 +237,7 @@ sub parse
 
 	if (defined $doc)
 	{
+		$m->StoreMetaData('title', &GetTitle($header, $title, $compound));
 		$m->Store($doc);
 		
 		foreach my $ch (sort keys %seq)
@@ -213,7 +254,9 @@ sub parse
 
 sub raw_files()
 {
-	my ($self, $raw_dir) = @_;
+	my ($self) = @_;
+
+	my $raw_dir = $self->{raw_dir} or die "raw_dir is not defined\n";
 	
 	my @result;
 	
@@ -259,58 +302,6 @@ sub pp
 	$text =~ s|(COMPND   \d? )EC: ((\d+\.){3}\d+)|$1<a href="?id=enzyme%3A$2">EC: $2</a>|gmo;
 	
 	return $script . $q->pre($text);
-}
-
-sub describe
-{
-	my ($this, $q, $text) = @_;
-	
-	my $header;
-	my $title = "";
-	my $compnd = "";
-
-	open TXT, "<", \$text;
-	while (my $line = <TXT>)
-	{
-		if ($line =~ /^HEADER\s+(.+?)\s{3}/mo)
-		{
-			$header = lc($1) . ' ';
-		}
-		elsif ($line =~ /^TITLE    [ \d](.+)/mo)
-		{
-			$title .= lc($1);
-		}
-		elsif ($line =~ /^COMPND   ( |\d )MOLECULE: (.+)/mo)
-		{
-			$compnd .= lc($2) . ' ';
-		}
-		elsif ($line =~ /^COMPND   ( |\d )EC: (.+)/mo)
-		{
-			$compnd .= 'EC: ' . lc($2) . ' ';
-		}
-		elsif ($line =~ /^SOURCE/)
-		{
-			last;
-		}
-	}
-
-	my $desc;
-		
-	if ($title ne '')
-	{
-		$desc = $q->b($title) . ' (' . $header . ')';
-	}
-	else
-	{
-		$desc = $header;
-	}
-
-	if ($compnd ne '')
-	{
-		$desc .= $q->br . $q->i($compnd);
-	}	
-	
-	return $desc;
 }
 
 1;

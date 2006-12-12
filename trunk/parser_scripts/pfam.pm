@@ -41,19 +41,37 @@ package MRS::Script::pfam;
 
 our @ISA = "MRS::Script";
 
-use strict;
-
-my $count = 0;
-
-our $COMPRESSION_LEVEL = 9;
-our $COMPRESSION = "zlib";
-
 sub new
 {
 	my $invocant = shift;
+	
 	my $self = {
+		url		=> 'http://www.sanger.ac.uk/Software/Pfam/',
+		section	=> 'other',
+		meta	=> [ 'title' ],
 		@_
 	};
+	
+	if (defined $self->{db}) {
+		
+		my %NAMES = (
+			pfama		=> 'Pfam-A',
+			pfamb		=> 'Pfam-B',
+			pfamseed	=> 'Pfam-Seed'
+		);
+
+		$self->{name} = $NAMES{$self->{db}};
+		
+		my %FILES = (
+			pfama		=> qr/Pfam-A\.full\.gz/,
+			pfamb		=> qr/Pfam-A\.seed\.gz/,
+			pfamseed	=> qr/Pfam-B\.gz/,
+		);
+		
+		$self->{raw_dir} =~ s|pfam[^/]+/?$|pfam|;
+		$self->{raw_files} = $FILES{$self->{db}};
+	}
+	
 	return bless $self, "MRS::Script::pfam";
 }
 
@@ -103,6 +121,7 @@ sub parse
 			}
 			else
 			{
+				$m->StoreMetaData('title', $value) if $field eq 'DE';
 				$m->IndexText(lc($field), substr($line, 5));
 			}
 		}
@@ -112,25 +131,6 @@ sub parse
 		}
 	}
 }
-
-sub raw_files
-{
-	my ($self, $raw_dir, $db) = @_;
-
-	$raw_dir =~ s|/[^/]+/?$|/|;
-	
-	my $result;
-
-	$result = "gunzip -c $raw_dir/pfam/Pfam-A.full.gz|" if ($db eq 'pfama');
-	$result = "gunzip -c $raw_dir/pfam/Pfam-A.seed.gz|" if ($db eq 'pfamseed');
-	$result = "gunzip -c $raw_dir/pfam/Pfam-B.gz|" if ($db eq 'pfamb');
-	
-	die "unknown pfam db: $db\n" unless defined $result;
-	
-	return $result;
-}
-
-# formatting
 
 my @links = (
 	{
@@ -169,24 +169,6 @@ sub pp
 	}
 	
 	return $q->pre($text);
-}
-
-sub describe
-{
-	my ($this, $q, $text) = @_;
-	
-	my $desc;
-
-	foreach my $line (split(m/\n/, $text))
-	{
-		if (substr($line, 5, 2) eq 'DE')
-		{
-			$desc = substr($line, 10);
-			last;
-		}
-	}
-	
-	return $desc;
 }
 
 1;

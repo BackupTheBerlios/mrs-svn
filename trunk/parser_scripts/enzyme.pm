@@ -43,12 +43,7 @@ use strict;
 
 our @ISA = "MRS::Script";
 
-my $count = 0;
-
-our $COMPRESSION_LEVEL = 9;
-our $COMPRESSION = "zlib";
-
-our @INDICES = (
+our %INDICES = (
 	'id' => 'Identification',
 	'de' =>	'Description',
 	'an' => 'Alternate Name',
@@ -64,6 +59,11 @@ sub new
 {
 	my $invocant = shift;
 	my $self = {
+		name		=> 'Enzyme',
+		url			=> 'http://ca.expasy.org/enzyme/',
+		section		=> 'enzyme',
+		meta		=> [ 'title' ],
+		raw_files	=> qr/enzyme\.dat/,
 		@_
 	};
 	return bless $self, "MRS::Script::enzyme";
@@ -74,9 +74,8 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my ($id, $doc, $state, $m);
+	my ($id, $doc, $title, $m);
 	
-	$state = 0;
 	$m = $self->{mrs};
 	
 	my $lookahead = <IN>;
@@ -97,20 +96,30 @@ sub parse
 
 		if ($line eq '//')
 		{
+			$m->StoreMetaData('title', $title);
+			
 			$m->Store($doc);
 			$m->FlushDocument;
 
 			$id = undef;
 			$doc = undef;
+			$title = undef;
 		}
-		elsif ($line =~ /^([A-Z]{2}) {3}/o)
+		elsif ($line =~ /^([A-Z]{2}) {3}(.+)/o)
 		{
 			my $fld = $1;
+			my $text = $2;
 
-			if ($line =~ /^ID +(\S+)/o)
+			if ($fld eq 'ID' and $text =~ m/(\S+)/)
 			{
 				$id = $1;
 				$m->IndexValue('id', $id);
+			}
+			elsif ($fld eq 'DE')
+			{
+				$m->IndexText('de', $text);
+				$title .= ' ' if defined $title;
+				$title .= $text;
 			}
 			else
 			{
@@ -119,13 +128,6 @@ sub parse
 			}
 		}
 	}
-}
-
-sub raw_files
-{
-	my ($self, $raw_dir) = @_;
-	
-	return "<$raw_dir/enzyme.dat";
 }
 
 # formatting
@@ -156,61 +158,6 @@ sub pp
 	}
 	
 	return $q->pre($result);
-}
-
-sub describe
-{
-	my ($this, $q, $text) = @_;
-	
-	my $desc = "";
-	my $state = 0;
-
-	foreach my $line (split(m/\n/, $text))
-	{
-		if (substr($line, 0, 2) eq 'DE')
-		{
-			$state = 1;
-			$desc .= substr($line, 5);
-		}
-		elsif ($state == 1)
-		{
-			last;
-		}
-	}
-	
-	return $desc;
-}
-
-sub to_fasta
-{
-	my ($this, $q, $text) = @_;
-	
-	my ($id, $seq, $state);
-	
-	$state = 0;
-	$seq = "";
-	
-	foreach my $line (split(m/\n/, $text))
-	{
-		if ($state == 0 and $line =~ /^ID\s+(\S+)/)
-		{
-			$id = $1;
-			$state = 1;
-		}
-		elsif ($state == 1 and substr($line, 0, 2) eq 'SQ')
-		{
-			$state = 2;
-		}
-		elsif ($state == 2 and substr($line, 0, 2) ne '//')
-		{
-			$line =~ s/\s+//g;
-			$seq .= $line;
-		}
-	}
-	
-	$seq =~ s/(.{60})/$1\n/g;
-	
-	return $q->pre(">$id\n$seq\n");
 }
 
 1;

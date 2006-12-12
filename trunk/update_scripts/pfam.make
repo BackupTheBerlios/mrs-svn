@@ -9,13 +9,11 @@ include make.pre
 # Now determine what sequence files need to be generated
 
 DB_URL = ftp://ftp.sanger.ac.uk/pub/databases/Pfam/current_release/
+MIRROR_INCLUDE = Pfam-A\.full\.gz|Pfam-A\.seed\.gz|Pfam-B\.gz
 
 ZIPFILES =	$(SRCDIR)Pfam-A.full.gz \
 			$(SRCDIR)Pfam-B.gz \
-			$(SRCDIR)Pfam-A.seed.gz \
-			$(SRCDIR)swisspfam.gz \
-			$(SRCDIR)Pfam_fs.gz \
-			$(SRCDIR)Pfam_ls.gz
+			$(SRCDIR)Pfam-A.seed.gz
 
 #DATFILES = $(addprefix $(DSTDIR), $(notdir $(basename $(ZIPFILES))))
 

@@ -41,12 +41,15 @@ package MRS::Script::hssp;
 
 our @ISA = "MRS::Script";
 
-my $count = 0;
-
 sub new
 {
 	my $invocant = shift;
 	my $self = {
+		url			=> 'http://www.cmbi.kun.nl/gv/hssp/',
+		name		=> 'HSSP',
+		section		=> 'structure',
+		meta		=> [ 'title' ],
+		raw_files	=> qr/\.hssp$/,
 		@_
 	};
 	return bless $self, "MRS::Script::hssp";
@@ -91,10 +94,14 @@ sub parse
 			}
 			elsif ($line =~ /^(\S+?)\s+(.*)/)
 			{
+				my $fld = $1;
 				$line = $2;
 				
 				$line =~ s/(\w)\.(?=\w)/$1. /og
-					if ($1 eq 'AUTHOR');
+					if ($fld eq 'AUTHOR');
+
+				$m->StoreMetaData('title', lc($line))
+					if ($fld eq 'HEADER');
 
 				$m->IndexText('text', $line);
 			}
@@ -104,19 +111,6 @@ sub parse
 	$m->Store($doc);
 	$m->FlushDocument;
 }
-
-sub raw_files
-{
-	my ($self, $raw_dir) = @_;
-	
-	opendir DIR, $raw_dir;
-	my @result = grep { -e "$raw_dir/$_" and $_ =~ /\.hssp$/ } readdir DIR;
-	closedir DIR;
-	
-	return map { "<$raw_dir/$_" } @result;
-}
-
-# formatting
 
 sub pp
 {
@@ -131,8 +125,7 @@ sub pp
 	
 	$text =~ s|http://(\S+)|<a href='$&'>$&</a>|g;
 
-	$text =~ s
-	{
+	$text =~ s{
 		^(\s+\d+\s:\s)(\S+)(\s+)(\d\w\w\w)?(?=\s+\d)
 	}
 	{
@@ -147,20 +140,6 @@ sub pp
 	}mxge;
 	
 	return $q->pre($text);
-}
-
-sub describe
-{
-	my ($this, $q, $text) = @_;
-	
-	my $desc = "";
-	
-	if ($text =~ /^HEADER\s+(.+)/mo)
-	{
-		$desc = lc($1);
-	}
-	
-	return $desc;
 }
 
 1;

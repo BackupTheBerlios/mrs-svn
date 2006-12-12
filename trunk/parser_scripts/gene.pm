@@ -41,12 +41,14 @@ package MRS::Script::gene;
 
 our @ISA = "MRS::Script";
 
-my $count = 0;
-
 sub new
 {
 	my $invocant = shift;
 	my $self = {
+		url			=> 'http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=gene',
+		name		=> '(Entrez-) Gene',
+#		meta		=> [ 'title' ],
+		section		=> 'gene',
 		@_
 	};
 	return bless $self, "MRS::Script::gene";
@@ -56,8 +58,6 @@ sub parse
 {
 	my $self = shift;
 	local *IN = shift;
-	
-	$| = 1;
 	
 	my $m = $self->{mrs};
 	
@@ -127,7 +127,9 @@ sub parse
 
 sub raw_files()
 {
-	my ($self, $raw_dir) = @_;
+	my ($self) = @_;
+
+	my $raw_dir = $self->{raw_dir} or die "raw_dir is not defined\n";
 	
 	my $gene2xml = `which gene2xml`;
 	chomp($gene2xml);
@@ -195,7 +197,7 @@ sub pp
 	{
 		$result = $q->pre($@);
 	}
-#	unlink "/tmp/input-$$.xml";
+	unlink "/tmp/input-$$.xml";
 	
 	return $result;
 }
@@ -237,7 +239,7 @@ sub describe
 	{
 		$result = $q->pre($@);
 	}
-#	unlink "/tmp/input-$$.xml";
+	unlink "/tmp/input-$$.xml";
 	
 	return $result;
 }

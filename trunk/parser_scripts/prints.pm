@@ -41,15 +41,19 @@ package MRS::Script::prints;
 
 our @ISA = "MRS::Script";
 
-use strict;
-use Data::Dumper;
-
-my $count = 0;
+our %INDICES = (
+	gd => 'Description',
+);
 
 sub new
 {
 	my $invocant = shift;
 	my $self = {
+		name		=> 'PRINTS',
+		url			=> 'http://bioinf.man.ac.uk/dbbrowser/PRINTS/',
+		section		=> 'function',
+		meta		=> [ 'title' ],
+		raw_files	=> qr/prints.*\.dat\.gz$/,
 		@_
 	};
 	return bless $self, "MRS::Script::prints";
@@ -98,6 +102,7 @@ sub parse
 		}
 		elsif ($ix{$fld})
 		{
+			$m->StoreMetaData('title', $text) if $fld eq 'gc';
 			$m->IndexText($fld, $text);
 		}
 	}
@@ -105,9 +110,9 @@ sub parse
 
 sub version
 {
-	my ($self, $raw_dir, $db) = @_;
-	
-	$raw_dir =~ s'(sprot|trembl)/?$'prints';
+	my ($self) = @_;
+
+	my $raw_dir = $self->{raw_dir} or die "raw_dir is not defined\n";
 
 	open RELDATE, "gzcat $raw_dir/newpr.lis.gz|";
 	
@@ -130,13 +135,6 @@ sub version
 	chomp($vers);
 
 	return $vers;
-}
-
-sub raw_files
-{
-	my ($self, $raw_dir, $db) = @_;
-	
-	return "gzcat $raw_dir/prints*.dat.gz|";
 }
 
 # formatting
@@ -174,42 +172,6 @@ sub pp
 	}
 	
 	return $q->pre($text);
-}
-
-sub describe
-{
-	my ($this, $q, $text) = @_;
-	
-	my $desc = "";
-	my $state = 0;
-
-	foreach my $line (split(m/\n/, $text))
-	{
-		if (substr($line, 0, 3) eq 'gt;')
-		{
-			$state = 1;
-			$desc .= substr($line, 3);
-		}
-		elsif ($state == 1)
-		{
-			last;
-		}
-	}
-	
-	return $desc;
-}
-
-sub to_field_name
-{
-	my ($this, $id) = @_;
-	
-	my %n = (
-		'gd' => 'Description',
-	);
-
-	my $result = $n{$id};
-	$result = $id unless defined $result;
-	return $result;
 }
 
 1;

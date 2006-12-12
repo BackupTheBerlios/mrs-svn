@@ -126,3 +126,4 @@ ${ALL_DATABASES}: tools dirs
 	@ $(MAKE) tell_ws
 	rm $(FLAGSDIR)$@.*
 
+FORCE:

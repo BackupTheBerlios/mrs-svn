@@ -57,8 +57,6 @@ our %INDICES = (
 	'loc_max'	=> 'Cytoloc number max'
 );
 
-my $count = 0;
-
 # code from Marc!
 
 #############################################################
@@ -268,13 +266,17 @@ sub cytorange2number
 
 sub numerically { $a <=> $b } 
 
-
 # the parser
 
 sub new
 {
 	my $invocant = shift;
 	my $self = {
+		name		=> 'Oxford Human Mouse grid',
+		url			=> 'http://www.informatics.jax.org/',
+		section		=> 'other',
+		meta		=> [ 'title' ],
+		raw_files	=> qr/HMD_Human3\.rpt/,
 		@_
 	};
 	return bless $self, "MRS::Script::oxford";
@@ -373,18 +375,11 @@ sub parse
 		push @data, "$cytoloc_min";
 		push @data, "$cytoloc_max";
 
+		$m->StoreMetaData('title', "Human: $data[1]; Mouse: $data[5]");
 		$m->Store(join("\t", @data));
 		$m->FlushDocument;
 	}
 }
-
-sub raw_files()
-{
-	my ($self, $raw_dir) = @_;
-	return "<$raw_dir/HMD_Human3.rpt";
-}
-
-# formatting
 
 sub pp
 {
@@ -429,18 +424,6 @@ sub pp
 
 	return $q->div({-class=>'list'},
 		$q->table({-cellspacing=>'0', -cellpadding=>'0'}, @rows));
-}
-
-sub describe
-{
-	my ($this, $q, $text) = @_;
-
-	chomp($text);
-	my @fields = split(m/\t/, $text);
-	
-	my $desc = "Human: $fields[1]; Mouse: $fields[5]";
-	
-	return $desc;
 }
 
 1;

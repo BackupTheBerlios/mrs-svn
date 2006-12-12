@@ -41,12 +41,15 @@ package MRS::Script::pdbfinder2;
 
 our @ISA = "MRS::Script";
 
-my $count = 0;
-
 sub new
 {
 	my $invocant = shift;
 	my $self = {
+		name		=> 'PDBFinder2',
+		url			=> 'http://bioinformatics.oxfordjournals.org/cgi/content/abstract/12/6/525',
+		section		=> 'structure',
+		meta		=> [ 'title' ],
+		raw_files	=> qr/PDBFIND2\.TXT\.gz/,
 		@_
 	};
 	return bless $self, "MRS::Script::pdbfinder2";
@@ -118,6 +121,11 @@ sub parse
 				{
 					$m->IndexNumber($key, $value * 1000.0);
 				}
+				elsif ($key eq 'header')
+				{
+					$m->StoreMetaData('title', lc $value);
+					$m->IndexText($key, $value);
+				}
 				else
 				{
 					$value =~ s/(\w)\.(?=\w)/$1. /og
@@ -134,36 +142,6 @@ sub parse
 		$m->Store($doc);
 		$m->FlushDocument;
 	}
-}
-
-sub raw_files
-{
-	my ($self, $raw_dir) = @_;
-	
-	return "gunzip -c $raw_dir/PDBFIND2.TXT.gz |";
-}
-
-# formatting
-
-sub pp
-{
-	my ($this, $q, $text, $id) = @_;
-	
-	return $q->pre($text);
-}
-
-sub describe
-{
-	my ($this, $q, $text) = @_;
-	
-	my $desc = "";
-	
-	if ($text =~ /^Header\s+:\s*(.+)/mo)
-	{
-		$desc = lc($1);
-	}
-	
-	return $desc;
 }
 
 1;

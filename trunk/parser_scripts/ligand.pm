@@ -43,17 +43,30 @@ our @ISA = "MRS::Script";
 
 use strict;
 
-my $count = 0;
-
-our $COMPRESSION_LEVEL = 9;
-our $COMPRESSION = "zlib";
-
 sub new
 {
 	my $invocant = shift;
+
+	my %NAMES = (
+		'ligand-compound'	=> 'KEGG Ligand Compound',
+		'ligand-enzyme'		=> 'KEGG Ligand Enzyme',
+		'ligand-glycan'		=> 'KEGG Ligand Glycan',
+		'ligand-reaction'	=> 'KEGG Ligand Reaction',
+	);
+
 	my $self = {
+		url			=> 'http://www.genome.jp/kegg/ligand.html',
+		section		=> 'enzyme',
+		meta		=> [ 'title' ],
 		@_
 	};
+	
+	my $db = $self->{db};
+	$db =~ s/^ligand-//;
+	$self->{raw_files} = qr/$db/;
+	
+	$self->{name} = $NAMES{$self->{db}} if defined $self->{db};
+	
 	return bless $self, "MRS::Script::ligand";
 }
 
@@ -63,7 +76,7 @@ sub parse
 	local *IN = shift;
 	my ($verbose, $db) = @_;
 	
-	my ($id, $doc, $state, $m, $cur);
+	my ($id, $doc, $state, $m, $cur, $title);
 	
 	$state = 0;
 	$m = $self->{mrs};
@@ -80,12 +93,14 @@ sub parse
 
 		if ($line eq '///')
 		{
+			$m->StoreMetaData('title', $title);
 			$m->Store($doc);
 			$m->FlushDocument;
 
 			$id = undef;
 			$doc = undef;
 			$cur = undef;
+			$title = undef;
 		}
 		else
 		{
@@ -95,6 +110,8 @@ sub parse
 			{
 				$fld = $cur;
 				$value = $line;
+				
+				$value =~ s/^\s+//;
 			}
 			else
 			{
@@ -117,6 +134,15 @@ sub parse
 						$id = $1 ;
 					}
 				}
+				elsif ($fld eq 'NAME')
+				{
+					$value =~ s/\s*;?$//;
+					
+					$title .= '; ' if defined $title;
+					$title .= $value;
+
+					$m->IndexText(lc $fld, $value) if $value;
+				}
 				else
 				{
 					$m->IndexText(lc $fld, $value) if $value;
@@ -125,16 +151,5 @@ sub parse
 		}
 	}
 }
-
-sub raw_files
-{
-	my ($self, $raw_dir, $db) = @_;
-	
-	$raw_dir =~ s|ligand-(\S+)$|ligand/$1|;
-	
-	return "<$raw_dir";
-}
-
-# formatting
 
 1;

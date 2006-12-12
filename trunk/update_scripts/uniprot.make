@@ -18,7 +18,7 @@ ZIPFILES = $(SRCDIR)uniprot_sprot.dat.gz $(SRCDIR)uniprot_trembl.dat.gz
 $(BLASTDIR)%.psq: $(SRCDIR)uniprot_%.dat.gz
 	$(GZCAT) $? | $(SWISS_TO_FASTA) -d ${@F:.psq=} | $(FORMATDB) -pT -oT -sT -n $(basename $@) -i stdin
 
-# BLAST_FILES = $(BLASTDIR)sprot.psq $(BLASTDIR)trembl.psq
+BLAST_FILES = $(BLASTDIR)sprot.psq $(BLASTDIR)trembl.psq
 
 include make.post
 

@@ -41,14 +41,20 @@ package MRS::Script::mimmap;
 
 our @ISA = "MRS::Script";
 
-my $count = 0;
-
 sub new
 {
 	my $invocant = shift;
 	my $self = {
+		name		=> 'Mimmap, our view on genemap from OMIM',
+		url			=> 'urn:?',
+		section		=> 'other',
+		meta		=> [ 'title' ],
+		raw_files	=> qr/mimmap\.txt/,
 		@_
 	};
+	
+	$self->{raw_dir} =~ s|raw/mimmap/?$|uncompressed/omim/|;
+	
 	return bless $self, "MRS::Script::mimmap";
 }
 
@@ -94,6 +100,7 @@ sub parse
 		{
 			if ($line =~ /^MIM#\s+:\s*(\S+)/o)
 			{
+				$m->StoreMetaData('title', "MIM# $1");
 				$m->IndexWord('mim', $1);
 			}
 			elsif ($line =~ /^Date\s+:\s(\d+)\.(\d+)\.(\d+)/)
@@ -117,17 +124,5 @@ sub parse
 		$m->FlushDocument;
 	}
 }
-
-sub raw_files
-{
-	my ($self, $raw_dir) = @_;
-	
-	$raw_dir =~ s|[^/]+/?$||;
-	$raw_dir =~ s/raw/uncompressed/;
-
-	return "$raw_dir/omim/mimmap.txt";
-}
-
-# formatting
 
 1;

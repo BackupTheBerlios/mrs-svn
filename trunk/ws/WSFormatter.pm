@@ -2,6 +2,9 @@
 
 package MRS::Script;
 
+#use strict;
+#use warnings;
+
 sub new
 {
 	my $invocant = shift;

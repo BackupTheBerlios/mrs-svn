@@ -41,12 +41,15 @@ package MRS::Script::goa;
 
 our @ISA = "MRS::Script";
 
-my $count = 0;
-
 sub new
 {
 	my $invocant = shift;
 	my $self = {
+		name		=> 'GOA',
+		url			=> 'http://www.ebi.ac.uk/GOA/',
+		section		=> 'gene',
+		meta		=> [ 'title' ],
+		raw_files	=> qr/gene_association\.goa_uniprot\.gz$/,
 		@_
 	};
 	return bless $self, "MRS::Script::goa";
@@ -59,7 +62,7 @@ sub parse
 	
 	my $m = $self->{mrs};
 	
-	my ($doc, $last_id);
+	my ($doc, $last_id, $title);
 	
 	$last_id = "";
 	
@@ -71,10 +74,13 @@ sub parse
 		
 		if ($last_id ne $id and defined $doc)
 		{
+			$m->StoreMetaData('title', $title);
+			
 			$m->Store($doc);
 			$m->FlushDocument;
 			
 			undef $doc;
+			undef $title;
 		}
 
 		$m->IndexText('db', $flds[0]);
@@ -100,6 +106,8 @@ sub parse
 			$m->IndexDate('date', "$1-$2-$3");
 		}
 		$m->IndexText('assigned_by', $flds[14]);
+		
+		$title = $flds[9] unless defined $title;
 
 		$doc .= $line;
 		$last_id = $id;
@@ -107,18 +115,12 @@ sub parse
 
 	if (defined $doc)
 	{
+		$m->StoreMetaData('title', $title);
+
 		$m->Store($doc);
 		$m->FlushDocument;
 	}
 }
-
-sub raw_files()
-{
-	my ($self, $raw_dir) = @_;
-	return "gunzip -c $raw_dir/gene_association.goa_uniprot.gz |";
-}
-
-# formatting
 
 sub pp
 {
@@ -167,18 +169,6 @@ sub pp
 	}
 
 	return $q->pre($result);
-}
-
-sub describe
-{
-	my ($this, $q, $text) = @_;
-
-	chomp($text);
-	my @fields = split(m/\t/, $text);
-	
-	my $desc = $fields[9];
-	
-	return $desc;
 }
 
 1;
