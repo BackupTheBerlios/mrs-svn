@@ -103,19 +103,17 @@ sub new
 			# tricky... we want only the update files that match our release version of EMBL
 			# so we need to find out the version number for the release first:
 			
-			my $rdb = new MRS::Databank('embl_release')
+			my $rdb = new MRS::MDatabank('embl_release')
 				or die "EMBL Release is not available, no way to determine version, sorry\n";
 				
 			if ($rdb->GetVersion =~ m/Release (\d+) /) {
 				my $vers = int($1) + 1;
 				$self->{raw_files} = qr/r${vers}u\d+\.dat\.gz/;
+				$self->{version} = "Updates coming from Release $vers";
 			}
 			else {
 				die "Unable to fetch version string from embl_release\n";
 			}
-		}
-		else {
-			die "Unknown db: $self->{db}\n";
 		}
 	}
 	
@@ -144,6 +142,9 @@ sub version
 		}
 
 		close RELNOTES;
+	}
+	elsif ($db eq 'embl_updates') {
+		$vers = $self->{version};
 	}
 
 	die "Unknown db: $db" unless defined $vers;
