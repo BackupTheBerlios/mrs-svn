@@ -10,7 +10,7 @@ include make.pre
 # what to make
 
 DB_URL			= ftp://ftp.ebi.ac.uk//pub/databases/embl/new
-MIRROR_INCLUDE = cum_.*\.dat\.gz$$|relnotes\.txt
+MIRROR_INCLUDE = r\d+u\d+\.dat\.gz$$
 
 ZIPFILES = $(notdir $(wildcard $(SRCDIR)*.dat.gz))
 #DATFILES = $(addprefix $(DSTDIR), $(notdir $(basename $(ZIPFILES))))
