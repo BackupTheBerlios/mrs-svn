@@ -8,7 +8,6 @@
 use strict;
 use warnings;
 use English;
-use Sys::Hostname;
 use Config;
 
 $| = 1;	# flush stdout
@@ -46,19 +45,11 @@ while (1) {
 # Find out if all the required modules are there:
 
 my %modules = (
-	'CGI'						=> 1,
-	'ExtUtils::MakeMaker'		=> 1,
-	'Net::FTP'					=> 1,
-	'Getopt::Std'				=> 1,
-	'Time::HiRes'				=> 1,
-	'Time::Local'				=> 1,
-	'File::stat'				=> 1,
-	'XML::SAX'					=> 1,
-	'XML::SAX::Expat'			=> 1,
-	'Data::UUID'				=> 1,
-	'URI'						=> 1,
-	'SOAP::Lite'				=> 0,
-	'SOAP::Transport::HTTP'		=> 0,
+	'CGI'						=> 1,		# for mrsws, the soap server
+	'ExtUtils::MakeMaker'		=> 1,		# for building the plugin
+	'Net::FTP'					=> 1,		# for the mirror.pl script
+	'Getopt::Std'				=> 1,		# idem
+	'URI'						=> 1,		# idem
 );
 
 my @missing_modules;
@@ -236,90 +227,39 @@ my $make_script_dir = &ask_for_string("Where should the update scripts go", '/us
 my $parser_script_dir = &ask_for_string("Where should the parser scripts go", '/usr/local/share/mrs/parser_scripts');
 &mkdir_recursive($parser_script_dir);
 
-my $web_dir = &ask_for_string("Where should the website go", '/usr/local/share/mrs/www');
-&mkdir_recursive($web_dir);
-
 my $maintainer = `whoami`;
 chomp($maintainer);
 &ask_for_string("What is the e-mail address for the maintainer", $maintainer);
 
-my $db_conf = &read_file("db-update/make_TEMPLATE.conf");
+my $db_conf = &read_file("update_scripts/make_TEMPLATE.conf");
 
+# clean up all our path strings, they should all end in exactly one slash
 $data_dir			=~ s|/*$|/|;
 $binpath			=~ s|/*$|/|;
 $make_script_dir	=~ s|/*$|/|;
 $parser_script_dir	=~ s|/*$|/|;
 
-$db_conf =~ s|__DATA_DIR__|$data_dir|g;
-$db_conf =~ s|__BIN_DIR__|$binpath|g;
-$db_conf =~ s|__MAINTAINER__|$maintainer|g;
-$db_conf =~ s|__SCRIPT_DIR__|$make_script_dir|g;
-$db_conf =~ s|__PARSER_DIR__|$parser_script_dir|g;
-$db_conf =~ s|__PERL__|$perlpath|g;
+# update the make_xxx.conf file
+$db_conf =~ s{__DATA_DIR__}		{$data_dir}g;
+$db_conf =~ s{__BIN_DIR__}		{$binpath}g;
+$db_conf =~ s{__MAINTAINER__}	{$maintainer}g;
+$db_conf =~ s{__SCRIPT_DIR__}	{$make_script_dir}g;
+$db_conf =~ s{__PARSER_DIR__}	{$parser_script_dir}g;
+$db_conf =~ s{__PERL__}			{$perlpath}g;
 
-my $hncmd = 'hostname -s';
-my $hostname = `$hncmd`;
+my $hostname = `hostname -s`;
 chomp($hostname);
 
 my $db_conf_file = "$make_script_dir/make_$hostname.conf";
 &write_file($db_conf, $db_conf_file);
 
-# copy over all the files in db-update
-system("cd db-update; find . | cpio -p $make_script_dir") == 0
-	or die "Could not copy over the files in db-update to $make_script_dir: $!\n";
+# copy over all the files in update_scripts
+system("cd update_scripts; find . | cpio -p $make_script_dir") == 0
+	or die "Could not copy over the files in update_scripts to $make_script_dir: $!\n";
 
 # copy over all parsers
-system("cd plugin/scripts; find . | cpio -p $parser_script_dir") == 0
-	or die "Could not copy over the files in plugin/scripts to $parser_script_dir: $!\n";
-
-# web site
-
-system("cd web-simple; find . | cpio -p $web_dir") == 0
-	or die "Could not copy over the files in plugin/scripts to $parser_script_dir: $!\n";
-
-# make sure the permissions are correct
-
-opendir D, "$web_dir/cgi-bin" or die "no cgi-bin directory?";
-my @f = map { "$web_dir/$_" } readdir(D);
-closedir D;
-
-chmod 0644, grep { -f } @f;
-
-@f = grep { -f and m|\.cgi$| } @f;
-
-chmod 0755, @f;
-
-# correct the shebang, if needed
-if ($perlpath ne '/usr/bin/perl') {
-	local($/) = undef;
-	
-	foreach my $f (@f) {
-		open F, "<$f" or die "Could not open cgi script $f\n";
-		my $cgi = <F>;
-		close F;
-		$cgi =~ s|#\!/usr/bin/perl|#\!$perlpath|;
-		open F, ">$f" or die "Could not open cgi script $f\n";
-		print F $cgi;
-		close F; 
-	}
-}
-
-# and now create a new mrs.conf file
-
-my $web_conf = &read_file("$web_dir/cgi-bin/mrs.conf.default");
-	
-$web_conf =~ s|__DATA_DIR__|$data_dir|g;
-$web_conf =~ s|__BIN_DIR__|$binpath|g;
-$web_conf =~ s|__PARSER_DIR__|$parser_script_dir|g;
-
-&write_file($web_conf, "$web_dir/cgi-bin/mrs.conf");
-
-print "To activate the website you need to add the following lines to your httpd.conf:\n";
-print "\n";
-print "ScriptAlias \"/mrs/cgi-bin/\" \"$web_dir/cgi-bin/\"\n";
-print "Alias \"/mrs/\" \"$web_dir/htdocs/\"\n";
-print "\n";
-
+system("cd parser_scripts; find . | cpio -p $parser_script_dir") == 0
+	or die "Could not copy over the files in parser_scripts to $parser_script_dir: $!\n";
 
 print "\nOK, installation seems to have worked fine up until now.\n";
 print "Next steps are to build the actual plugins, as stated above you have to\n";
@@ -349,24 +289,6 @@ print "\n";
 print "Have a look at the $db_conf_file for local settings.\n";
 
 exit;
-#
-#
-#my $make = `which make`;
-#chomp($make);
-#
-#while (1) {
-#	my $make_version;
-#	
-#	open M, "$make -v|";
-#	if (<M> =~ m/GNU Make (\d.\d+)/) {
-#		$make_version = $1;
-#	}
-#	close M;
-#	
-#	last if defined $make_version and $make_version >= 3.79;
-#	
-#	$make = &ask_for_string("Which make do you want to use (should be a GNU make > 3.79)", $make);
-#}
 
 sub ask_for_string {
 	my ($question, $default) = @_;
@@ -430,10 +352,10 @@ sub mkdir_recursive {
 		
 	eval {
 		print "Trying to create directory with sudo and mkdir\n";
-		my @args = ("sudo", "mkdir", "-p", $dir);
+		my @args = ("sudo", "mkdir", "-p", "-m755", $dir);
 		system(@args) == 0 or die "system @args failed: $?";
-		chown $REAL_USER_ID, $dir;
-		chmod 0755, $dir;
+		@args = ("sudo", "chown", $REAL_USER_ID, $dir);
+		system(@args) == 0 or die "system @args failed: $?";
 	};
 	
 	if ($@) {

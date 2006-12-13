@@ -9,22 +9,36 @@
 #include <cstdarg>
 #include <sys/stat.h>
 #include <signal.h>
+#include <getopt.h>
 
 #include <boost/shared_ptr.hpp>
 #include <boost/ptr_container/ptr_vector.hpp>
+#include <boost/filesystem/operations.hpp>
+#include <boost/filesystem/path.hpp>
 
 #include "soapH.h"
 #include "mrsws.nsmap"
 #include "MRSInterface.h"
 #include "CThread.h"
-#include "WConfig.h"
 #include "WError.h"
 #include "WFormat.h"
 
 using namespace std;
+namespace fs = boost::filesystem;
 
-vector<DbInfo>	gDbInfo;
-string			gFormatDir;
+// default values for the directories used by mrsws, these can also be set from the Makefile
+
+#ifndef MRS_DATA_DIR
+#define MRS_DATA_DIR "/usr/local/data/mrs/"
+#endif
+
+#ifndef MRS_PARSER_DIR
+#define MRS_PARSER_DIR "/usr/local/share/mrs/parser_scripts/"
+#endif
+
+string gDataDir = MRS_DATA_DIR;
+string gParserDir = MRS_PARSER_DIR;
+
 extern double system_time();
 
 typedef boost::shared_ptr<MDatabank>	MDatabankPtr;
@@ -32,6 +46,9 @@ typedef boost::shared_ptr<MDatabank>	MDatabankPtr;
 class WSDatabankTable
 {
   public:
+	typedef map<string,MDatabankPtr>	DBTable;
+	typedef DBTable::const_iterator		iterator;
+
 	static WSDatabankTable&	Instance();
 
 	MDatabankPtr		operator[](const string& inCode);
@@ -39,22 +56,10 @@ class WSDatabankTable
 	
 	void				ReloadDbs();
 	
-  private:
-
-	struct DBInfo
-	{
-		MDatabankPtr	mDb;
-		string			mScript;
-		
-						DBInfo();
-						DBInfo(MDatabankPtr inDb, const string& inId);
-						DBInfo(const DBInfo& inOther);
-
-		bool			Valid();
-	};
-
-	typedef map<string,DBInfo>	DBTable;
+	iterator			begin() const		{ return mDBs.begin(); }
+	iterator			end() const			{ return mDBs.end(); }
 	
+  private:
 	DBTable		mDBs;
 };
 
@@ -64,52 +69,21 @@ WSDatabankTable& WSDatabankTable::Instance()
 	return sInstance;
 }
 
-WSDatabankTable::DBInfo::DBInfo()
-{
-}
-
-WSDatabankTable::DBInfo::DBInfo(const DBInfo& inOther)
-	: mDb(inOther.mDb)
-{
-}
-
-WSDatabankTable::DBInfo::DBInfo(
-	MDatabankPtr		inDb,
-	const string&		inId)
-	: mDb(inDb)
-{
-	mScript = "default";
-	
-	for (vector<DbInfo>::iterator dbi = gDbInfo.begin(); dbi != gDbInfo.end(); ++dbi)
-	{
-		if (dbi->id == inId)
-		{
-			mScript = dbi->script;
-			break;
-		}
-	}
-}
-
-bool WSDatabankTable::DBInfo::Valid()
-{
-	return mDb.get() != NULL and mDb->IsUpToDate();
-}
-
 MDatabankPtr WSDatabankTable::operator[](const string& inCode)
 {
-	if (mDBs.find(inCode) == mDBs.end() or not mDBs[inCode].Valid())
+	if (mDBs.find(inCode) == mDBs.end() or not mDBs[inCode]->IsUpToDate())
 	{
 		MDatabankPtr db(new MDatabank(inCode));
 		db->PrefetchDocWeights("__ALL_TEXT__");
-		mDBs[inCode] = DBInfo(db, inCode);
+		mDBs[inCode] = db;
 	}
 	
-	return mDBs[inCode].mDb;
+	return mDBs[inCode];
 }
 
 inline string WSDatabankTable::GetScript(const string& inCode)
 {
-	return mDBs[inCode].mScript;
+	return mDBs[inCode]->GetScriptName();
 }
 
 void WSDatabankTable::ReloadDbs()
@@ -118,18 +92,40 @@ void WSDatabankTable::ReloadDbs()
 	
 	cout << endl;
 	
-	for (vector<DbInfo>::iterator dbi = gDbInfo.begin(); dbi != gDbInfo.end(); ++dbi)
+	fs::path dir_path = fs::system_complete(fs::path(gDataDir, fs::native));
+	
+	if (not fs::exists(dir_path))
 	{
-		if (dbi->id == "all")
+		cerr << "Directory " << gDataDir << " does not exist" << endl;
+		return;
+	}
+	
+	if (not fs::is_directory(dir_path))
+	{
+		cerr << gDataDir << " is not a directory" << endl;
+		return;
+	}
+	
+	fs::directory_iterator end;
+	for (fs::directory_iterator fi(dir_path); fi != end; ++fi)
+	{
+		if (is_directory(*fi))
 			continue;
 		
-		cout << "Loading " << dbi->id << "..."; cout.flush();
+		string name = fi->leaf();
+		
+		if (name.substr(name.length() - 4) != ".cmp")
+			continue;
+		
+		name.erase(name.length() - 4);
+
+		cout << "Loading " << name << " from " << fi->string() << " ..."; cout.flush();
 		
 		try
 		{
-			MDatabankPtr db(new MDatabank(dbi->id));
+			MDatabankPtr db(new MDatabank(fi->string()));
 			db->PrefetchDocWeights("__ALL_TEXT__");
-			mDBs[dbi->id] = DBInfo(db, dbi->id);
+			mDBs[name] = db;
 		}
 		catch (exception& e)
 		{
@@ -141,72 +137,49 @@ void WSDatabankTable::ReloadDbs()
 	}
 }
 
-void GetDatabankInfo(const string& inDb, ns__DatabankInfo& outInfo)
+void GetDatabankInfo(
+	const string&		inDb,
+	ns__DatabankInfo&	outInfo)
 {
-	bool found = false;
+	MDatabankPtr db = WSDatabankTable::Instance()[inDb];
 
-	for (vector<DbInfo>::iterator dbi = gDbInfo.begin(); dbi != gDbInfo.end(); ++dbi)
-	{
-		if (dbi->id == inDb)
-		{
-			outInfo.id = inDb;
-			outInfo.name = dbi->name;
-			outInfo.script = dbi->script;
-			outInfo.url = dbi->url;
-			outInfo.blastable = false;
-			
-			outInfo.files.clear();
-			
-			char* first = const_cast<char*>(inDb.c_str());
-			char* last = NULL;
-			const char* dbn;
-			
-			while ((dbn = strtok_r(first, "+", &last)) != NULL)
-			{
-				first = NULL;
-
-				MDatabankPtr db = WSDatabankTable::Instance()[dbn];
-				
-				ns__FileInfo fi;
-				
-				fi.id = dbn;
-				fi.uuid = db->GetUUID();
-				fi.version = db->GetVersion();
-				fi.path = db->GetFilePath();
-				fi.entries = db->Count();
-				fi.raw_data_size = db->GetRawDataSize();
-				
-				if (db->ContainsBlastIndex())
-					outInfo.blastable = true;
-				
-				struct stat sb;
-				string path = fi.path;
-				if (path.substr(0, 7) == "file://")
-					path.erase(0, 7);
-				
-				if (stat(path.c_str(), &sb) == 0)
-				{
-					fi.file_size = sb.st_size;
-					
-					struct tm tm;
-					char b[1024];
-
-					strftime(b, sizeof(b), "%Y-%m-%d %H:%M:%S",
-						localtime_r(&sb.st_mtime, &tm));
-					
-					fi.modification_date = b;
-				}
-				
-				outInfo.files.push_back(fi);
-			}
-			
-			found = true;
-			break;
-		}
-	}
+	outInfo.id =		inDb;
+	outInfo.name =		db->GetName();
+	outInfo.script =	db->GetScriptName();
+	outInfo.url =		db->GetInfoURL();
+	outInfo.blastable = db->ContainsBlastIndex();
 	
-	if (not found)
-		THROW(("db %s not found", inDb.c_str()));
+	outInfo.files.clear();
+
+// only one file left...	
+		ns__FileInfo fi;
+		
+		fi.id = inDb;
+		fi.uuid = db->GetUUID();
+		fi.version = db->GetVersion();
+		fi.path = db->GetFilePath();
+		fi.entries = db->Count();
+		fi.raw_data_size = db->GetRawDataSize();
+		
+		struct stat sb;
+		string path = fi.path;
+		if (path.substr(0, 7) == "file://")
+			path.erase(0, 7);
+		
+		if (stat(path.c_str(), &sb) == 0)
+		{
+			fi.file_size = sb.st_size;
+			
+			struct tm tm;
+			char b[1024];
+
+			strftime(b, sizeof(b), "%Y-%m-%d %H:%M:%S",
+				localtime_r(&sb.st_mtime, &tm));
+			
+			fi.modification_date = b;
+		}
+		
+		outInfo.files.push_back(fi);
 }
 
 SOAP_FMAC5 int SOAP_FMAC6
@@ -223,20 +196,17 @@ ns__GetDatabankInfo(
 		{
 			// how inefficient...
 			
-			for (vector<DbInfo>::iterator dbi = gDbInfo.begin(); dbi != gDbInfo.end(); ++dbi)
+			for (WSDatabankTable::iterator dbi = WSDatabankTable::Instance().begin(); dbi != WSDatabankTable::Instance().end(); ++dbi)
 			{
-				if (dbi->id == "all")
-					continue;
-				
 				try
 				{
 					ns__DatabankInfo inf;
-					GetDatabankInfo(dbi->id, inf);
+					GetDatabankInfo(dbi->first, inf);
 					info.push_back(inf);
 				}
 				catch (...)
 				{
-					cerr << endl << "Skipping db " << dbi->id << endl;
+					cerr << endl << "Skipping db " << dbi->first << endl;
 				}
 			}
 		}
@@ -316,7 +286,7 @@ string GetTitle(
 		db->Get(inId, result))
 	{
 		result = WFormatTable::Instance().Format(
-					gFormatDir, WSDatabankTable::Instance().GetScript(inDb),
+					gParserDir, WSDatabankTable::Instance().GetScript(inDb),
 					"title", result, inDb, inId);
 	}
 	
@@ -377,7 +347,7 @@ ns__GetEntry(
 					THROW(("Entry %s not found in databank %s", id.c_str(), db.c_str()));
 					
 				entry = WFormatTable::Instance().Format(
-					gFormatDir, WSDatabankTable::Instance().GetScript(db), "html", entry, db, id);
+					gParserDir, WSDatabankTable::Instance().GetScript(db), "html", entry, db, id);
 				break;
 			}
 			
@@ -586,21 +556,19 @@ ns__FindAll(
 	{
 		boost::ptr_vector<CSearchThread> threads;
 		
-		for (vector<DbInfo>::iterator dbi = gDbInfo.begin(); dbi != gDbInfo.end(); ++dbi)
+		for (WSDatabankTable::iterator dbi = WSDatabankTable::Instance().begin(); dbi != WSDatabankTable::Instance().end(); ++dbi)
 		{
-			if (not dbi->in_all)
-				continue;
-			
+//			if (not dbi->in_all)
+//				continue;
+//			
 			try
 			{
-				MDatabankPtr mrsDb = WSDatabankTable::Instance()[dbi->id];
-				
-				threads.push_back(new CSearchThread(dbi->id, mrsDb, queryterms, algorithm, alltermsrequired, booleanfilter));
+				threads.push_back(new CSearchThread(dbi->first, dbi->second, queryterms, algorithm, alltermsrequired, booleanfilter));
 				threads.back().Start();
 			}
 			catch (...)
 			{
-				cerr << endl << "Skipping db " << dbi->id << endl;
+				cerr << endl << "Skipping db " << dbi->first << endl;
 			}
 		}
 		
@@ -700,7 +668,7 @@ ns__FindSimilar(
 			THROW(("Entry '%s' not found in '%d'", id.c_str(), db.c_str()));
 
 		string entry = WFormatTable::Instance().Format(
-			gFormatDir, WSDatabankTable::Instance().GetScript(db), "indexed", data, db, id);
+			gParserDir, WSDatabankTable::Instance().GetScript(db), "indexed", data, db, id);
 		
 		auto_ptr<MRankedQuery> q(mrsDb->RankedQuery("__ALL_TEXT__"));
 	
@@ -759,6 +727,168 @@ ns__FindSimilar(
 	return result;
 }
 
+class CSearchSimilarThread : public CThread
+{
+  public:
+					CSearchSimilarThread(
+						string				dbName,
+						MDatabankPtr		db,
+						const string&		entry,
+						enum ns__Algorithm	algorithm);
+
+	auto_ptr<MQueryResults>
+					Results()				{ return fResults; }
+	string			Db()					{ return fDbName; }
+	
+  protected:
+	
+	virtual void	Run();
+
+  private:
+	auto_ptr<MQueryResults>
+						fResults;
+	string				fDbName;
+	MDatabankPtr		fDB;
+	const string&		fEntry;
+	enum ns__Algorithm	fAlgorithm;
+};
+
+CSearchSimilarThread::CSearchSimilarThread(
+	string				dbName,
+	MDatabankPtr		db,
+	const string&		entry,
+	enum ns__Algorithm	algorithm)
+	: fDbName(dbName)
+	, fDB(db)
+	, fEntry(entry)
+	, fAlgorithm(algorithm)
+{
+}
+
+void CSearchSimilarThread::Run()
+{
+	try
+	{
+		auto_ptr<MRankedQuery> q(fDB->RankedQuery("__ALL_TEXT__"));
+	
+		switch (fAlgorithm)
+		{
+			case Vector:
+				q->SetAlgorithm("vector");
+				break;
+			
+			case Dice:
+				q->SetAlgorithm("dice");
+				break;
+			
+			case Jaccard:
+				q->SetAlgorithm("jaccard");
+				break;
+			
+			default:
+				THROW(("Unsupported search algorithm"));
+				break;
+		}
+			
+		q->SetAllTermsRequired(false);
+		q->AddTermsFromText(fEntry);
+
+		fResults.reset(q->Perform(NULL));
+	}
+	catch (exception& e)
+	{
+		cout << "exception in CSearchSimilarThread::Run: " << e.what() << endl;
+	}
+	catch (...)
+	{
+		cout << "unknown exception in CSearchSimilarThread::Run" << endl;
+	}
+}
+
+SOAP_FMAC5 int SOAP_FMAC6
+ns__FindAllSimilar(
+	struct soap*		soap,
+	string				db,
+	string				id,
+	enum ns__Algorithm	algorithm,
+	vector<struct ns__FindAllResult>&
+						response)
+{
+	int result = SOAP_OK;
+	
+	try
+	{
+		MDatabankPtr mrsDb = WSDatabankTable::Instance()[db];
+		
+		string data;
+		if (not mrsDb->Get(id, data))
+			THROW(("Entry '%s' not found in '%d'", id.c_str(), db.c_str()));
+
+		string entry = WFormatTable::Instance().Format(
+			gParserDir, WSDatabankTable::Instance().GetScript(db), "indexed", data, db, id);
+
+		boost::ptr_vector<CSearchSimilarThread> threads;
+		
+		for (WSDatabankTable::iterator dbi = WSDatabankTable::Instance().begin(); dbi != WSDatabankTable::Instance().end(); ++dbi)
+		{
+//			if (not dbi->in_all)
+//				continue;
+			
+			try
+			{
+				threads.push_back(new CSearchSimilarThread(dbi->first, dbi->second, entry, algorithm));
+				threads.back().Start();
+			}
+			catch (...)
+			{
+				cerr << endl << "Skipping db " << dbi->first << endl;
+			}
+		}
+		
+		for (boost::ptr_vector<CSearchSimilarThread>::iterator t = threads.begin(); t != threads.end(); ++t)
+		{
+			t->Join();
+			
+			auto_ptr<MQueryResults> r = t->Results();
+			
+			if (r.get() != NULL)
+			{
+				ns__FindAllResult fa;
+
+				fa.db = t->Db();
+				fa.count = r->Count(true);
+				
+				const char* id;
+				int n = 5;
+				
+				while (n-- > 0 and (id = r->Next()) != NULL)
+				{
+					ns__Hit h;
+		
+					h.id = id;
+					h.score = r->Score();
+					h.db = fa.db;
+					h.title = GetTitle(h.db, h.id);
+					
+					fa.hits.push_back(h);
+				}
+
+				response.push_back(fa);
+			}
+		}
+		
+		stable_sort(response.begin(), response.end(), SortOnFirstHitScore());
+	}
+	catch (exception& e)
+	{
+		return soap_receiver_fault(soap,
+			"An error occurred while doing a FindAll",
+			e.what());
+	}
+
+	return result;
+}
+
 // --------------------------------------------------------------------
 // 
 //   main body
@@ -792,22 +922,65 @@ void handler(int inSignal)
 	errno = old_errno;
 }
 
+void usage()
+{
+	cout << "usage: mrsws [-d datadir] [-p parserdir] [[-a address] [-p port] | -i input] [-v]" << endl;
+	cout << "    -d   data directory containing MRS files (default " << gDataDir << ')' << endl;
+	cout << "    -p   parser directory containing parser scripts (default " << gParserDir << ')' << endl;
+	cout << "    -a   address to bind to (default localhost)" << endl;
+	cout << "    -p   port number to bind to (default 8081)" << endl;
+	cout << "    -i   process command from input file and exit" << endl;
+	cout << "    -v   be verbose" << endl;
+	cout << endl;
+	exit(1);
+}
+
 int main(int argc, const char* argv[])
 {
-	if (argc < 2)
+	int c, verbose = 0;
+	string input_file, address = "localhost";
+	short port = 8081;
+	
+	while ((c = getopt(argc, const_cast<char**>(argv), "d:s:a:p:i:v")) != -1)
+	{
+		switch (c)
+		{
+			case 'd':
+				gDataDir = optarg;
+				break;
+			
+			case 's':
+				gParserDir = optarg;
+				break;
+			
+			case 'a':
+				address = optarg;
+				break;
+			
+			case 'p':
+				port = atoi(optarg);
+				break;
+			
+			case 'i':
+				input_file = optarg;
+				break;
+			
+			case 'v':
+				++verbose;
+				break;
+			
+			default:
+				usage();
+				break;
+		}
+	}
+	
+	if (input_file.length())
 	{
 		struct soap soap;
 		
 		soap_init(&soap);
 
-		string dataDir;
-		ReadConfig("mrs.conf", dataDir, gFormatDir, gDbInfo);
-		
-		if (dataDir.length() > 0 and dataDir[dataDir.length() - 1] != '/')
-			dataDir += '/';
-	
-		setenv("MRS_DATA_DIR", dataDir.c_str(), 1);
-					
 		WSDatabankTable::Instance().ReloadDbs();
 					
 		soap_serve(&soap);
@@ -833,9 +1006,7 @@ int main(int argc, const char* argv[])
 //	soap_set_sent_logfile(&soap, "sent.log"); // append all messages sent in /logs/sent/service12.log
 //	soap_set_test_logfile(&soap, "test.log"); // no file name: do not save debug messages
 
-		int port = atoi(argv[1]);
-
-		m = soap_bind(&soap, "localhost", port, 100);
+		m = soap_bind(&soap, address.c_str(), port, 100);
 		if (m < 0)
 			soap_print_fault(&soap, stderr);
 		else
@@ -852,19 +1023,9 @@ int main(int argc, const char* argv[])
 					break;
 				
 				if (gNeedReload)
-				{
-					string dataDir;
-					ReadConfig("mrs.conf", dataDir, gFormatDir, gDbInfo);
-					
-					if (dataDir.length() > 0 and dataDir[dataDir.length() - 1] != '/')
-						dataDir += '/';
-				
-					setenv("MRS_DATA_DIR", dataDir.c_str(), 1);
-					
 					WSDatabankTable::Instance().ReloadDbs();
-					
-					gNeedReload = false;
-				}
+
+				gNeedReload = false;
 				
 				s = soap_accept(&soap);
 				

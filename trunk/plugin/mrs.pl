@@ -49,7 +49,7 @@ $| = 1;
 # capture the commandline parameters
 
 my $action = shift;
-$action = '' unless defined $action;
+&Usage() unless defined $action;
 
 my %opts;
 
@@ -184,11 +184,11 @@ Usage:
         -s      script to use (if other than default for databank)
         -p      part number for this part
         -P      total number of parts
-        -b		max weight bit count (default is 5)
+        -b      max weight bit count (default is 5)
         -w      stopword file to use
         -v      verbose
 
-    mrs merge [-d databank -P total|-m databank [-s script]] [-v]
+    mrs merge -d databank [-P total|-m databank [-s script]] [-v]
     
         -d      databank name
         -P      total number of parts
@@ -198,7 +198,7 @@ Usage:
         -v      verbose
 
     mrs blast -d databank [-q 'mrs query'] [-v] -i query_file
-	
+    
         -d      databank name
         -q      optional MRS query to limit search space
         -i      query file in fasta format
@@ -225,7 +225,7 @@ Usage:
         -l      minimal word length
 
     mrs entry -d databank -e entry
-	
+    
         -d      databank name
         -e      entry ID
         -v      verbose
@@ -502,52 +502,12 @@ sub Blast()
 	}
 }
 
-sub printNumber
-{
-	my $n = shift;
-
-	1 while $n =~ s/(\d)(\d\d\d)(?!\d)/$1,$2/;
-	
-	return $n;
-}
-
 sub Info()
 {
 	my ($db) = @_;
 	
 	my $m = new MRS::MDatabank($db);
 
-	my %index_types = (
-		'text' => 'Text',
-		'valu' => 'Value',
-		'date' => 'Date',
-		'nmbr' => 'Number',
-		'wtxt' => 'Weighted',
-	);
-
-	print "Name: $db\n";
-#	print 'Entries: ' . &printNumber($m->Count) . "\n";
-	
-	my $i = $m->Indices;
-	
-	die "No indices in databank\n" unless defined $i;
-	
-	while (my $ix = $i->Next)
-	{
-		my $type = $index_types{$ix->Type};
-		my $name = $ix->Code;
-		my $entries = &printNumber($ix->Count);
-
-format Formaat1 =
-@<<<<<<<<<<<<<<<<  @<<<<<<<  @>>>>>>>>>>>>>>>
-$name,             $type,   $entries
-.
-		
-		$FORMAT_NAME = 'Formaat1';
-		write;
-	}
-	
-	print "\n\n";
 	$m->DumpInfo;
 }
 
@@ -741,7 +701,10 @@ sub section
 sub meta
 {
 	my ($self, $meta) = @_;
+
 	$self->{meta} = $meta if defined $meta;
+	$self->{meta} = [] unless $self->{meta};
+	
 	return $self->{meta};
 }
 

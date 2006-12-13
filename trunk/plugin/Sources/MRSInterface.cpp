@@ -743,7 +743,17 @@ bool MDatabank::GetDescription(const string& inEntryID, string& outText)
 #ifndef NO_BLAST
 bool MDatabank::ContainsBlastIndex() const
 {
-	return fImpl->fDatabank->GetBlastDbCount() > 0;
+	bool hasBlastIndices = false;
+	
+	try
+	{
+		hasBlastIndices = fImpl->fDatabank->GetBlastDbCount() > 0;
+	}
+	catch (...)
+	{
+	}
+	
+	return hasBlastIndices;
 }
 
 const char* MDatabank::Sequence(const string& inEntryID, unsigned long inIndex)

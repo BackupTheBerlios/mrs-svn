@@ -36,8 +36,9 @@ struct ns__DatabankInfo
 };
 
 int ns__GetDatabankInfo(
-	xsd__string								db = "all",
-	std::vector<struct ns__DatabankInfo>&	info);
+	xsd__string					db = "all",
+	std::vector<struct ns__DatabankInfo>&
+								info);
 
 enum ns__Format
 {
@@ -103,6 +104,14 @@ int ns__Find(
 	int							maxresultcount = 15,
 	struct ns__FindResponse&	response);
 
+int ns__FindSimilar(
+	xsd__string					db,
+	xsd__string					id,
+	enum ns__Algorithm			algorithm = Vector,
+	int							resultoffset = 0,
+	int							maxresultcount = 15,
+	struct ns__FindResponse&	response);
+
 struct ns__FindAllResult
 {
 	xsd__string					db;
@@ -117,17 +126,16 @@ int ns__FindAll(
 	xsd__string					booleanfilter,
 	std::vector<struct ns__FindAllResult>&
 								response);
+
+int ns__FindAllSimilar(
+	xsd__string					db,
+	xsd__string					id,
+	enum ns__Algorithm			algorithm = Vector,
+	std::vector<struct ns__FindAllResult>&
+								response);
+
 int ns__SpellCheck(
 	xsd__string					db,
 	xsd__string					queryterm,
 	std::vector<xsd__string>&	suggestions);
-
-int ns__FindSimilar(
-	xsd__string					db,
-	xsd__string					id,
-	enum ns__Algorithm			algorithm = Vector,
-	int							resultoffset = 0,
-	int							maxresultcount = 15,
-	struct ns__FindResponse&	response);
-
 
