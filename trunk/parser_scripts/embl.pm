@@ -87,7 +87,6 @@ sub new
 		section		=> 'nucleotide',
 		meta		=> [ 'title' ],
 		merge		=> \%merge_databanks,
-		raw_files	=> qr/\.dat\.gz$/,
 		@_
 	};
 	
@@ -95,9 +94,63 @@ sub new
 	{
 		$self->{name} = $NAMES{$self->{db}};
 		$self->{name} = $self->{db} unless defined $self->{name};
+		
+		if ($self->{db} eq 'embl_release') {
+			$self->{raw_files} = qr/\.dat\.gz$/;
+		}
+		elsif ($self->{db} eq 'embl_updates') {
+			
+			# tricky... we want only the update files that match our release version of EMBL
+			# so we need to find out the version number for the release first:
+			
+			my $rdb = new MRS::Databank('embl_release')
+				or die "EMBL Release is not available, no way to determine version, sorry\n";
+				
+			if ($rdb->GetVersion =~ m/Release (\d+) /) {
+				my $vers = int($1) + 1;
+				$self->{raw_files} = qr/r${vers}u\d+\.dat\.gz/;
+			}
+			else {
+				die "Unable to fetch version string from embl_release\n";
+			}
+		}
+		else {
+			die "Unknown db: $self->{db}\n";
+		}
 	}
 	
 	return bless $self, "MRS::Script::embl";
+}
+
+sub version
+{
+	my ($self) = @_;
+
+	my $raw_dir = $self->{raw_dir} or die "raw_dir is not defined\n";
+	my $db = $self->{db} or die "db is not defined\n";
+
+	my $vers;
+	
+	if ($db eq 'embl_release')
+	{
+		open RELNOTES, "<$raw_dir/relnotes.txt";
+		
+		while (my $line = <RELNOTES>)
+		{
+			if ($line =~ /^\s+(Release\s+(\d+).+)/) {
+				$vers = $1;
+				last;
+			}
+		}
+
+		close RELNOTES;
+	}
+
+	die "Unknown db: $db" unless defined $vers;
+
+	chomp($vers);
+
+	return $vers;
 }
 
 sub parse
@@ -189,39 +242,6 @@ sub parse
 		}
 	}
 }
-
-sub version
-{
-	my ($self) = @_;
-
-	my $raw_dir = $self->{raw_dir} or die "raw_dir is not defined\n";
-	my $db = $self->{db} or die "db is not defined\n";
-
-	my $vers;
-	
-	if ($db eq 'embl_release')
-	{
-		open RELNOTES, "<$raw_dir/relnotes.txt";
-		
-		while (my $line = <RELNOTES>)
-		{
-			if ($line =~ /^\s+(Release\s+(\d+).+)/) {
-				$vers = $1;
-				last;
-			}
-		}
-
-		close RELNOTES;
-	}
-
-	die "Unknown db: $db" unless defined $vers;
-
-	chomp($vers);
-
-	return $vers;
-}
-
-# formatting
 
 my @links_db_xref = (
 	{
