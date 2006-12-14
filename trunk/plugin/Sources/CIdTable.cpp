@@ -207,8 +207,9 @@ struct CIdTableHelper
 						if (map[inValue] != nil)
 							THROW(("Error creating ID table: duplicate id for document %ld (%s <=> %s)",
 								(uint32)inValue, map[inValue], inKey.c_str()));
-						
-						map[inValue] = data.Store(inKey.c_str());
+
+						// make sure keys are stored lowercase...
+						map[inValue] = data.Store(tolower(inKey));
 						++n;
 					}
 };
@@ -250,7 +251,7 @@ void CIdTable::Create(
 				{
 					stringstream s;
 					s << '#' << i;
-					helper.map[i] = helper.data.Store(s.str().c_str());
+					helper.map[i] = helper.data.Store(s.str());
 					
 					if (inOmitVector == nil)
 						cerr << "Adding id: " << s.str() << endl;
