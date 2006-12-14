@@ -226,6 +226,7 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 							const std::string& inScriptName, const std::string& inSection);
 
 	long				Count();			/**< \brief Return the number of documents in this databank */
+	std::string			GetCode();			/**< \brief Return the short name (also called code) for this databank */
 	std::string			GetVersion();		/**< \brief Return the version string for this databank */
 	std::string			GetUUID();			/**< \brief Return the UUID for this databank */
 	std::string			GetName();			/**< \brief Return the pretty name for this databank */

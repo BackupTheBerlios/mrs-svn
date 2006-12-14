@@ -528,6 +528,11 @@ long MDatabank::Count()
 	return fImpl->fDatabank->Count();
 }
 
+string MDatabank::GetCode()
+{
+	return fImpl->fDatabank->GetDbName();
+}
+
 string MDatabank::GetVersion()
 {
 	return fImpl->fDatabank->GetVersion();
