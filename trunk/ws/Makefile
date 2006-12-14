@@ -63,7 +63,7 @@ PERL		= /usr/bin/perl
 
 include make.config
 
-SYSINCPATHS	+= $(BOOST)
+SYSINCPATHS	+= $(BOOST) $(LIBXML)
 
 LDFLAGS		+= $(shell $(PERL) -MExtUtils::Embed -e ldopts)
 
@@ -200,7 +200,7 @@ LINK_PATHS = $(foreach path, $(LIBPATHS), $(addprefix -L, $(path)))
 
 # add the -l prefix to all libs to be linked against
 LINK_LIBS = $(foreach lib, $(LIBS), $(addprefix -l, $(lib)))
-LINK_LIBS += $(BOOST_LIBS)
+LINK_LIBS += $(BOOST_LIBS) $(LIBXML_LIBS)
 
 # add to the linker flags 
 LDFLAGS += $(LINK_PATHS) $(LINK_LIBS)

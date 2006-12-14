@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mrs-config>
+	<datadir>/data/mrs/</datadir>
+	<script>/Users/maarten/projects/mrs/parser_scripts/</script>
+	<address>localhost</address>
+	<port>8081</port>
+	<dbs>
+		<db>uniprot</db>
+		<db>embl</db>
+		<db>dbest</db>
+		<db>pdb</db>
+		<db>pdbfinder2</db>
+		<db>omim</db>
+		<db>locuslink</db>
+		<db>refseq</db>
+		<db>genbank_release</db>
+		<db>dssp</db>
+		<db>hssp</db>
+		<db>unigene</db>
+		<db>uniuniq</db>
+		<db>ligand-compound</db>
+		<db>ligand-enzyme</db>
+		<db>ligand-glycan</db>
+		<db>ligand-reaction</db>
+		<db>taxonomy</db>
+		<db>go</db>
+		<db>goa</db>
+		<db>enzyme</db>
+		<db>pfama</db>
+		<db>pfamb</db>
+		<db>pfamseed</db>
+		<db>interpro</db>
+		<db>prosite</db>
+		<db>prosite_doc</db>
+		<db>oxford</db>
+		<db>mimmap</db>
+		<db>sprot</db>
+		<db>trembl</db>
+		<db>gpcrdb</db>
+		<db>prints</db>
+		<db>gene</db>
+	</dbs>
+</mrs-config>

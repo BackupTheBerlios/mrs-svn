@@ -16,12 +16,19 @@
 #include <boost/filesystem/operations.hpp>
 #include <boost/filesystem/path.hpp>
 
+#include <libxml/tree.h>
+#include <libxml/parser.h>
+#include <libxml/xpath.h>
+#include <libxml/xpathInternals.h>
+
 #include "soapH.h"
 #include "mrsws.nsmap"
 #include "MRSInterface.h"
 #include "CThread.h"
 #include "WError.h"
 #include "WFormat.h"
+
+#define nil NULL
 
 using namespace std;
 namespace fs = boost::filesystem;
@@ -36,8 +43,13 @@ namespace fs = boost::filesystem;
 #define MRS_PARSER_DIR "/usr/local/share/mrs/parser_scripts/"
 #endif
 
+#ifndef MRS_CONFIG_FILE
+#define MRS_CONFIG_FILE "/usr/local/etc/mrs-config.xml"
+#endif
+
 fs::path gDataDir(MRS_DATA_DIR, fs::native);
 fs::path gParserDir(MRS_PARSER_DIR, fs::native);
+fs::path gConfigFile(MRS_CONFIG_FILE, fs::native);
 
 extern double system_time();
 
@@ -86,34 +98,106 @@ void WSDatabankTable::ReloadDbs()
 	
 	cout << endl;
 	
-	fs::directory_iterator end;
-	for (fs::directory_iterator fi(gDataDir); fi != end; ++fi)
+	if (fs::exists(gConfigFile))
 	{
-		if (is_directory(*fi))
-			continue;
-		
-		string name = fi->leaf();
-		
-		if (name.length() < 4 or name.substr(name.length() - 4) != ".cmp")
-			continue;
-		
-		name.erase(name.length() - 4);
+		xmlInitParser();
 
-		cout << "Loading " << name << " from " << fi->string() << " ..."; cout.flush();
-		
+		xmlDocPtr doc = nil;
+		xmlXPathContextPtr context = nil;
+		xmlXPathObjectPtr data = nil;
+
 		try
 		{
-			MDatabankPtr db(new MDatabank(fi->string()));
-			db->PrefetchDocWeights("__ALL_TEXT__");
-			mDBs[name] = db;
+			doc = xmlParseFile(gConfigFile.string().c_str());
+			if (doc == nil)
+				THROW(("Failed to parse mrs configuration file %s", gConfigFile.string().c_str()));
+			
+			context = xmlXPathNewContext(doc);
+			if (context == nil)
+				THROW(("Failed to parse mrs configuration file %s (2)", gConfigFile.string().c_str()));
+			
+			data = xmlXPathEvalExpression((const xmlChar*)"/mrs-config/dbs/db", context);
+			if (data == nil or data->nodesetval == nil)
+				THROW(("Failed to locate databank information in configuration file %s", gConfigFile.string().c_str()));
+			
+			for (int i = 0; i < data->nodesetval->nodeNr; ++i)
+			{
+				xmlNodePtr db = data->nodesetval->nodeTab[i];
+				if (strcmp((const char*)db->name, "db"))
+					continue;
+				
+				const char* name = (const char*)XML_GET_CONTENT(db->children);
+				if (name == nil)
+					continue;
+				
+				fs::path f = gDataDir / (string(name) + ".cmp");
+				
+				cout << "Loading " << name << " from " << f.string() << " ..."; cout.flush();
+				
+				try
+				{
+					MDatabankPtr db(new MDatabank(f.string()));
+					db->PrefetchDocWeights("__ALL_TEXT__");
+					mDBs[name] = db;
+				}
+				catch (exception& e)
+				{
+					cout << " failed" << endl;
+					continue;
+				}
+				
+				cout << " done" << endl;
+			}
 		}
 		catch (exception& e)
 		{
-			cout << " failed" << endl;
-			continue;
+			cout << "reloading of databanks failed: " << endl;
+			cout << e.what() << endl;
 		}
 		
-		cout << " done" << endl;
+		if (data)
+			xmlXPathFreeObject(data);
+		
+		if (context)
+			xmlXPathFreeContext(context);
+		
+		if (doc)
+			xmlFreeDoc(doc);
+		
+		xmlCleanupParser();
+		xmlMemoryDump();
+	}
+	else
+	{
+		fs::directory_iterator end;
+		for (fs::directory_iterator fi(gDataDir); fi != end; ++fi)
+		{
+			if (is_directory(*fi))
+				continue;
+			
+			string name = fi->leaf();
+			
+			if (name.length() < 4 or name.substr(name.length() - 4) != ".cmp")
+				continue;
+			
+			name.erase(name.length() - 4);
+	
+			cout << "Loading " << name << " from " << fi->string() << " ..."; cout.flush();
+			
+			try
+			{
+				MDatabankPtr db(new MDatabank(fi->string()));
+				db->PrefetchDocWeights("__ALL_TEXT__");
+				mDBs[name] = db;
+			}
+			catch (exception& e)
+			{
+				cout << " failed" << endl;
+				continue;
+			}
+			
+			cout << " done" << endl;
+		}
 	}
 }
 
@@ -926,10 +1010,10 @@ void usage()
 int main(int argc, const char* argv[])
 {
 	int c, verbose = 0;
-	string input_file, address = "localhost";
+	string input_file, address = "localhost", config_file;
 	short port = 8081;
 	
-	while ((c = getopt(argc, const_cast<char**>(argv), "d:s:a:p:i:v")) != -1)
+	while ((c = getopt(argc, const_cast<char**>(argv), "d:s:a:p:i:c:v")) != -1)
 	{
 		switch (c)
 		{
@@ -951,6 +1035,10 @@ int main(int argc, const char* argv[])
 			
 			case 'i':
 				input_file = optarg;
+				break;
+			
+			case 'c':
+				gConfigFile = fs::system_complete(fs::path(optarg, fs::native));
 				break;
 			
 			case 'v':
@@ -976,6 +1064,9 @@ int main(int argc, const char* argv[])
 		cerr << "Parser directory " << gParserDir.string() << " is not a valid directory" << endl;
 		exit(1);
 	}
+
+	if (not fs::exists(gConfigFile))
+		cerr << "Configuration file " << gConfigFile.string() << " does not exist, ignoring" << endl;
 	
 	if (input_file.length())
 	{
