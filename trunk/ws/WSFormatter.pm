@@ -234,14 +234,15 @@ sub title
 	{
 		my $url = undef;
 
+		my $m = new MRS::Script::ParserInterface;
 		my $p = &getScript($mrs_format_dir, $name);
-		$p->{mrs} = new MRS::Script::ParserInterface;
+		$p->{mrs} = $m;
 
 		open TEXT, '<', \$text;
 		$p->parse(*TEXT, 0, $db, undef);
 		close TEXT;
 
-		$result = $p->{mrs}->{meta}->{title};
+		$result = $m->{meta}->{title};
 
 		if (not defined $result) {
 			$result = $p->describe($q, $text, $id, $url);
