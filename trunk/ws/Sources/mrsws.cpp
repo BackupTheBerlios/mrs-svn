@@ -36,8 +36,8 @@ namespace fs = boost::filesystem;
 #define MRS_PARSER_DIR "/usr/local/share/mrs/parser_scripts/"
 #endif
 
-string gDataDir = MRS_DATA_DIR;
-string gParserDir = MRS_PARSER_DIR;
+fs::path gDataDir(MRS_DATA_DIR, fs::native);
+fs::path gParserDir(MRS_PARSER_DIR, fs::native);
 
 extern double system_time();
 
@@ -92,22 +92,8 @@ void WSDatabankTable::ReloadDbs()
 	
 	cout << endl;
 	
-	fs::path dir_path = fs::system_complete(fs::path(gDataDir, fs::native));
-	
-	if (not fs::exists(dir_path))
-	{
-		cerr << "Directory " << gDataDir << " does not exist" << endl;
-		return;
-	}
-	
-	if (not fs::is_directory(dir_path))
-	{
-		cerr << gDataDir << " is not a directory" << endl;
-		return;
-	}
-	
 	fs::directory_iterator end;
-	for (fs::directory_iterator fi(dir_path); fi != end; ++fi)
+	for (fs::directory_iterator fi(gDataDir); fi != end; ++fi)
 	{
 		if (is_directory(*fi))
 			continue;
@@ -151,7 +137,8 @@ void GetDatabankInfo(
 	
 	outInfo.files.clear();
 
-// only one file left...	
+// only one file left...
+	{
 		ns__FileInfo fi;
 		
 		fi.id = inDb;
@@ -166,7 +153,7 @@ void GetDatabankInfo(
 		if (path.substr(0, 7) == "file://")
 			path.erase(0, 7);
 		
-		if (stat(path.c_str(), &sb) == 0)
+		if (stat(path.c_str(), &sb) == 0 and sb.st_mtime != 0)
 		{
 			fi.file_size = sb.st_size;
 			
@@ -180,6 +167,7 @@ void GetDatabankInfo(
 		}
 		
 		outInfo.files.push_back(fi);
+	}
 }
 
 SOAP_FMAC5 int SOAP_FMAC6
@@ -286,7 +274,7 @@ string GetTitle(
 		db->Get(inId, result))
 	{
 		result = WFormatTable::Instance().Format(
-					gParserDir, WSDatabankTable::Instance().GetScript(inDb),
+					gParserDir.string(), WSDatabankTable::Instance().GetScript(inDb),
 					"title", result, inDb, inId);
 	}
 	
@@ -347,7 +335,7 @@ ns__GetEntry(
 					THROW(("Entry %s not found in databank %s", id.c_str(), db.c_str()));
 					
 				entry = WFormatTable::Instance().Format(
-					gParserDir, WSDatabankTable::Instance().GetScript(db), "html", entry, db, id);
+					gParserDir.string(), WSDatabankTable::Instance().GetScript(db), "html", entry, db, id);
 				break;
 			}
 			
@@ -668,7 +656,7 @@ ns__FindSimilar(
 			THROW(("Entry '%s' not found in '%d'", id.c_str(), db.c_str()));
 
 		string entry = WFormatTable::Instance().Format(
-			gParserDir, WSDatabankTable::Instance().GetScript(db), "indexed", data, db, id);
+			gParserDir.string(), WSDatabankTable::Instance().GetScript(db), "indexed", data, db, id);
 		
 		auto_ptr<MRankedQuery> q(mrsDb->RankedQuery("__ALL_TEXT__"));
 	
@@ -825,7 +813,7 @@ ns__FindAllSimilar(
 			THROW(("Entry '%s' not found in '%d'", id.c_str(), db.c_str()));
 
 		string entry = WFormatTable::Instance().Format(
-			gParserDir, WSDatabankTable::Instance().GetScript(db), "indexed", data, db, id);
+			gParserDir.string(), WSDatabankTable::Instance().GetScript(db), "indexed", data, db, id);
 
 		boost::ptr_vector<CSearchSimilarThread> threads;
 		
@@ -925,8 +913,8 @@ void handler(int inSignal)
 void usage()
 {
 	cout << "usage: mrsws [-d datadir] [-p parserdir] [[-a address] [-p port] | -i input] [-v]" << endl;
-	cout << "    -d   data directory containing MRS files (default " << gDataDir << ')' << endl;
-	cout << "    -p   parser directory containing parser scripts (default " << gParserDir << ')' << endl;
+	cout << "    -d   data directory containing MRS files (default " << gDataDir.string() << ')' << endl;
+	cout << "    -p   parser directory containing parser scripts (default " << gParserDir.string() << ')' << endl;
 	cout << "    -a   address to bind to (default localhost)" << endl;
 	cout << "    -p   port number to bind to (default 8081)" << endl;
 	cout << "    -i   process command from input file and exit" << endl;
@@ -946,11 +934,11 @@ int main(int argc, const char* argv[])
 		switch (c)
 		{
 			case 'd':
-				gDataDir = optarg;
+				gDataDir = fs::system_complete(fs::path(optarg, fs::native));
 				break;
 			
 			case 's':
-				gParserDir = optarg;
+				gParserDir = fs::system_complete(fs::path(optarg, fs::native));
 				break;
 			
 			case 'a':
@@ -973,6 +961,20 @@ int main(int argc, const char* argv[])
 				usage();
 				break;
 		}
+	}
+	
+	// check the parameters
+	
+	if (not fs::exists(gDataDir) or not fs::is_directory(gDataDir))
+	{
+		cerr << "Data directory " << gDataDir.string() << " is not a valid directory" << endl;
+		exit(1);
+	}
+	
+	if (not fs::exists(gParserDir) or not fs::is_directory(gParserDir))
+	{
+		cerr << "Parser directory " << gParserDir.string() << " is not a valid directory" << endl;
+		exit(1);
 	}
 	
 	if (input_file.length())

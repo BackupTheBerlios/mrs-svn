@@ -142,13 +142,15 @@ sub getScript
 {
 	my ($mrs_format_dir, $name) = @_;
 
+	$name = 'default' if ((not defined $name) or (length($name) == 0));
+
 	if ($name eq 'default')
 	{
 		$formatters{$name} = MRS::Script->new(script_dir => $mrs_format_dir) unless defined $formatters{$name};
 	}
 	else
 	{
-		my $plugin = "${mrs_format_dir}${name}.pm";
+		my $plugin = "${mrs_format_dir}/${name}.pm";
 		my $mtime = -M $plugin;
 		
 		if (not defined $formatters{$name} or $formatters{$name}{mtime} != $mtime )

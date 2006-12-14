@@ -130,8 +130,6 @@ sub version
 		}
 	}
 
-	die "Unknown db: $db" unless defined $vers;
-
 	chomp($vers);
 
 	return $vers;
