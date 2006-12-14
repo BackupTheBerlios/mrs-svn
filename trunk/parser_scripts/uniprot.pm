@@ -103,9 +103,12 @@ END
 	{
 		$self->{raw_dir} =~ s'(sprot|trembl)/?$'uniprot';
 
+		$self->{raw_dir} =~ s|raw|uncompressed| if $self->{db} eq 'gpcrdb';
+
 		my %FILES = (
 			sprot	=> qr/uniprot_sprot\.dat\.gz$/,
 			trembl	=> qr/uniprot_trembl\.dat\.gz$/,
+			gpcrdb	=> qr/gpcrdb.dat/,
 		);
 		
 		$self->{raw_files} = $FILES{$self->{db}};
@@ -115,6 +118,7 @@ END
 			sprot		=> 'Swiss-Prot',
 			trembl		=> 'TrEMBL',
 			uniprot		=> 'UniProt KB',
+			gpcrdb		=> 'GPCRDB',
 		);
 
 		$self->{name} = $NAMES{$self->{db}};

@@ -86,7 +86,7 @@ sub GetTitle
 		
 	if ($title and $title ne '')
 	{
-		$desc = $q->b($title) . ' (' . $header . ')';
+		$desc = "$title ($header)";
 	}
 	else
 	{
@@ -95,7 +95,7 @@ sub GetTitle
 
 	if ($compound and $compound ne '')
 	{
-		$desc .= $q->br . $q->i($compound);
+		$desc .= "; $compound";
 	}	
 	
 	return $desc;

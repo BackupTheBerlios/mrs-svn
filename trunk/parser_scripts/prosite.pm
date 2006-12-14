@@ -132,8 +132,10 @@ sub parse
 
 sub version
 {
-	my ($self, $raw_dir) = @_;
+	my ($self) = @_;
 	my $vers;
+
+	my $raw_dir = $self->{raw_dir} or die "raw_dir is not defined\n";
 
 	open REL, "<$raw_dir/prosite.dat";
 
