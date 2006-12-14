@@ -41,7 +41,7 @@ package MRS::Script::oxford;
 
 our @ISA = "MRS::Script";
 
-our %INDICES = (
+my %INDICES = (
 	'id'		=> 'Unique ID',
 	'llhid'		=> 'Human EntrezGene ID',
 	'hsym'		=> 'Human Symbol',
@@ -277,6 +277,7 @@ sub new
 		section		=> 'other',
 		meta		=> [ 'title' ],
 		raw_files	=> qr/HMD_Human3\.rpt/,
+		indices		=> \%INDICES,
 		@_
 	};
 	return bless $self, "MRS::Script::oxford";

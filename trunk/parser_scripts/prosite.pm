@@ -41,7 +41,7 @@ package MRS::Script::prosite;
 
 our @ISA = "MRS::Script";
 
-our %INDICES = (
+my %INDICES = (
 	'id' => 'Identification',
 	'ac' => 'Accession number',
 	'cc' => 'Comments and Notes',
@@ -64,6 +64,7 @@ sub new
 		section		=> 'function',
 		meta		=> [ 'title' ],
 		raw_files	=> qr/prosite\.dat/,
+		indices		=> \%INDICES,
 		@_
 	};
 	return bless $self, "MRS::Script::prosite";

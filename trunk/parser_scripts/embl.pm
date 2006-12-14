@@ -44,7 +44,7 @@ use POSIX qw/strftime/;
 
 our @ISA = "MRS::Script";
 
-our %INDICES = (
+my %INDICES = (
 	'id' => 'Identification',
 	'ac' => 'Accession number',
 	'cc' => 'Comments and Notes',
@@ -87,6 +87,7 @@ sub new
 		section		=> 'nucleotide',
 		meta		=> [ 'title' ],
 		merge		=> \%merge_databanks,
+		indices		=> \%INDICES,
 		@_
 	};
 	

@@ -41,7 +41,7 @@ package MRS::Script::prints;
 
 our @ISA = "MRS::Script";
 
-our %INDICES = (
+my %INDICES = (
 	gd => 'Description',
 );
 
@@ -54,6 +54,7 @@ sub new
 		section		=> 'function',
 		meta		=> [ 'title' ],
 		raw_files	=> qr/prints.*\.dat\.gz$/,
+		indices		=> \%INDICES,
 		@_
 	};
 	return bless $self, "MRS::Script::prints";

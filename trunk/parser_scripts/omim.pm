@@ -41,7 +41,7 @@ package MRS::Script::omim;
 
 our @ISA = "MRS::Script";
 
-our %INDICES = (
+my %INDICES = (
 	'no' => 'Number',
 	'id' => 'Number',
 	'ti' => 'Title',
@@ -67,6 +67,7 @@ sub new
 		section		=> 'literature',
 		meta		=> [ 'title' ],
 		raw_files	=> qr/omim\.txt\.Z/,
+		indices		=> \%INDICES,
 		@_
 	};
 	return bless $self, "MRS::Script::omim";

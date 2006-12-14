@@ -43,7 +43,7 @@ use strict;
 
 our @ISA = "MRS::Script";
 
-our %INDICES = (
+my %INDICES = (
 	'id' => 'Identification',
 	'de' =>	'Description',
 	'an' => 'Alternate Name',
@@ -64,6 +64,7 @@ sub new
 		section		=> 'enzyme',
 		meta		=> [ 'title' ],
 		raw_files	=> qr/enzyme\.dat/,
+		indices		=> \%INDICES,
 		@_
 	};
 	return bless $self, "MRS::Script::enzyme";

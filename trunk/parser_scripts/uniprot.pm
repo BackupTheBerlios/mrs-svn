@@ -49,7 +49,7 @@ my $commentLine1 = "CC   -------------------------------------------------------
 my $commentLine2 = "CC   Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms";
 my $commentLine3 = "CC   Distributed under the Creative Commons Attribution-NoDerivs License";
 
-our %INDICES = (
+my %INDICES = (
 	id			=> 'Identification',
 	ac			=> 'Accession number',
 	cc			=> 'Comments and Notes',
@@ -95,6 +95,7 @@ END
 		compression				=> 'zlib',
 		compression_level		=> 9,
 		compression_dictionary	=> $copyright_comment,
+		indices					=> \%INDICES,
 		@_
 	};
 	
