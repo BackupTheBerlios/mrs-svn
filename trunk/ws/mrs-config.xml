@@ -5,7 +5,7 @@
 	<address>localhost</address>
 	<port>8081</port>
 	<dbs>
-		<db>uniprot</db>
+		<db ignore-in-all="1">uniprot</db>
 		<db>embl</db>
 		<db>dbest</db>
 		<db>pdb</db>
@@ -13,7 +13,7 @@
 		<db>omim</db>
 		<db>locuslink</db>
 		<db>refseq</db>
-		<db>genbank_release</db>
+		<db ignore-in-all="1">genbank_release</db>
 		<db>dssp</db>
 		<db>hssp</db>
 		<db>unigene</db>

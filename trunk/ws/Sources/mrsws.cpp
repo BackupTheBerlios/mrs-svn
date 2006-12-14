@@ -66,12 +66,14 @@ class WSDatabankTable
 	MDatabankPtr		operator[](const string& inCode);
 	
 	void				ReloadDbs();
+	bool				Ignore(const string& inDb)		{ return mIgnore.count(inDb) > 0; }
 	
-	iterator			begin() const		{ return mDBs.begin(); }
-	iterator			end() const			{ return mDBs.end(); }
+	iterator			begin() const					{ return mDBs.begin(); }
+	iterator			end() const						{ return mDBs.end(); }
 	
   private:
 	DBTable				mDBs;
+	set<string>			mIgnore;
 };
 
 WSDatabankTable& WSDatabankTable::Instance()
@@ -95,6 +97,7 @@ MDatabankPtr WSDatabankTable::operator[](const string& inCode)
 void WSDatabankTable::ReloadDbs()
 {
 	mDBs.clear();
+	mIgnore.clear();
 	
 	cout << endl;
 	
@@ -145,6 +148,10 @@ void WSDatabankTable::ReloadDbs()
 					cout << " failed" << endl;
 					continue;
 				}
+				
+				const char* ignore = (const char*)xmlGetProp(db, (const xmlChar*)"ignore-in-all");
+				if (ignore != nil and strcmp(ignore, "0"))
+					mIgnore.insert(name);
 				
 				cout << " done" << endl;
 			}
@@ -626,15 +633,17 @@ ns__FindAll(
 {
 	int result = SOAP_OK;
 	
+	WSDatabankTable& dbt = WSDatabankTable::Instance();
+	
 	try
 	{
 		boost::ptr_vector<CSearchThread> threads;
 		
-		for (WSDatabankTable::iterator dbi = WSDatabankTable::Instance().begin(); dbi != WSDatabankTable::Instance().end(); ++dbi)
+		for (WSDatabankTable::iterator dbi = dbt.begin(); dbi != dbt.end(); ++dbi)
 		{
-//			if (not dbi->in_all)
-//				continue;
-//			
+			if (dbt.Ignore(dbi->first))
+				continue;
+
 			try
 			{
 				threads.push_back(new CSearchThread(dbi->first, dbi->second, queryterms, algorithm, alltermsrequired, booleanfilter));
@@ -889,9 +898,11 @@ ns__FindAllSimilar(
 {
 	int result = SOAP_OK;
 	
+	WSDatabankTable& dbt = WSDatabankTable::Instance();
+	
 	try
 	{
-		MDatabankPtr mrsDb = WSDatabankTable::Instance()[db];
+		MDatabankPtr mrsDb = dbt[db];
 		
 		string data;
 		if (not mrsDb->Get(id, data))
@@ -901,10 +912,10 @@ ns__FindAllSimilar(
 
 		boost::ptr_vector<CSearchSimilarThread> threads;
 		
-		for (WSDatabankTable::iterator dbi = WSDatabankTable::Instance().begin(); dbi != WSDatabankTable::Instance().end(); ++dbi)
+		for (WSDatabankTable::iterator dbi = dbt.begin(); dbi != dbt.end(); ++dbi)
 		{
-//			if (not dbi->in_all)
-//				continue;
+			if (dbt.Ignore(dbi->first))
+				continue;
 			
 			try
 			{
