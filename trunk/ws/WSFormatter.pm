@@ -2,8 +2,8 @@
 
 package MRS::Script;
 
-#use strict;
-#use warnings;
+use strict;
+use warnings;
 
 sub new
 {
@@ -69,14 +69,21 @@ sub index_name
 
 package MRS::Script::ParserInterface;
 
+use strict;
+use warnings;
+
 # code needed for Find Similar
 
 sub new
 {
 	my $invocant = shift;
+
+	my %meta;
+
 	my $self = {
 		name => 'default',
 		text => '',
+		meta => \%meta,
 		@_
 	};
 	my $result = bless $self, "MRS::Script::ParserInterface";
@@ -137,13 +144,22 @@ sub IndexNumber
 
 sub AddSequence {}
 sub Store {}
-sub StoreMetaData {}
+
+sub StoreMetaData
+{
+	my ($self, $name, $value) = @_;
+	
+	$self->{meta}->{$name} = $value;
+}
+
 sub FlushDocument {}
 
 package Embed::WSFormat;
 
 use strict;
+use warnings;
 use CGI;
+use Data::Dumper;
 
 my $q = new CGI;
 my %formatters;
@@ -212,18 +228,29 @@ sub title
 	
 	my $result;
 
+	$name = $db unless defined $name and length($name) > 0;
+
 	eval
 	{
 		my $url = undef;
 
-		my $fmt = &getScript($mrs_format_dir, $name);
+		my $p = &getScript($mrs_format_dir, $name);
+		$p->{mrs} = new MRS::Script::ParserInterface;
 
-		$result = $fmt->describe($q, $text, $id, $url);
+		open TEXT, '<', \$text;
+		$p->parse(*TEXT, 0, $db, undef);
+		close TEXT;
+
+		$result = $p->{mrs}->{meta}->{title};
+
+		if (not defined $result) {
+			$result = $p->describe($q, $text, $id, $url);
+		}
 	};
 	
 	if ($@)
 	{
-		$result = "Error in formatting entry: $@";
+		$result = "Error in formatting title: $@";
 	}
 	
 	return $result;

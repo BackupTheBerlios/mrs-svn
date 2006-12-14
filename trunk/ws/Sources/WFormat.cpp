@@ -101,7 +101,7 @@ string WFormatTableImp::Format(
 									/* push the text onto stack  */
 	XPUSHs(sv_2mortal(newSVpvn(inText.c_str(), inText.length())));
 									/* push the db onto stack  */
-	XPUSHs(sv_2mortal(newSVpvn(inId.c_str(), inDb.length())));
+	XPUSHs(sv_2mortal(newSVpvn(inDb.c_str(), inDb.length())));
 									/* push the id onto stack  */
 	XPUSHs(sv_2mortal(newSVpvn(inId.c_str(), inId.length())));
 	PUTBACK;						/* make local stack pointer global */
@@ -115,7 +115,7 @@ string WFormatTableImp::Format(
 		                            /* pop the return value from stack */
 
 	string result = POPp;
-	
+
 	PUTBACK;
 	FREETMPS;                       /* free that return value        */
 	LEAVE;                       /* ...and the XPUSHed "mortal" args.*/
