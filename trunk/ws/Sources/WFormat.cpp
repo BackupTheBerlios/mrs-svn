@@ -46,6 +46,11 @@ struct WFormatTableImp
 								const string&	inText,
 								const string&	inDb,
 								const string&	inId);
+
+	string					IndexName(
+								const string&	inFormatDir,
+								const string&	inFormatter,
+								const string&	inIndex);
 	
 	PerlInterpreter*		my_perl;
 };
@@ -118,6 +123,38 @@ string WFormatTableImp::Format(
 	return result;
 }
 
+string WFormatTableImp::IndexName(
+	const string& inFormatDir,
+	const string& inFormatter,
+	const string& inIndex)
+{
+	dSP;                            /* initialize stack pointer      */
+	ENTER;                          /* everything created after here */
+	SAVETMPS;                       /* ...is a temporary variable.   */
+	PUSHMARK(SP);                   /* remember the stack pointer    */
+									/* push the format dir name onto the stack  */
+	XPUSHs(sv_2mortal(newSVpvn(inFormatDir.c_str(), inFormatDir.length())));
+									/* push the formatter name onto the stack  */
+	XPUSHs(sv_2mortal(newSVpvn(inFormatter.c_str(), inFormatter.length())));
+									/* push the index name onto stack  */
+	XPUSHs(sv_2mortal(newSVpvn(inIndex.c_str(), inIndex.length())));
+	PUTBACK;						/* make local stack pointer global */
+
+									/* call the function             */
+	perl_call_pv("Embed::WSFormat::index_name", G_SCALAR | G_EVAL);
+
+	SPAGAIN;                        /* refresh stack pointer         */
+		                            /* pop the return value from stack */
+
+	string result = POPp;
+	
+	PUTBACK;
+	FREETMPS;                       /* free that return value        */
+	LEAVE;                       /* ...and the XPUSHed "mortal" args.*/
+
+	return result;
+}
+
 // --------------------------------------------------------------------
 //
 
@@ -148,3 +185,11 @@ string WFormatTable::Format(
 	return mImpl->Format(inFormatDir, inFormatter, inFormat, inText, inDb, inId);
 }
 	
+string WFormatTable::IndexName(
+	const string&	inFormatDir,
+	const string&	inFormatter,
+	const string&	inIndex)
+{
+	return mImpl->IndexName(inFormatDir, inFormatter, inIndex);
+}
+

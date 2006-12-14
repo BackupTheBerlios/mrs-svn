@@ -52,7 +52,6 @@ class WSDatabankTable
 	static WSDatabankTable&	Instance();
 
 	MDatabankPtr		operator[](const string& inCode);
-	string				GetScript(const string& inCode);
 	
 	void				ReloadDbs();
 	
@@ -60,7 +59,7 @@ class WSDatabankTable
 	iterator			end() const			{ return mDBs.end(); }
 	
   private:
-	DBTable		mDBs;
+	DBTable				mDBs;
 };
 
 WSDatabankTable& WSDatabankTable::Instance()
@@ -81,11 +80,6 @@ MDatabankPtr WSDatabankTable::operator[](const string& inCode)
 	return mDBs[inCode];
 }
 
-inline string WSDatabankTable::GetScript(const string& inCode)
-{
-	return mDBs[inCode]->GetScriptName();
-}
-
 void WSDatabankTable::ReloadDbs()
 {
 	mDBs.clear();
@@ -100,7 +94,7 @@ void WSDatabankTable::ReloadDbs()
 		
 		string name = fi->leaf();
 		
-		if (name.substr(name.length() - 4) != ".cmp")
+		if (name.length() < 4 or name.substr(name.length() - 4) != ".cmp")
 			continue;
 		
 		name.erase(name.length() - 4);
@@ -123,30 +117,37 @@ void WSDatabankTable::ReloadDbs()
 	}
 }
 
+inline string Format(
+	MDatabankPtr		inDb,
+	const string&		inFormat,
+	const string&		inData,
+	const string&		inID)
+{
+	return WFormatTable::Instance().Format(gParserDir.string(), inDb->GetScriptName(), inFormat, inData, inDb->GetCode(), inID);
+}
+
 void GetDatabankInfo(
-	const string&		inDb,
+	MDatabankPtr		inMrsDb,
 	ns__DatabankInfo&	outInfo)
 {
-	MDatabankPtr db = WSDatabankTable::Instance()[inDb];
-
-	outInfo.id =		inDb;
-	outInfo.name =		db->GetName();
-	outInfo.script =	db->GetScriptName();
-	outInfo.url =		db->GetInfoURL();
-	outInfo.blastable = db->ContainsBlastIndex();
+	outInfo.id =		inMrsDb->GetCode();
+	outInfo.name =		inMrsDb->GetName();
+	outInfo.script =	inMrsDb->GetScriptName();
+	outInfo.url =		inMrsDb->GetInfoURL();
+	outInfo.blastable = inMrsDb->ContainsBlastIndex();
 	
 	outInfo.files.clear();
 
-// only one file left...
+// only one file left... (I used to parse the name tokenizing by + and | characters)
 	{
 		ns__FileInfo fi;
 		
-		fi.id = inDb;
-		fi.uuid = db->GetUUID();
-		fi.version = db->GetVersion();
-		fi.path = db->GetFilePath();
-		fi.entries = db->Count();
-		fi.raw_data_size = db->GetRawDataSize();
+		fi.id =				inMrsDb->GetCode();
+		fi.uuid =			inMrsDb->GetUUID();
+		fi.version =		inMrsDb->GetVersion();
+		fi.path =			inMrsDb->GetFilePath();
+		fi.entries =		inMrsDb->Count();
+		fi.raw_data_size =	inMrsDb->GetRawDataSize();
 		
 		struct stat sb;
 		string path = fi.path;
@@ -178,18 +179,18 @@ ns__GetDatabankInfo(
 {
 	int result = SOAP_OK;
 	
+	WSDatabankTable& dbt = WSDatabankTable::Instance();
+	
 	try
 	{
 		if (db == "all")
 		{
-			// how inefficient...
-			
-			for (WSDatabankTable::iterator dbi = WSDatabankTable::Instance().begin(); dbi != WSDatabankTable::Instance().end(); ++dbi)
+			for (WSDatabankTable::iterator dbi = dbt.begin(); dbi != dbt.end(); ++dbi)
 			{
 				try
 				{
 					ns__DatabankInfo inf;
-					GetDatabankInfo(dbi->first, inf);
+					GetDatabankInfo(dbi->second, inf);
 					info.push_back(inf);
 				}
 				catch (...)
@@ -201,7 +202,7 @@ ns__GetDatabankInfo(
 		else
 		{
 			ns__DatabankInfo inf;
-			GetDatabankInfo(db, inf);
+			GetDatabankInfo(dbt[db], inf);
 			info.push_back(inf);
 		}
 	}
@@ -232,12 +233,16 @@ ns__GetIndices(
 		if (not mrsIndices.get())
 			THROW(("Databank %s has no indices", db.c_str()));
 		
+		WFormatTable& ft = WFormatTable::Instance();
+		string script = mrsDb->GetScriptName();
+		
 		for (auto_ptr<MIndex> index(mrsIndices->Next()); index.get() != NULL; index.reset(mrsIndices->Next()))
 		{
 			ns__Index ix;
 			
 			ix.id = index->Code();
-			ix.description = ix.id;	// for now...
+			ix.description = ft.IndexName(gParserDir.string(), script, ix.id);
+			ix.count = index->Count();
 			
 			string t = index->Type();
 			if (t == "text" or t == "wtxt")
@@ -273,9 +278,7 @@ string GetTitle(
 	if (not db->GetMetaData(inId, "title", result) and
 		db->Get(inId, result))
 	{
-		result = WFormatTable::Instance().Format(
-					gParserDir.string(), WSDatabankTable::Instance().GetScript(inDb),
-					"title", result, inDb, inId);
+		result = Format(db, "title", result, inId);
 	}
 	
 	return result;
@@ -334,8 +337,7 @@ ns__GetEntry(
 				if (not mrsDb->Get(id, entry))
 					THROW(("Entry %s not found in databank %s", id.c_str(), db.c_str()));
 					
-				entry = WFormatTable::Instance().Format(
-					gParserDir.string(), WSDatabankTable::Instance().GetScript(db), "html", entry, db, id);
+				entry = Format(mrsDb, "html", entry, id);
 				break;
 			}
 			
@@ -655,8 +657,7 @@ ns__FindSimilar(
 		if (not mrsDb->Get(id, data))
 			THROW(("Entry '%s' not found in '%d'", id.c_str(), db.c_str()));
 
-		string entry = WFormatTable::Instance().Format(
-			gParserDir.string(), WSDatabankTable::Instance().GetScript(db), "indexed", data, db, id);
+		string entry = Format(mrsDb, "indexed", data, id);
 		
 		auto_ptr<MRankedQuery> q(mrsDb->RankedQuery("__ALL_TEXT__"));
 	
@@ -812,8 +813,7 @@ ns__FindAllSimilar(
 		if (not mrsDb->Get(id, data))
 			THROW(("Entry '%s' not found in '%d'", id.c_str(), db.c_str()));
 
-		string entry = WFormatTable::Instance().Format(
-			gParserDir.string(), WSDatabankTable::Instance().GetScript(db), "indexed", data, db, id);
+		string entry = Format(mrsDb, "indexed", data, id);
 
 		boost::ptr_vector<CSearchSimilarThread> threads;
 		

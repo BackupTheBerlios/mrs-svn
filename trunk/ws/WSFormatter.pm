@@ -57,6 +57,16 @@ sub script_dir
 	return $this->{script_dir};
 }
 
+sub index_name
+{
+	my ($self, $index) = @_;
+	
+	my $result = $self->{indices}->{$index};
+	$result = $index unless defined $result;
+
+	return $result;
+}
+
 package MRS::Script::ParserInterface;
 
 # code needed for Find Similar
@@ -244,6 +254,29 @@ sub indexed
 	if ($@)
 	{
 		$result = "Error in indexing entry: $@";
+	}
+	
+	return $result;
+}
+
+sub index_name
+{
+	my ($mrs_format_dir, $name, $index) = @_;
+	
+	my $result;
+
+	eval
+	{
+		my $url = undef;
+
+		my $p = &getScript($mrs_format_dir, $name);
+		
+		$result = $p->index_name($index);
+	};
+	
+	if ($@)
+	{
+		$result = "Error in retrieving index name: $@";
 	}
 	
 	return $result;

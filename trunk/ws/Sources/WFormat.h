@@ -17,6 +17,11 @@ class WFormatTable
 								const std::string&	inDb,
 								const std::string&	inId);
 
+	std::string				IndexName(
+								const std::string&	inFormatDir,
+								const std::string&	inFormatter,
+								const std::string&	inIndex);
+
 	static WFormatTable&	Instance();
 
   private:

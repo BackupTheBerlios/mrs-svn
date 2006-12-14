@@ -66,6 +66,7 @@ struct ns__Index
 {
 	xsd__string					id;
 	xsd__string					description;
+	unsigned long				count;
 	enum ns__IndexType			type;
 };
 
