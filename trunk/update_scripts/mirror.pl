@@ -32,7 +32,7 @@ $url = shift;
 $| = 1;
 
 my $retry = 5;
-do
+while (1)
 {
 	eval
 	{
@@ -43,11 +43,14 @@ do
 	if ($@)
 	{
 		print "\n\nError in mirror.pl: $@\n";
-		print "Retrying... \n" if $retry > 0;
+		
+		die "aborting\n" unless $retry > 0;
+		
+		--$retry;
+		print "Retrying... \n";
 	}
 }
-while ($retry-- > 0);
-	
+
 exit;
 
 sub VERSION_MESSAGE()
