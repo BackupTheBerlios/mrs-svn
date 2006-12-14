@@ -13,7 +13,7 @@ include make.pre
 DB_URL = ftp://ftp.ncbi.nih.gov//refseq/release/complete
 MIRROR_INCLUDE = .*\.(gbff|gpff)\.gz$$
 
-ZIPFILES = $(notdir $(wildcard $(SRCDIR)*.gz))
+ZIPFILES = $(wildcard $(SRCDIR)*.gz)
 #DATFILES = $(addprefix $(DSTDIR), $(notdir $(basename $(ZIPFILES))))
 
 # BLAST_FILES	= $(BLASTDIR)refseqp.formatted $(BLASTDIR)refseqn.formatted

@@ -12,7 +12,7 @@ MIRROR_INCLUDE		= .*\.tar\.gz
 
 # Now determine what sequence files need to be generated
 
-ZIPFILES	= $(SRCDIR)$(shell *.dat.gz)
+ZIPFILES	= $(wildcard $(SRCDIR)*.gz)
 DATFILES	= $(DSTDIR)gpcrdb.dat
 
 $(DSTDIR)gpcrdb.dat: $(ZIPFILES)

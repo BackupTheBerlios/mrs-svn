@@ -78,16 +78,20 @@ ifneq ($(MRS_PARTS),)
 
 include mrs.include
 
+ifneq ($(MRSSCRIPT),)
+MRS_MERGE_OPTIONS	+= -s $(MRSSCRIPT)
+endif
+
 ${MRS_FILES:=.cmp}: $(ZIPFILES)
 	$(MAKE) -f $(DATABANK).make ${PARTS:%=${@:.cmp=}-%.cmp}
-	$(MRS_MERGE) -d $(@F:.cmp=) -P $(MRS_PARTS)
+	$(MRS_MERGE) -d $(@F:.cmp=) -P $(MRS_PARTS) $(MRS_MERGE_OPTIONS)
 	chmod a+r $@
-	rm -rf ${PARTS:%=$(MRSDIR)$(@F:.cmp=)-%.cmp}
+#	rm -rf ${PARTS:%=$(MRSDIR)$(@F:.cmp=)-%.cmp}
 
 else
 
 ${MRS_FILES:=.cmp}: $(ZIPFILES)
-	$(MRS_CREATE) -d ${@F:.cmp=} $(MRS_OPTIONS)
+	$(MRS_CREATE) -d ${@F:.cmp=} $(MRS_OPTIONS) $(MRS_MERGE_OPTIONS)
 	chmod a+r $@
 
 endif
@@ -98,6 +102,7 @@ MRS_MERGE_FILES	= $(addprefix $(MRSDIR), $(MRS_MERGE_LIBS))
 
 ${MRS_MERGE_FILES:=.cmp}: ${MRS_FILES:=.cmp}
 	$(MRS_MERGE) -m $(@F:.cmp=) -l
+	chmod a+r $@
 
 endif
 
@@ -120,7 +125,7 @@ ifeq ($(MRS_DICT_FIELDS),)
 MRS_DICT_FIELDS = __ALL_TEXT__
 endif
 
-${MRS_DICT_FILES:=.dict}: $(ZIPFILES)
+${MRS_DICT_FILES:=.dict}: $(add-suffix .cmp, $(MRS_MERGE_FILES) $(MRS_FILES))
 	$(MRS_DICT_CREATE) -d ${@F:.dict=} -i $(MRS_DICT_FIELDS) $(MRS_DICT_OPTIONS)
 
 mrs: ${MRS_FILES:=.cmp} ${MRS_MERGE_FILES:=.cmp} ${MRS_DICT_FILES:=.dict}
