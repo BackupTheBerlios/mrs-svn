@@ -38,6 +38,7 @@ while (1)
 	{
 		&main($url);
 		$retry = 0;
+		last;
 	};
 	
 	if ($@)
