@@ -80,6 +80,21 @@ sub new
 		$self->{name} = $NAME{$self->{dbn}};
 		
 		$self->{name} .= " $sn" if defined $sn;
+
+		if ($db eq 'genbank_release')
+		{
+			open RELDATE, "<$self->{raw_dir}/README.genbank";
+			
+			while (my $line = <RELDATE>)
+			{
+				if ($line =~ /GenBank Flat File Release/) {
+					$self->{version} = $line;
+					last;
+				}
+			}
+			
+			close RELDATE;
+		}
 	}
 
 	return bless $self, "MRS::Script::genbank";
@@ -246,37 +261,6 @@ sub parse
 			}
 		}
 	}
-}
-
-sub version
-{
-	my ($self) = @_;
-
-	my $raw_dir = $self->{raw_dir} or die "raw_dir is not defined\n";
-	my $db = $self->{db} or die "db is not defined\n";
-	
-	my $vers;
-	
-	if ($db eq 'genbank_release')
-	{
-		open RELDATE, "<$raw_dir/README.genbank";
-		
-		while (my $line = <RELDATE>)
-		{
-			if ($line =~ /GenBank Flat File Release/) {
-				$vers = $line;
-				last;
-			}
-		}
-		
-		close RELDATE;
-	}
-
-	die "Unknown db: $db" unless defined $vers;
-
-	chomp($vers);
-
-	return $vers;
 }
 
 #formatting
