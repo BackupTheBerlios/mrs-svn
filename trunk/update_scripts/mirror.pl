@@ -31,28 +31,25 @@ $url = shift;
 
 $| = 1;
 
-my $retry = 5;
-while (1)
+my $ok = 0;
+
+for (my $retry = 0; $ok == 0 and $retry < 5; ++$retry)
 {
+	print "Retry $retry...\n" unless $retry == 0;
+	
 	eval
 	{
 		&main($url);
-		$retry = 0;
-		last;
+		$ok = 1;
 	};
 	
 	if ($@)
 	{
 		print "\n\nError in mirror.pl: $@\n";
-		
-		die "aborting\n" unless $retry > 0;
-		
-		--$retry;
-		print "Retrying... \n";
 	}
 }
 
-exit;
+exit($ok ? 0 : 1);
 
 sub VERSION_MESSAGE()
 {
@@ -119,7 +116,7 @@ sub fetch($$$)
 		
 		if (not defined $include or $e =~ /$include/)
 		{
-			$mdtm = $s->mdtm($e); # or die "Server does not support mdtm ($e)\n";
+			$mdtm = $s->mdtm($e) or warn "Server does not support mdtm ($e)\n";
 			$size = $s->size($e) if defined $mdtm;
 		}
 
