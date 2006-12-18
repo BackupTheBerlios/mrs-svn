@@ -640,9 +640,15 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	 *	and construct all indices. The parameter \a inCreateAllTextIndex is used to tell MRS
 	 *	to create a special __ALL_TEXT__ index that contains all words passed to the Index* methods.
 	 *	This __ALL_TEXT__ index is a weighted index and can be used to do ranked searches.
+	 *	The omit vector is a bit vector that records which documents have been invalidated by a
+	 *	new one. This assumes that only the last document stored with a certain ID is valid.
+	 *	\param	inCreateAllTextIndex	Create an __ALL_TEXT__ index
+	 *	\param	inCreateUpdateDatabank	Create an 'omit' vector for invalid documents
 	 */
 
-	void				Finish(bool inCreateAllTextIndex = false);
+	void				Finish(
+							bool	inCreateAllTextIndex = false,
+							bool	inCreateUpdateDatabank = false);
 
 	/** \brief	Create a dictionary file for indices \a inIndices
 	 *

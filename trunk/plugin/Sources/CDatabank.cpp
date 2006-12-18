@@ -564,7 +564,7 @@ string CDatabank::GetDbName() const
 	return basename(fPath.GetFileName());
 }
 
-void CDatabank::Finish(bool inCreateAllTextIndex)
+void CDatabank::Finish(bool inCreateAllTextIndex, bool inCreateUpdateDatabank)
 {
 	assert(fCompressor->Count() == fHeader->entries);
 	assert(fIndexer->Count() == fHeader->entries);
@@ -604,11 +604,30 @@ void CDatabank::Finish(bool inCreateAllTextIndex)
 			cout << "Creating ID table... ";
 			cout.flush();
 		}
+
+		// create an omit vector here if needed
+		
+		if (inCreateUpdateDatabank)
+		{
+			delete[] fOmitVector;
+			uint32 omitVectorSize = fHeader->entries >> 3;
+			if (fHeader->entries & 0x07)
+				omitVectorSize += 1;
+			
+			fOmitVector = new uint8[omitVectorSize];
+			memset(fOmitVector, 0, omitVectorSize);
+		}
 	
 		fDataFile->Seek(0, SEEK_END);
 		fHeader->id_offset = fDataFile->Tell();
-		CIdTable::Create(*fDataFile, *idIndex.get(), fHeader->entries);
+		CIdTable::Create(*fDataFile, *idIndex.get(), fHeader->entries, fOmitVector);
 		fHeader->id_size = fDataFile->Tell() - fHeader->id_offset;
+		
+		if (inCreateUpdateDatabank)
+		{
+			fHeader->omit_vector_offset = fDataFile->Tell();
+			fDataFile->Write(fOmitVector, omitVectorSize);
+		}
 
 		if (VERBOSE >= 1)
 			cout << "done" << endl;

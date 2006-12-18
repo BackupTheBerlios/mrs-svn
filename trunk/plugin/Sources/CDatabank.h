@@ -247,7 +247,7 @@ class CDatabank : public CDatabankBase
 #endif
 	void				FlushDocument();
 
-	void				Finish(bool inCreateAllTextIndex);
+	void				Finish(bool inCreateAllTextIndex, bool inCreateUpdateDatabank);
 	
 	virtual uint32		Count() const;
 	virtual int64		GetRawDataSize() const;

@@ -940,12 +940,12 @@ void MDatabank::FlushDocument()
 	fImpl->GetDB()->FlushDocument();
 }
 
-void MDatabank::Finish(bool inCreateAllTextIndex)
+void MDatabank::Finish(bool inCreateAllTextIndex, bool inCreateUpdateDatabank)
 {
 	{
 		CStopwatch sw(fImpl->fFinishTime);
 
-		fImpl->GetDB()->Finish(inCreateAllTextIndex);
+		fImpl->GetDB()->Finish(inCreateAllTextIndex, inCreateUpdateDatabank);
 		
 		fImpl->Close();
 		

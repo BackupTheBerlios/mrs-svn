@@ -55,13 +55,13 @@ my %opts;
 
 if ($action eq 'create')
 {
-	getopts('d:s:vp:P:b:w:r:', \%opts);
+	getopts('d:s:vp:P:b:w:r:u', \%opts);
 	
 	my $db = $opts{d} or &Usage();
 	
 	$MRS::VERBOSE = 1 if $opts{v};
 
-	&Create($db, $opts{'s'}, $opts{p}, $opts{P}, $opts{b}, $opts{w}, $opts{r});
+	&Create($db, $opts{'s'}, $opts{p}, $opts{P}, $opts{b}, $opts{w}, $opts{r}, $opts{u});
 }
 elsif ($action eq 'merge')
 {
@@ -178,7 +178,7 @@ sub Usage()
 	my $usage=<<END;
 Usage:
 
-    mrs create -d databank [-s script] [-v] [-p part -P total]
+    mrs create -d databank [-s script] [-v] [-p part -P total] [-u] [-r file1[,file2...]]
     
         -d      databank name (or path)
         -s      script to use (if other than default for databank)
@@ -186,6 +186,8 @@ Usage:
         -P      total number of parts
         -b      max weight bit count (default is 5)
         -w      stopword file to use
+        -r      optional list of alternative rawfiles, comma separated
+        -u      the databank will contain updates, only use last document ID
         -v      verbose
 
     mrs merge -d databank [-P total|-m databank [-s script]] [-v]
@@ -259,9 +261,10 @@ sub LoadParser
 
 sub Create()
 {
-	my ($db, $script, $partNr, $partCount, $weight_bit_count, $stopwordsfile, $rawfiles) = @_;
+	my ($db, $script, $partNr, $partCount, $weight_bit_count, $stopwordsfile, $rawfiles, $update) = @_;
 	
 	$script = $db unless defined $script;
+	$update = 0 unless defined $update;
 
 	die 'part number and total part count should both be specified'
 		unless ((defined $partNr) == (defined $partCount));
@@ -320,24 +323,60 @@ sub Create()
 	
 	if (defined $partNr)
 	{
-		my $fileCount = scalar @raw_files;
-		
 		die 'not enough raw files to create all parts'
-			unless $fileCount >= $partCount;
+			unless scalar @raw_files >= $partCount;
 
-		my $n = sprintf('%.0d', $fileCount / $partCount); #/
-
-		my $offset = $n * ($partNr - 1);
-		my $length = $n;
-		$length = $fileCount - ($n * ($partCount - 1)) if ($partNr == $partCount);
+		my @parts;
+		for (my $i = 0; $i < $partCount; ++$i) {
+			my %part = (
+				size => 0,
+				files => []
+			);
+			push @parts, \%part;
+		}
 		
-		if ($MRS::VERBOSE)
+		if ($update)	# when creating an update databank, order is important.
 		{
-			print "processing $fileCount files in $partCount parts, using $n files per part\n";
-			print "now processing part $partNr containing $length files\n";
+			my $totalSize;
+			foreach my $file (@raw_files) {
+				my $fileSize = stat($file)->size;
+				$totalSize += $fileSize;
+			}
+			
+			my $partSize = $totalSize / $partCount;
+
+			my $part = 0;
+			while (my $file = shift @raw_files)
+			{
+				my $parts[$part]->size += stat($file)->size;
+				push @{$parts[$part]->{files}}, $file;
+				
+				++$part if ($parts[$part]->size >= $partSize);
+				
+				die "duh...???" if $part >= scalar @parts;
+			}
+		}
+		else
+		{
+			# divide the files among the parts so that each part
+			# gets an equal amount of raw data to process
+	
+			# $files is sorted by size, largest first.
+			# Since we don't have a heap in Perl and I don't feel like writing it
+			# we use a poor man's approach, add the next file to the smallest part sofar
+			# keeping @parts sorted by size in ascending order
+			
+			while (my $file = shift @raw_files) {
+				$file = "$raw_dir/$file";
+				
+				$parts[0]->{size} += stat($file)->size;
+				push @{$parts[0]->{files}}, $file;
+				
+				@parts = sort { $a->{size} <=> $b->{size} } @parts;
+			}
 		}
 
-		@raw_files = splice(@raw_files, $offset, $length);
+		push @raw_files, @{$parts[$partNr]->{files}};
 	}
 
 	die "No files to process!\n" unless scalar(@raw_files);
@@ -358,7 +397,7 @@ sub Create()
 	print "Parsing done, creating index... ";
 	SetProcTitle("MRS: Parsing done, creating index... ");
 
-	$mrs->Finish(1);	# and please create the weighted alltext index
+	$mrs->Finish(1, $update);	# and please create the weighted alltext index
 	print "done!\n";
 }
 
