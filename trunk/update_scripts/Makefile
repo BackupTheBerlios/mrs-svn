@@ -31,6 +31,8 @@ WEEKLY		= $(filter-out $(EXCLUDE_DBS), $(DATABASES))
 
 DAILY		= $(filter-out $(NOT_DAILY), $(WEEKLY))
 
+KILLALL		?= $(shell which killall)
+
 # internal rules and macros
 
 ifneq ($(DAILY),)
@@ -63,6 +65,9 @@ $(SCRIPTDIR)/%: $(SCRIPTDIR)/%.cpp
 
 tools: $(SCRIPTDIR)/run_and_log $(SCRIPTDIR)/lock_and_run $(SCRIPTDIR)/swiss2fasta
 
+# dummy rule
+FORCE1:
+
 # The meat of this makefile, the rule(s) to first fetch/mirror the data and
 # then to execute the database's makefile.
 # This rule also touches a flag in the status directory to be able to track
@@ -88,8 +93,8 @@ ${DBALLFLAGS:=.done}:
 	touch $(STATUSDIR)$(@F)
 	touch $@
 
-tell_ws: FORCE
-	@ killall -HUP mrsws || echo 'mrsws does not seem to run'
+tell_ws: FORCE1
+	@ $(KILLALL) -HUP mrsws || echo 'mrsws does not seem to run'
 
 # the main rules
 
@@ -125,5 +130,19 @@ ${ALL_DATABASES}: tools dirs
 	$(MAKE) $(FLAGSDIR)$@.done
 	@ $(MAKE) tell_ws
 	rm $(FLAGSDIR)$@.*
+
+# The next rules are used on cmbi8 to regenerate the structure databanks
+
+dssp: uniprot pdb
+
+hssp: uniprot pdb dssp
+
+pdbfinder: uniprot pdb dssp hsssp
+
+pdbfinder2:  uniprot pdb dssp hssp pdbfinder
+
+structure_dbs: uniprot pdb dssp hssp pdbfinder pdbfinder2
+	@ find $(FLAGSDIR) -type f | xargs rm
+	echo "Structure DB update done"
 
 FORCE:

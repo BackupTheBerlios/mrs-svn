@@ -34,6 +34,8 @@ fetch: cleanup_deps
 
 include pdb.deps
 
+mrs: data
+
 include make.post
 
 test:

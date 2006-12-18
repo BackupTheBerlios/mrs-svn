@@ -67,7 +67,7 @@ ifneq ($(MRSLIBS),)
 
 MRS_FILES	= $(addprefix $(MRSDIR), $(MRSLIBS))
 ifeq ($(MRS_OPTIONS),)
-MRS_OPTIONS   = -b 5 -w stop.txt -v
+MRS_OPTIONS   = -b 5 -w stop.txt
 endif
 
 ifeq ($(MRS_UPDATE),1)
