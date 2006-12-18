@@ -139,8 +139,7 @@ sub parse
 				{
 					$value =~ s/\s*;?$//;
 					
-					$title .= '; ' if defined $title;
-					$title .= $value;
+					$title = $value unless defined $title;
 
 					$m->IndexText(lc $fld, $value) if $value;
 				}
