@@ -40,6 +40,7 @@ use English;
 use warnings;
 use Time::HiRes qw(usleep ualarm gettimeofday tv_interval);
 use MRS;
+use File::stat;
 use Data::Dumper;
 
 use Getopt::Std;
@@ -319,7 +320,7 @@ sub Create()
 		@raw_files = $p->raw_files;
 	}
 	
-	# and the version for this db
+	my $raw_dir = $p->{raw_dir} or die "raw_dir is not defined!\n";
 	
 	if (defined $partNr)
 	{
@@ -337,9 +338,11 @@ sub Create()
 		
 		if ($update)	# when creating an update databank, order is important.
 		{
+			@raw_files = sort { stat("$raw_dir/$a")->mtime <=> stat("$raw_dir/$b")->mtime } @raw_files;
+
 			my $totalSize;
 			foreach my $file (@raw_files) {
-				my $fileSize = stat($file)->size;
+				my $fileSize = stat("$raw_dir/$file")->size;
 				$totalSize += $fileSize;
 			}
 			
@@ -348,10 +351,12 @@ sub Create()
 			my $part = 0;
 			while (my $file = shift @raw_files)
 			{
-				my $parts[$part]->size += stat($file)->size;
+				$file = "$raw_dir/$file";
+
+				$parts[$part]->{size} += stat($file)->size;
 				push @{$parts[$part]->{files}}, $file;
 				
-				++$part if ($parts[$part]->size >= $partSize);
+				++$part if ($parts[$part]->{size} >= $partSize or scalar @raw_files <= ($partCount - $part));
 				
 				die "duh...???" if $part >= scalar @parts;
 			}
@@ -360,6 +365,8 @@ sub Create()
 		{
 			# divide the files among the parts so that each part
 			# gets an equal amount of raw data to process
+
+			@raw_files = sort { stat("$raw_dir/$b")->size <=> stat("$raw_dir/$a")->size } @raw_files;
 	
 			# $files is sorted by size, largest first.
 			# Since we don't have a heap in Perl and I don't feel like writing it
@@ -376,14 +383,23 @@ sub Create()
 			}
 		}
 
-		push @raw_files, @{$parts[$partNr]->{files}};
+		push @raw_files, @{$parts[$partNr - 1]->{files}};
 	}
 
 	die "No files to process!\n" unless scalar(@raw_files);
+
+	@raw_files = map {
+		if ($_ =~ m/\.(gz|Z)$/) {
+			"gunzip -c $_ |";
+		}
+		else {
+			"<$_";
+		}
+	} @raw_files;
 	
 	my $n = 1;
 	my $m = scalar @raw_files;
-	
+
 	foreach my $r (@raw_files)
 	{
 		SetProcTitle(sprintf("[%d/%d] MRS: '%s'", $n++, $m, $r));
@@ -447,12 +463,12 @@ sub Merge2()
 	# define some globals
 
 	my @parts;
-	foreach my $p (@{$merge_databanks})
+	foreach my $part (@{$merge_databanks})
 	{
-		my $part = new MRS::MDatabank($p)
-			or die "Could not find databank $p: " . &MRS::errstr() . "\n";
+		my $mrs_part = new MRS::MDatabank($part)
+			or die "Could not find databank $part: " . &MRS::errstr() . "\n";
 		
-		push @parts, $part;
+		push @parts, $mrs_part;
 	}
 	
 	MRS::MDatabank::Merge("$data_dir/$db.cmp", \@parts, $link ? 0 : 1,
@@ -517,7 +533,7 @@ sub Blast()
 	close INPUT;
 
 	my $d = new MRS::MDatabank($db);
-	my ($s, $hits, $hsps);
+	my ($s, $hits);
 	
 	if ($q)
 	{
@@ -767,14 +783,7 @@ sub raw_files
 	my @raw_files = grep { -e "$raw_dir/$_" and $_ =~ m/$raw_files/ } readdir(DIR);
 	closedir DIR;
 	
-	return map {
-		if ($_ =~ m/\.(gz|Z)$/) {
-			"gunzip -c $raw_dir/$_ |";
-		}
-		else {
-			"<$raw_dir/$_";
-		}
-	} @raw_files;
+	return @raw_files;
 }
 
 1;
