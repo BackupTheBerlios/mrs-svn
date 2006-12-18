@@ -4,6 +4,7 @@ DATABANK		= embl_updates
 MRSLIBS			= embl_updates
 MRSSCRIPT		= embl
 MRS_PARTS		= 4
+MRS_UPDATE		= 1
 MRS_MERGE_LIBS		= embl
 MRS_DICT_FILES		= embl
 

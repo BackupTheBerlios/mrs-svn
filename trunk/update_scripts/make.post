@@ -70,6 +70,10 @@ ifeq ($(MRS_OPTIONS),)
 MRS_OPTIONS   = -b 5 -w stop.txt -v
 endif
 
+ifeq ($(MRS_UPDATE),1)
+MRS_OPTIONS	+= -u
+endif
+
 ifneq ($(MRSSCRIPT),)
 MRS_OPTIONS	+= -s $(MRSSCRIPT)
 endif
