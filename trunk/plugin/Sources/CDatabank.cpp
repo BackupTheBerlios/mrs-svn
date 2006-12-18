@@ -594,7 +594,7 @@ void CDatabank::Finish(bool inCreateAllTextIndex, bool inCreateUpdateDatabank)
 	fDataFile->Seek(0, SEEK_END);
 	
 	fIndexer->CreateIndex(*fDataFile, fHeader->index_offset,
-		fHeader->index_size, inCreateAllTextIndex);
+		fHeader->index_size, inCreateAllTextIndex, inCreateUpdateDatabank);
 
 	auto_ptr<CIndex> idIndex(fIndexer->GetIndex("id"));
 	if (idIndex.get() != nil)

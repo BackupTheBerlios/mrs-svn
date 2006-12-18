@@ -76,7 +76,9 @@ sub new
 	);
 	
 	if (defined $self->{db}) {
+
 		my ($dbn, $sn) = split(m/_/, $self->{db});
+
 		$self->{url} = $URL{$dbn};
 		$self->{name} = $NAME{$dbn};
 		

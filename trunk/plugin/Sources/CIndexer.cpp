@@ -752,6 +752,9 @@ class CIndexBase
 						const HUrl& inScratch, CIndexKind inKind);
 	virtual 		~CIndexBase();
 	
+	void			SetIsUpdate(bool isUpdate)
+											{ fIsUpdate = isUpdate; }
+	
 	void			AddWord(const string& inWord, uint32 inFrequency = 1);
 	
 	virtual void	AddDocTerm(uint32 inDoc, uint8 inFrequency);
@@ -774,6 +777,7 @@ class CIndexBase
 	CFullTextIndex&	fFullTextIndex;
 	uint16			fIndexNr;
 	bool			fEmpty;
+	bool			fIsUpdate;
 	uint32			fWeightBitCount;
 	
 	// data for the second pass
@@ -818,6 +822,7 @@ CIndexBase::CIndexBase(CFullTextIndex& inFullTextIndex, const string& inName,
 	, fFullTextIndex(inFullTextIndex)
 	, fIndexNr(inIndexNr)
 	, fEmpty(true)
+	, fIsUpdate(false)
 	, fWeightBitCount(0)
 	, fLastDoc(0)
 	, fBits(nil)
@@ -1158,7 +1163,7 @@ void CValueIndex::AddDocTerm(uint32 inDoc, uint8 inFrequency)
 
 void CValueIndex::FlushTerm(uint32 inTerm, uint32 inDocCount)
 {
-	if (fDocs.size() != 1)
+	if (fDocs.size() != 1 and not fIsUpdate)
 	{
 		string term = fFullTextIndex.Lookup(inTerm);
 
@@ -1577,8 +1582,12 @@ void CIndexer::FlushDoc()
 	++fHeader->entries;
 }
 
-void CIndexer::CreateIndex(HStreamBase& inFile,
-	int64& outOffset, int64& outSize, bool inCreateAllTextIndex)
+void CIndexer::CreateIndex(
+	HStreamBase&	inFile,
+	int64&			outOffset,
+	int64&			outSize,
+	bool			inCreateAllTextIndex,
+	bool			inCreateUpdateDatabank)
 {
 	if (fParts)
 		delete[] fParts;
@@ -1601,6 +1610,7 @@ void CIndexer::CreateIndex(HStreamBase& inFile,
 		else
 		{
 			indx->second->SetEmpty(true);	// reset flag
+			indx->second->SetIsUpdate(inCreateUpdateDatabank);
 			++fHeader->count;
 		}
 	}
