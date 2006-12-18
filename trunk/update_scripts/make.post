@@ -105,7 +105,7 @@ ifneq ($(MRS_MERGE_LIBS),)
 MRS_MERGE_FILES	= $(addprefix $(MRSDIR), $(MRS_MERGE_LIBS))
 
 ${MRS_MERGE_FILES:=.cmp}: ${MRS_FILES:=.cmp}
-	$(MRS_MERGE) -m $(@F:.cmp=) -l
+	$(MRS_MERGE) -m $(@F:.cmp=) -l $(MRS_MERGE_OPTIONS)
 	chmod a+r $@
 
 endif
