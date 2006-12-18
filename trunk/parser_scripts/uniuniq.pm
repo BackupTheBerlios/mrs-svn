@@ -111,7 +111,7 @@ sub parse
 
 sub raw_files
 {
-	my ($self, $raw_dir) = @_;
+	my ($self) = @_;
 
 	my $raw_dir = $self->{raw_dir} or die "raw_dir is not defined\n";
 

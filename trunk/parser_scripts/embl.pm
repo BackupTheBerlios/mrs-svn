@@ -110,7 +110,7 @@ sub new
 			if ($rdb->GetVersion =~ m/Release (\d+) /) {
 				my $vers = int($1) + 1;
 				$self->{raw_files} = qr/r${vers}u\d+\.dat\.gz/;
-				$self->{version} = "Updates coming from Release $vers";
+				$self->{version} = "Updates from Release $vers";
 			}
 			else {
 				die "Unable to fetch version string from embl_release\n";

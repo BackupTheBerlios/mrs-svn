@@ -53,7 +53,7 @@ sub new
 		@_
 	};
 	
-	$self->{raw_dir} =~ s|raw/mimmap/?$|uncompressed/omim/|;
+	$self->{raw_dir} =~ s|raw/mimmap/?$|uncompressed/omim/| if defined $self->{raw_dir};
 	
 	return bless $self, "MRS::Script::mimmap";
 }
