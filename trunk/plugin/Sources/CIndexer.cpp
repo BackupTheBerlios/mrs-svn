@@ -2580,7 +2580,8 @@ void CIndexer::PrintInfo() const
 			cout << "  bits offset:   " << p.bits_offset << endl;
 			cout << "  bits size:     " << p.bits_size << endl;
 		}
-		cout << "  weight offset: " << p.weight_offset << endl;
+		if (p.kind == kWeightedIndex)
+			cout << "  weight offset: " << p.weight_offset << endl;
 		
 		cout << endl;
 	}

@@ -1371,7 +1371,7 @@ void CDatabank::PrintInfo()
 		cout << "  count:        " << p.count << endl;
 		
 		if (p.raw_data_size != 0)
-			cout << "  raw data: " << p.raw_data_size << endl;
+			cout << "  raw data:     " << p.raw_data_size << endl;
 
 		sig = reinterpret_cast<const char*>(&p.kind);
 		cout << "  compression:  " << sig[0] << sig[1] << sig[2] << sig[3] << endl;

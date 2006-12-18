@@ -45,6 +45,7 @@
 #include "CLexicon.h"
 #include "CBitStream.h"
 #include "CTextTable.h"
+#include "CUtils.h"
 
 #include "HStream.h"
 #include "CIndex.h"

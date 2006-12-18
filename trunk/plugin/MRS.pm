@@ -102,6 +102,7 @@ sub new {
 *Create = *MRSc::MDatabank_Create;
 *Merge = *MRSc::MDatabank_Merge;
 *Count = *MRSc::MDatabank_Count;
+*GetCode = *MRSc::MDatabank_GetCode;
 *GetVersion = *MRSc::MDatabank_GetVersion;
 *GetUUID = *MRSc::MDatabank_GetUUID;
 *GetName = *MRSc::MDatabank_GetName;
