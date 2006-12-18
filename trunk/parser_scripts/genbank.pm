@@ -81,7 +81,7 @@ sub new
 		
 		$self->{name} .= " $sn" if defined $sn;
 
-		if ($db eq 'genbank_release')
+		if ($self->{db} eq 'genbank_release')
 		{
 			open RELDATE, "<$self->{raw_dir}/README.genbank";
 			
