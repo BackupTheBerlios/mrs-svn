@@ -55,6 +55,7 @@ sub new
 	my $self = {
 		meta		=> [ 'title' ],
 		merge		=> \%merge_databanks,
+		section		=> 'genomic',
 		raw_files	=> qr/\.gz$/,
 		@_
 	};
@@ -76,8 +77,8 @@ sub new
 	
 	if (defined $self->{db}) {
 		my ($dbn, $sn) = split(m/_/, $self->{db});
-		$self->{url} = $URL{$self->{dbn}};
-		$self->{name} = $NAME{$self->{dbn}};
+		$self->{url} = $URL{$dbn};
+		$self->{name} = $NAME{$dbn};
 		
 		$self->{name} .= " $sn" if defined $sn;
 
