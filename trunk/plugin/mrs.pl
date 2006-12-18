@@ -706,25 +706,14 @@ sub version
 	if (defined $version) {
 		$self->{version} = $version;
 	}
-	else {
-		my $raw_dir = $self->{raw_dir} or die "raw_dir is not defined\n";
-		my $db = $self->{db} or die "db is not defined\n";
-
-		opendir DIR, $raw_dir;
-		my @files = grep { -f("$raw_dir/$_") and $_ !~ /^\./ } readdir(DIR);
-		closedir(DIR);
-			
+	elsif (not defined $self->{version})
+	{
 		my $date = 0;
-		foreach my $f (@files)
-		{
-			my $sb = stat("$raw_dir/$f");
-			
-			if (defined $sb) {
-				$date = $sb->mtime if $sb->mtime > $date;
-			}
-		}
 		
-		$date = stat($raw_dir)->mtime unless defined $date;
+		foreach my $file ($self->raw_files) {
+			my $mtime = stat("$self->{raw_dir}/$file")->mtime;
+			$date = $mtime if $mtime > $date;
+		}
 	
 		$self->{version} = localtime $date;
 	}
