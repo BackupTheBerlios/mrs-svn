@@ -607,10 +607,10 @@ void CDatabank::Finish(bool inCreateAllTextIndex, bool inCreateUpdateDatabank)
 
 		// create an omit vector here if needed
 		
+		uint32 omitVectorSize = fHeader->entries >> 3;
 		if (inCreateUpdateDatabank)
 		{
 			delete[] fOmitVector;
-			uint32 omitVectorSize = fHeader->entries >> 3;
 			if (fHeader->entries & 0x07)
 				omitVectorSize += 1;
 			

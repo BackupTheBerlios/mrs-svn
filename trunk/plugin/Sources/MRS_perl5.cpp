@@ -4447,6 +4447,48 @@ XS(_wrap_MDatabank_Finish__SWIG_0) {
     {
         MDatabank *arg1 = (MDatabank *) 0 ;
         bool arg2 ;
+        bool arg3 ;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 3) || (items > 3)) {
+            SWIG_croak("Usage: MDatabank_Finish(self,inCreateAllTextIndex,inCreateUpdateDatabank);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_Finish. Expected _p_MDatabank");
+            }
+        }
+        arg2 = SvIV(ST(1)) ? true : false;
+        arg3 = SvIV(ST(2)) ? true : false;
+        {
+            try {
+                (arg1)->Finish(arg2,arg3);
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MDatabank_Finish__SWIG_1) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        bool arg2 ;
         int argvi = 0;
         dXSARGS;
         
@@ -4483,7 +4525,7 @@ XS(_wrap_MDatabank_Finish__SWIG_0) {
 }
 
 
-XS(_wrap_MDatabank_Finish__SWIG_1) {
+XS(_wrap_MDatabank_Finish__SWIG_2) {
     {
         MDatabank *arg1 = (MDatabank *) 0 ;
         int argvi = 0;
@@ -4535,7 +4577,7 @@ XS(_wrap_MDatabank_Finish) {
             }
         }
         if (_v) {
-            (*PL_markstack_ptr++);SWIG_CALLXS(_wrap_MDatabank_Finish__SWIG_1); return;
+            (*PL_markstack_ptr++);SWIG_CALLXS(_wrap_MDatabank_Finish__SWIG_2); return;
         }
     }
     if (items == 2) {
@@ -4553,7 +4595,31 @@ XS(_wrap_MDatabank_Finish) {
                 _v = SvIOK(ST(1)) ? 1 : 0;
             }
             if (_v) {
-                (*PL_markstack_ptr++);SWIG_CALLXS(_wrap_MDatabank_Finish__SWIG_0); return;
+                (*PL_markstack_ptr++);SWIG_CALLXS(_wrap_MDatabank_Finish__SWIG_1); return;
+            }
+        }
+    }
+    if (items == 3) {
+        int _v;
+        {
+            void *tmp;
+            if (SWIG_ConvertPtr(ST(0), (void **) &tmp, SWIGTYPE_p_MDatabank, 0) == -1) {
+                _v = 0;
+            } else {
+                _v = 1;
+            }
+        }
+        if (_v) {
+            {
+                _v = SvIOK(ST(1)) ? 1 : 0;
+            }
+            if (_v) {
+                {
+                    _v = SvIOK(ST(2)) ? 1 : 0;
+                }
+                if (_v) {
+                    (*PL_markstack_ptr++);SWIG_CALLXS(_wrap_MDatabank_Finish__SWIG_0); return;
+                }
             }
         }
     }

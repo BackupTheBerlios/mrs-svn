@@ -2278,16 +2278,16 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 
 						while (iter.Next(doc, freq, false))
 						{
-							if (doc >= fHeader->entries)
-							{
-								cerr << "Error in index " << fParts[ix].name
-									 << " key " << s
-									 << ", docnr out of range: " << doc
-									 << endl;
-
-								break;
-							}							
-							
+//							if (doc >= fHeader->entries)
+//							{
+//								cerr << "Error in index " << fParts[ix].name
+//									 << " key " << s
+//									 << ", docnr out of range: " << doc
+//									 << endl;
+//
+//								break;
+//							}							
+//							
 							docs.push_back(make_pair(doc, freq));
 
 							float wdt = freq * idf;
