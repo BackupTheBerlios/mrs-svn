@@ -351,14 +351,14 @@ sub Create()
 			my $part = 0;
 			while (my $file = shift @raw_files)
 			{
+				die "duh...???" if $part >= scalar @parts;
+
 				$file = "$raw_dir/$file";
 
 				$parts[$part]->{size} += stat($file)->size;
 				push @{$parts[$part]->{files}}, $file;
 				
-				++$part if ($parts[$part]->{size} >= $partSize or scalar @raw_files <= ($partCount - $part));
-				
-				die "duh...???" if $part >= scalar @parts;
+				++$part if $parts[$part]->{size} >= $partSize;
 			}
 		}
 		else
@@ -771,7 +771,7 @@ sub raw_files
 	opendir DIR, $raw_dir or die "Could not open raw dir $raw_dir\n";
 	my @raw_files = grep { -e "$raw_dir/$_" and $_ =~ m/$raw_files/ } readdir(DIR);
 	closedir DIR;
-	
+
 	return @raw_files;
 }
 
