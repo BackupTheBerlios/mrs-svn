@@ -267,12 +267,12 @@ sub raw_files()
 		
 		opendir D2, "$raw_dir/$d";
 		my @files = grep { -e "$raw_dir/$d/$_" and $_ =~ /\.ent\.Z$/ } readdir D2;
-		push @result, join(' ', map { "$raw_dir/$d/$_" } @files) if scalar @files;
+		push @result, map { "$raw_dir/$d/$_" } @files if scalar @files;
 		closedir D2;
 	}
 	closedir DIR;
 	
-	return map { "gunzip -c $_ |" } @result;
+	return @result;
 }
 
 # formatting
