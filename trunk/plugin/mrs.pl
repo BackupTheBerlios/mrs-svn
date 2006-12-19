@@ -320,8 +320,6 @@ sub Create()
 		@raw_files = $p->raw_files;
 	}
 	
-	my $raw_dir = $p->{raw_dir} or die "raw_dir is not defined!\n";
-	
 	if (defined $partNr)
 	{
 		die 'not enough raw files to create all parts'
@@ -338,11 +336,11 @@ sub Create()
 		
 		if ($update)	# when creating an update databank, order is important.
 		{
-			@raw_files = sort { stat("$raw_dir/$a")->mtime <=> stat("$raw_dir/$b")->mtime } @raw_files;
+			@raw_files = sort { stat($a)->mtime <=> stat($b)->mtime } @raw_files;
 
 			my $totalSize;
 			foreach my $file (@raw_files) {
-				my $fileSize = stat("$raw_dir/$file")->size;
+				my $fileSize = stat($file)->size;
 				$totalSize += $fileSize;
 			}
 			
@@ -352,8 +350,6 @@ sub Create()
 			while (my $file = shift @raw_files)
 			{
 				die "duh...???" if $part >= scalar @parts;
-
-				$file = "$raw_dir/$file";
 
 				$parts[$part]->{size} += stat($file)->size;
 				push @{$parts[$part]->{files}}, $file;
@@ -366,7 +362,7 @@ sub Create()
 			# divide the files among the parts so that each part
 			# gets an equal amount of raw data to process
 
-			@raw_files = sort { stat("$raw_dir/$b")->size <=> stat("$raw_dir/$a")->size } @raw_files;
+			@raw_files = sort { stat($b)->size <=> stat($a)->size } @raw_files;
 	
 			# $files is sorted by size, largest first.
 			# Since we don't have a heap in Perl and I don't feel like writing it
@@ -374,8 +370,6 @@ sub Create()
 			# keeping @parts sorted by size in ascending order
 			
 			while (my $file = shift @raw_files) {
-				$file = "$raw_dir/$file";
-				
 				$parts[0]->{size} += stat($file)->size;
 				push @{$parts[0]->{files}}, $file;
 				
@@ -711,7 +705,7 @@ sub version
 		my $date = 0;
 		
 		foreach my $file ($self->raw_files) {
-			my $mtime = stat("$self->{raw_dir}/$file")->mtime;
+			my $mtime = stat($file)->mtime;
 			$date = $mtime if $mtime > $date;
 		}
 	
@@ -772,7 +766,7 @@ sub raw_files
 	my @raw_files = grep { -e "$raw_dir/$_" and $_ =~ m/$raw_files/ } readdir(DIR);
 	closedir DIR;
 
-	return @raw_files;
+	return map { "$raw_dir/$_" } @raw_files;
 }
 
 1;
