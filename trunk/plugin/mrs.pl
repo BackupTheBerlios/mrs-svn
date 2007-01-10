@@ -386,6 +386,9 @@ sub Create()
 		if ($_ =~ m/\.(gz|Z)$/) {
 			"gunzip -c $_ |";
 		}
+		elsif ($_ =~ m/\.(bz2)$/) {
+			"bunzip2 -c $_ |";
+		}
 		else {
 			"<$_";
 		}
