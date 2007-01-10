@@ -6,7 +6,9 @@
 #include <map>
 #include <set>
 #include <sstream>
+#include <fstream>
 #include <cstdarg>
+#include <iomanip>
 #include <sys/stat.h>
 #include <signal.h>
 #include <getopt.h>
@@ -47,9 +49,14 @@ namespace fs = boost::filesystem;
 #define MRS_CONFIG_FILE "/usr/local/etc/mrs-config.xml"
 #endif
 
+#ifndef MRS_LOG_FILE
+#define MRS_LOG_FILE "/var/log/mrsws.log"
+#endif
+
 fs::path gDataDir(MRS_DATA_DIR, fs::native);
 fs::path gParserDir(MRS_PARSER_DIR, fs::native);
 fs::path gConfigFile(MRS_CONFIG_FILE, fs::native);
+fs::path gLogFile(MRS_CONFIG_FILE, fs::native);
 
 extern double system_time();
 
@@ -268,6 +275,8 @@ ns__GetDatabankInfo(
 	string								db,
 	vector<struct ns__DatabankInfo>&	info)
 {
+	cout << '\t' << __func__;
+
 	int result = SOAP_OK;
 	
 	WSDatabankTable& dbt = WSDatabankTable::Instance();
@@ -313,6 +322,8 @@ ns__GetIndices(
 	string						db,
 	vector<struct ns__Index >&	indices)
 {
+	cout << '\t' << __func__;
+
 	int result = SOAP_OK;
 	
 	try
@@ -383,6 +394,8 @@ ns__GetEntry(
 	enum ns__Format	format,
 	string&			entry)
 {
+	cout << '\t' << __func__;
+
 	int result = SOAP_OK;
 	
 	try
@@ -520,6 +533,8 @@ ns__Find(
 	int							maxresultcount,
 	struct ns__FindResponse&	response)
 {
+	cout << '\t' << __func__ << ':' << db;
+
 	int result = SOAP_OK;
 
 	MDatabankPtr mrsDb = WSDatabankTable::Instance()[db];
@@ -631,6 +646,8 @@ ns__FindAll(
 	vector<struct ns__FindAllResult>&
 						response)
 {
+	cout << '\t' << __func__;
+
 	int result = SOAP_OK;
 	
 	WSDatabankTable& dbt = WSDatabankTable::Instance();
@@ -706,6 +723,8 @@ ns__SpellCheck(
 	string			queryterm,
 	vector<string>&	suggestions)
 {
+	cout << '\t' << __func__;
+
 	int result = SOAP_OK;
 	
 	try
@@ -740,6 +759,8 @@ ns__FindSimilar(
 	int							maxresultcount,
 	struct ns__FindResponse&	response)
 {
+	cout << '\t' << __func__;
+
 	int result = SOAP_OK;
 	
 	try
@@ -896,6 +917,8 @@ ns__FindAllSimilar(
 	vector<struct ns__FindAllResult>&
 						response)
 {
+	cout << '\t' << __func__;
+	
 	int result = SOAP_OK;
 	
 	WSDatabankTable& dbt = WSDatabankTable::Instance();
@@ -1018,6 +1041,83 @@ void usage()
 	exit(1);
 }
 
+bool FetchString(
+	xmlXPathContextPtr	inContext,
+	const string&		inXPath,
+	string&				outString)
+{
+	bool result = false;
+	
+	xmlXPathObjectPtr data = xmlXPathEvalExpression((const xmlChar*)inXPath.c_str(), inContext);
+	xmlNodeSetPtr nodes = data->nodesetval;
+
+	if (nodes != nil)
+	{
+		if (nodes->nodeNr >= 1)
+		{
+			xmlNodePtr node = nodes->nodeTab[0];
+			const char* text = (const char*)XML_GET_CONTENT(node->children);
+
+			if (text != nil)
+			{
+				outString = (const char*)text;
+				result = true;
+			}
+		}
+		
+		xmlXPathFreeObject(data);
+	}
+	
+	return result;
+}
+
+void FetchParametersFromConfigFile(
+	string& 		outAddress,
+	short&			outPort)
+{
+	xmlInitParser();
+
+	xmlDocPtr doc = nil;
+	xmlXPathContextPtr context = nil;
+
+	if (not fs::exists(gConfigFile))
+	{
+		cerr << "Configuration file " << gConfigFile.string() << " does not exist, aborting" << endl;
+		exit(1);
+	}
+
+	doc = xmlParseFile(gConfigFile.string().c_str());
+	if (doc == nil)
+		THROW(("Failed to parse mrs configuration file %s", gConfigFile.string().c_str()));
+	
+	context = xmlXPathNewContext(doc);
+	if (context == nil)
+		THROW(("Failed to parse mrs configuration file %s (2)", gConfigFile.string().c_str()));
+	
+	string s;
+	
+	if (FetchString(context, "/mrs-config/datadir", s))
+		gDataDir = fs::system_complete(fs::path(s, fs::native));
+	
+	if (FetchString(context, "/mrs-config/scriptdir", s))
+		gParserDir = fs::system_complete(fs::path(s, fs::native));
+	
+	if (FetchString(context, "/mrs-config/address", s))
+		outAddress = s;
+	
+	if (FetchString(context, "/mrs-config/port", s))
+		outPort = atoi(s.c_str());
+	
+	if (context)
+		xmlXPathFreeContext(context);
+	
+	if (doc)
+		xmlFreeDoc(doc);
+	
+	xmlCleanupParser();
+	xmlMemoryDump();
+}
+
 int main(int argc, const char* argv[])
 {
 	int c, verbose = 0;
@@ -1050,6 +1150,7 @@ int main(int argc, const char* argv[])
 			
 			case 'c':
 				gConfigFile = fs::system_complete(fs::path(optarg, fs::native));
+				FetchParametersFromConfigFile(address, port);
 				break;
 			
 			case 'v':
@@ -1075,8 +1176,8 @@ int main(int argc, const char* argv[])
 		cerr << "Parser directory " << gParserDir.string() << " is not a valid directory" << endl;
 		exit(1);
 	}
-
-	if (not fs::exists(gConfigFile))
+	
+	if (not fs::exists(gConfigFile) and verbose)
 		cerr << "Configuration file " << gConfigFile.string() << " does not exist, ignoring" << endl;
 	
 	if (input_file.length())
@@ -1110,6 +1211,9 @@ int main(int argc, const char* argv[])
 //	soap_set_sent_logfile(&soap, "sent.log"); // append all messages sent in /logs/sent/service12.log
 //	soap_set_test_logfile(&soap, "test.log"); // no file name: do not save debug messages
 
+		if (verbose)
+			cout << "Binding address " << address << " port " << port << endl;
+
 		m = soap_bind(&soap, address.c_str(), port, 100);
 		if (m < 0)
 			soap_print_fault(&soap, stderr);
@@ -1120,8 +1224,7 @@ int main(int argc, const char* argv[])
 			
 			soap.accept_timeout = 1;	// timeout
 			
-			fprintf(stderr, "Socket connection successful: master socket = %d\n", m);
-			for (int i = 1; ; ++i)
+			for (;;)
 			{
 				if (gQuit)
 					break;
@@ -1141,9 +1244,11 @@ int main(int argc, const char* argv[])
 					soap_print_fault(&soap, stderr);
 					break;
 				}
-	
-				fprintf(stderr, "%d: accepted connection from IP=%ld.%ld.%ld.%ld socket=%d...", i,
-					(soap.ip >> 24)&0xFF, (soap.ip >> 16)&0xFF, (soap.ip >> 8)&0xFF, soap.ip&0xFF, s);
+				
+				cout << ((soap.ip >> 24) & 0xFF) << '.'
+					 << ((soap.ip >> 16) & 0xFF) << '.'
+					 << ((soap.ip >>  8) & 0xFF) << '.'
+					 << ( soap.ip        & 0xFF);
 				
 				double start = system_time();
 				
@@ -1161,9 +1266,9 @@ int main(int argc, const char* argv[])
 					cout << endl << "Unknown exception" << endl;
 				}
 				
-				double end = system_time();
+				cout.setf(ios::fixed);
+				cout << '\t' << setprecision(3) << system_time() - start << endl;
 				
-				fprintf(stderr, " request served in %.3g seconds\n", end - start);
 				soap_destroy(&soap); // clean up class instances
 				soap_end(&soap); // clean up everything and close socket
 			}

@@ -16,6 +16,19 @@ sub new
 	return $result;
 }
 
+sub make_url
+{
+	my $url = shift;
+	my $trailing_dot = '';
+
+	if ($url =~ m/\.$/) {
+		$url =~ s/\.$//;
+		$trailing_dot = '.';
+	}
+
+	return "<a href=\"$url\">$url</a>$trailing_dot";
+}
+
 sub link_url
 {
 	my ($this, $text) = @_;
@@ -24,7 +37,7 @@ sub link_url
 	$text =~ s/</&lt;/g;
 	$text =~ s/>/&gt;/g;
 	
-	$text =~ s|http://(([-\$_.A-Za-z0-9!*'(),/?=:&;[\]\|+]+\|%[0-9A-Fa-f]{2})+)|<a href='$&'>$&</a>|g;
+	$text =~ s|http://(([-\$_.A-Za-z0-9!*'(),/?=:&;[\]\|+]+\|%[0-9A-Fa-f]{2})+)|&make_url($&)|ge;
 	
 	return $text;
 }

@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <mrs-config>
 	<datadir>/data/mrs/</datadir>
-	<script>/Users/maarten/projects/mrs/parser_scripts/</script>
+	<scriptdir>/Users/maarten/projects/mrs/parser_scripts/</scriptdir>
 	<address>localhost</address>
+	<logfile>/var/log/mrsws.log</logfile>
 	<port>8081</port>
 	<dbs>
 		<db ignore-in-all="1">uniprot</db>

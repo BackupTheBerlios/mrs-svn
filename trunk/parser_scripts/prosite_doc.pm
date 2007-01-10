@@ -92,7 +92,7 @@ sub parse
 			$id = $1;
 			$m->IndexValue('id', $id);
 		}
-		elsif ($line =~ m/\* (.+?)\s+\*/) {
+		elsif ($line =~ m/\*\s*(.+?)\s*\*/) {
 			$m->StoreMetaData('title', $1);
 			$m->IndexText('text', $1);
 		}

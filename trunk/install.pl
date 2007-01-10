@@ -17,7 +17,7 @@ $| = 1;	# flush stdout
 die "This version of perl is not supported, please make sure you use at least 5.8\n"
 	unless $PERL_VERSION ge v5.8.0;
 
-print "Not running as root, assuming you have sudo installed and configured.\n"
+warn "Not running as root, assuming you have sudo installed and configured.\n"
 	unless $EFFECTIVE_USER_ID == 0;
 
 # Now first find out what Perl executable will be used
@@ -64,7 +64,7 @@ foreach my $m (keys %modules) {
 	}
 }
 
-if (0 and scalar @missing_modules > 0) {
+if (scalar @missing_modules > 0) {
 	print "Missing modules: ", join(", ", @missing_modules), "\n";
 	
 	die "Please install these before continuing installation\n" if ($essential);
@@ -98,6 +98,30 @@ if (defined $swig and length($swig) > 0) {
 			if defined $swig_version;
 		print "Swig version 1.3.27 is needed to build MRS\n";
 		undef $swig;
+	}
+}
+
+# For building the web service application we really need gSoap
+my $gsoap = `which soapcpp2`;
+chomp($gsoap);
+
+$gsoap = &ask_for_string("Where is your version of gSoap's soapcpp2", $gsoap);
+
+if (defined $gsoap and length($gsoap) > 0) {
+	my $gsoap_version;
+	open P, "$gsoap -v 2>&1 |";
+	while (my $vl = <P>) {
+		if ($vl =~ m|\*\*\s+The gSOAP Stub and Skeleton Compiler for C and C\+\+\s+(.+)|) {
+			$gsoap_version = $1;
+			last;
+		}
+	}
+	close P;
+	
+	if (not defined $gsoap_version or $gsoap_version ne '2.7.8c') {
+		$gsoap_version = "'unknown'" unless defined $gsoap_version;
+		print "Version $gsoap_version of gSoap is not tested\ngSoap version 2.7.8c was used for development of mrsws\n"
+			if $gsoap_version ne '2.7.8c';
 	}
 }
 
@@ -164,7 +188,7 @@ $C_file =<<END;
 int main() { std::cout << BOOST_LIB_VERSION << std::endl; return 0; }
 END
 
-my ($boost_location, $boost_version);
+my ($boost_inc, $boost_lib, $boost_version);
 
 eval {
 	$boost_version = &compile_and_catch($C_file, $cc);
@@ -177,25 +201,130 @@ if ($@ or not defined $boost_version or length($boost_version) == 0) {
 		if (-d "$d/boost") {
 			eval { $boost_version = &compile_and_catch($C_file, "$cc -I$d"); };
 			next if ($@);
-			$boost_location = $d;
+			$boost_inc = $d;
 			last;
 		}
 	}
 #	
-#	$boost_location = &ask_for_string("Where is boost installed", $boost_location)
+#	$boost_inc = &ask_for_string("Where is boost installed", $boost_inc)
 #		unless defined $boost_version;
 }
 
 die "Cannot continue since you don't seem to have boost installed\nBoost can be found at http://www.boost.org/\n"
 	unless defined $boost_version;
 
+# OK, so boost is installed, but is boost_regex and booost_filesystem installed as well?
+
+$C_file =<<END;
+#include <boost/regex.hpp>
+#include <iostream>
+int main() { boost::regex re("."); return 0; }
+END
+
+my $boost_lib_ok = 0;
+
+foreach my $d ( undef, '/usr/lib', '/usr/local/lib', '/opt/local/lib',
+	'/usr/pkg/lib', '/usr/lib64' )
+{
+	eval {
+		my $b_cc = $cc;
+		$b_cc .= " -I$boost_inc " if defined $boost_inc;
+		$b_cc .= " -L$d " if defined $d;
+		&compile_and_catch($C_file, "$b_cc -lboost_regex");
+	};
+
+	next if ($@);
+	$boost_lib = $d;
+	$boost_lib_ok = 1;
+	last;
+}
+
+die "the boost library boost_regex seems to be missing" unless $boost_lib_ok;
+
+$C_file =<<END;
+#include <boost/filesystem/path.hpp>
+#include <iostream>
+int main() { boost::filesystem::path p; return 0; }
+END
+
+eval {
+	my $b_cc = $cc;
+	$b_cc .= " -I$boost_inc " if defined $boost_inc;
+	$b_cc .= " -L$boost_lib " if defined $boost_lib;
+	&compile_and_catch($C_file, "$b_cc -lboost_filesystem");
+};
+
+if ($@ or not defined $boost_version or length($boost_version) == 0) {
+	die "the boost library boost_filesystem seems to be missing";
+}
+
+# we also need libxml2, see if that is installed as well
+
+$C_file =<<END;
+#include <libxml/xmlversion.h>
+#include <iostream>
+int main() { std::cout << LIBXML_DOTTED_VERSION << std::endl; return 0; }
+END
+
+my ($libxml_inc, $libxml_lib, $libxml_version);
+
+eval {
+	$libxml_version = &compile_and_catch($C_file, $cc);
+};
+
+if ($@ or not defined $libxml_version) {
+	foreach my $d ( '/usr/include', '/usr/local/include', '/opt/local/include',
+		'/usr/pkg/include' )
+	{
+		if (-d "$d/libxml2") {
+			eval { $libxml_version = &compile_and_catch($C_file, "$cc -I$d/libxml2"); };
+
+print "\n$@\n";
+
+			next if ($@);
+			$libxml_inc = "$d/libxml2";
+			last;
+		}
+	}
+}
+
+die "Cannot continue since you don't seem to have libxml2 installed\nlibxml2 can be found at http://xmlsoft.org/\n"
+	unless defined $libxml_version;
+
+$C_file =<<END;
+#include <libxml/xmlversion.h>
+#include <iostream>
+int main() { LIBXML_TEST_VERSION; return 0; }
+END
+
+my $xml_lib_ok = 0;
+
+foreach my $d ( undef, '/usr/lib', '/usr/local/lib', '/opt/local/lib',
+	'/usr/pkg/lib', '/usr/lib64' )
+{
+	eval {
+		my $x_cc = $cc;
+		$x_cc .= " -I$libxml_inc " if defined $libxml_inc;
+		$x_cc .= " -L$d " if defined $d;
+		&compile_and_catch($C_file, "$x_cc -lxml2");
+	};
+
+	next if ($@);
+	$libxml_lib = $d;
+	$xml_lib_ok = 1;
+	last;
+}
+
+die "the boost library boost_regex seems to be missing" unless $xml_lib_ok;
+
 # Now write a make.config file in the plugin directory
 
-open MCFG, ">plugin/make.config" or die "Could not open the file make.config for writing!\n";
+open MCFG, ">plugin/make.config" or die "Could not open the file plugin/make.config for writing!\n";
 
 print MCFG "CC = $cc\n";
 print MCFG "SWIG = $swig\n" if defined $swig;
-print MCFG "BOOST = $boost_location\n" if defined $boost_location;
+print MCFG "SYSINCPATHS += $boost_inc\n" if defined $boost_inc;
+print MCFG "LIBPATHS += $boost_lib\n" if defined $boost_lib;
 print MCFG "HAVE_TR1 = $use_tr1\n";
 print MCFG "IQUOTE = 0\n" if $gcc_version < 4;	# use -I- in case of older compiler
 print MCFG "INSTALL_DIR = $binpath\n";
@@ -205,11 +334,28 @@ print MCFG "PERL = $perlpath\n";
 
 close MCFG;
 
+# and a make.config file in the ws directory
+
+open MCFG, ">ws/make.config" or die "Could not open the file ws/make.config for writing!\n";
+
+print MCFG "CC = $cc\n";
+print MCFG "SYSINCPATHS += $boost_inc\n" if defined $boost_inc;
+print MCFG "LIBPATHS += $boost_lib\n" if defined $boost_lib;
+print MCFG "SYSINCPATHS += $libxml_inc\n" if defined $libxml_inc;
+print MCFG "LIBPATHS += $libxml_lib\n" if defined $libxml_lib;
+print MCFG "HAVE_TR1 = $use_tr1\n";
+print MCFG "IQUOTE = 0\n" if $gcc_version < 4;	# use -I- in case of older compiler
+print MCFG "INSTALL_DIR = $binpath\n";
+print MCFG "SUDO = sudo\n" if $EFFECTIVE_USER_ID != 0;
+print MCFG "SOAPCPP2 = $gsoap\n" if defined $gsoap;
+print MCFG "PERL = $perlpath\n";
+
+close MCFG;
+
 # OK, so compiling and installing the plugins and executables should now work fine.
 
 print "\nCreating the make configuration is now finished.\n";
-print "You can cd to the plugin directory and type 'make' followed by 'make install'\n";
-print "to create and install the binaries\n\n";
+print "You can type 'make' followed by 'make install' to create and install the binaries\n\n";
 
 # continue hacking the update scripts
 
@@ -329,9 +475,9 @@ sub compile_and_catch {
 	print F $C_file;
 	close F;
 
-	`$cc -o /tmp/$bn.out /tmp/$bn.cpp 2>&1`;
+	my $err = `$cc -o /tmp/$bn.out /tmp/$bn.cpp 2>&1`;
 	
-	die "Could not compile" unless -x "/tmp/$bn.out";
+	die "Could not compile: $err\n" unless -x "/tmp/$bn.out";
 	
 	$r = `/tmp/$bn.out`;
 	chomp($r) if defined $r;

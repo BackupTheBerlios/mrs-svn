@@ -41,7 +41,6 @@ ifeq ($(CPU),)
 endif
 
 SO_EXT		= .so
-VERSION		= 1.2.0
 TARGET		= mrsws
 # DEBUG should be either 1 or 0
 DEBUG		= 0
@@ -49,7 +48,7 @@ DEFINES		= CPU_$(CPU) MINI_H_LIB
 WARNINGS	= -Wall -Wno-multichar
 RDEFINES	= -DMACOS=0 -DUNIX=1
 LIBNAME		= mrs
-LIBS		= z expat m bz2 gsoap++
+LIBS		= z expat m bz2 gsoap++ boost_regex boost_filesystem xml2
 LIBPATHS	=  ../plugin/Lib/ /usr/local/lib/ ../plugin/
 INCPATHS	= ../plugin/Lib/Includes/ ../plugin/Lib/X/ ../plugin/Lib/ ../plugin/Sources/
 SYSINCPATHS	= /usr/include ../plugin/Lib/loki
@@ -63,14 +62,11 @@ PERL		= /usr/bin/perl
 
 include make.config
 
-SYSINCPATHS	+= $(BOOST) $(LIBXML)
-
 LDFLAGS		+= $(shell $(PERL) -MExtUtils::Embed -e ldopts)
 
 ifeq ($(OS),FreeBSD)
 	LIBS		+= 
 	INCPATHS	+= 
-	SYSINCPATHS	+= /usr/local/include
 	DEFINES		+= HAS_ENDIAN FREEBSD
 	LDFLAGS		+= -shared
 	CTAGS		= exctags
@@ -106,22 +102,9 @@ endif
 
 endif
 
-ifeq ($(CPU),mips)
-	DEFINES		+= IRIX
-	SYSINCPATHS += /opt/MIPSpro/MIPSpro/usr/include
-	SYSINCPATHS += /usr/freeware/include /home/cc/hekkel/include
-	LIBPATHS	+= /usr/freeware/lib32 /home/cc/hekkel/lib
-	LIBS		+= pthread
-	LD_SO_FLAG	= -shared
-	LDFLAGS		+= -rpath /home/cc/hekkel/lib/mabi=64 -mips4 -mabi=64
-	CFLAGS		+= -mips4 -mabi=64
-endif
-
 ifeq ($(OS),Darwin)
 	DEFINES		+= DARWIN
 	LDFLAGS		+= 
-	SYSINCPATHS	+= /opt/local/include
-	LIBPATHS	+= /opt/local/lib
 	CFLAGS		+= -force_cpusubtype_ALL
 	OPT			+= -O3 -falign-loops=32
 	LDFLAGS		+= /System/Library/Perl/5.8.6/darwin-thread-multi-2level/auto/DynaLoader/DynaLoader.a
@@ -130,7 +113,6 @@ ifeq ($(CPU),ppc)
 		OPT		+= -mcpu=G4
 endif
 	
-#	WARNINGS	+= -Wno-long-double
 	CTAGS		= /sw/bin/ctags
 	STRIP		= strip -S
 	JAVA_INC	= -I/System/Library/Frameworks/JavaVM.framework/Versions/1.4.2/Headers/
@@ -142,7 +124,6 @@ ifeq ($(DEBUG),0)
 	OBJDIR	= Obj.NoDebug
 	DEFINES	+= NDEBUG
 else
-#	DBG		+= -g
 	OBJDIR	= Obj.Debug
 	DEFINES	+= DEBUG
 #	LIBS	+= efence
@@ -200,7 +181,6 @@ LINK_PATHS = $(foreach path, $(LIBPATHS), $(addprefix -L, $(path)))
 
 # add the -l prefix to all libs to be linked against
 LINK_LIBS = $(foreach lib, $(LIBS), $(addprefix -l, $(lib)))
-LINK_LIBS += $(BOOST_LIBS) $(LIBXML_LIBS)
 
 # add to the linker flags 
 LDFLAGS += $(LINK_PATHS) $(LINK_LIBS)
@@ -234,8 +214,10 @@ clean: FORCE
 dist: $(TARGET)
 
 install: dist
-	install mrsws ../web-simple/cgi-bin/
-	install Sources/mrsws.wsdl ../web-simple/htdocs/
+	install mrsws $(INSTALL_DIR)/mrsws
+	@ echo "To finish installation of the web-service you have to edit the file"
+	@ echo "ws/Sources/mrsws.wsdl and put it in the proper location."
+#	install Sources/mrsws.wsdl ../web-simple/htdocs/
 
 tags: FORCE
 	$(CTAGS) $(wildcard $(addsuffix *, $(SRC_PATHS))) $(wildcard $(addsuffix *.h, $(INCPATHS)))
@@ -254,7 +236,7 @@ $(OBJDIR)/%.o: %.c
 include $(OBJS:%.o=%.d)
 
 soapC.cpp soapServer.cpp: Sources/mrsws.h
-	$(SOAPCPP2) -Igsoap-2.7/soapcpp2/import -d Sources/ Sources/mrsws.h
+	$(SOAPCPP2) -d Sources/ Sources/mrsws.h
 
 $(OBJDIR)/%.d:%.cpp
 	@ test -d $(OBJDIR) || mkdir $(OBJDIR)
