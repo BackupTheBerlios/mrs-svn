@@ -56,7 +56,7 @@ namespace fs = boost::filesystem;
 fs::path gDataDir(MRS_DATA_DIR, fs::native);
 fs::path gParserDir(MRS_PARSER_DIR, fs::native);
 fs::path gConfigFile(MRS_CONFIG_FILE, fs::native);
-fs::path gLogFile(MRS_CONFIG_FILE, fs::native);
+fs::path gLogFile(MRS_LOG_FILE, fs::native);
 
 extern double system_time();
 
@@ -1030,13 +1030,13 @@ void handler(int inSignal)
 
 void usage()
 {
-	cout << "usage: mrsws [-c config_file] [-d datadir] [-p parserdir] [[-a address] [-p port] | -i input] [-v]" << endl;
-	cout << "    -c   config file" << endl;
+	cout << "usage: mrsws [-d datadir] [-p parserdir] [[-a address] [-p port] | -i input] [-v]" << endl;
 	cout << "    -d   data directory containing MRS files (default " << gDataDir.string() << ')' << endl;
-	cout << "    -s   parser directory containing parser scripts (default " << gParserDir.string() << ')' << endl;
+	cout << "    -p   parser directory containing parser scripts (default " << gParserDir.string() << ')' << endl;
 	cout << "    -a   address to bind to (default localhost)" << endl;
 	cout << "    -p   port number to bind to (default 8081)" << endl;
 	cout << "    -i   process command from input file and exit" << endl;
+	cout << "    -b   detach (daemon)" << endl;
 	cout << "    -v   be verbose" << endl;
 	cout << endl;
 	exit(1);
@@ -1103,6 +1103,9 @@ void FetchParametersFromConfigFile(
 	if (FetchString(context, "/mrs-config/scriptdir", s))
 		gParserDir = fs::system_complete(fs::path(s, fs::native));
 	
+	if (FetchString(context, "/mrs-config/logfile", s))
+		gLogFile = fs::system_complete(fs::path(s, fs::native));
+	
 	if (FetchString(context, "/mrs-config/address", s))
 		outAddress = s;
 	
@@ -1124,8 +1127,9 @@ int main(int argc, const char* argv[])
 	int c, verbose = 0;
 	string input_file, address = "localhost", config_file;
 	short port = 8081;
+	bool daemon = false;
 	
-	while ((c = getopt(argc, const_cast<char**>(argv), "d:s:a:p:i:c:v")) != -1)
+	while ((c = getopt(argc, const_cast<char**>(argv), "d:s:a:p:i:c:vb")) != -1)
 	{
 		switch (c)
 		{
@@ -1151,11 +1155,14 @@ int main(int argc, const char* argv[])
 			
 			case 'c':
 				gConfigFile = fs::system_complete(fs::path(optarg, fs::native));
-				FetchParametersFromConfigFile(address, port);
 				break;
 			
 			case 'v':
 				++verbose;
+				break;
+			
+			case 'b':
+				daemon = true;
 				break;
 			
 			default:
@@ -1165,6 +1172,11 @@ int main(int argc, const char* argv[])
 	}
 	
 	// check the parameters
+	
+	if (fs::exists(gConfigFile))
+		FetchParametersFromConfigFile(address, port);
+	else if (verbose)
+		cerr << "Configuration file " << gConfigFile.string() << " does not exist, ignoring" << endl;
 	
 	if (not fs::exists(gDataDir) or not fs::is_directory(gDataDir))
 	{
@@ -1177,9 +1189,6 @@ int main(int argc, const char* argv[])
 		cerr << "Parser directory " << gParserDir.string() << " is not a valid directory" << endl;
 		exit(1);
 	}
-	
-	if (not fs::exists(gConfigFile) and verbose)
-		cerr << "Configuration file " << gConfigFile.string() << " does not exist, ignoring" << endl;
 	
 	if (input_file.length())
 	{
@@ -1195,6 +1204,32 @@ int main(int argc, const char* argv[])
 	}
 	else
 	{
+		ofstream logFile;
+		logFile.open(gLogFile.string().c_str(), ios::out | ios::app);
+		
+		if (not logFile.is_open())
+			cerr << "Opening log file " << gLogFile.string() << " failed" << endl;
+		
+		(void)cout.rdbuf(logFile.rdbuf());
+		(void)cerr.rdbuf(logFile.rdbuf());
+		
+		if (daemon)
+		{
+			int pid = fork();
+			
+			if (pid == -1)
+			{
+				cerr << "Fork failed" << endl;
+				exit(1);
+			}
+			
+			if (pid != 0)
+			{
+				cout << "Started daemon with process id: " << pid << endl;
+				_exit(0);
+			}
+		}
+		
 		struct sigaction sa;
 		
 		sa.sa_handler = handler;
