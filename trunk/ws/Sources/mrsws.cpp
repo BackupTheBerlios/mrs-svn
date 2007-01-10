@@ -1030,9 +1030,10 @@ void handler(int inSignal)
 
 void usage()
 {
-	cout << "usage: mrsws [-d datadir] [-p parserdir] [[-a address] [-p port] | -i input] [-v]" << endl;
+	cout << "usage: mrsws [-c config_file] [-d datadir] [-p parserdir] [[-a address] [-p port] | -i input] [-v]" << endl;
+	cout << "    -c   config file" << endl;
 	cout << "    -d   data directory containing MRS files (default " << gDataDir.string() << ')' << endl;
-	cout << "    -p   parser directory containing parser scripts (default " << gParserDir.string() << ')' << endl;
+	cout << "    -s   parser directory containing parser scripts (default " << gParserDir.string() << ')' << endl;
 	cout << "    -a   address to bind to (default localhost)" << endl;
 	cout << "    -p   port number to bind to (default 8081)" << endl;
 	cout << "    -i   process command from input file and exit" << endl;
