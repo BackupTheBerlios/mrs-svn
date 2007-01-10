@@ -1205,16 +1205,17 @@ int main(int argc, const char* argv[])
 	else
 	{
 		ofstream logFile;
-		logFile.open(gLogFile.string().c_str(), ios::out | ios::app);
-		
-		if (not logFile.is_open())
-			cerr << "Opening log file " << gLogFile.string() << " failed" << endl;
-		
-		(void)cout.rdbuf(logFile.rdbuf());
-		(void)cerr.rdbuf(logFile.rdbuf());
 		
 		if (daemon)
 		{
+			logFile.open(gLogFile.string().c_str(), ios::out | ios::app);
+			
+			if (not logFile.is_open())
+				cerr << "Opening log file " << gLogFile.string() << " failed" << endl;
+			
+			(void)cout.rdbuf(logFile.rdbuf());
+			(void)cerr.rdbuf(logFile.rdbuf());
+
 			int pid = fork();
 			
 			if (pid == -1)
