@@ -10,7 +10,6 @@ class WFormatTable
 {
   public:
 	std::string				Format(
-								const std::string&	inFormatDir,
 								const std::string&	inFormatter,
 								const std::string&	inFormat,
 								const std::string&	inText,
@@ -18,17 +17,20 @@ class WFormatTable
 								const std::string&	inId);
 
 	std::string				IndexName(
-								const std::string&	inFormatDir,
 								const std::string&	inFormatter,
 								const std::string&	inIndex);
 
 	static WFormatTable&	Instance();
+	
+	void					SetParserDir(
+								const std::string&	inParserDir);
 
   private:
 							WFormatTable();
 							~WFormatTable();
 
 	struct WFormatTableImp*	mImpl;
+	std::string				mParserDir;
 };
 
 #endif // WFORMAT_H

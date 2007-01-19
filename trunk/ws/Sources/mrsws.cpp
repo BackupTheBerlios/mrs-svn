@@ -221,7 +221,7 @@ inline string Format(
 	const string&		inData,
 	const string&		inID)
 {
-	return WFormatTable::Instance().Format(gParserDir.string(), inDb->GetScriptName(), inFormat, inData, inDb->GetCode(), inID);
+	return WFormatTable::Instance().Format(inDb->GetScriptName(), inFormat, inData, inDb->GetCode(), inID);
 }
 
 void GetDatabankInfo(
@@ -343,7 +343,7 @@ ns__GetIndices(
 			ns__Index ix;
 			
 			ix.id = index->Code();
-			ix.description = ft.IndexName(gParserDir.string(), script, ix.id);
+			ix.description = ft.IndexName(script, ix.id);
 			ix.count = index->Count();
 			
 			string t = index->Type();
@@ -1101,7 +1101,10 @@ void FetchParametersFromConfigFile(
 		gDataDir = fs::system_complete(fs::path(s, fs::native));
 	
 	if (FetchString(context, "/mrs-config/scriptdir", s))
+	{
 		gParserDir = fs::system_complete(fs::path(s, fs::native));
+		WFormatTable::Instance().SetParserDir(gParserDir.string());
+	}
 	
 	if (FetchString(context, "/mrs-config/logfile", s))
 		gLogFile = fs::system_complete(fs::path(s, fs::native));
@@ -1189,6 +1192,8 @@ int main(int argc, const char* argv[])
 		cerr << "Parser directory " << gParserDir.string() << " is not a valid directory" << endl;
 		exit(1);
 	}
+
+	WFormatTable::Instance().SetParserDir(gParserDir.string());
 	
 	if (input_file.length())
 	{

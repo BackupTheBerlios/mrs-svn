@@ -11,11 +11,14 @@
 #undef do_close
 
 #include <string>
+#include <boost/filesystem/operations.hpp>
+#include <boost/filesystem/path.hpp>
 
 #include "WFormat.h"
 #include "WError.h"
 
 using namespace std;
+namespace fs = boost::filesystem;
 
 extern "C" {
 
@@ -36,11 +39,12 @@ xs_init(pTHX)
 
 struct WFormatTableImp
 {
-							WFormatTableImp();
+							WFormatTableImp(
+								const string&	inParserDir);
+
 							~WFormatTableImp();
 
 	string					Format(
-								const string&	inFormatDir,
 								const string&	inFormatter,
 								const string&	inFormat,
 								const string&	inText,
@@ -48,23 +52,28 @@ struct WFormatTableImp
 								const string&	inId);
 
 	string					IndexName(
-								const string&	inFormatDir,
 								const string&	inFormatter,
 								const string&	inIndex);
 	
 	PerlInterpreter*		my_perl;
+	string					parser_dir;
 };
 
-WFormatTableImp::WFormatTableImp()
+WFormatTableImp::WFormatTableImp(
+	const string&	inParserDir)
 	: my_perl(NULL)
+	, parser_dir(inParserDir)
 {
 	my_perl = perl_alloc();
 	if (my_perl == NULL)
 		THROW(("Error allocating perl interpreter"));
 	
 	perl_construct(my_perl);
+	
+	fs::path pd(inParserDir, fs::native);
+	fs::path sp(pd / "WSFormatter.pm");
 
-	char* embedding[] = { "", "WSFormatter.pm" };
+	char* embedding[] = { "", const_cast<char*>(sp.string().c_str()) };
 	
 	int err = perl_parse(my_perl, xs_init, 2, embedding, NULL);
 	if (err != 0)
@@ -83,7 +92,6 @@ WFormatTableImp::~WFormatTableImp()
 }
 
 string WFormatTableImp::Format(
-	const string& inFormatDir,
 	const string& inFormatter,
 	const string& inFormat,
 	const string& inText,
@@ -94,8 +102,8 @@ string WFormatTableImp::Format(
 	ENTER;                          /* everything created after here */
 	SAVETMPS;                       /* ...is a temporary variable.   */
 	PUSHMARK(SP);                   /* remember the stack pointer    */
-									/* push the format dir name onto the stack  */
-	XPUSHs(sv_2mortal(newSVpvn(inFormatDir.c_str(), inFormatDir.length())));
+									/* push the parser directory name onto the stack  */
+	XPUSHs(sv_2mortal(newSVpvn(parser_dir.c_str(), parser_dir.length())));
 									/* push the formatter name onto the stack  */
 	XPUSHs(sv_2mortal(newSVpvn(inFormatter.c_str(), inFormatter.length())));
 									/* push the text onto stack  */
@@ -124,7 +132,6 @@ string WFormatTableImp::Format(
 }
 
 string WFormatTableImp::IndexName(
-	const string& inFormatDir,
 	const string& inFormatter,
 	const string& inIndex)
 {
@@ -132,8 +139,8 @@ string WFormatTableImp::IndexName(
 	ENTER;                          /* everything created after here */
 	SAVETMPS;                       /* ...is a temporary variable.   */
 	PUSHMARK(SP);                   /* remember the stack pointer    */
-									/* push the format dir name onto the stack  */
-	XPUSHs(sv_2mortal(newSVpvn(inFormatDir.c_str(), inFormatDir.length())));
+									/* push the parser directory name onto the stack  */
+	XPUSHs(sv_2mortal(newSVpvn(parser_dir.c_str(), parser_dir.length())));
 									/* push the formatter name onto the stack  */
 	XPUSHs(sv_2mortal(newSVpvn(inFormatter.c_str(), inFormatter.length())));
 									/* push the index name onto stack  */
@@ -159,7 +166,7 @@ string WFormatTableImp::IndexName(
 //
 
 WFormatTable::WFormatTable()
-	: mImpl(new WFormatTableImp())
+	: mImpl(NULL)
 {
 }
 
@@ -171,25 +178,49 @@ WFormatTable::~WFormatTable()
 WFormatTable& WFormatTable::Instance()
 {
 	static WFormatTable sInstance;
+	
+	if (sInstance.mImpl == NULL)
+	{
+		fs::path pd(sInstance.mParserDir, fs::native);
+		if (not fs::exists(pd / "WSFormatter.pm"))
+			THROW(("The WSFormatter.pm script cannot be found, it should be located in the parser scripts directory"));
+		
+		sInstance.mImpl = new WFormatTableImp(sInstance.mParserDir);
+	}
+
 	return sInstance;
 }
 
 string WFormatTable::Format(
-	const string&	inFormatDir,
 	const string&	inFormatter,
 	const string&	inFormat,
 	const string&	inText,
 	const string&	inDb,
 	const string&	inId)
 {
-	return mImpl->Format(inFormatDir, inFormatter, inFormat, inText, inDb, inId);
+	return mImpl->Format(inFormatter, inFormat, inText, inDb, inId);
 }
 	
 string WFormatTable::IndexName(
-	const string&	inFormatDir,
 	const string&	inFormatter,
 	const string&	inIndex)
 {
-	return mImpl->IndexName(inFormatDir, inFormatter, inIndex);
+	return mImpl->IndexName(inFormatter, inIndex);
+}
+
+void WFormatTable::SetParserDir(
+	const string&	inParserDir)
+{
+	if (inParserDir != mParserDir)
+	{
+		fs::path pd(inParserDir, fs::native);
+		if (not fs::exists(pd / "WSFormatter.pm"))
+			THROW(("The WSFormatter.pm script cannot be found, it should be located in the parser scripts directory"));
+	
+		delete mImpl;
+		mImpl = NULL;
+		
+		mParserDir = inParserDir;
+	}
 }
 

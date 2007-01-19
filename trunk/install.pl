@@ -278,9 +278,6 @@ if ($@ or not defined $libxml_version) {
 	{
 		if (-d "$d/libxml2") {
 			eval { $libxml_version = &compile_and_catch($C_file, "$cc -I$d/libxml2"); };
-
-print "\n$@\n";
-
 			next if ($@);
 			$libxml_inc = "$d/libxml2";
 			last;
