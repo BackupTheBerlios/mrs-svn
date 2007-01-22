@@ -228,7 +228,9 @@ $boost_lib_suffix = "";
 foreach my $d ( undef, '/usr/lib', '/usr/local/lib', '/opt/local/lib',
 	'/usr/pkg/lib', '/usr/lib64' )
 {
-	next unless -e "$d/libboost_regex.so" or -e "$d/libboost_regex-gcc.so";
+	if (defined $d) {
+		next unless -e "$d/libboost_regex.so" or -e "$d/libboost_regex-gcc.so";
+	}
 	$boost_lib_suffix = "-gcc" if -e "$d/libboost_regex-gcc.so" and not -e "$d/libboost_regex.so";
 
 	eval {
@@ -484,7 +486,6 @@ sub compile {
 	print F $C_file;
 	close F;
 
-print "$cc -o /tmp/$bn.out /tmp/$bn.cpp 2>&1\n";
 	my $err = `$cc -o /tmp/$bn.out /tmp/$bn.cpp 2>&1`;
 	
 	die "Could not compile: $err\n" unless -x "/tmp/$bn.out";
@@ -492,7 +493,7 @@ print "$cc -o /tmp/$bn.out /tmp/$bn.cpp 2>&1\n";
 	$r = `/tmp/$bn.out`;
 	chomp($r) if defined $r;
 
-#	unlink("/tmp/$bn.out", "/tmp/$bn.cpp");
+	unlink("/tmp/$bn.out", "/tmp/$bn.cpp");
 	
 	return $r;
 }
