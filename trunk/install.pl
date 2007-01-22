@@ -141,7 +141,7 @@ int main() { std::cout << __GNUC__ << std::endl; return 0; }
 END
 
 eval {
-	$gcc_version = &compile_and_catch($C_file, $cc);
+	$gcc_version = &compile($C_file, $cc);
 };
 
 if ($@) {
@@ -172,7 +172,7 @@ int main() { std::cout << "ok" << std::endl; return 0; }
 END
 
 eval {
-	my $tr1_ok = &compile_and_catch($C_file, $cc);
+	my $tr1_ok = &compile($C_file, $cc);
 	$use_tr1 = 1 if $tr1_ok eq 'ok';
 };
 
@@ -188,18 +188,18 @@ $C_file =<<END;
 int main() { std::cout << BOOST_LIB_VERSION << std::endl; return 0; }
 END
 
-my ($boost_inc, $boost_lib, $boost_version);
+my ($boost_inc, $boost_lib, $boost_lib_suffix, $boost_version);
 
 eval {
-	$boost_version = &compile_and_catch($C_file, $cc);
+	$boost_version = &compile($C_file, $cc);
 };
 
 if ($@ or not defined $boost_version or length($boost_version) == 0) {
-	foreach my $d ( '/usr/include', '/usr/local/include', '/opt/local/include',
+	foreach my $d ( '/usr/include', '/usr/local/include', '/usr/local/include/boost-1_33_1/', '/opt/local/include',
 		'/usr/pkg/include' )
 	{
 		if (-d "$d/boost") {
-			eval { $boost_version = &compile_and_catch($C_file, "$cc -I$d"); };
+			eval { $boost_version = &compile($C_file, "$cc -I$d"); };
 			next if ($@);
 			$boost_inc = $d;
 			last;
@@ -216,21 +216,27 @@ die "Cannot continue since you don't seem to have boost installed\nBoost can be 
 # OK, so boost is installed, but is boost_regex and booost_filesystem installed as well?
 
 $C_file =<<END;
+#include <boost/version.hpp>
 #include <boost/regex.hpp>
 #include <iostream>
-int main() { boost::regex re("."); return 0; }
+int main() { boost::regex re("."); std::cout << BOOST_LIB_VERSION << std::endl; return 0; }
 END
 
 my $boost_lib_ok = 0;
+$boost_lib_suffix = "";
 
 foreach my $d ( undef, '/usr/lib', '/usr/local/lib', '/opt/local/lib',
 	'/usr/pkg/lib', '/usr/lib64' )
 {
+	next unless -e "$d/libboost_regex.so" or -e "$d/libboost_regex-gcc.so";
+	$boost_lib_suffix = "-gcc" if -e "$d/libboost_regex-gcc.so" and not -e "$d/libboost_regex.so";
+
 	eval {
 		my $b_cc = $cc;
 		$b_cc .= " -I$boost_inc " if defined $boost_inc;
 		$b_cc .= " -L$d " if defined $d;
-		&compile_and_catch($C_file, "$b_cc -lboost_regex");
+		my $test = &compile($C_file, "$b_cc -lboost_regex$boost_lib_suffix");
+		die "Boost versions do not match\n" unless $test eq $boost_version;
 	};
 
 	next if ($@);
@@ -242,6 +248,7 @@ foreach my $d ( undef, '/usr/lib', '/usr/local/lib', '/opt/local/lib',
 die "the boost library boost_regex seems to be missing" unless $boost_lib_ok;
 
 $C_file =<<END;
+#include <boost/version.hpp>
 #include <boost/filesystem/path.hpp>
 #include <iostream>
 int main() { boost::filesystem::path p; return 0; }
@@ -251,7 +258,7 @@ eval {
 	my $b_cc = $cc;
 	$b_cc .= " -I$boost_inc " if defined $boost_inc;
 	$b_cc .= " -L$boost_lib " if defined $boost_lib;
-	&compile_and_catch($C_file, "$b_cc -lboost_filesystem");
+	&compile($C_file, "$b_cc -lboost_filesystem$boost_lib_suffix");
 };
 
 if ($@ or not defined $boost_version or length($boost_version) == 0) {
@@ -269,7 +276,7 @@ END
 my ($libxml_inc, $libxml_lib, $libxml_version);
 
 eval {
-	$libxml_version = &compile_and_catch($C_file, $cc);
+	$libxml_version = &compile($C_file, $cc);
 };
 
 if ($@ or not defined $libxml_version) {
@@ -277,7 +284,7 @@ if ($@ or not defined $libxml_version) {
 		'/usr/pkg/include' )
 	{
 		if (-d "$d/libxml2") {
-			eval { $libxml_version = &compile_and_catch($C_file, "$cc -I$d/libxml2"); };
+			eval { $libxml_version = &compile($C_file, "$cc -I$d/libxml2"); };
 			next if ($@);
 			$libxml_inc = "$d/libxml2";
 			last;
@@ -303,7 +310,7 @@ foreach my $d ( undef, '/usr/lib', '/usr/local/lib', '/opt/local/lib',
 		my $x_cc = $cc;
 		$x_cc .= " -I$libxml_inc " if defined $libxml_inc;
 		$x_cc .= " -L$d " if defined $d;
-		&compile_and_catch($C_file, "$x_cc -lxml2");
+		&compile($C_file, "$x_cc -lxml2");
 	};
 
 	next if ($@);
@@ -322,6 +329,7 @@ print MCFG "CC = $cc\n";
 print MCFG "SWIG = $swig\n" if defined $swig;
 print MCFG "SYSINCPATHS += $boost_inc\n" if defined $boost_inc;
 print MCFG "LIBPATHS += $boost_lib\n" if defined $boost_lib;
+print MCFG "BOOST_LIB_SUFFIX = $boost_lib_suffix\n" if length($boost_lib_suffix) > 0;
 print MCFG "HAVE_TR1 = $use_tr1\n";
 print MCFG "IQUOTE = 0\n" if $gcc_version < 4;	# use -I- in case of older compiler
 print MCFG "INSTALL_DIR = $binpath\n";
@@ -338,6 +346,7 @@ open MCFG, ">ws/make.config" or die "Could not open the file ws/make.config for 
 print MCFG "CC = $cc\n";
 print MCFG "SYSINCPATHS += $boost_inc\n" if defined $boost_inc;
 print MCFG "LIBPATHS += $boost_lib\n" if defined $boost_lib;
+print MCFG "BOOST_LIB_SUFFIX = $boost_lib_suffix\n" if length($boost_lib_suffix) > 0;
 print MCFG "SYSINCPATHS += $libxml_inc\n" if defined $libxml_inc;
 print MCFG "LIBPATHS += $libxml_lib\n" if defined $libxml_lib;
 print MCFG "HAVE_TR1 = $use_tr1\n";
@@ -461,17 +470,21 @@ sub write_file {
 	close FILE;
 }
 
-sub compile_and_catch {
+sub compile {
 	my ($code, $cc) = @_;
 	
 	my $r;
+	our ($n);
+
+	++$n;
 	
-	my $bn = "gcc_test_$$";
+	my $bn = "gcc_test_$$-$n";
 	
 	open F, ">/tmp/$bn.cpp";
 	print F $C_file;
 	close F;
 
+print "$cc -o /tmp/$bn.out /tmp/$bn.cpp 2>&1\n";
 	my $err = `$cc -o /tmp/$bn.out /tmp/$bn.cpp 2>&1`;
 	
 	die "Could not compile: $err\n" unless -x "/tmp/$bn.out";
@@ -479,7 +492,7 @@ sub compile_and_catch {
 	$r = `/tmp/$bn.out`;
 	chomp($r) if defined $r;
 
-	unlink("/tmp/$bn.out", "/tmp/$bn.cpp");
+#	unlink("/tmp/$bn.out", "/tmp/$bn.cpp");
 	
 	return $r;
 }
