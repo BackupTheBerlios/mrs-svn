@@ -354,7 +354,7 @@ sub Create()
 				$parts[$part]->{size} += stat($file)->size;
 				push @{$parts[$part]->{files}}, $file;
 				
-				++$part if $parts[$part]->{size} >= $partSize;
+				++$part if $parts[$part]->{size} >= $partSize or scalar(@raw_files) + $part < $partCount;
 			}
 		}
 		else
