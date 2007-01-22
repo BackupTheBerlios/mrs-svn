@@ -1103,7 +1103,7 @@ void FetchParametersFromConfigFile(
 	if (FetchString(context, "/mrs-config/scriptdir", s))
 	{
 		gParserDir = fs::system_complete(fs::path(s, fs::native));
-		WFormatTable::Instance().SetParserDir(gParserDir.string());
+		WFormatTable::SetParserDir(gParserDir.string());
 	}
 	
 	if (FetchString(context, "/mrs-config/logfile", s))
@@ -1193,7 +1193,7 @@ int main(int argc, const char* argv[])
 		exit(1);
 	}
 
-	WFormatTable::Instance().SetParserDir(gParserDir.string());
+	WFormatTable::SetParserDir(gParserDir.string());
 	
 	if (input_file.length())
 	{

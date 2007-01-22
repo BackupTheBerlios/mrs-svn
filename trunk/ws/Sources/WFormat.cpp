@@ -165,6 +165,8 @@ string WFormatTableImp::IndexName(
 // --------------------------------------------------------------------
 //
 
+string WFormatTable::sParserDir;
+
 WFormatTable::WFormatTable()
 	: mImpl(NULL)
 {
@@ -181,11 +183,11 @@ WFormatTable& WFormatTable::Instance()
 	
 	if (sInstance.mImpl == NULL)
 	{
-		fs::path pd(sInstance.mParserDir, fs::native);
+		fs::path pd(sParserDir, fs::native);
 		if (not fs::exists(pd / "WSFormatter.pm"))
 			THROW(("The WSFormatter.pm script cannot be found, it should be located in the parser scripts directory"));
 		
-		sInstance.mImpl = new WFormatTableImp(sInstance.mParserDir);
+		sInstance.mImpl = new WFormatTableImp(sParserDir);
 	}
 
 	return sInstance;
@@ -211,16 +213,13 @@ string WFormatTable::IndexName(
 void WFormatTable::SetParserDir(
 	const string&	inParserDir)
 {
-	if (inParserDir != mParserDir)
+	if (inParserDir != sParserDir)
 	{
 		fs::path pd(inParserDir, fs::native);
 		if (not fs::exists(pd / "WSFormatter.pm"))
 			THROW(("The WSFormatter.pm script cannot be found, it should be located in the parser scripts directory"));
 	
-		delete mImpl;
-		mImpl = NULL;
-		
-		mParserDir = inParserDir;
+		sParserDir = inParserDir;
 	}
 }
 

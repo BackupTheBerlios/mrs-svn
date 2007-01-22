@@ -22,7 +22,7 @@ class WFormatTable
 
 	static WFormatTable&	Instance();
 	
-	void					SetParserDir(
+	static void				SetParserDir(
 								const std::string&	inParserDir);
 
   private:
@@ -30,7 +30,7 @@ class WFormatTable
 							~WFormatTable();
 
 	struct WFormatTableImp*	mImpl;
-	std::string				mParserDir;
+	static std::string		sParserDir;
 };
 
 #endif // WFORMAT_H
