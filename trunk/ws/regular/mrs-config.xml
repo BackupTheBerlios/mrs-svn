@@ -9,7 +9,7 @@
 		<db ignore-in-all="1">uniprot</db>
 		<db>embl</db>
 		<db>dbest</db>
-		<db>pdb</db>
+		<db blast="1">pdb</db>
 		<db>pdbfinder2</db>
 		<db>omim</db>
 		<db>locuslink</db>
@@ -35,10 +35,11 @@
 		<db>prosite_doc</db>
 		<db>oxford</db>
 		<db>mimmap</db>
-		<db>sprot</db>
-		<db>trembl</db>
+		<db blast="1">sprot</db>
+		<db blast="1">trembl</db>
 		<db>gpcrdb</db>
 		<db>prints</db>
 		<db>gene</db>
+		<db>nlwiki</db>
 	</dbs>
 </mrs-config>

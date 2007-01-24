@@ -1,4 +1,4 @@
-/*	$Id: CDatabank.cpp 28 2006-04-23 12:31:30Z maarten $
+/*	$Id: mrsws.cpp$
 	Copyright Maarten L. Hekkelman
 	Created Sunday January 05 2003 11:44:10
 */

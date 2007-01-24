@@ -48,10 +48,10 @@ DEFINES		= CPU_$(CPU) MINI_H_LIB
 WARNINGS	= -Wall -Wno-multichar
 RDEFINES	= -DMACOS=0 -DUNIX=1
 LIBNAME		= mrs
-LIBS		= z expat m bz2 gsoap++ xml2 $(addsuffix $(BOOST_LIB_SUFFIX), boost_regex boost_filesystem)
-LIBPATHS	=  ../plugin/Lib/ /usr/local/lib/ ../plugin/
-INCPATHS	= ../plugin/Lib/Includes/ ../plugin/Lib/X/ ../plugin/Lib/ ../plugin/Sources/
-SYSINCPATHS	= /usr/include ../plugin/Lib/loki
+LIBS		= z expat m bz2 gsoap++ boost_regex boost_filesystem xml2
+LIBPATHS	=  ../../plugin/Lib/ /usr/local/lib/ ../../plugin/
+INCPATHS	= ../../plugin/Lib/Includes/ ../../plugin/Lib/X/ ../../plugin/Lib/ ../../plugin/Sources/
+SYSINCPATHS	= /usr/include
 WARNINGS	=  -Wall -Wno-multichar -Wno-unknown-pragmas -Wno-long-long -Wno-sign-compare
 CFLAGS		= -fsigned-char -g -ffor-scope
 LDFLAGS		= -fdata-sections -g # -ffunction-sections
@@ -142,11 +142,11 @@ LIBNAME := lib$(LIBNAME).a
 
 Sources = \
 	./Sources/mrsws.cpp \
-	./Sources/WConfig.cpp \
 	./Sources/soapC.cpp \
 	./Sources/soapServer.cpp \
-	./Sources/WFormat.cpp \
-	./Sources/WError.cpp
+	../common/Sources/WConfig.cpp \
+	../common/Sources/WFormat.cpp \
+	../common/Sources/WError.cpp
 
 define SOURCES
 	$(Sources)
@@ -202,9 +202,9 @@ echo_flags:
 	 @ echo Include paths: $(INCLUDES)
 
 $(TARGET): echo_flags $(OBJS)
-	$(MAKE) DEBUG=$(DEBUG) -C ../plugin $(LIBNAME)
+	$(MAKE) DEBUG=$(DEBUG) -C ../../plugin $(LIBNAME)
 	@ echo "Linking "$(@F)
-	$(CC) -o $(TARGET) ../plugin/$(LIBNAME) $(OBJS) $(LDFLAGS)
+	$(CC) -o $(TARGET) ../../plugin/$(LIBNAME) $(OBJS) $(LDFLAGS)
 	@ chmod a+rx $(TARGET)
 	@ echo "Done"
 
