@@ -535,7 +535,7 @@ class CBlastQueryBase
 	string			ReportInXML(const CDatabankBase& inDb, bool inFilter, const CSequence& inUnfilteredQuery);
 	void			Cleanup();
 	
-	const Hit&		GetHit(uint32 inHitNr) const		{ return mHits[inHitNr]; }
+	const Hit&		GetHit(uint32 inHitNr) const		{ assert(inHitNr >= 0 and inHitNr < mHits.size()); return mHits[inHitNr]; }
 	
 	void			JoinHits(CBlastQueryBase& inOther);
 	void			SortHits(const CDatabankBase& inDb);
@@ -1754,26 +1754,31 @@ bool CBlastHspIterator::Next()
 
 uint32 CBlastHspIterator::QueryStart()
 {
+	assert(mHspNr >= 0 and mHspNr < mHit->mHsps.size());
 	return mHit->mHsps[mHspNr].mQueryStart;
 }
 
 uint32 CBlastHspIterator::SubjectStart()
 {
+	assert(mHspNr >= 0 and mHspNr < mHit->mHsps.size());
 	return mHit->mHsps[mHspNr].mTargetStart;
 }
 
 string CBlastHspIterator::QueryAlignment()
 {
+	assert(mHspNr >= 0 and mHspNr < mHit->mHsps.size());
 	return Decode(mHit->mHsps[mHspNr].mAlignedQuery);
 }
 
 string CBlastHspIterator::SubjectAlignment()
 {
+	assert(mHspNr >= 0 and mHspNr < mHit->mHsps.size());
 	return Decode(mHit->mHsps[mHspNr].mAlignedTarget);
 }
 
 uint32 CBlastHspIterator::Score()
 {
+	assert(mHspNr >= 0 and mHspNr < mHit->mHsps.size());
 	return mHit->mHsps[mHspNr].mScore;
 }
 

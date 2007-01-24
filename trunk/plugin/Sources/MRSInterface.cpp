@@ -298,13 +298,11 @@ struct MBlastHitsImp
 										bool inFilter, bool inGapped,
 										uint32 inGapOpen, uint32 inGapExtend)
 									: fBlast(inQuery, inMatrix, inWordSize, inExpect,
-										inFilter, inGapped, inGapOpen, inGapExtend)
-									, fEOF(false) {}
+										inFilter, inGapped, inGapOpen, inGapExtend) {}
 
 	CBlast						fBlast;
 	auto_ptr<CBlastHitIterator>	fHits;
 	string						fScratch;
-	bool						fEOF;
 };
 
 // ---------------------------------------------------------------------------
@@ -331,7 +329,6 @@ struct MBlastHspImp
 struct MBlastHspsImp
 {
 	auto_ptr<CBlastHspIterator>	fHsps;
-	bool						fEOF;
 };
 #endif
 
@@ -1205,7 +1202,6 @@ MBlastHsps* MBlastHit::Hsps()
 {
 	auto_ptr<MBlastHspsImp> impl(new MBlastHspsImp);
 	impl->fHsps.reset(new CBlastHspIterator(*fImpl->fHsps));
-	impl->fEOF = false;
 	return MBlastHsps::Create(impl.release());
 }
 
@@ -1225,14 +1221,12 @@ MBlastHit* MBlastHits::Next()
 {
 	MBlastHit* result = nil;
 	
-	if (not fImpl->fEOF)
+	if (fImpl->fHits->Next())
 	{
 		auto_ptr<MBlastHitImp> impl(new MBlastHitImp);
 		impl->fId = fImpl->fHits->DocumentID();
 		impl->fHsps.reset(new CBlastHspIterator(fImpl->fHits->Hsps()));
 		result = MBlastHit::Create(impl.release());
-		
-		fImpl->fEOF = fImpl->fHits->Next();
 	}
 	
 	return result;
@@ -1287,7 +1281,7 @@ MBlastHsp* MBlastHsps::Next()
 {
 	MBlastHsp* result = nil;
 	
-	if (not fImpl->fEOF)
+	if (fImpl->fHsps->Next())
 	{
 		auto_ptr<MBlastHspImp> impl(new MBlastHspImp);
 
@@ -1300,8 +1294,6 @@ MBlastHsp* MBlastHsps::Next()
 		impl->fExpect = fImpl->fHsps->Expect();
 
 		result = MBlastHsp::Create(impl.release());
-		
-		fImpl->fEOF = fImpl->fHsps->Next();
 	}
 	
 	return result;
