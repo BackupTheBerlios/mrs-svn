@@ -60,7 +60,7 @@ OPT			+= -fstrict-aliasing
 SOAPCPP2	= soapcpp2
 PERL		= /usr/bin/perl
 
-include make.config
+include ../make.config
 
 LDFLAGS		+= $(shell $(PERL) -MExtUtils::Embed -e ldopts)
 
@@ -144,6 +144,7 @@ Sources = \
 	./Sources/mrsws-blast.cpp \
 	./Sources/soapC.cpp \
 	./Sources/soapServer.cpp \
+	./Sources/CJob.cpp \
 	../common/Sources/WConfig.cpp \
 	../common/Sources/WFormat.cpp \
 	../common/Sources/WError.cpp

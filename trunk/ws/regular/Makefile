@@ -60,7 +60,7 @@ OPT			+= -fstrict-aliasing
 SOAPCPP2	= soapcpp2
 PERL		= /usr/bin/perl
 
-include make.config
+include ../make.config
 
 LDFLAGS		+= $(shell $(PERL) -MExtUtils::Embed -e ldopts)
 

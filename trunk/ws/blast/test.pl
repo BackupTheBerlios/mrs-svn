@@ -41,10 +41,31 @@ my $query = shift;
 # If, however, the queries parameter is an array of strings the result will be
 # an array of arrays of ids, one for each query
 
-my $result = &soapCall(SOAP::Data->name("$ns:BlastSync")->attr({"xmlns:$ns" => $ns_url})
+my $result = &soapCall(SOAP::Data->name("$ns:BlastAsync")->attr({"xmlns:$ns" => $ns_url})
     => (
         SOAP::Data->name("$ns:db")        ->type('xsd:string' => $db),
         SOAP::Data->name("$ns:query")     ->type('xsd:string' => $query)
+    ));
+
+print Dumper($result);
+
+my $job_id = $result;
+
+while (1)
+{
+	my $status = &soapCall(SOAP::Data->name("$ns:BlastJobStatus")->attr({"xmlns:$ns" => $ns_url})
+	    => (
+	        SOAP::Data->name("$ns:job-id")    ->type('xsd:string' => $job_id)
+	    ));
+	last if $status eq 'finished' or $status eq 'error';
+	
+	print "status: $status\n";
+	sleep 2;
+}
+
+$result = &soapCall(SOAP::Data->name("$ns:BlastJobResult")->attr({"xmlns:$ns" => $ns_url})
+    => (
+        SOAP::Data->name("$ns:job-id")    ->type('xsd:string' => $job_id)
     ));
 
 print Dumper($result);

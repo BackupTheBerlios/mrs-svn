@@ -57,6 +57,7 @@ int ns__BlastAsync(
 
 enum ns__JobStatus
 {
+	unknown,
 	queued,
 	running,
 	error,

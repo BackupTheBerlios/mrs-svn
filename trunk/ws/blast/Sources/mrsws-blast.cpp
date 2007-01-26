@@ -13,6 +13,8 @@
 #include <signal.h>
 #include <getopt.h>
 
+#include "uuid/uuid.h"
+
 #include <boost/shared_ptr.hpp>
 #include <boost/ptr_container/ptr_vector.hpp>
 #include <boost/filesystem/operations.hpp>
@@ -29,6 +31,7 @@
 #include "CThread.h"
 #include "WError.h"
 #include "WFormat.h"
+#include "CJob.h"
 
 #define nil NULL
 
@@ -218,6 +221,267 @@ void WSDatabankTable::ReloadDbs()
 	}
 }
 
+//	-------------------------------------------------------------------
+//
+//	blast queue
+//
+
+struct CBlastJobParameters
+{
+						CBlastJobParameters(
+							string			inDB,
+							string			inQuery,
+							string			inProgram,
+							string			inMatrix,
+							unsigned long	inWordSize,
+							double			inExpect,
+							bool			inLowComplexityFilter,
+							bool			inGapped,
+							unsigned long	inGapOpen,
+							unsigned long	inGapExtend);
+
+						CBlastJobParameters(
+							const CBlastJobParameters& inOther);
+
+	string				mDB;
+	string				mQuery;
+	string				mProgram;
+	string				mMatrix;
+	unsigned long		mWordSize;
+	double				mExpect;
+	bool				mLowComplexityFilter;
+	bool				mGapped;
+	unsigned long		mGapOpen;
+	unsigned long		mGapExtend;
+	
+	bool				operator==(const CBlastJobParameters& inOther) const;
+};
+
+CBlastJobParameters::CBlastJobParameters(
+	string			inDB,
+	string			inQuery,
+	string			inProgram,
+	string			inMatrix,
+	unsigned long	inWordSize,
+	double			inExpect,
+	bool			inLowComplexityFilter,
+	bool			inGapped,
+	unsigned long	inGapOpen,
+	unsigned long	inGapExtend)
+	: mDB(inDB)
+	, mQuery(inQuery)
+	, mProgram(inProgram)
+	, mMatrix(inMatrix)
+	, mWordSize(inWordSize)
+	, mExpect(inExpect)
+	, mLowComplexityFilter(inLowComplexityFilter)
+	, mGapped(inGapped)
+	, mGapOpen(inGapOpen)
+	, mGapExtend(inGapExtend)
+{
+}
+
+CBlastJobParameters::CBlastJobParameters(
+	const CBlastJobParameters& inOther)
+	: mDB(inOther.mDB)
+	, mQuery(inOther.mQuery)
+	, mProgram(inOther.mProgram)
+	, mMatrix(inOther.mMatrix)
+	, mWordSize(inOther.mWordSize)
+	, mExpect(inOther.mExpect)
+	, mLowComplexityFilter(inOther.mLowComplexityFilter)
+	, mGapped(inOther.mGapped)
+	, mGapOpen(inOther.mGapOpen)
+	, mGapExtend(inOther.mGapExtend)
+{
+}
+
+bool CBlastJobParameters::operator==(const CBlastJobParameters& inOther) const
+{
+	return
+		mDB == inOther.mDB and
+		mQuery == inOther.mQuery and
+		mProgram == inOther.mProgram and
+		mMatrix == inOther.mMatrix and
+		mWordSize == inOther.mWordSize and
+		mExpect == inOther.mExpect and
+		mLowComplexityFilter == inOther.mLowComplexityFilter and
+		mGapped == inOther.mGapped and
+		mGapOpen == inOther.mGapOpen and
+		mGapExtend == inOther.mGapExtend;
+}
+
+class CBlastJob : public CJob
+{
+  public:
+							
+	static string		Create(
+							const CBlastJobParameters& inParams);
+
+	static CBlastJob*	Find(
+							const string&	inID);
+
+	ns__JobStatus		Status() const							{ return mStatus; }
+	vector<ns__Hit>		Hits() const							{ return mHits; }
+	string				ID() const;
+
+  private:
+
+	virtual void		Execute();
+
+	static CBlastJob*	sHead;
+	static HMutex		sLock;
+	static CJobQueue	sQueue;
+
+						CBlastJob(
+							const CBlastJobParameters& inParams);
+//	virtual				~CBlastJob();
+
+	uuid_t				mID;
+	ns__JobStatus		mStatus;
+	CBlastJob*			mNext;
+	vector<ns__Hit>		mHits;
+	bool				mCollected;
+	double				mCreated;
+	double				mAccess;
+	CBlastJobParameters	mParams;
+	string				mError;
+};
+
+HMutex		CBlastJob::sLock;
+CBlastJob*	CBlastJob::sHead = NULL;
+CJobQueue	CBlastJob::sQueue;
+
+CBlastJob::CBlastJob(const CBlastJobParameters& inParams)
+	: mStatus(unknown)
+	, mNext(NULL)
+	, mCollected(false)
+	, mCreated(system_time())
+	, mAccess(mCreated)
+	, mParams(inParams)
+{
+	uuid_generate_time(mID);
+}
+
+string CBlastJob::Create(
+	const CBlastJobParameters& inParams)
+{
+	StMutex lock(sLock);
+	
+	// first see if this job already exists in our cache
+	unsigned long n = 0;
+	CBlastJob* job = sHead;
+	CBlastJob* last = NULL;
+	
+	while (job != NULL)
+	{
+		if (inParams == job->mParams)
+			break;
+		
+		last = job;
+		job = job->mNext;
+		++n;
+	}
+	
+	if (job != NULL)
+		job->mAccess = system_time();
+	else
+	{
+		job = new CBlastJob(inParams);
+		
+		if (sHead == NULL)
+			sHead = job;
+		else if (last != NULL)
+			last->mNext = job;
+		else
+			assert(false);
+
+		job->mStatus = queued;
+
+		sQueue.Submit(job);
+	}
+	
+	return job->ID();
+}
+
+CBlastJob* CBlastJob::Find(
+	const string&	inID)
+{
+	uuid_t id;
+	uuid_parse(inID.c_str(), id);
+	
+	StMutex lock(sLock);
+	
+	CBlastJob* job = sHead;
+	
+	while (job != NULL)
+	{
+		if (uuid_compare(id, job->mID) == 0)
+			break;
+		
+		job = job->mNext;
+	}
+	
+	return job;
+}
+
+void CBlastJob::Execute()
+{
+	try
+	{
+		mStatus = running;
+		
+		MDatabankPtr mrsDb = WSDatabankTable::Instance()[mParams.mDB];
+		
+		auto_ptr<MBlastHits> hits(mrsDb->Blast(mParams.mQuery, mParams.mMatrix,
+			mParams.mWordSize, mParams.mExpect, mParams.mLowComplexityFilter, mParams.mGapped,
+			mParams.mGapOpen, mParams.mGapExtend));
+
+		if (hits.get() != NULL)
+		{
+			for (auto_ptr<MBlastHit> hit(hits->Next()); hit.get() != NULL; hit.reset(hits->Next()))
+			{
+				ns__Hit h;
+				
+				h.id = hit->Id();
+				
+				auto_ptr<MBlastHsps> hsps(hit->Hsps());
+	
+				for (auto_ptr<MBlastHsp> hsp(hsps->Next()); hsp.get() != NULL; hsp.reset(hsps->Next()))
+				{
+					ns__Hsp hs;
+					
+					hs.score = hsp->Score();
+					hs.bit_score = hsp->BitScore();
+					hs.expect = hsp->Expect();
+					hs.query_start = hsp->QueryStart();
+					hs.query_alignment = hsp->QueryAlignment();
+					hs.subject_start = hsp->SubjectStart();
+					hs.subject_alignment = hsp->SubjectAlignment();
+					
+					h.hsps.push_back(hs);
+				}
+				
+				mHits.push_back(h);
+			}
+		}
+		
+		mStatus = finished;
+	}
+	catch (exception& e)
+	{
+		mStatus = error;
+		mError = e.what();
+	}
+}
+
+string CBlastJob::ID() const
+{
+	char id[128] = {};
+	uuid_unparse(mID, id);
+	return string(id);
+}
+
 SOAP_FMAC5 int SOAP_FMAC6
 ns__BlastSync(
 	struct soap*						soap,
@@ -233,7 +497,7 @@ ns__BlastSync(
 	unsigned long						gap_extend,
 	vector<struct ns__Hit >&			response)
 {
-	cout << '\t' << __func__;
+	cout << '\t' << __func__ << '\t' << db;
 
 	int result = SOAP_OK;
 	
@@ -241,18 +505,18 @@ ns__BlastSync(
 	{
 		MDatabankPtr mrsDb = WSDatabankTable::Instance()[db];
 		
-cout << endl << "params: " << endl
-	 << "db:                    " << db << endl
-	 << "query:                 " << query << endl
-	 << "program:               " << program << endl
-	 << "matrix:                " << matrix << endl
-	 << "word_size:             " << word_size << endl
-	 << "expect:                " << expect << endl
-	 << "low_complexity_filter: " << low_complexity_filter << endl
-	 << "gapped:                " << gapped << endl
-	 << "gap_open:              " << gap_open << endl
-	 << "gap_extend:            " << gap_extend << endl;
-		
+//cout << endl << "params" << endl
+//	 << "db:                    " << db << endl
+//	 << "query:                 " << query << endl
+//	 << "program:               " << program << endl
+//	 << "matrix:                " << matrix << endl
+//	 << "word_size:             " << word_size << endl
+//	 << "expect:                " << expect << endl
+//	 << "low_complexity_filter: " << low_complexity_filter << endl
+//	 << "gapped:                " << gapped << endl
+//	 << "gap_open:              " << gap_open << endl
+//	 << "gap_extend:            " << gap_extend << endl;
+
 		auto_ptr<MBlastHits> hits(mrsDb->Blast(query, matrix,
 			word_size, expect, low_complexity_filter, gapped,
 			gap_open, gap_extend));
@@ -311,14 +575,12 @@ ns__BlastAsync(
 	unsigned long						gap_extend,
 	xsd__string&						response)
 {
-//	cout << '\t' << __func__;
-//
-//	int result = SOAP_OK;
-//	
-//	try
-//	{
-//		MDatabankPtr mrsDb = WSDatabankTable::Instance()[db];
-//		
+	cout << '\t' << __func__;
+
+	int result = SOAP_OK;
+	
+	try
+	{
 //cout << endl << "params: " << endl
 //	 << "db:                    " << db << endl
 //	 << "query:                 " << query << endl
@@ -331,47 +593,18 @@ ns__BlastAsync(
 //	 << "gap_open:              " << gap_open << endl
 //	 << "gap_extend:            " << gap_extend << endl;
 //		
-//		auto_ptr<MBlastHits> hits(mrsDb->Blast(query, matrix,
-//			word_size, expect, low_complexity_filter, gapped,
-//			gap_open, gap_extend));
-//
-//		if (hits.get() != NULL)
-//		{
-//			for (auto_ptr<MBlastHit> hit(hits->Next()); hit.get() != NULL; hit.reset(hits->Next()))
-//			{
-//				ns__Hit h;
-//				
-//				h.id = hit->Id();
-//				
-//				auto_ptr<MBlastHsps> hsps(hit->Hsps());
-//	
-//				for (auto_ptr<MBlastHsp> hsp(hsps->Next()); hsp.get() != NULL; hsp.reset(hsps->Next()))
-//				{
-//					ns__Hsp hs;
-//					
-//					hs.score = hsp->Score();
-//					hs.bit_score = hsp->BitScore();
-//					hs.expect = hsp->Expect();
-//					hs.query_start = hsp->QueryStart();
-//					hs.query_alignment = hsp->QueryAlignment();
-//					hs.subject_start = hsp->SubjectStart();
-//					hs.subject_alignment = hsp->SubjectAlignment();
-//					
-//					h.hsps.push_back(hs);
-//				}
-//				
-//				response.push_back(h);
-//			}
-//		}
-//	}
-//	catch (exception& e)
-//	{
-//		return soap_receiver_fault(soap,
-//			"An error occurred in blast",
-//			e.what());
-//	}
-//
-//	return result;
+		CBlastJobParameters params(db, query, program, matrix, word_size, expect, low_complexity_filter, gapped, gap_open, gap_extend);
+		
+		response = CBlastJob::Create(params);
+	}
+	catch (exception& e)
+	{
+		return soap_receiver_fault(soap,
+			"An error occurred in blast",
+			e.what());
+	}
+
+	return result;
 }
 
 SOAP_FMAC5 int SOAP_FMAC6
@@ -380,6 +613,27 @@ ns__BlastJobStatus(
 	xsd__string						job_id,
 	enum ns__JobStatus&				response)
 {
+	cout << '\t' << __func__;
+
+	int result = SOAP_OK;
+	
+	try
+	{
+		CBlastJob* job = CBlastJob::Find(job_id);
+		
+		if (job == NULL)
+			THROW(("Unknown job id %s", job_id.c_str()));
+		
+		response = job->Status();
+	}
+	catch (exception& e)
+	{
+		return soap_receiver_fault(soap,
+			"An error occurred in blast",
+			e.what());
+	}
+
+	return result;
 }
 
 SOAP_FMAC5 int SOAP_FMAC6
@@ -388,6 +642,27 @@ ns__BlastJobResult(
 	xsd__string						job_id,
 	std::vector<struct ns__Hit>&	response)
 {
+	cout << '\t' << __func__;
+
+	int result = SOAP_OK;
+	
+	try
+	{
+		CBlastJob* job = CBlastJob::Find(job_id);
+		
+		if (job == NULL)
+			THROW(("Unknown job id %s", job_id.c_str()));
+		
+		response = job->Hits();
+	}
+	catch (exception& e)
+	{
+		return soap_receiver_fault(soap,
+			"An error occurred in blast",
+			e.what());
+	}
+
+	return result;
 }
 
 // --------------------------------------------------------------------
@@ -700,7 +975,7 @@ int main(int argc, const char* argv[])
 				try
 				{
 					if (soap_serve(&soap) != SOAP_OK) // process RPC request
-						soap_print_fault(&soap, stderr); // print error
+;//						soap_print_fault(&soap, stderr); // print error
 				}
 				catch (const exception& e)
 				{
