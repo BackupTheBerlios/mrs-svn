@@ -327,8 +327,7 @@ class CBlastJob : public CJob
 	vector<ns__Hit>		Hits() const							{ mCollected = true; return mHits; }
 	string				ID() const;
 
-	static void			PurgeCache();
-	static void			CheckCache();
+	static void			CheckCache(bool inPurge);
 
   private:
 
@@ -433,23 +432,7 @@ CBlastJob* CBlastJob::Find(
 	return job;
 }
 
-void CBlastJob::PurgeCache()
-{
-	StMutex lock(sLock);
-	
-	CBlastJob* job = sHead;
-	sHead = NULL;
-	
-	while (job != NULL)
-	{
-		CBlastJob* j = job;
-		job = job->mNext;
-		
-		delete j;
-	}
-}
-
-void CBlastJob::CheckCache()
+void CBlastJob::CheckCache(bool inPurge)
 {
 	StMutex lock(sLock);
 	
@@ -458,10 +441,8 @@ void CBlastJob::CheckCache()
 	
 	while (job != NULL)
 	{
-		if (job->mCollected and job->mAccess + TIME_OUT_DATA < system_time())
+		if (job->mCollected and (inPurge or job->mAccess + TIME_OUT_DATA < system_time()))
 		{
-cout << "Deleting job from cache" << endl;
-			
 			CBlastJob* j = job;
 			job = job->mNext;
 			
@@ -1004,12 +985,13 @@ int main(int argc, const char* argv[])
 				if (gQuit)
 					break;
 				
-				if (gNeedReload)
-					WSDatabankTable::Instance().ReloadDbs();
+				CBlastJob::CheckCache(gNeedReload);
 
-				gNeedReload = false;
-				
-				CBlastJob::CheckCache();
+				if (gNeedReload)
+				{
+					WSDatabankTable::Instance().ReloadDbs();
+					gNeedReload = false;
+				}
 				
 				s = soap_accept(&soap);
 				
