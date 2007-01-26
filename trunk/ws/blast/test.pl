@@ -6,7 +6,7 @@ use Data::Dumper;
 
 my $ns_url = 'http://mrs.cmbi.ru.nl/mrsws-blast';
 my $ns = 'service';
-my $url = 'http://localhost:8082/mrsws-blast';
+my $url = 'http://mini:8082/mrsws-blast';
 
 my $soap = SOAP::Lite->uri($ns_url)->proxy($url);
 
@@ -47,8 +47,6 @@ my $result = &soapCall(SOAP::Data->name("$ns:BlastAsync")->attr({"xmlns:$ns" => 
         SOAP::Data->name("$ns:query")     ->type('xsd:string' => $query)
     ));
 
-print Dumper($result);
-
 my $job_id = $result;
 
 while (1)
@@ -60,7 +58,7 @@ while (1)
 	last if $status eq 'finished' or $status eq 'error';
 	
 	print "status: $status\n";
-	sleep 2;
+	sleep 1;
 }
 
 $result = &soapCall(SOAP::Data->name("$ns:BlastJobResult")->attr({"xmlns:$ns" => $ns_url})
@@ -68,4 +66,5 @@ $result = &soapCall(SOAP::Data->name("$ns:BlastJobResult")->attr({"xmlns:$ns" =>
         SOAP::Data->name("$ns:job-id")    ->type('xsd:string' => $job_id)
     ));
 
-print Dumper($result);
+die "no hits found" unless defined $result->{id};
+print $result->{id}, "\n";

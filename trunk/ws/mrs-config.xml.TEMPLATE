@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <mrs-config>
-	<datadir>__DATA_DIR__</datadir>
+	<datadir>__DATA_DIR__/mrs</datadir>
 	<scriptdir>__PARSER_DIR__</scriptdir>
 	<address>__HOST_NAME__</address>
 	<logfile>/var/log/mrsws.log</logfile>

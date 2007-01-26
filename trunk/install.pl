@@ -360,7 +360,7 @@ print MCFG "INSTALL_DIR = $binpath\n";
 print MCFG "SUDO = sudo\n" if $EFFECTIVE_USER_ID != 0;
 print MCFG "SOAPCPP2 = $gsoap\n" if defined $gsoap;
 print MCFG "PERL = $perlpath\n";
-print MCFG "CFLAGS += -DMRS_CONFIG_FILE=\"$etcpath/mrs-config.xml\"\n";
+print MCFG "CFLAGS += -DMRS_CONFIG_FILE='\"$etcpath/mrs-config.xml\"'\n";
 
 close MCFG;
 

@@ -38,6 +38,8 @@
 using namespace std;
 namespace fs = boost::filesystem;
 
+const double TIME_OUT_DATA = 3600;	// after an hour the data is purged from the cache
+
 // default values for the directories used by mrsws, these can also be set from the Makefile
 
 #ifndef MRS_DATA_DIR
@@ -322,8 +324,11 @@ class CBlastJob : public CJob
 							const string&	inID);
 
 	ns__JobStatus		Status() const							{ return mStatus; }
-	vector<ns__Hit>		Hits() const							{ return mHits; }
+	vector<ns__Hit>		Hits() const							{ mCollected = true; return mHits; }
 	string				ID() const;
+
+	static void			PurgeCache();
+	static void			CheckCache();
 
   private:
 
@@ -341,7 +346,7 @@ class CBlastJob : public CJob
 	ns__JobStatus		mStatus;
 	CBlastJob*			mNext;
 	vector<ns__Hit>		mHits;
-	bool				mCollected;
+	mutable bool		mCollected;
 	double				mCreated;
 	double				mAccess;
 	CBlastJobParameters	mParams;
@@ -422,7 +427,57 @@ CBlastJob* CBlastJob::Find(
 		job = job->mNext;
 	}
 	
+	if (job != NULL)
+		job->mAccess = system_time();
+	
 	return job;
+}
+
+void CBlastJob::PurgeCache()
+{
+	StMutex lock(sLock);
+	
+	CBlastJob* job = sHead;
+	sHead = NULL;
+	
+	while (job != NULL)
+	{
+		CBlastJob* j = job;
+		job = job->mNext;
+		
+		delete j;
+	}
+}
+
+void CBlastJob::CheckCache()
+{
+	StMutex lock(sLock);
+	
+	CBlastJob* job = sHead;
+	CBlastJob* last = NULL;
+	
+	while (job != NULL)
+	{
+		if (job->mCollected and job->mAccess + TIME_OUT_DATA < system_time())
+		{
+cout << "Deleting job from cache" << endl;
+			
+			CBlastJob* j = job;
+			job = job->mNext;
+			
+			delete j;
+			
+			if (last != NULL)
+				last->mNext = job;
+			else
+				sHead = job;
+		}
+		else
+		{
+			last = job;
+			job = job->mNext;
+		}
+	}
 }
 
 void CBlastJob::Execute()
@@ -953,6 +1008,8 @@ int main(int argc, const char* argv[])
 					WSDatabankTable::Instance().ReloadDbs();
 
 				gNeedReload = false;
+				
+				CBlastJob::CheckCache();
 				
 				s = soap_accept(&soap);
 				
