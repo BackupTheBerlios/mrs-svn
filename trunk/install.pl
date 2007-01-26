@@ -9,6 +9,7 @@ use strict;
 use warnings;
 use English;
 use Config;
+use Sys::Hostname;
 
 $| = 1;	# flush stdout
 
@@ -73,7 +74,9 @@ if (scalar @missing_modules > 0) {
 
 # Then ask the user for the installation directory for the other tools
 
-my $binpath = &ask_for_string('Where to install other executables', '/usr/local/bin');
+my $prefix = &ask_for_string('What prefix shall I use for the installation', '/usr/local');
+my $binpath = &ask_for_string('Where to install other executables', "$prefix/bin");
+my $etcpath = &ask_for_string('Where to install global configuration files', "$prefix/etc");
 
 # Try to find out some variables needed for building the plugin
 # First see if the right version of SWIG is available
@@ -118,10 +121,10 @@ if (defined $gsoap and length($gsoap) > 0) {
 	}
 	close P;
 	
-	if (not defined $gsoap_version or $gsoap_version ne '2.7.8c') {
+	if (not defined $gsoap_version or substr($gsoap_version, 0, 4) ne '2.7.') {
 		$gsoap_version = "'unknown'" unless defined $gsoap_version;
-		print "Version $gsoap_version of gSoap is not tested\ngSoap version 2.7.8c was used for development of mrsws\n"
-			if $gsoap_version ne '2.7.8c';
+		print "Version $gsoap_version of gSoap is not tested\ngSoap version 2.7 was used for development of mrsws\n"
+			if substr($gsoap_version, 0, 4) ne '2.7.';
 	}
 }
 
@@ -152,13 +155,13 @@ if ($@) {
 
 if (defined $gcc_version) {
 	if ($gcc_version >= 4) {
-#		print "Excellent! Found a decent version of GCC\n";
+#		print "Found a good version of GCC\n";
 	}
 	elsif ($gcc_version >= 3) {
-		print "Found an old (pre 4.x) version of GCC, will try to use it but this may fail\n";
+		print "Found an old (pre 4.x) version of GCC, will try to use it but this will probably fail\n";
 	}
 	else {
-		die "This version of gcc is way too old to build MRS\n";
+		die "This version of gcc is too old to build MRS\n";
 	}
 }
 
@@ -205,9 +208,9 @@ if ($@ or not defined $boost_version or length($boost_version) == 0) {
 			last;
 		}
 	}
-#	
-#	$boost_inc = &ask_for_string("Where is boost installed", $boost_inc)
-#		unless defined $boost_version;
+	
+	$boost_inc = &ask_for_string("Where is boost installed", $boost_inc)
+		unless defined $boost_version;
 }
 
 die "Cannot continue since you don't seem to have boost installed\nBoost can be found at http://www.boost.org/\n"
@@ -357,6 +360,7 @@ print MCFG "INSTALL_DIR = $binpath\n";
 print MCFG "SUDO = sudo\n" if $EFFECTIVE_USER_ID != 0;
 print MCFG "SOAPCPP2 = $gsoap\n" if defined $gsoap;
 print MCFG "PERL = $perlpath\n";
+print MCFG "CFLAGS += -DMRS_CONFIG_FILE=\"$etcpath/mrs-config.xml\"\n";
 
 close MCFG;
 
@@ -401,8 +405,7 @@ $db_conf =~ s{__SCRIPT_DIR__}	{$make_script_dir}g;
 $db_conf =~ s{__PARSER_DIR__}	{$parser_script_dir}g;
 $db_conf =~ s{__PERL__}			{$perlpath}g;
 
-my $hostname = `hostname -s`;
-chomp($hostname);
+my $hostname = hostname;
 
 my $db_conf_file = "$make_script_dir/make_$hostname.conf";
 &write_file($db_conf, $db_conf_file);
@@ -414,6 +417,17 @@ system("cd update_scripts; find . | cpio -p $make_script_dir") == 0
 # copy over all parsers
 system("cd parser_scripts; find . | cpio -p $parser_script_dir") == 0
 	or die "Could not copy over the files in parser_scripts to $parser_script_dir: $!\n";
+
+# write the web service config file mrs-config.xml
+
+my $ws_conf = &read_file("ws/mrs-config.xml.TEMPLATE");
+$ws_conf =~ s{__DATA_DIR__}		{$data_dir}g;
+$ws_conf =~ s{__PARSER_DIR__}	{$parser_script_dir}g;
+$ws_conf =~ s{__PARSER_DIR__}	{$parser_script_dir}g;
+$ws_conf =~ s{__HOST_NAME__}	{$hostname}g;
+
+my $ws_conf_file = "$etcpath/mrs-config.xml";
+&write_file($ws_conf, $ws_conf_file);
 
 print "\nOK, installation seems to have worked fine up until now.\n";
 print "Next steps are to build the actual plugins, as stated above you have to\n";
@@ -467,6 +481,15 @@ sub read_file {
 
 sub write_file {
 	my ($text, $file) = @_;
+	
+	# tricky, maybe we have to use sudo to make the file writable?
+	if (not -w $file) {
+		my @args = ("sudo", "chown", $REAL_USER_ID, $file);
+		system(@args) == 0 or die "system @args failed: $?";
+		@args = ("sudo", "chmod", "644", $file);
+		system(@args) == 0 or die "system @args failed: $?";
+	}
+	
 	open FILE, ">$file" or die "Could not open file $file for writing";
 	print FILE $text;
 	close FILE;

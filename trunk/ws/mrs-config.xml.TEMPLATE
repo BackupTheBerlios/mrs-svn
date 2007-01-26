@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <mrs-config>
-	<datadir>/data/mrs/</datadir>
-	<scriptdir>/Users/maarten/projects/mrs/parser_scripts/</scriptdir>
-	<address>localhost</address>
+	<datadir>__DATA_DIR__</datadir>
+	<scriptdir>__PARSER_DIR__</scriptdir>
+	<address>__HOST_NAME__</address>
 	<logfile>/var/log/mrsws.log</logfile>
 	<port>8081</port>
 	<dbs>
@@ -40,6 +40,5 @@
 		<db>gpcrdb</db>
 		<db>prints</db>
 		<db>gene</db>
-		<db>nlwiki</db>
 	</dbs>
 </mrs-config>
