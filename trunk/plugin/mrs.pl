@@ -535,20 +535,22 @@ sub Blast()
 	if ($q)
 	{
 		$s = $d->Find($q);
-		$hits = $s->Blast($input);
+		$hits = $s->Blast($input, "BLOSUM62", 3, 10, 1, 1, 11, 1);
 	}
 	else
 	{
-		$hits = $d->Blast($input);
+		$hits = $d->Blast($input, "BLOSUM62", 3, 10, 1, 1, 11, 1);
 	}
-	
-	while (my $hsps = $hits->Next)
+
+	while (my $hit = $hits->Next)
 	{
-		my $id = $hits->Id;
+		my $id = $hit->Id;
 		
-		if ($hsps->Next)
+		my $hsps = $hit->Hsps;
+		
+		while (my $hsp = $hsps->Next)
 		{
-			my $bitScore = $hsps->BitScore;
+			my $bitScore = $hsp->BitScore;
 			print "$id\t$bitScore\n";
 		}
 	}
