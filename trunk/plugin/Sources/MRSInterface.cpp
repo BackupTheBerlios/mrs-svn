@@ -314,11 +314,16 @@ struct MBlastHspImp
 {
 	uint32						fQueryStart;
 	uint32						fSubjectStart;
+	uint32						fSubjectLength;
 	string						fQueryAlignment;
 	string						fSubjectAlignment;
+	string						fMidline;
 	uint32						fScore;
 	double						fBitScore;
 	double						fExpect;
+	uint32						fIdentity;
+	uint32						fPositive;
+	uint32						fGaps;
 };
 
 // ---------------------------------------------------------------------------
@@ -1252,6 +1257,21 @@ double MBlastHsp::Expect()
 	return fImpl->fExpect;
 }
 
+unsigned long MBlastHsp::Identity()
+{
+	return fImpl->fIdentity;
+}
+
+unsigned long MBlastHsp::Positive()
+{
+	return fImpl->fPositive;
+}
+
+unsigned long MBlastHsp::Gaps()
+{
+	return fImpl->fGaps;
+}
+
 unsigned long MBlastHsp::QueryStart()
 {
 	return fImpl->fQueryStart;
@@ -1262,6 +1282,11 @@ unsigned long MBlastHsp::SubjectStart()
 	return fImpl->fSubjectStart;
 }
 
+unsigned long MBlastHsp::SubjectLength()
+{
+	return fImpl->fSubjectLength;
+}
+
 string MBlastHsp::QueryAlignment()
 {
 	return fImpl->fQueryAlignment;
@@ -1270,6 +1295,11 @@ string MBlastHsp::QueryAlignment()
 string MBlastHsp::SubjectAlignment()
 {
 	return fImpl->fSubjectAlignment;
+}
+
+string MBlastHsp::Midline()
+{
+	return fImpl->fMidline;
 }
 
 // ---------------------------------------------------------------------------
@@ -1287,11 +1317,16 @@ MBlastHsp* MBlastHsps::Next()
 
 		impl->fQueryStart = fImpl->fHsps->QueryStart();
 		impl->fSubjectStart = fImpl->fHsps->SubjectStart();
+		impl->fSubjectLength = fImpl->fHsps->SubjectLength();
 		impl->fQueryAlignment = fImpl->fHsps->QueryAlignment();
 		impl->fSubjectAlignment = fImpl->fHsps->SubjectAlignment();
+		impl->fMidline = fImpl->fHsps->Midline();
 		impl->fScore = fImpl->fHsps->Score();
 		impl->fBitScore = fImpl->fHsps->BitScore();
 		impl->fExpect = fImpl->fHsps->Expect();
+		impl->fIdentity = fImpl->fHsps->Identity();
+		impl->fPositive = fImpl->fHsps->Positive();
+		impl->fGaps = fImpl->fHsps->Gaps();
 
 		result = MBlastHsp::Create(impl.release());
 	}

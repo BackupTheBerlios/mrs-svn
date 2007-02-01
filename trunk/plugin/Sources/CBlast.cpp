@@ -355,8 +355,14 @@ struct Hsp
 	uint32		mTargetStart;
 	uint32		mTargetEnd;
 	CSequence	mAlignedQuery;
+	string		mAlignedQueryString;
 	CSequence	mAlignedTarget;
 	bool		mGapped;
+
+	string		mMidline;
+	uint32		mGaps;
+	uint32		mIdentity;
+	uint32		mPositive;
 	
 	bool		operator<(const Hsp& inHsp) const
 				{
@@ -375,7 +381,62 @@ struct Hsp
 				{
 					return mScore > inHsp.mScore;
 				}
+
+	void		CalculateMidline(
+					const CSequence&	inUnfilteredQuery,
+					const CMatrix&		inMatrix,
+					bool				inFilter);
 };
+
+void Hsp::CalculateMidline(
+	const CSequence&	inUnfilteredQuery,
+	const CMatrix&		inMatrix,
+	bool				inFilter)
+{
+	CSequence alignedQuery = mAlignedQuery;
+	
+	if (inFilter)
+	{
+		CSequence::const_iterator u = inUnfilteredQuery.begin() + mQueryStart;
+		CSequence::const_iterator f = alignedQuery.begin();
+		
+		CMutableSequence n;
+		vector<bool> ff;
+		
+		for (; f != alignedQuery.end(); ++f)
+		{
+			if (*f == kFilteredCode)
+			{
+				n += *u;
+				ff.push_back(true);
+			}
+			else
+			{
+				n += *f;
+				ff.push_back(false);
+			}
+
+			if (*f != kSignalGapCode)
+				++u;
+		}
+		
+		alignedQuery = CSequence(n.begin(), n.end());
+		mAlignedQueryString = Decode(alignedQuery);
+		
+		uint32 c = 0;
+		for (vector<bool>::iterator ffi = ff.begin(); ffi != ff.end(); ++ffi, ++c)
+		{
+			if (*ffi)
+				mAlignedQueryString[c] = tolower(mAlignedQueryString[c]);
+		}
+	}
+	else
+		mAlignedQueryString = Decode(alignedQuery);
+	
+	CSequence alignedTarget = mAlignedTarget;
+
+	MidLine(alignedQuery, alignedTarget, inMatrix, mIdentity, mPositive, mGaps, mMidline);
+}
 
 struct Hit
 {
@@ -391,7 +452,7 @@ struct Hit
 					{
 						if (inHsp.Overlaps(*hsp))
 						{
-							if ((*hsp).mScore < inHsp.mScore)
+							if (hsp->mScore < inHsp.mScore)
 								*hsp = inHsp;
 							found = true;
 							break;
@@ -411,7 +472,7 @@ struct Hit
 						vector<Hsp>::iterator b = a + 1;
 						while (b != mHsps.end())
 						{
-							if ((*a).Overlaps(*b))
+							if (a->Overlaps(*b))
 								mHsps.erase(b);
 							else
 								++b;
@@ -535,7 +596,7 @@ class CBlastQueryBase
 	string			ReportInXML(const CDatabankBase& inDb, bool inFilter, const CSequence& inUnfilteredQuery);
 	void			Cleanup();
 	
-	const Hit&		GetHit(uint32 inHitNr) const		{ assert(inHitNr >= 0 and inHitNr < mHits.size()); return mHits[inHitNr]; }
+	Hit&			GetHit(uint32 inHitNr)				{ assert(inHitNr >= 0 and inHitNr < mHits.size()); return mHits[inHitNr]; }
 	
 	void			JoinHits(CBlastQueryBase& inOther);
 	void			SortHits(const CDatabankBase& inDb);
@@ -1191,69 +1252,41 @@ string CBlastQueryBase::ReportInXML(const CDatabankBase& inDb, bool inFilter, co
 	{
 		s << kNest[4] << "<Hit>" << endl;
 		s << kNest[5] << "<Hit_num>" << n << "</Hit_num>" << endl;
-		s << kNest[5] << "<Hit_id>lcl|" << inDb.GetDocumentID((*hit).mDocNr) << "</Hit_id>" << endl;
+		s << kNest[5] << "<Hit_id>lcl|" << inDb.GetDocumentID(hit->mDocNr) << "</Hit_id>" << endl;
 //		s << kNest[5] << "<Hit_def>" << "" << "</Hit_def>" << endl;
 //        <Hit_accession>sprot:CLPS_LEPIN</Hit_accession>
-		s << kNest[5] << "<Hit_accession>" << inDb.GetDocumentID((*hit).mDocNr) << "</Hit_accession>" << endl;
-		s << kNest[5] << "<Hit_len>" << (*hit).mTargetLength << "</Hit_len>" << endl;
+		s << kNest[5] << "<Hit_accession>" << inDb.GetDocumentID(hit->mDocNr) << "</Hit_accession>" << endl;
+		s << kNest[5] << "<Hit_len>" << hit->mTargetLength << "</Hit_len>" << endl;
 		s << kNest[5] << "<Hit_hsps>" << endl;
 		
 		uint32 hspNr = 1;
-		for (vector<Hsp>::iterator hsp = (*hit).mHsps.begin(); hsp != (*hit).mHsps.end(); ++hsp, ++hspNr)
+		for (vector<Hsp>::iterator hsp = hit->mHsps.begin(); hsp != hit->mHsps.end(); ++hsp, ++hspNr)
 		{
-			int32 score = (*hsp).mScore;
+			int32 score = hsp->mScore;
 			double bitScore = (mMatrix.gapped.lambda * score - mMatrix.gapped.logK) / kLn2;
 			double eValue = mSearchSpace / pow(2., bitScore);
 			
-			string midLine;
-			uint32 identity, positives, gaps;
-			
-			CSequence alignedQuery = (*hsp).mAlignedQuery;
-			
-			if (inFilter)
-			{
-				CSequence::const_iterator u = inUnfilteredQuery.begin() + hsp->mQueryStart;
-				CSequence::const_iterator f = alignedQuery.begin();
-				
-				CMutableSequence n;
-				
-				for (; f != alignedQuery.end(); ++f)
-				{
-					if (*f == kFilteredCode)
-						n += *u;
-					else
-						n += *f;
-
-					if (*f != kSignalGapCode)
-						++u;
-				}
-				
-				alignedQuery = CSequence(n.begin(), n.end());
-			}
-			
-			CSequence alignedTarget = (*hsp).mAlignedTarget;
-
-			MidLine(alignedQuery, alignedTarget, mMatrix, identity, positives, gaps, midLine);
+			hsp->CalculateMidline(inUnfilteredQuery, mMatrix, inFilter);
 			
 			s << kNest[6] << "<Hsp>" << endl;
 			s << kNest[7] << "<Hsp_num>" << hspNr << "</Hsp_num>" << endl;
 			s << kNest[7] << "<Hsp_bit-score>" << bitScore << "</Hsp_bit-score>" << endl;
 			s << kNest[7] << "<Hsp_score>" << score << "</Hsp_score>" << endl;
 			s << kNest[7] << "<Hsp_evalue>" << eValue << "</Hsp_evalue>" << endl;
-			s << kNest[7] << "<Hsp_query-from>" << (*hsp).mQueryStart + 1 << "</Hsp_query-from>" << endl;
-			s << kNest[7] << "<Hsp_query-to>" << (*hsp).mQueryEnd << "</Hsp_query-to>" << endl;
-			s << kNest[7] << "<Hsp_hit-from>" << (*hsp).mTargetStart + 1 << "</Hsp_hit-from>" << endl;
-			s << kNest[7] << "<Hsp_hit-to>" << (*hsp).mTargetEnd << "</Hsp_hit-to>" << endl;
+			s << kNest[7] << "<Hsp_query-from>" << hsp->mQueryStart + 1 << "</Hsp_query-from>" << endl;
+			s << kNest[7] << "<Hsp_query-to>" << hsp->mQueryEnd << "</Hsp_query-to>" << endl;
+			s << kNest[7] << "<Hsp_hit-from>" << hsp->mTargetStart + 1 << "</Hsp_hit-from>" << endl;
+			s << kNest[7] << "<Hsp_hit-to>" << hsp->mTargetEnd << "</Hsp_hit-to>" << endl;
 //			s << kNest[7] << "<Hsp_query-frame>1</Hsp_query-frame>" << endl;
 //			s << kNest[7] << "<Hsp_hit-frame>1</Hsp_hit-frame>" << endl;
-			s << kNest[7] << "<Hsp_identity>" << identity << "</Hsp_identity>" << endl;
-			s << kNest[7] << "<Hsp_positive>" << positives << "</Hsp_positive>" << endl;
-			if (gaps > 0)
-				s << kNest[7] << "<Hsp_gaps>" << gaps << "</Hsp_gaps>" << endl;
-			s << kNest[7] << "<Hsp_align-len>" << alignedQuery.length() << "</Hsp_align-len>" << endl;
-			s << kNest[7] << "<Hsp_qseq>" << Decode(alignedQuery) << "</Hsp_qseq>" << endl;
-			s << kNest[7] << "<Hsp_hseq>" << Decode(alignedTarget) << "</Hsp_hseq>" << endl;
-			s << kNest[7] << "<Hsp_midline>" << midLine << "</Hsp_midline>" << endl;
+			s << kNest[7] << "<Hsp_identity>" << hsp->mIdentity << "</Hsp_identity>" << endl;
+			s << kNest[7] << "<Hsp_positive>" << hsp->mPositive << "</Hsp_positive>" << endl;
+			if (hsp->mGaps > 0)
+				s << kNest[7] << "<Hsp_gaps>" << hsp->mGaps << "</Hsp_gaps>" << endl;
+			s << kNest[7] << "<Hsp_align-len>" << hsp->mAlignedQuery.length() << "</Hsp_align-len>" << endl;
+			s << kNest[7] << "<Hsp_qseq>" << hsp->mAlignedQueryString << "</Hsp_qseq>" << endl;
+			s << kNest[7] << "<Hsp_hseq>" << Decode(hsp->mAlignedTarget) << "</Hsp_hseq>" << endl;
+			s << kNest[7] << "<Hsp_midline>" << hsp->mMidline << "</Hsp_midline>" << endl;
 			s << kNest[6] << "</Hsp>" << endl;
 		}
 		
@@ -1292,7 +1325,7 @@ void CBlastQueryBase::JoinHits(CBlastQueryBase& inOther)
 void CBlastQueryBase::SortHits(const CDatabankBase& inDb)
 {
 	for (vector<Hit>::iterator hit = mHits.begin(); hit != mHits.end(); ++hit)
-		(*hit).mDocID = inDb.GetDocumentID((*hit).mDocNr);
+		hit->mDocID = inDb.GetDocumentID(hit->mDocNr);
 
 	sort(mHits.begin(), mHits.end(), CompareHitsOnFirstHspScore());
 }
@@ -1304,22 +1337,22 @@ void CBlastQueryBase::Cleanup()
 	
 	for (vector<Hit>::iterator hit = mHits.begin(); hit != mHits.end(); ++hit)
 	{
-		for (vector<Hsp>::iterator hsp = (*hit).mHsps.begin(); hsp != (*hit).mHsps.end(); ++hsp)
+		for (vector<Hsp>::iterator hsp = hit->mHsps.begin(); hsp != hit->mHsps.end(); ++hsp)
 		{
 			uint32 newScore = AlignGappedWithTraceBack(mXgFinal, *hsp);
 			
-			assert((*hsp).mAlignedQuery.length() == (*hsp).mAlignedTarget.length());
+			assert(hsp->mAlignedQuery.length() == hsp->mAlignedTarget.length());
 			
-			if (newScore >= (*hsp).mScore)
-				(*hsp).mScore = newScore;
+			if (newScore >= hsp->mScore)
+				hsp->mScore = newScore;
 
 			++mSequenceCount;
 			
-			if ((*hsp).mGapped)
+			if (hsp->mGapped)
 				++mGapCount;
 		}
 		
-		(*hit).Cleanup();
+		hit->Cleanup();
 	}
 }
 
@@ -1720,18 +1753,20 @@ string CBlast::ReportInXML()
 
 CBlastHitIterator CBlast::Hits()
 {
-	return CBlastHitIterator(mImpl->mBlastQuery.get());
+	return CBlastHitIterator(this, mImpl->mBlastQuery.get());
 }
 
 CBlastHspIterator::CBlastHspIterator(const CBlastHspIterator& inOther)
-	: mBlastQuery(inOther.mBlastQuery)
+	: mBlast(inOther.mBlast)
+	, mBlastQuery(inOther.mBlastQuery)
 	, mHit(inOther.mHit)
 	, mHspNr(inOther.mHspNr)
 {
 }
 
-CBlastHspIterator::CBlastHspIterator(CBlastQueryBase* inBQ, const struct Hit* inHit)
-	: mBlastQuery(inBQ)
+CBlastHspIterator::CBlastHspIterator(CBlast* inBlast, CBlastQueryBase* inBQ, struct Hit* inHit)
+	: mBlast(inBlast)
+	, mBlastQuery(inBQ)
 	, mHit(inHit)
 	, mHspNr(-1)
 {
@@ -1739,6 +1774,7 @@ CBlastHspIterator::CBlastHspIterator(CBlastQueryBase* inBQ, const struct Hit* in
 
 CBlastHspIterator& CBlastHspIterator::operator=(const CBlastHspIterator& inOther)
 {
+	mBlast = inOther.mBlast;
 	mBlastQuery = inOther.mBlastQuery;
 	mHit = inOther.mHit;
 	mHspNr = inOther.mHspNr;
@@ -1748,8 +1784,16 @@ CBlastHspIterator& CBlastHspIterator::operator=(const CBlastHspIterator& inOther
 
 bool CBlastHspIterator::Next()
 {
-	++mHspNr;
-	return mHspNr < mHit->mHsps.size();
+	bool result = false;
+	
+	if (++mHspNr < mHit->mHsps.size())
+	{
+		result = true;
+		
+		mHit->mHsps[mHspNr].CalculateMidline(mBlast->mImpl->mUnfilteredQuery, mBlastQuery->mMatrix, mBlast->mImpl->mFilter);
+	}
+
+	return result;
 }
 
 uint32 CBlastHspIterator::QueryStart()
@@ -1764,16 +1808,27 @@ uint32 CBlastHspIterator::SubjectStart()
 	return mHit->mHsps[mHspNr].mTargetStart;
 }
 
+uint32 CBlastHspIterator::SubjectLength()
+{
+	return mHit->mTargetLength;
+}
+
 string CBlastHspIterator::QueryAlignment()
 {
 	assert(mHspNr >= 0 and mHspNr < mHit->mHsps.size());
-	return Decode(mHit->mHsps[mHspNr].mAlignedQuery);
+	return mHit->mHsps[mHspNr].mAlignedQueryString;
 }
 
 string CBlastHspIterator::SubjectAlignment()
 {
 	assert(mHspNr >= 0 and mHspNr < mHit->mHsps.size());
 	return Decode(mHit->mHsps[mHspNr].mAlignedTarget);
+}
+
+string CBlastHspIterator::Midline()
+{
+	assert(mHspNr >= 0 and mHspNr < mHit->mHsps.size());
+	return mHit->mHsps[mHspNr].mMidline;
 }
 
 uint32 CBlastHspIterator::Score()
@@ -1793,20 +1848,41 @@ double CBlastHspIterator::Expect()
 	return mBlastQuery->mSearchSpace / pow(2., BitScore());
 }
 
+uint32 CBlastHspIterator::Identity()
+{
+	assert(mHspNr >= 0 and mHspNr < mHit->mHsps.size());
+	return mHit->mHsps[mHspNr].mIdentity;
+}
+
+uint32 CBlastHspIterator::Positive()
+{
+	assert(mHspNr >= 0 and mHspNr < mHit->mHsps.size());
+	return mHit->mHsps[mHspNr].mPositive;
+}
+
+uint32 CBlastHspIterator::Gaps()
+{
+	assert(mHspNr >= 0 and mHspNr < mHit->mHsps.size());
+	return mHit->mHsps[mHspNr].mGaps;
+}
+
 CBlastHitIterator::CBlastHitIterator(const CBlastHitIterator& inOther)
-	: mBlastQuery(inOther.mBlastQuery)
+	: mBlast(inOther.mBlast)
+	, mBlastQuery(inOther.mBlastQuery)
 	, mHitNr(inOther.mHitNr)
 {
 }
 
-CBlastHitIterator::CBlastHitIterator(CBlastQueryBase* inBQ)
-	: mBlastQuery(inBQ)
+CBlastHitIterator::CBlastHitIterator(CBlast* inBlast, CBlastQueryBase* inBQ)
+	: mBlast(inBlast)
+	, mBlastQuery(inBQ)
 	, mHitNr(-1)
 {
 }
 
 CBlastHitIterator& CBlastHitIterator::operator=(const CBlastHitIterator& inOther)
 {
+	mBlast = inOther.mBlast;
 	mBlastQuery = inOther.mBlastQuery;
 	mHitNr = inOther.mHitNr;
 	
@@ -1821,7 +1897,7 @@ bool CBlastHitIterator::Next()
 
 CBlastHspIterator CBlastHitIterator::Hsps()
 {
-	return CBlastHspIterator(mBlastQuery, &mBlastQuery->GetHit(mHitNr));
+	return CBlastHspIterator(mBlast, mBlastQuery, &mBlastQuery->GetHit(mHitNr));
 }
 
 uint32 CBlastHitIterator::DocumentNr() const

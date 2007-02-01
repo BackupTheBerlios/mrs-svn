@@ -47,6 +47,7 @@
 class CDatabank;
 class CDocIterator;
 class CBlastQueryBase;
+class CBlast;
 
 struct CBlastHspIterator
 {
@@ -54,24 +55,31 @@ struct CBlastHspIterator
 	
 	uint32				QueryStart();
 	uint32				SubjectStart();
+	uint32				SubjectLength();
 	
 	std::string			QueryAlignment();
 	std::string			SubjectAlignment();
+	std::string			Midline();
 	
 	uint32				Score();
 	double				BitScore();
 	double				Expect();
 	
+	uint32				Identity();
+	uint32				Positive();
+	uint32				Gaps();
+	
 //						CBlastHspIterator();
 						CBlastHspIterator(const CBlastHspIterator&);
 	CBlastHspIterator&	operator=(const CBlastHspIterator&);
 
-						CBlastHspIterator(CBlastQueryBase* inBQ, const struct Hit* inHit);
+						CBlastHspIterator(CBlast* inBlast, CBlastQueryBase* inBQ, struct Hit* inHit);
 	
   private:
 	
+	CBlast*				mBlast;
 	CBlastQueryBase*	mBlastQuery;
-	const struct Hit*	mHit;
+	struct Hit*			mHit;
 	int32				mHspNr;
 };
 
@@ -90,14 +98,16 @@ struct CBlastHitIterator
   private:
 	friend class		CBlast;
 
-						CBlastHitIterator(CBlastQueryBase* inBQ);
+						CBlastHitIterator(CBlast* inBlast, CBlastQueryBase* inBQ);
 
+	CBlast*				mBlast;
 	CBlastQueryBase*	mBlastQuery;
 	int32				mHitNr;
 };
 
 class CBlast
 {
+	friend class		CBlastHspIterator;
   public:
 						CBlast(const std::string& inQuery,
 							const std::string& inMatrix, uint32 inWordSize,

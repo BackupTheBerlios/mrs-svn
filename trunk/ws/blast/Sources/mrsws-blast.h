@@ -19,8 +19,13 @@ struct ns__Hsp
 	double						expect;
 	unsigned long				query_start;
 	unsigned long				subject_start;
+	unsigned long				identity;
+	unsigned long				positive;
+	unsigned long				gaps;
+	unsigned long				subject_length;	// this one is needed in the interface
 	xsd__string					query_alignment;
 	xsd__string					subject_alignment;
+	xsd__string					midline;
 };
 
 struct ns__Hit

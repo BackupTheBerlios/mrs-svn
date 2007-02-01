@@ -490,10 +490,16 @@ void CBlastJob::Execute()
 					hs.score = hsp->Score();
 					hs.bit_score = hsp->BitScore();
 					hs.expect = hsp->Expect();
+					hs.identity = hsp->Identity();
+					hs.positive = hsp->Positive();
+					hs.gaps = hsp->Gaps();
+					
 					hs.query_start = hsp->QueryStart();
 					hs.query_alignment = hsp->QueryAlignment();
 					hs.subject_start = hsp->SubjectStart();
 					hs.subject_alignment = hsp->SubjectAlignment();
+					hs.subject_length = hsp->SubjectLength();
+					hs.midline = hsp->Midline();
 					
 					h.hsps.push_back(hs);
 				}
@@ -617,24 +623,25 @@ ns__BlastAsync(
 	
 	try
 	{
-//cout << endl << "params: " << endl
-//	 << "db:                    " << db << endl
-//	 << "query:                 " << query << endl
-//	 << "program:               " << program << endl
-//	 << "matrix:                " << matrix << endl
-//	 << "word_size:             " << word_size << endl
-//	 << "expect:                " << expect << endl
-//	 << "low_complexity_filter: " << low_complexity_filter << endl
-//	 << "gapped:                " << gapped << endl
-//	 << "gap_open:              " << gap_open << endl
-//	 << "gap_extend:            " << gap_extend << endl;
-//		
+cout << endl << "params: " << endl
+	 << "db:                    " << db << endl
+	 << "query:                 " << query << endl
+	 << "program:               " << program << endl
+	 << "matrix:                " << matrix << endl
+	 << "word_size:             " << word_size << endl
+	 << "expect:                " << expect << endl
+	 << "low_complexity_filter: " << low_complexity_filter << endl
+	 << "gapped:                " << gapped << endl
+	 << "gap_open:              " << gap_open << endl
+	 << "gap_extend:            " << gap_extend << endl;
+		
 		CBlastJobParameters params(db, query, program, matrix, word_size, expect, low_complexity_filter, gapped, gap_open, gap_extend);
 		
 		response = CBlastJob::Create(params);
 	}
 	catch (exception& e)
 	{
+cout << "exception: " << e.what() << endl;
 		return soap_receiver_fault(soap,
 			"An error occurred in blast",
 			e.what());
@@ -664,6 +671,7 @@ ns__BlastJobStatus(
 	}
 	catch (exception& e)
 	{
+cout << "exception: " << e.what() << endl;
 		return soap_receiver_fault(soap,
 			"An error occurred in blast",
 			e.what());

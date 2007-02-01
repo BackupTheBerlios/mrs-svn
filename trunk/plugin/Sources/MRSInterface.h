@@ -934,12 +934,18 @@ class MBlastHsp : public MRSObject<MBlastHsp, struct MBlastHspImp>
 	unsigned long		Score();
 	double				BitScore();
 	double				Expect();
+	
+	unsigned long		Identity();
+	unsigned long		Positive();
+	unsigned long		Gaps();
 
 	unsigned long		QueryStart();
 	unsigned long		SubjectStart();
+	unsigned long		SubjectLength();
 	
 	std::string			QueryAlignment();
 	std::string			SubjectAlignment();
+	std::string			Midline();
 };
 
 class MBlastHsps : public MRSObject<MBlastHsps, struct MBlastHspsImp>

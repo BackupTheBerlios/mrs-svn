@@ -494,10 +494,14 @@ package MRS::MBlastHsp;
 *Score = *MRSc::MBlastHsp_Score;
 *BitScore = *MRSc::MBlastHsp_BitScore;
 *Expect = *MRSc::MBlastHsp_Expect;
+*Identity = *MRSc::MBlastHsp_Identity;
+*Positive = *MRSc::MBlastHsp_Positive;
+*Gaps = *MRSc::MBlastHsp_Gaps;
 *QueryStart = *MRSc::MBlastHsp_QueryStart;
 *SubjectStart = *MRSc::MBlastHsp_SubjectStart;
 *QueryAlignment = *MRSc::MBlastHsp_QueryAlignment;
 *SubjectAlignment = *MRSc::MBlastHsp_SubjectAlignment;
+*Midline = *MRSc::MBlastHsp_Midline;
 sub new {
     my $pkg = shift;
     my $self = MRSc::new_MBlastHsp(@_);
