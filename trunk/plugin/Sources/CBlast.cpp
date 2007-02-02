@@ -450,17 +450,8 @@ struct Hit
 			
 					for (vector<Hsp>::iterator hsp = mHsps.begin(); hsp != mHsps.end(); ++hsp)
 					{
-						if (inHsp.Overlaps(*hsp))
-						{
-							if (hsp->mScore < inHsp.mScore)
-								*hsp = inHsp;
-							found = true;
-							break;
-						}
-					}
-			
-					if (not found)
 						mHsps.push_back(inHsp);
+					}
 				}
 	
 	void		Cleanup()
@@ -852,7 +843,7 @@ CBlastQueryBase::CBlastQueryBase(const CSequence& inQuery, const CMatrix& inMatr
 	mS1 =		static_cast<int32>((kLn2 * kGapTrigger + mMatrix.ungapped.logK) / mMatrix.ungapped.lambda);
 	mS2 =		static_cast<int32>(ceil(log((mMatrix.gapped.K * mSearchSpace / mExpect)) / mMatrix.gapped.lambda));
 	
-	mReportLimit = 500;
+	mReportLimit = 250;
 }
 
 CBlastQueryBase::~CBlastQueryBase()
@@ -1328,6 +1319,9 @@ void CBlastQueryBase::SortHits(const CDatabankBase& inDb)
 		hit->mDocID = inDb.GetDocumentID(hit->mDocNr);
 
 	sort(mHits.begin(), mHits.end(), CompareHitsOnFirstHspScore());
+
+	if (mHits.size() > mReportLimit)
+		mHits.erase(mHits.begin() + mReportLimit, mHits.end());
 }
 
 void CBlastQueryBase::Cleanup()
@@ -1492,6 +1486,8 @@ class CBlastThread : public CThread
 									sRead = 0;
 								}
 
+	const string&				Error() const			{ return mError; }
+
   protected:
 
 	virtual void				Run();
@@ -1506,6 +1502,7 @@ class CBlastThread : public CThread
 	static uint32				sRead;	// for the counter
 	static uint32				sModulo;
 	HMutex&						mLock;
+	string						mError;
 };
 
 uint32 CBlastThread::sRead;
@@ -1531,12 +1528,12 @@ void CBlastThread::Run()
 	catch (const exception& e)
 	{
 		cerr << "Exception catched in CBlastThread::Run \"" << e.what() << "\" exiting" << endl;
-		exit(1);
+		mError = e.what();
 	}
 	catch (...)
 	{
 		cerr << "Exception catched in CBlastThread::Run, exiting" << endl;
-		exit(1);
+		mError = "unknown exception";
 	}
 }
 
@@ -1695,15 +1692,24 @@ bool CBlast::Find(CDatabankBase& inDb, CDocIterator& inIter)
 			threads.back()->Start();
 		}
 	
+		string error;
+	
 		for (uint32 n = 0; n < THREADS; ++n)
 		{
 			threads[n]->Join();
 			
-			mImpl->mBlastQuery->JoinHits(*queries[n]);
+			if (threads[n]->Error().length())
+				error = threads[n]->Error();
+			
+			if (error.length() == 0)
+				mImpl->mBlastQuery->JoinHits(*queries[n]);
 			
 			delete threads[n];
 			delete queries[n];
 		}
+		
+		if (error.length())
+			THROW((error.c_str()));
 	}
 	else
 	{

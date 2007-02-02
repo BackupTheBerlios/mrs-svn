@@ -468,7 +468,7 @@ void CBlastJob::Execute()
 		mStatus = running;
 		
 		MDatabankPtr mrsDb = WSDatabankTable::Instance()[mParams.mDB];
-		
+
 		auto_ptr<MBlastHits> hits(mrsDb->Blast(mParams.mQuery, mParams.mMatrix,
 			mParams.mWordSize, mParams.mExpect, mParams.mLowComplexityFilter, mParams.mGapped,
 			mParams.mGapOpen, mParams.mGapExtend));
@@ -525,6 +525,31 @@ string CBlastJob::ID() const
 	return string(id);
 }
 
+// --------------------------------------------------------------------
+//
+//	Utility routines
+// 
+
+ostream& Log()
+{
+	time_t now;
+	time(&now);
+	
+	struct tm tm;
+	localtime_r(&now, &tm);
+	
+	char s[1024];
+	strftime(s, sizeof(s), "[%d/%b/%Y:%H:%M:%S]", &tm);
+	
+	cout << ' ' << s << ' ';
+	return cout;
+}
+
+// --------------------------------------------------------------------
+//
+//	SOAP calls
+// 
+
 SOAP_FMAC5 int SOAP_FMAC6
 ns__BlastSync(
 	struct soap*						soap,
@@ -540,7 +565,7 @@ ns__BlastSync(
 	unsigned long						gap_extend,
 	vector<struct ns__Hit >&			response)
 {
-	cout << '\t' << __func__ << '\t' << db;
+	Log() << __func__ << '\t' << db;
 
 	int result = SOAP_OK;
 	
@@ -619,7 +644,7 @@ ns__BlastAsync(
 	unsigned long						gap_extend,
 	xsd__string&						response)
 {
-	cout << '\t' << __func__;
+	Log() << __func__ << '\t' << db;
 
 	int result = SOAP_OK;
 	
@@ -658,7 +683,7 @@ ns__BlastJobStatus(
 	xsd__string						job_id,
 	enum ns__JobStatus&				response)
 {
-	cout << '\t' << __func__;
+	Log() << __func__ << '\t' << job_id;
 
 	int result = SOAP_OK;
 	
@@ -673,7 +698,6 @@ ns__BlastJobStatus(
 	}
 	catch (exception& e)
 	{
-cout << "exception: " << e.what() << endl;
 		return soap_receiver_fault(soap,
 			"An error occurred in blast",
 			e.what());
@@ -688,7 +712,7 @@ ns__BlastJobResult(
 	xsd__string						job_id,
 	std::vector<struct ns__Hit>&	response)
 {
-	cout << '\t' << __func__;
+	Log() << __func__ << '\t' << job_id;
 
 	int result = SOAP_OK;
 	
