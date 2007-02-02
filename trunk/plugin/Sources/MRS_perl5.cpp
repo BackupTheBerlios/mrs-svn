@@ -6409,6 +6409,50 @@ XS(_wrap_MBlastHit_Id) {
 }
 
 
+XS(_wrap_MBlastHit_Title) {
+    {
+        MBlastHit *arg1 = (MBlastHit *) 0 ;
+        char *result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: MBlastHit_Title(self);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MBlastHit,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MBlastHit_Title. Expected _p_MBlastHit");
+            }
+        }
+        {
+            try {
+                result = (char *)(arg1)->Title();
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        ST(argvi) = sv_newmortal();
+        if (result) {
+            sv_setpv((SV*)ST(argvi++), (char *) result);
+        } else {
+            sv_setsv((SV*)ST(argvi++), &PL_sv_undef);
+        }
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
 XS(_wrap_MBlastHit_Hsps) {
     {
         MBlastHit *arg1 = (MBlastHit *) 0 ;
@@ -6997,6 +7041,46 @@ XS(_wrap_MBlastHsp_SubjectStart) {
 }
 
 
+XS(_wrap_MBlastHsp_SubjectLength) {
+    {
+        MBlastHsp *arg1 = (MBlastHsp *) 0 ;
+        unsigned long result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: MBlastHsp_SubjectLength(self);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MBlastHsp,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MBlastHsp_SubjectLength. Expected _p_MBlastHsp");
+            }
+        }
+        {
+            try {
+                result = (unsigned long)(arg1)->SubjectLength();
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        ST(argvi) = sv_newmortal();
+        sv_setuv(ST(argvi++), (UV) result);
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
 XS(_wrap_MBlastHsp_QueryAlignment) {
     {
         MBlastHsp *arg1 = (MBlastHsp *) 0 ;
@@ -7496,6 +7580,7 @@ static swig_command_info swig_commands[] = {
 {"MRSc::new_MIndices", _wrap_new_MIndices},
 {"MRSc::delete_MIndices", _wrap_delete_MIndices},
 {"MRSc::MBlastHit_Id", _wrap_MBlastHit_Id},
+{"MRSc::MBlastHit_Title", _wrap_MBlastHit_Title},
 {"MRSc::MBlastHit_Hsps", _wrap_MBlastHit_Hsps},
 {"MRSc::new_MBlastHit", _wrap_new_MBlastHit},
 {"MRSc::delete_MBlastHit", _wrap_delete_MBlastHit},
@@ -7511,6 +7596,7 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MBlastHsp_Gaps", _wrap_MBlastHsp_Gaps},
 {"MRSc::MBlastHsp_QueryStart", _wrap_MBlastHsp_QueryStart},
 {"MRSc::MBlastHsp_SubjectStart", _wrap_MBlastHsp_SubjectStart},
+{"MRSc::MBlastHsp_SubjectLength", _wrap_MBlastHsp_SubjectLength},
 {"MRSc::MBlastHsp_QueryAlignment", _wrap_MBlastHsp_QueryAlignment},
 {"MRSc::MBlastHsp_SubjectAlignment", _wrap_MBlastHsp_SubjectAlignment},
 {"MRSc::MBlastHsp_Midline", _wrap_MBlastHsp_Midline},

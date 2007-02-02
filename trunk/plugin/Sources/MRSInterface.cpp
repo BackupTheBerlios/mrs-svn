@@ -283,6 +283,7 @@ struct MIndicesImp
 struct MBlastHitImp
 {
 	string						fId;
+	string						fTitle;
 	auto_ptr<CBlastHspIterator>	fHsps;
 };
 
@@ -293,13 +294,16 @@ struct MBlastHitImp
 
 struct MBlastHitsImp
 {
-								MBlastHitsImp(const string& inQuery, const string& inMatrix,
+								MBlastHitsImp(CDatabankBase& inDb,
+										const string& inQuery, const string& inMatrix,
 										uint32 inWordSize, double inExpect,
 										bool inFilter, bool inGapped,
 										uint32 inGapOpen, uint32 inGapExtend)
-									: fBlast(inQuery, inMatrix, inWordSize, inExpect,
+									: fDb(inDb)
+									, fBlast(inQuery, inMatrix, inWordSize, inExpect,
 										inFilter, inGapped, inGapOpen, inGapExtend) {}
 
+	CDatabankBase&				fDb;
 	CBlast						fBlast;
 	auto_ptr<CBlastHitIterator>	fHits;
 	string						fScratch;
@@ -806,7 +810,7 @@ MBlastHits* MDatabank::Blast(const string& inQuery, const string& inMatrix,
 	
 	auto_ptr<CDocIterator> iter(new CDbAllDocIterator(fImpl->fDatabank->Count()));
 	
-	auto_ptr<MBlastHitsImp> impl(new MBlastHitsImp(inQuery, inMatrix,
+	auto_ptr<MBlastHitsImp> impl(new MBlastHitsImp(*fImpl->fDatabank, inQuery, inMatrix,
 		inWordSize, inExpect, inFilter, inGapped, inGapOpen, inGapExtend));
 	
 	if (impl->fBlast.Find(*fImpl->fDatabank, *iter))
@@ -1070,8 +1074,8 @@ MBlastHits* MQueryResults::Blast(const string& inQuery, const string& inMatrix,
 {
 	MBlastHits* result = nil;
 	
-	auto_ptr<MBlastHitsImp> impl(new MBlastHitsImp(inQuery, inMatrix, inWordSize,
-		inExpect, inFilter, inGapped, inGapOpen, inGapExtend));
+	auto_ptr<MBlastHitsImp> impl(new MBlastHitsImp(*fImpl->fDatabank, inQuery,
+		inMatrix, inWordSize, inExpect, inFilter, inGapped, inGapOpen, inGapExtend));
 	
 	if (impl->fBlast.Find(*fImpl->fDatabank, *fImpl->fIter))
 	{
@@ -1203,6 +1207,11 @@ const char* MBlastHit::Id()
 	return fImpl->fId.c_str();
 }
 
+const char* MBlastHit::Title()
+{
+	return fImpl->fTitle.c_str();
+}
+
 MBlastHsps* MBlastHit::Hsps()
 {
 	auto_ptr<MBlastHspsImp> impl(new MBlastHspsImp);
@@ -1230,6 +1239,7 @@ MBlastHit* MBlastHits::Next()
 	{
 		auto_ptr<MBlastHitImp> impl(new MBlastHitImp);
 		impl->fId = fImpl->fHits->DocumentID();
+		impl->fTitle = fImpl->fDb.GetMetaData(impl->fId, "title");
 		impl->fHsps.reset(new CBlastHspIterator(fImpl->fHits->Hsps()));
 		result = MBlastHit::Create(impl.release());
 	}

@@ -416,6 +416,7 @@ package MRS::MBlastHit;
 %OWNER = ();
 %ITERATORS = ();
 *Id = *MRSc::MBlastHit_Id;
+*Title = *MRSc::MBlastHit_Title;
 *Hsps = *MRSc::MBlastHit_Hsps;
 sub new {
     my $pkg = shift;
@@ -499,6 +500,7 @@ package MRS::MBlastHsp;
 *Gaps = *MRSc::MBlastHsp_Gaps;
 *QueryStart = *MRSc::MBlastHsp_QueryStart;
 *SubjectStart = *MRSc::MBlastHsp_SubjectStart;
+*SubjectLength = *MRSc::MBlastHsp_SubjectLength;
 *QueryAlignment = *MRSc::MBlastHsp_QueryAlignment;
 *SubjectAlignment = *MRSc::MBlastHsp_SubjectAlignment;
 *Midline = *MRSc::MBlastHsp_Midline;

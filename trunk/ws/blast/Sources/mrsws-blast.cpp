@@ -480,6 +480,7 @@ void CBlastJob::Execute()
 				ns__Hit h;
 				
 				h.id = hit->Id();
+				h.title = hit->Title();
 				
 				auto_ptr<MBlastHsps> hsps(hit->Hsps());
 	
@@ -570,6 +571,7 @@ ns__BlastSync(
 				ns__Hit h;
 				
 				h.id = hit->Id();
+				h.title = hit->Title();
 				
 				auto_ptr<MBlastHsps> hsps(hit->Hsps());
 	

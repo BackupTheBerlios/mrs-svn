@@ -31,6 +31,7 @@ struct ns__Hsp
 struct ns__Hit
 {
 	xsd__string					id;
+	xsd__string					title;
 	std::vector<struct ns__Hsp>	hsps;
 };
 

@@ -917,6 +917,7 @@ class MBlastHit : public MRSObject<MBlastHit, struct MBlastHitImp>
 {
   public:
 	const char*			Id();
+	const char*			Title();
 	
 	MBlastHsps*			Hsps();
 };
