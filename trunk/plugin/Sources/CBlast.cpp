@@ -450,8 +450,17 @@ struct Hit
 			
 					for (vector<Hsp>::iterator hsp = mHsps.begin(); hsp != mHsps.end(); ++hsp)
 					{
-						mHsps.push_back(inHsp);
+						if (inHsp.Overlaps(*hsp))
+						{
+							if (hsp->mScore < inHsp.mScore)
+								*hsp = inHsp;
+							found = true;
+							break;
+						}
 					}
+			
+					if (not found)
+						mHsps.push_back(inHsp);
 				}
 	
 	void		Cleanup()
@@ -576,7 +585,8 @@ class CBlastQueryBase
 	friend struct	CBlastHitIterator;
 	
   public:
-					CBlastQueryBase(const CSequence& inQuery, const CMatrix& inMatrix,
+					CBlastQueryBase(vector<Hit>& inHits, HMutex& inLock,
+						const CSequence& inQuery, const CMatrix& inMatrix,
 						double inExpect, bool inGapped, int64 inDbLength, uint32 inDbCount);
 	virtual			~CBlastQueryBase();
 	
@@ -712,7 +722,8 @@ class CBlastQueryBase
 	uint32					mSequenceCount;
 	uint32					mGapCount;
 			
-	vector<Hit>				mHits;
+	HMutex&					mLock;
+	vector<Hit>&			mHits;
 };
 
 template<int WordSize>
@@ -726,7 +737,8 @@ class CBlastQuery : public CBlastQueryBase
 	typedef typename WordHitIterator::WordHitIteratorStaticData
 												WordHitIteratorStaticData;
 
-					CBlastQuery(const CSequence& inQuery, const CMatrix& inMatrix,
+					CBlastQuery(vector<Hit>& inHits, HMutex& inLock,
+						const CSequence& inQuery, const CMatrix& inMatrix,
 						WordHitIteratorStaticData& inWHISD, double inExpect, bool inGapped,
 						int64 inDbLength, uint32 inDbCount);
 
@@ -798,7 +810,9 @@ void CBlastQueryBase::Data::Print()
 	cout << endl;
 }
 
-CBlastQueryBase::CBlastQueryBase(const CSequence& inQuery, const CMatrix& inMatrix,
+CBlastQueryBase::CBlastQueryBase(
+		vector<Hit>& inHits, HMutex& inLock,
+		const CSequence& inQuery, const CMatrix& inMatrix,
 		double inExpect, bool inGapped, int64 inDbLength, uint32 inDbCount)
 	: mQuery(inQuery)
 	, mMatrix(inMatrix)
@@ -820,6 +834,9 @@ CBlastQueryBase::CBlastQueryBase(const CSequence& inQuery, const CMatrix& inMatr
 	, mHspsBetterThan10(0)
 	, mSuccessfulGappedAlignments(0)
 	, mGappedAlignmentAttempts(0)
+	, mReportLimit(250)
+	, mLock(inLock)
+	, mHits(inHits)
 {
 	// calculate other statistics
 	int32 queryLen = mQuery.length();
@@ -842,8 +859,6 @@ CBlastQueryBase::CBlastQueryBase(const CSequence& inQuery, const CMatrix& inMatr
 	
 	mS1 =		static_cast<int32>((kLn2 * kGapTrigger + mMatrix.ungapped.logK) / mMatrix.ungapped.lambda);
 	mS2 =		static_cast<int32>(ceil(log((mMatrix.gapped.K * mSearchSpace / mExpect)) / mMatrix.gapped.lambda));
-	
-	mReportLimit = 250;
 }
 
 CBlastQueryBase::~CBlastQueryBase()
@@ -1310,7 +1325,7 @@ string CBlastQueryBase::ReportInXML(const CDatabankBase& inDb, bool inFilter, co
 
 void CBlastQueryBase::JoinHits(CBlastQueryBase& inOther)
 {
-	mHits.insert(mHits.end(), inOther.mHits.begin(), inOther.mHits.end());
+//	mHits.insert(mHits.end(), inOther.mHits.begin(), inOther.mHits.end());
 }
 
 void CBlastQueryBase::SortHits(const CDatabankBase& inDb)
@@ -1319,41 +1334,46 @@ void CBlastQueryBase::SortHits(const CDatabankBase& inDb)
 		hit->mDocID = inDb.GetDocumentID(hit->mDocNr);
 
 	sort(mHits.begin(), mHits.end(), CompareHitsOnFirstHspScore());
-
-	if (mHits.size() > mReportLimit)
-		mHits.erase(mHits.begin() + mReportLimit, mHits.end());
 }
 
 void CBlastQueryBase::Cleanup()
 {
-	mSequenceCount = 0;
-	mGapCount = 0;
-	
-	for (vector<Hit>::iterator hit = mHits.begin(); hit != mHits.end(); ++hit)
+	if (mLock.Wait())
 	{
-		for (vector<Hsp>::iterator hsp = hit->mHsps.begin(); hsp != hit->mHsps.end(); ++hsp)
+		mSequenceCount = 0;
+		mGapCount = 0;
+		
+		for (vector<Hit>::iterator hit = mHits.begin(); hit != mHits.end(); ++hit)
 		{
-			uint32 newScore = AlignGappedWithTraceBack(mXgFinal, *hsp);
+			for (vector<Hsp>::iterator hsp = hit->mHsps.begin(); hsp != hit->mHsps.end(); ++hsp)
+			{
+				uint32 newScore = AlignGappedWithTraceBack(mXgFinal, *hsp);
+				
+				assert(hsp->mAlignedQuery.length() == hsp->mAlignedTarget.length());
+				
+				if (newScore >= hsp->mScore)
+					hsp->mScore = newScore;
+	
+				++mSequenceCount;
+				
+				if (hsp->mGapped)
+					++mGapCount;
+			}
 			
-			assert(hsp->mAlignedQuery.length() == hsp->mAlignedTarget.length());
-			
-			if (newScore >= hsp->mScore)
-				hsp->mScore = newScore;
-
-			++mSequenceCount;
-			
-			if (hsp->mGapped)
-				++mGapCount;
+			hit->Cleanup();
 		}
 		
-		hit->Cleanup();
+		mLock.Signal();
 	}
 }
 
 template<int WordSize>
-CBlastQuery<WordSize>::CBlastQuery(const CSequence& inQuery, const CMatrix& inMatrix,
-	WordHitIteratorStaticData& inWHISD, double inExpect, bool inGapped, int64 inDbLength, uint32 inDbCount)
-	: CBlastQueryBase(inQuery, inMatrix, inExpect, inGapped, inDbLength, inDbCount)
+CBlastQuery<WordSize>::CBlastQuery(
+		vector<Hit>& inHits, HMutex& inLock,
+		const CSequence& inQuery, const CMatrix& inMatrix,
+		WordHitIteratorStaticData& inWHISD, double inExpect,
+		bool inGapped, int64 inDbLength, uint32 inDbCount)
+	: CBlastQueryBase(inHits, inLock, inQuery, inMatrix, inExpect, inGapped, inDbLength, inDbCount)
 	, mWordHitIterator(inWHISD)
 {
 }
@@ -1445,27 +1465,27 @@ bool CBlastQuery<WordSize>::Test(uint32 inDocNr, const CSequence& inTarget)
 		hit.mDocNr = inDocNr;
 		hit.mTargetLength = inTarget.length();
 		hit.Cleanup();
-
-		mHits.push_back(hit);
 		
-		// store at most mReportLimit hits. 
-		CompareHitsOnFirstHspScore cmp;
-		
-		push_heap(mHits.begin(), mHits.end(), cmp);
-		
-		if (mHits.size() > mReportLimit)
+		if (mLock.Wait())
 		{
-			pop_heap(mHits.begin(), mHits.end(), cmp);
-
-////#ifndef NDEBUG
-//			cout << "Dropping a hit with score: " << mHits.back().mHsps.front().mScore
-//				 << "\tLowest score is now " << mHits.front().mHsps.front().mScore << endl;
-////#endif
-			// we can now update mS2 to speed up things up a bit
+			mHits.push_back(hit);
 			
-			mS2 = mHits.front().mHsps.front().mScore;
+			// store at most mReportLimit hits. 
+			CompareHitsOnFirstHspScore cmp;
+			
+			push_heap(mHits.begin(), mHits.end(), cmp);
+			
+			if (mHits.size() > mReportLimit)
+			{
+				pop_heap(mHits.begin(), mHits.end(), cmp);
+	
+				// we can now update mS2 to speed up things up a bit
+				mS2 = mHits.front().mHsps.front().mScore;
+	
+				mHits.erase(mHits.end() - 1);
+			}
 
-			mHits.erase(mHits.end() - 1);
+			mLock.Signal();
 		}
 	}
 	
@@ -1486,8 +1506,6 @@ class CBlastThread : public CThread
 									sRead = 0;
 								}
 
-	const string&				Error() const			{ return mError; }
-
   protected:
 
 	virtual void				Run();
@@ -1502,7 +1520,6 @@ class CBlastThread : public CThread
 	static uint32				sRead;	// for the counter
 	static uint32				sModulo;
 	HMutex&						mLock;
-	string						mError;
 };
 
 uint32 CBlastThread::sRead;
@@ -1523,17 +1540,17 @@ void CBlastThread::Run()
 			targets.clear();
 		}
 		
-		mBlastQuery.Cleanup();
+//		mBlastQuery.Cleanup();
 	}
 	catch (const exception& e)
 	{
 		cerr << "Exception catched in CBlastThread::Run \"" << e.what() << "\" exiting" << endl;
-		mError = e.what();
+		exit(1);
 	}
 	catch (...)
 	{
 		cerr << "Exception catched in CBlastThread::Run, exiting" << endl;
-		mError = "unknown exception";
+		exit(1);
 	}
 }
 
@@ -1586,6 +1603,8 @@ struct CBlastImp
 	bool						mFilter;
 	bool						mGapped;
 	double						mExpect;
+	vector<Hit>					mHits;
+	HMutex						mLock;
 };
 
 CBlastImp::CBlastImp(const string& inQuery, const string& inMatrix, uint32 inWordSize,
@@ -1630,24 +1649,24 @@ bool CBlast::Find(CDatabankBase& inDb, CDocIterator& inIter)
 			WordHitIteratorBase<2>::Init(mImpl->mQuery, mImpl->mMatrix, kTreshHold, whiStaticData2);
 			
 			mImpl->mBlastQuery.reset(
-				new CBlastQuery<2>(mImpl->mQuery, mImpl->mMatrix, whiStaticData2, mImpl->mExpect, mImpl->mGapped,
-					inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
+				new CBlastQuery<2>(mImpl->mHits, mImpl->mLock, mImpl->mQuery, mImpl->mMatrix, whiStaticData2,
+					mImpl->mExpect, mImpl->mGapped, inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
 			break;
 		
 		case 3:
 			WordHitIteratorBase<3>::Init(mImpl->mQuery, mImpl->mMatrix, kTreshHold, whiStaticData3);
 			
 			mImpl->mBlastQuery.reset(
-				new CBlastQuery<3>(mImpl->mQuery, mImpl->mMatrix, whiStaticData3, mImpl->mExpect, mImpl->mGapped,
-					inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
+				new CBlastQuery<3>(mImpl->mHits, mImpl->mLock, mImpl->mQuery, mImpl->mMatrix, whiStaticData3,
+					mImpl->mExpect, mImpl->mGapped, inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
 			break;
 		
 		case 4:
 			WordHitIteratorBase<4>::Init(mImpl->mQuery, mImpl->mMatrix, kTreshHold, whiStaticData4);
 			
 			mImpl->mBlastQuery.reset(
-				new CBlastQuery<4>(mImpl->mQuery, mImpl->mMatrix, whiStaticData4, mImpl->mExpect, mImpl->mGapped,
-					inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
+				new CBlastQuery<4>(mImpl->mHits, mImpl->mLock, mImpl->mQuery, mImpl->mMatrix, whiStaticData4,
+					mImpl->mExpect, mImpl->mGapped, inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
 			break;
 		
 		default:
@@ -1668,20 +1687,20 @@ bool CBlast::Find(CDatabankBase& inDb, CDocIterator& inIter)
 			{
 				case 2:
 					queries.push_back(
-						new CBlastQuery<2>(mImpl->mQuery, mImpl->mMatrix, whiStaticData2, mImpl->mExpect, mImpl->mGapped,
-							inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
+						new CBlastQuery<2>(mImpl->mHits, mImpl->mLock, mImpl->mQuery, mImpl->mMatrix, whiStaticData2,
+							mImpl->mExpect, mImpl->mGapped, inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
 					break;
 				
 				case 3:
 					queries.push_back(
-						new CBlastQuery<3>(mImpl->mQuery, mImpl->mMatrix, whiStaticData3, mImpl->mExpect, mImpl->mGapped,
-							inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
+						new CBlastQuery<3>(mImpl->mHits, mImpl->mLock, mImpl->mQuery, mImpl->mMatrix, whiStaticData3,
+							mImpl->mExpect, mImpl->mGapped, inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
 					break;
 				
 				case 4:
 					queries.push_back(
-						new CBlastQuery<4>(mImpl->mQuery, mImpl->mMatrix, whiStaticData4, mImpl->mExpect, mImpl->mGapped,
-							inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
+						new CBlastQuery<4>(mImpl->mHits, mImpl->mLock, mImpl->mQuery, mImpl->mMatrix, whiStaticData4,
+							mImpl->mExpect, mImpl->mGapped, inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
 					break;
 			}
 
@@ -1692,24 +1711,15 @@ bool CBlast::Find(CDatabankBase& inDb, CDocIterator& inIter)
 			threads.back()->Start();
 		}
 	
-		string error;
-	
 		for (uint32 n = 0; n < THREADS; ++n)
 		{
 			threads[n]->Join();
 			
-			if (threads[n]->Error().length())
-				error = threads[n]->Error();
-			
-			if (error.length() == 0)
-				mImpl->mBlastQuery->JoinHits(*queries[n]);
+			mImpl->mBlastQuery->JoinHits(*queries[n]);
 			
 			delete threads[n];
 			delete queries[n];
 		}
-		
-		if (error.length())
-			THROW((error.c_str()));
 	}
 	else
 	{
@@ -1736,13 +1746,14 @@ bool CBlast::Find(CDatabankBase& inDb, CDocIterator& inIter)
 			}
 		}
 
-		mImpl->mBlastQuery->Cleanup();
+//		mImpl->mBlastQuery->Cleanup();
 	}
+
+	mImpl->mBlastQuery->Cleanup();
+	mImpl->mBlastQuery->SortHits(inDb);
 
 	if (VERBOSE)
 		cerr << endl;
-	
-	mImpl->mBlastQuery->SortHits(inDb);
 	
 //	return mImpl->mBlastQuery->mSequenceCount > 0;
 	return true;
