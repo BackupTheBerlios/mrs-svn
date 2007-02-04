@@ -215,6 +215,32 @@ void WSDatabankTable::ReloadDbs()
 	}
 }
 
+
+// --------------------------------------------------------------------
+//
+//	Utility routines
+// 
+
+ostream& Log()
+{
+	time_t now;
+	time(&now);
+	
+	struct tm tm;
+	localtime_r(&now, &tm);
+	
+	char s[1024];
+	strftime(s, sizeof(s), "[%d/%b/%Y:%H:%M:%S]", &tm);
+	
+	cout << ' ' << s << ' ';
+	return cout;
+}
+
+// --------------------------------------------------------------------
+//
+//	SOAP calls
+// 
+
 inline string Format(
 	MDatabankPtr		inDb,
 	const string&		inFormat,
@@ -275,7 +301,7 @@ ns__GetDatabankInfo(
 	string								db,
 	vector<struct ns__DatabankInfo>&	info)
 {
-	cout << '\t' << __func__;
+	Log() << __func__;
 
 	int result = SOAP_OK;
 	
@@ -322,7 +348,7 @@ ns__GetIndices(
 	string						db,
 	vector<struct ns__Index >&	indices)
 {
-	cout << '\t' << __func__;
+	Log() << __func__;
 
 	int result = SOAP_OK;
 	
@@ -394,7 +420,7 @@ ns__GetEntry(
 	enum ns__Format	format,
 	string&			entry)
 {
-	cout << '\t' << __func__;
+	Log() << __func__;
 
 	int result = SOAP_OK;
 	
@@ -533,7 +559,7 @@ ns__Find(
 	int							maxresultcount,
 	struct ns__FindResponse&	response)
 {
-	cout << '\t' << __func__ << ':' << db;
+	Log() << __func__ << ':' << db;
 
 	int result = SOAP_OK;
 
@@ -646,7 +672,7 @@ ns__FindAll(
 	vector<struct ns__FindAllResult>&
 						response)
 {
-	cout << '\t' << __func__;
+	Log() << __func__;
 
 	int result = SOAP_OK;
 	
@@ -723,7 +749,7 @@ ns__SpellCheck(
 	string			queryterm,
 	vector<string>&	suggestions)
 {
-	cout << '\t' << __func__;
+	Log() << __func__;
 
 	int result = SOAP_OK;
 	
@@ -759,7 +785,7 @@ ns__FindSimilar(
 	int							maxresultcount,
 	struct ns__FindResponse&	response)
 {
-	cout << '\t' << __func__;
+	Log() << __func__;
 
 	int result = SOAP_OK;
 	
@@ -917,7 +943,7 @@ ns__FindAllSimilar(
 	vector<struct ns__FindAllResult>&
 						response)
 {
-	cout << '\t' << __func__;
+	Log() << __func__;
 	
 	int result = SOAP_OK;
 	

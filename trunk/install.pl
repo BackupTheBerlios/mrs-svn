@@ -29,19 +29,8 @@ if ($OSNAME ne 'VMS') {
 		unless $perlpath =~ m/$Config{_exe}$/i;
 }
 
-while (1) {
-	my $a = &ask_for_string("Using $perlpath as your Perl interpreter. Is this correct?", "yes");
-	
-	if ($a eq 'no' or $a eq 'n') {
-		die "Please restart the script with the correct version of Perl\n";
-	}
-	
-	if ($a ne "yes" and $a ne "no") {
-		$a = &ask_for_string("Please enter yes or no", "yes");
-	}
-
-	last;
-}	
+die "Please restart the script with the correct version of Perl\n"
+	unless ask_for_yes_or_no("Using $perlpath as your Perl interpreter. Is this correct?", "yes");
 
 # Find out if all the required modules are there:
 
@@ -75,8 +64,13 @@ if (scalar @missing_modules > 0) {
 # Then ask the user for the installation directory for the other tools
 
 my $prefix = &ask_for_string('What prefix shall I use for the installation', '/usr/local');
+&check_dir($prefix);
+
 my $binpath = &ask_for_string('Where to install other executables', "$prefix/bin");
+&check_dir($binpath);
+
 my $etcpath = &ask_for_string('Where to install global configuration files', "$prefix/etc");
+&check_dir($etcpath);
 
 # Try to find out some variables needed for building the plugin
 # First see if the right version of SWIG is available
@@ -232,9 +226,9 @@ foreach my $d ( undef, '/usr/lib', '/usr/local/lib', '/opt/local/lib',
 	'/usr/pkg/lib', '/usr/lib64' )
 {
 	if (defined $d) {
-		next unless -e "$d/libboost_regex.so" or -e "$d/libboost_regex-gcc.so";
+		next unless -e "$d/libboost_regex.a" or -e "$d/libboost_regex-gcc.a";
 	}
-	$boost_lib_suffix = "-gcc" if -e "$d/libboost_regex-gcc.so" and not -e "$d/libboost_regex.so";
+	$boost_lib_suffix = "-gcc" if -e "$d/libboost_regex-gcc.a" and not -e "$d/libboost_regex.a";
 
 	eval {
 		my $b_cc = $cc;
@@ -458,6 +452,43 @@ print "Have a look at the $db_conf_file for local settings.\n";
 
 exit;
 
+sub check_dir {
+	my $d = shift;
+
+	if (not -e $d) {
+		if (&ask_for_yes_or_no("$d does not exist, create?", 'yes')) {
+			&mkdir_recursive($d);
+		}
+		else {
+			die "$d does not exist, please create it yourself and run this script again\n";
+		}
+	}
+}
+
+sub ask_for_yes_or_no {
+	my ($q, $d) = @_;
+	
+	$d = 'yes' unless defined $d;
+	
+	my $a;
+	
+	while (1) {
+		$a = &ask_for_string($q, $d);
+		
+		$a = 'yes' if $a eq 'y';
+		$a = 'no' if $a eq 'n';
+		
+		if ($a ne 'yes' and $a ne 'no') {
+			$q ='Please enter yes or no';
+			next;
+		}
+	
+		last;
+	}	
+
+	return $a eq 'yes';
+}
+
 sub ask_for_string {
 	my ($question, $default) = @_;
 	
@@ -484,7 +515,14 @@ sub write_file {
 	
 	# tricky, maybe we have to use sudo to make the file writable?
 	if (not -w $file) {
-		my @args = ("sudo", "chown", $REAL_USER_ID, $file);
+		my @args;
+
+		if (not -e $file) {
+			@args = ("sudo", "touch", $REAL_USER_ID, $file);
+			system(@args) == 0 or die "system @args failed: $?";
+		}
+		
+		@args = ("sudo", "chown", $REAL_USER_ID, $file);
 		system(@args) == 0 or die "system @args failed: $?";
 		@args = ("sudo", "chmod", "644", $file);
 		system(@args) == 0 or die "system @args failed: $?";
