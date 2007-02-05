@@ -63,6 +63,8 @@ fs::path gParserDir(MRS_PARSER_DIR, fs::native);
 fs::path gConfigFile(MRS_CONFIG_FILE, fs::native);
 fs::path gLogFile(MRS_LOG_FILE, fs::native);
 
+int gVerbose = 0;
+
 // from mrs.h
 extern unsigned int THREADS;
 
@@ -313,6 +315,79 @@ bool CBlastJobParameters::operator==(const CBlastJobParameters& inOther) const
 		mGapExtend == inOther.mGapExtend;
 }
 
+ostream& operator<<(ostream& inStream, const CBlastJobParameters& inParams)
+{
+	string query;
+	
+	if (inParams.mQuery.length() < 60)
+		query = inParams.mQuery.length();
+	else
+		query = inParams.mQuery.substr(0, 57) + "...";
+	
+	inStream << endl << "params" << endl
+			 << "db:                    " << inParams.mDB << endl
+			 << "query:                 " << query << endl
+			 << "program:               " << inParams.mProgram << endl
+			 << "matrix:                " << inParams.mMatrix << endl
+			 << "word_size:             " << inParams.mWordSize << endl
+			 << "expect:                " << inParams.mExpect << endl
+			 << "low_complexity_filter: " << inParams.mLowComplexityFilter << endl
+			 << "gapped:                " << inParams.mGapped << endl
+			 << "gap_open:              " << inParams.mGapOpen << endl
+			 << "gap_extend:            " << inParams.mGapExtend << endl;
+
+	return inStream;
+}
+
+void DoBlast(
+	const CBlastJobParameters&	inParams,
+	vector<ns__Hit>&			outHits)
+{
+	if (gVerbose)
+		cout << inParams << endl;
+	
+	MDatabankPtr mrsDb = WSDatabankTable::Instance()[inParams.mDB];
+
+	auto_ptr<MBlastHits> hits(mrsDb->Blast(inParams.mQuery, inParams.mMatrix,
+		inParams.mWordSize, inParams.mExpect, inParams.mLowComplexityFilter,
+		inParams.mGapped, inParams.mGapOpen, inParams.mGapExtend));
+
+	if (hits.get() != NULL)
+	{
+		for (auto_ptr<MBlastHit> hit(hits->Next()); hit.get() != NULL; hit.reset(hits->Next()))
+		{
+			ns__Hit h;
+			
+			h.id = hit->Id();
+			h.title = hit->Title();
+			
+			auto_ptr<MBlastHsps> hsps(hit->Hsps());
+
+			for (auto_ptr<MBlastHsp> hsp(hsps->Next()); hsp.get() != NULL; hsp.reset(hsps->Next()))
+			{
+				ns__Hsp hs;
+				
+				hs.score = hsp->Score();
+				hs.bit_score = hsp->BitScore();
+				hs.expect = hsp->Expect();
+				hs.query_start = hsp->QueryStart();
+				hs.subject_start = hsp->SubjectStart();
+				hs.identity = hsp->Identity();
+				hs.positive = hsp->Positive();
+				hs.gaps = hsp->Gaps();
+				hs.subject_length = hsp->SubjectLength();
+				hs.query_alignment = hsp->QueryAlignment();
+				hs.subject_alignment = hsp->SubjectAlignment();
+				hs.midline = hsp->Midline();
+				
+				h.hsps.push_back(hs);
+			}
+			
+			outHits.push_back(h);
+		}
+	}
+}
+
 class CBlastJob : public CJob
 {
   public:
@@ -467,47 +542,7 @@ void CBlastJob::Execute()
 	{
 		mStatus = running;
 		
-		MDatabankPtr mrsDb = WSDatabankTable::Instance()[mParams.mDB];
-
-		auto_ptr<MBlastHits> hits(mrsDb->Blast(mParams.mQuery, mParams.mMatrix,
-			mParams.mWordSize, mParams.mExpect, mParams.mLowComplexityFilter, mParams.mGapped,
-			mParams.mGapOpen, mParams.mGapExtend));
-
-		if (hits.get() != NULL)
-		{
-			for (auto_ptr<MBlastHit> hit(hits->Next()); hit.get() != NULL; hit.reset(hits->Next()))
-			{
-				ns__Hit h;
-				
-				h.id = hit->Id();
-				h.title = hit->Title();
-				
-				auto_ptr<MBlastHsps> hsps(hit->Hsps());
-	
-				for (auto_ptr<MBlastHsp> hsp(hsps->Next()); hsp.get() != NULL; hsp.reset(hsps->Next()))
-				{
-					ns__Hsp hs;
-					
-					hs.score = hsp->Score();
-					hs.bit_score = hsp->BitScore();
-					hs.expect = hsp->Expect();
-					hs.identity = hsp->Identity();
-					hs.positive = hsp->Positive();
-					hs.gaps = hsp->Gaps();
-					
-					hs.query_start = hsp->QueryStart();
-					hs.query_alignment = hsp->QueryAlignment();
-					hs.subject_start = hsp->SubjectStart();
-					hs.subject_alignment = hsp->SubjectAlignment();
-					hs.subject_length = hsp->SubjectLength();
-					hs.midline = hsp->Midline();
-					
-					h.hsps.push_back(hs);
-				}
-				
-				mHits.push_back(h);
-			}
-		}
+		DoBlast(mParams, mHits);
 		
 		mStatus = finished;
 	}
@@ -530,8 +565,29 @@ string CBlastJob::ID() const
 //	Utility routines
 // 
 
-ostream& Log()
+class CLogger
 {
+  public:
+				CLogger(struct soap*	soap,
+						const char*		func);
+				~CLogger();
+
+	CLogger&	operator<<(
+						const CBlastJobParameters&	inParams);
+	CLogger&	operator<<(
+					const string&		inString);
+
+  private:
+	double		mStart;
+	string		mMsg;
+};
+
+CLogger::CLogger(
+	struct soap*	soap,
+	const char*		func)
+{
+	mStart = system_time();
+
 	time_t now;
 	time(&now);
 	
@@ -540,9 +596,48 @@ ostream& Log()
 	
 	char s[1024];
 	strftime(s, sizeof(s), "[%d/%b/%Y:%H:%M:%S]", &tm);
+
+	stringstream ss;
 	
-	cout << ' ' << s << ' ';
-	return cout;
+	ss << ((soap->ip >> 24) & 0xFF) << '.'
+	   << ((soap->ip >> 16) & 0xFF) << '.'
+	   << ((soap->ip >>  8) & 0xFF) << '.'
+	   << ( soap->ip        & 0xFF) << ' '
+	   << s << ' '
+	   << func << ' ';
+	
+	mMsg = ss.str();
+}
+
+CLogger::~CLogger()
+{
+	cout.setf(ios::fixed);
+	cout << mMsg << setprecision(3) << system_time() - mStart << endl;
+}
+
+CLogger& CLogger::operator<<(
+	const CBlastJobParameters&	inParams)
+{
+	mMsg += inParams.mDB;
+	mMsg += ':';
+	
+	string q(inParams.mQuery);
+	if (q.length() > 20)
+		q = q.substr(0, 17) + "...";
+	
+	mMsg += q;
+	mMsg += ' ';
+	
+	return *this;
+}
+
+CLogger& CLogger::operator<<(
+	const string&	inParam)
+{
+	mMsg += inParam;
+	mMsg += ' ';
+
+	return *this;
 }
 
 // --------------------------------------------------------------------
@@ -563,61 +658,20 @@ ns__BlastSync(
 	bool								gapped,
 	unsigned long						gap_open,
 	unsigned long						gap_extend,
-	vector<struct ns__Hit >&			response)
+	vector<ns__Hit>&					response)
 {
-	Log() << __func__ << '\t' << db;
+	CLogger log(soap, __func__);
 
 	int result = SOAP_OK;
 	
 	try
 	{
-		MDatabankPtr mrsDb = WSDatabankTable::Instance()[db];
+		CBlastJobParameters params(db, query, program, matrix, word_size,
+			expect, low_complexity_filter, gapped, gap_open, gap_extend);
 		
-//cout << endl << "params" << endl
-//	 << "db:                    " << db << endl
-//	 << "query:                 " << query << endl
-//	 << "program:               " << program << endl
-//	 << "matrix:                " << matrix << endl
-//	 << "word_size:             " << word_size << endl
-//	 << "expect:                " << expect << endl
-//	 << "low_complexity_filter: " << low_complexity_filter << endl
-//	 << "gapped:                " << gapped << endl
-//	 << "gap_open:              " << gap_open << endl
-//	 << "gap_extend:            " << gap_extend << endl;
-
-		auto_ptr<MBlastHits> hits(mrsDb->Blast(query, matrix,
-			word_size, expect, low_complexity_filter, gapped,
-			gap_open, gap_extend));
-
-		if (hits.get() != NULL)
-		{
-			for (auto_ptr<MBlastHit> hit(hits->Next()); hit.get() != NULL; hit.reset(hits->Next()))
-			{
-				ns__Hit h;
-				
-				h.id = hit->Id();
-				h.title = hit->Title();
-				
-				auto_ptr<MBlastHsps> hsps(hit->Hsps());
-	
-				for (auto_ptr<MBlastHsp> hsp(hsps->Next()); hsp.get() != NULL; hsp.reset(hsps->Next()))
-				{
-					ns__Hsp hs;
-					
-					hs.score = hsp->Score();
-					hs.bit_score = hsp->BitScore();
-					hs.expect = hsp->Expect();
-					hs.query_start = hsp->QueryStart();
-					hs.query_alignment = hsp->QueryAlignment();
-					hs.subject_start = hsp->SubjectStart();
-					hs.subject_alignment = hsp->SubjectAlignment();
-					
-					h.hsps.push_back(hs);
-				}
-				
-				response.push_back(h);
-			}
-		}
+		log << params;
+		
+		DoBlast(params, response);
 	}
 	catch (exception& e)
 	{
@@ -644,31 +698,20 @@ ns__BlastAsync(
 	unsigned long						gap_extend,
 	xsd__string&						response)
 {
-	Log() << __func__ << '\t' << db;
+	CLogger log(soap, __func__);
 
 	int result = SOAP_OK;
 	
 	try
 	{
-cout << endl << "params: " << endl
-	 << "db:                    " << db << endl
-	 << "query:                 " << query << endl
-	 << "program:               " << program << endl
-	 << "matrix:                " << matrix << endl
-	 << "word_size:             " << word_size << endl
-	 << "expect:                " << expect << endl
-	 << "low_complexity_filter: " << low_complexity_filter << endl
-	 << "gapped:                " << gapped << endl
-	 << "gap_open:              " << gap_open << endl
-	 << "gap_extend:            " << gap_extend << endl;
-		
 		CBlastJobParameters params(db, query, program, matrix, word_size, expect, low_complexity_filter, gapped, gap_open, gap_extend);
+
+		log << params;
 		
 		response = CBlastJob::Create(params);
 	}
 	catch (exception& e)
 	{
-cout << "exception: " << e.what() << endl;
 		return soap_receiver_fault(soap,
 			"An error occurred in blast",
 			e.what());
@@ -683,12 +726,14 @@ ns__BlastJobStatus(
 	xsd__string						job_id,
 	enum ns__JobStatus&				response)
 {
-	Log() << __func__ << '\t' << job_id;
+	CLogger log(soap, __func__);
 
 	int result = SOAP_OK;
 	
 	try
 	{
+		log << job_id;
+
 		CBlastJob* job = CBlastJob::Find(job_id);
 		
 		if (job == NULL)
@@ -712,12 +757,14 @@ ns__BlastJobResult(
 	xsd__string						job_id,
 	std::vector<struct ns__Hit>&	response)
 {
-	Log() << __func__ << '\t' << job_id;
+	CLogger log(soap, __func__);
 
 	int result = SOAP_OK;
 	
 	try
 	{
+		log << job_id;
+
 		CBlastJob* job = CBlastJob::Find(job_id);
 		
 		if (job == NULL)
@@ -871,7 +918,7 @@ void FetchParametersFromConfigFile(
 
 int main(int argc, const char* argv[])
 {
-	int c, verbose = 0;
+	int c;
 	string input_file, address = "localhost", config_file;
 	short port = 8082;
 	bool daemon = false;
@@ -905,7 +952,7 @@ int main(int argc, const char* argv[])
 				break;
 			
 			case 'v':
-				++verbose;
+				++gVerbose;
 				break;
 			
 			case 'b':
@@ -926,7 +973,7 @@ int main(int argc, const char* argv[])
 	
 	if (fs::exists(gConfigFile))
 		FetchParametersFromConfigFile(address, port);
-	else if (verbose)
+	else if (gVerbose)
 		cerr << "Configuration file " << gConfigFile.string() << " does not exist, ignoring" << endl;
 	
 	if (not fs::exists(gDataDir) or not fs::is_directory(gDataDir))
@@ -1001,7 +1048,7 @@ int main(int argc, const char* argv[])
 //	soap_set_sent_logfile(&soap, "sent.log"); // append all messages sent in /logs/sent/service12.log
 //	soap_set_test_logfile(&soap, "test.log"); // no file name: do not save debug messages
 
-		if (verbose)
+		if (gVerbose)
 			cout << "Binding address " << address << " port " << port << endl;
 
 		m = soap_bind(&soap, address.c_str(), port + 1, 100);
@@ -1038,13 +1085,6 @@ int main(int argc, const char* argv[])
 					break;
 				}
 				
-				cout << ((soap.ip >> 24) & 0xFF) << '.'
-					 << ((soap.ip >> 16) & 0xFF) << '.'
-					 << ((soap.ip >>  8) & 0xFF) << '.'
-					 << ( soap.ip        & 0xFF);
-				
-				double start = system_time();
-				
 				try
 				{
 					if (soap_serve(&soap) != SOAP_OK) // process RPC request
@@ -1058,9 +1098,6 @@ int main(int argc, const char* argv[])
 				{
 					cout << endl << "Unknown exception" << endl;
 				}
-				
-				cout.setf(ios::fixed);
-				cout << '\t' << setprecision(3) << system_time() - start << endl;
 				
 				soap_destroy(&soap); // clean up class instances
 				soap_end(&soap); // clean up everything and close socket
