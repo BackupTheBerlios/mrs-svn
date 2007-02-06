@@ -608,8 +608,6 @@ void HBufferedFileStream::Flush()
 
 HBufferedFileStream::BufferBlock* HBufferedFileStream::GetBlock(int64 inOffset)
 {
-	StMutex lock(*fMutex);	// avoid corruption in cacheblocks due to multiple reads
-
 	BufferBlock* result = fLRUHead;
 	uint32 n = 0;
 	
@@ -665,6 +663,7 @@ int32 HBufferedFileStream::PWrite(const void* inBuffer, uint32 inSize, int64 inO
 	// short cut
 	if (inSize > kBufferBlockCount * kBufferBlockSize)
 	{
+		StMutex lock(*fMutex);	// avoid corruption in cacheblocks due to multiple reads
 		Flush();
 		return HFileStream::PWrite(inBuffer, inSize, inOffset);
 	}
@@ -674,6 +673,8 @@ int32 HBufferedFileStream::PWrite(const void* inBuffer, uint32 inSize, int64 inO
 
 	while (inSize > 0)
 	{
+		StMutex lock(*fMutex);	// avoid corruption in cacheblocks due to multiple reads
+
 		int64 blockStart = (inOffset / kBufferBlockSize) * kBufferBlockSize;
 
 		BufferBlock* e = GetBlock(blockStart);
@@ -711,6 +712,7 @@ int32 HBufferedFileStream::PRead(void* inBuffer, uint32 inSize, int64 inOffset)
 	// short cut, bypass cache in case we're reading too much
 	if (inSize > kBufferBlockCount * kBufferBlockSize)
 	{
+		StMutex lock(*fMutex);	// avoid corruption in cacheblocks due to multiple reads
 		Flush();
 		return HFileStream::PRead(inBuffer, inSize, inOffset);
 	}
@@ -720,6 +722,8 @@ int32 HBufferedFileStream::PRead(void* inBuffer, uint32 inSize, int64 inOffset)
 	
 	while (inSize > 0)
 	{
+		StMutex lock(*fMutex);	// avoid corruption in cacheblocks due to multiple reads
+
 		int64 blockStart = (inOffset / kBufferBlockSize) * kBufferBlockSize;
 		
 		BufferBlock* e = GetBlock(blockStart);
@@ -748,6 +752,8 @@ int32 HBufferedFileStream::PRead(void* inBuffer, uint32 inSize, int64 inOffset)
 
 void HBufferedFileStream::Truncate(int64 inOffset)
 {
+	StMutex lock(*fMutex);	// avoid corruption in cacheblocks due to multiple reads
+
 	for (uint32 ix = 0; ix < kBufferBlockCount; ++ix)
 	{
 		if (fBlocks[ix].fOffset > inOffset)

@@ -1502,8 +1502,6 @@ class CBlastThread : public CThread
 									, mDb(inDb)
 									, mLock(inMutex)
 								{
-									sModulo = mDb.GetBlastDbCount() / 70;
-									sRead = 0;
 								}
 
 	const string&				Error() const			{ return mError; }
@@ -1519,14 +1517,9 @@ class CBlastThread : public CThread
 	CBlastQueryBase&			mBlastQuery;
 	CDocIterator&				mIter;
 	CDatabankBase&				mDb;
-	static uint32				sRead;	// for the counter
-	static uint32				sModulo;
 	HMutex&						mLock;
 	string						mError;
 };
-
-uint32 CBlastThread::sRead;
-uint32 CBlastThread::sModulo;
 
 void CBlastThread::Run()
 {
@@ -1542,8 +1535,6 @@ void CBlastThread::Run()
 			
 			targets.clear();
 		}
-		
-//		mBlastQuery.Cleanup();
 	}
 	catch (const exception& e)
 	{
@@ -1578,10 +1569,6 @@ bool CBlastThread::Next(uint32& outDocNr, vector<CSequence>& outTargets)
 			}
 			
 			result = true;
-
-			if (VERBOSE and (++sRead % sModulo) == 0)
-				cerr << ".";
-			
 			break;
 		}
 
@@ -1640,8 +1627,6 @@ CBlast::~CBlast()
 
 bool CBlast::Find(CDatabankBase& inDb, CDocIterator& inIter)
 {
-//	inIter.Rewind();
-
 	WordHitIteratorBase<2>::WordHitIteratorStaticData whiStaticData2;
 	WordHitIteratorBase<3>::WordHitIteratorStaticData whiStaticData3;
 	WordHitIteratorBase<4>::WordHitIteratorStaticData whiStaticData4;
@@ -1707,10 +1692,7 @@ bool CBlast::Find(CDatabankBase& inDb, CDocIterator& inIter)
 					break;
 			}
 
-//			queries.push_back(new CBlastQuery<3>(mImpl->mQuery, mImpl->mMatrix, whiStaticData,
-//				inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
 			threads.push_back(new CBlastThread(*queries.back(), inDb, inIter, lock));
-
 			threads.back()->Start();
 		}
 	
@@ -1757,8 +1739,6 @@ bool CBlast::Find(CDatabankBase& inDb, CDocIterator& inIter)
 				mImpl->mBlastQuery->Test(docNr, target);
 			}
 		}
-
-//		mImpl->mBlastQuery->Cleanup();
 	}
 
 	mImpl->mBlastQuery->Cleanup();

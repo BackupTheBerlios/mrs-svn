@@ -199,12 +199,11 @@ class HBufferedFileStream : public HFileStream
 
 	virtual void	Truncate(int64 inOffset);
 	
-	void			Flush();
-
   protected:
 					HBufferedFileStream();
 
 	virtual void	Close();
+	void			Flush();
 
   private:
 

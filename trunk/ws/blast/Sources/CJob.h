@@ -30,6 +30,8 @@ class CJobQueue : public CThread
 	virtual				~CJobQueue();
 	
 	void				Submit(CJob* inJob);
+	
+	bool				Empty();
 
   private:
 

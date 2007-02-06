@@ -39,6 +39,7 @@ using namespace std;
 namespace fs = boost::filesystem;
 
 const double TIME_OUT_DATA = 3600;	// after an hour the data is purged from the cache
+const unsigned long LONG_QUERY = 1850;
 
 // default values for the directories used by mrsws, these can also be set from the Makefile
 
@@ -410,7 +411,9 @@ class CBlastJob : public CJob
 
 	static CBlastJob*	sHead;
 	static HMutex		sLock;
-	static CJobQueue	sQueue;
+//	static CJobQueue	sQueue;
+	static CJobQueue	sShortQueue;
+	static CJobQueue	sLongQueue;
 
 						CBlastJob(
 							const CBlastJobParameters& inParams);
@@ -429,7 +432,9 @@ class CBlastJob : public CJob
 
 HMutex		CBlastJob::sLock;
 CBlastJob*	CBlastJob::sHead = NULL;
-CJobQueue	CBlastJob::sQueue;
+//CJobQueue	CBlastJob::sQueue;
+CJobQueue	CBlastJob::sShortQueue;
+CJobQueue	CBlastJob::sLongQueue;
 
 CBlastJob::CBlastJob(const CBlastJobParameters& inParams)
 	: mStatus(unknown)
@@ -477,7 +482,11 @@ string CBlastJob::Create(
 
 		job->mStatus = queued;
 
-		sQueue.Submit(job);
+//		sQueue.Submit(job);
+		if (inParams.mQuery.length() >= LONG_QUERY)
+			sLongQueue.Submit(job);
+		else
+			sShortQueue.Submit(job);
 	}
 	
 	return job->ID();
