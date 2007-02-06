@@ -41,6 +41,9 @@ namespace fs = boost::filesystem;
 const double TIME_OUT_DATA = 3600;	// after an hour the data is purged from the cache
 const unsigned long LONG_QUERY = 1850;
 
+			// 95% of the sequences in SwissProt have a sequence length less than 1850
+const unsigned long kShortLongQueueCutOff = 1850;
+
 // default values for the directories used by mrsws, these can also be set from the Makefile
 
 #ifndef MRS_DATA_DIR
@@ -64,12 +67,16 @@ fs::path gParserDir(MRS_PARSER_DIR, fs::native);
 fs::path gConfigFile(MRS_CONFIG_FILE, fs::native);
 fs::path gLogFile(MRS_LOG_FILE, fs::native);
 
-int gVerbose = 0;
-
 // from mrs.h
 extern unsigned int THREADS;
+extern int VERBOSE;
 
 extern double system_time();
+
+struct CBlastJobParameters;
+void DoBlast(
+	const CBlastJobParameters&	inParams,
+	vector<ns__Hit>&			outHits);
 
 typedef boost::shared_ptr<MDatabank>	MDatabankPtr;
 
@@ -340,55 +347,6 @@ ostream& operator<<(ostream& inStream, const CBlastJobParameters& inParams)
 	return inStream;
 }
 
-void DoBlast(
-	const CBlastJobParameters&	inParams,
-	vector<ns__Hit>&			outHits)
-{
-	if (gVerbose)
-		cout << inParams << endl;
-	
-	MDatabankPtr mrsDb = WSDatabankTable::Instance()[inParams.mDB];
-
-	auto_ptr<MBlastHits> hits(mrsDb->Blast(inParams.mQuery, inParams.mMatrix,
-		inParams.mWordSize, inParams.mExpect, inParams.mLowComplexityFilter,
-		inParams.mGapped, inParams.mGapOpen, inParams.mGapExtend));
-
-	if (hits.get() != NULL)
-	{
-		for (auto_ptr<MBlastHit> hit(hits->Next()); hit.get() != NULL; hit.reset(hits->Next()))
-		{
-			ns__Hit h;
-			
-			h.id = hit->Id();
-			h.title = hit->Title();
-			
-			auto_ptr<MBlastHsps> hsps(hit->Hsps());
-
-			for (auto_ptr<MBlastHsp> hsp(hsps->Next()); hsp.get() != NULL; hsp.reset(hsps->Next()))
-			{
-				ns__Hsp hs;
-				
-				hs.score = hsp->Score();
-				hs.bit_score = hsp->BitScore();
-				hs.expect = hsp->Expect();
-				hs.query_start = hsp->QueryStart();
-				hs.subject_start = hsp->SubjectStart();
-				hs.identity = hsp->Identity();
-				hs.positive = hsp->Positive();
-				hs.gaps = hsp->Gaps();
-				hs.subject_length = hsp->SubjectLength();
-				hs.query_alignment = hsp->QueryAlignment();
-				hs.subject_alignment = hsp->SubjectAlignment();
-				hs.midline = hsp->Midline();
-				
-				h.hsps.push_back(hs);
-			}
-			
-			outHits.push_back(h);
-		}
-	}
-}
-
 class CBlastJob : public CJob
 {
   public:
@@ -404,6 +362,8 @@ class CBlastJob : public CJob
 	string				ID() const;
 
 	static void			CheckCache(bool inPurge);
+	
+	virtual float		Priority() const						{ return 1.0 / mParams.mQuery.length(); }
 
   private:
 
@@ -647,6 +607,60 @@ CLogger& CLogger::operator<<(
 	mMsg += ' ';
 
 	return *this;
+}
+
+// --------------------------------------------------------------------
+//
+//	The real work
+//
+
+void DoBlast(
+	const CBlastJobParameters&	inParams,
+	vector<ns__Hit>&			outHits)
+{
+	if (VERBOSE)
+		cout << inParams << endl;
+	
+	MDatabankPtr mrsDb = WSDatabankTable::Instance()[inParams.mDB];
+
+	auto_ptr<MBlastHits> hits(mrsDb->Blast(inParams.mQuery, inParams.mMatrix,
+		inParams.mWordSize, inParams.mExpect, inParams.mLowComplexityFilter,
+		inParams.mGapped, inParams.mGapOpen, inParams.mGapExtend));
+
+	if (hits.get() != NULL)
+	{
+		for (auto_ptr<MBlastHit> hit(hits->Next()); hit.get() != NULL; hit.reset(hits->Next()))
+		{
+			ns__Hit h;
+			
+			h.id = hit->Id();
+			h.title = hit->Title();
+			
+			auto_ptr<MBlastHsps> hsps(hit->Hsps());
+
+			for (auto_ptr<MBlastHsp> hsp(hsps->Next()); hsp.get() != NULL; hsp.reset(hsps->Next()))
+			{
+				ns__Hsp hs;
+				
+				hs.score = hsp->Score();
+				hs.bit_score = hsp->BitScore();
+				hs.expect = hsp->Expect();
+				hs.query_start = hsp->QueryStart();
+				hs.subject_start = hsp->SubjectStart();
+				hs.identity = hsp->Identity();
+				hs.positive = hsp->Positive();
+				hs.gaps = hsp->Gaps();
+				hs.subject_length = hsp->SubjectLength();
+				hs.query_alignment = hsp->QueryAlignment();
+				hs.subject_alignment = hsp->SubjectAlignment();
+				hs.midline = hsp->Midline();
+				
+				h.hsps.push_back(hs);
+			}
+			
+			outHits.push_back(h);
+		}
+	}
 }
 
 // --------------------------------------------------------------------
@@ -961,7 +975,7 @@ int main(int argc, const char* argv[])
 				break;
 			
 			case 'v':
-				++gVerbose;
+				++VERBOSE;
 				break;
 			
 			case 'b':
@@ -982,7 +996,7 @@ int main(int argc, const char* argv[])
 	
 	if (fs::exists(gConfigFile))
 		FetchParametersFromConfigFile(address, port);
-	else if (gVerbose)
+	else if (VERBOSE)
 		cerr << "Configuration file " << gConfigFile.string() << " does not exist, ignoring" << endl;
 	
 	if (not fs::exists(gDataDir) or not fs::is_directory(gDataDir))
@@ -1057,7 +1071,7 @@ int main(int argc, const char* argv[])
 //	soap_set_sent_logfile(&soap, "sent.log"); // append all messages sent in /logs/sent/service12.log
 //	soap_set_test_logfile(&soap, "test.log"); // no file name: do not save debug messages
 
-		if (gVerbose)
+		if (VERBOSE)
 			cout << "Binding address " << address << " port " << port << endl;
 
 		m = soap_bind(&soap, address.c_str(), port + 1, 100);

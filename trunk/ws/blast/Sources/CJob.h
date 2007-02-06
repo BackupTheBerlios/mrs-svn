@@ -6,7 +6,7 @@
 #ifndef CJOB_H
 #define CJOB_H
 
-#include <deque>
+#include <vector>
 #include <HMutex.h>
 #include "CThread.h"
 
@@ -17,6 +17,9 @@ class CJob
 	virtual				~CJob();
 	
 	virtual void		Execute() = 0;
+
+							// for priority queue's, range should be between 1 (high) and 0 (low)	
+	virtual float		Priority() const 	{ return 1; }
 
   private:
 						CJob(const CJob&);
@@ -40,7 +43,7 @@ class CJobQueue : public CThread
 
 	virtual void		Run();
 
-	std::deque<CJob*>	mJobs;
+	std::vector<CJob*>	mJobs;
 	HMutex				mLock;
 };
 

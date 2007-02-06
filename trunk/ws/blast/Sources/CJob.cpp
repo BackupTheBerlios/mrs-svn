@@ -3,7 +3,15 @@
 	Created 25-01-2007
 */
 
+#include <algorithm>
+
 #include "CJob.h"
+
+struct ComparePriority
+{
+	bool operator()(const CJob* a, const CJob* b) const
+		{ return a->Priority() < b->Priority(); }
+};
 
 CJob::CJob()
 {
@@ -27,6 +35,7 @@ void CJobQueue::Submit(CJob* inJob)
 	if (mLock.Wait())
 	{
 		mJobs.push_back(inJob);
+		push_heap(mJobs.begin(), mJobs.end(), ComparePriority());
 		mLock.Signal();
 	}
 }
@@ -41,7 +50,9 @@ void CJobQueue::Run()
 			if (mJobs.size() > 0)
 			{
 				job = mJobs.front();
-				mJobs.pop_front();
+				
+				pop_heap(mJobs.begin(), mJobs.end(), ComparePriority());
+				mJobs.erase(mJobs.end() - 1);
 			}
 			
 			mLock.Signal();

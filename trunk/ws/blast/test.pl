@@ -6,7 +6,7 @@ use Data::Dumper;
 
 my $ns_url = 'http://mrs.cmbi.ru.nl/mrsws-blast';
 my $ns = 'service';
-my $url = 'http://mini:8082/mrsws-blast';
+my $url = 'http://cmbi8:8082/mrsws-blast';
 
 my $soap = SOAP::Lite->uri($ns_url)->proxy($url);
 

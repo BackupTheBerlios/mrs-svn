@@ -158,6 +158,8 @@ uint32 CBlastIndex::CountSequencesForDocument(uint32 inDocNr)
 
 // the next function should be thread safe. And it is, if you call it once
 // before you fire the threads. That's not very clean, I know.
+
+// •••• NO, it isn't thread safe.... duh...
 CSequence CBlastIndex::GetSequence(uint32 inDocNr, uint32 inIndex)
 {
 	if (not fDocIndex->IsExpanded())

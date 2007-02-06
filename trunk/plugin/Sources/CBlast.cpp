@@ -1594,8 +1594,10 @@ struct CBlastImp
 	bool						mGapped;
 	double						mExpect;
 	vector<Hit>					mHits;
-	HMutex						mLock;
+	static HMutex				sLock;
 };
+
+HMutex CBlastImp::sLock;
 
 CBlastImp::CBlastImp(const string& inQuery, const string& inMatrix, uint32 inWordSize,
 		double inExpect, bool inFilter, bool inGapped, uint32 inGapOpen, uint32 inGapExtend)
@@ -1637,7 +1639,7 @@ bool CBlast::Find(CDatabankBase& inDb, CDocIterator& inIter)
 			WordHitIteratorBase<2>::Init(mImpl->mQuery, mImpl->mMatrix, kTreshHold, whiStaticData2);
 			
 			mImpl->mBlastQuery.reset(
-				new CBlastQuery<2>(mImpl->mHits, mImpl->mLock, mImpl->mQuery, mImpl->mMatrix, whiStaticData2,
+				new CBlastQuery<2>(mImpl->mHits, mImpl->sLock, mImpl->mQuery, mImpl->mMatrix, whiStaticData2,
 					mImpl->mExpect, mImpl->mGapped, inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
 			break;
 		
@@ -1645,7 +1647,7 @@ bool CBlast::Find(CDatabankBase& inDb, CDocIterator& inIter)
 			WordHitIteratorBase<3>::Init(mImpl->mQuery, mImpl->mMatrix, kTreshHold, whiStaticData3);
 			
 			mImpl->mBlastQuery.reset(
-				new CBlastQuery<3>(mImpl->mHits, mImpl->mLock, mImpl->mQuery, mImpl->mMatrix, whiStaticData3,
+				new CBlastQuery<3>(mImpl->mHits, mImpl->sLock, mImpl->mQuery, mImpl->mMatrix, whiStaticData3,
 					mImpl->mExpect, mImpl->mGapped, inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
 			break;
 		
@@ -1653,7 +1655,7 @@ bool CBlast::Find(CDatabankBase& inDb, CDocIterator& inIter)
 			WordHitIteratorBase<4>::Init(mImpl->mQuery, mImpl->mMatrix, kTreshHold, whiStaticData4);
 			
 			mImpl->mBlastQuery.reset(
-				new CBlastQuery<4>(mImpl->mHits, mImpl->mLock, mImpl->mQuery, mImpl->mMatrix, whiStaticData4,
+				new CBlastQuery<4>(mImpl->mHits, mImpl->sLock, mImpl->mQuery, mImpl->mMatrix, whiStaticData4,
 					mImpl->mExpect, mImpl->mGapped, inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
 			break;
 		
@@ -1675,19 +1677,19 @@ bool CBlast::Find(CDatabankBase& inDb, CDocIterator& inIter)
 			{
 				case 2:
 					queries.push_back(
-						new CBlastQuery<2>(mImpl->mHits, mImpl->mLock, mImpl->mQuery, mImpl->mMatrix, whiStaticData2,
+						new CBlastQuery<2>(mImpl->mHits, mImpl->sLock, mImpl->mQuery, mImpl->mMatrix, whiStaticData2,
 							mImpl->mExpect, mImpl->mGapped, inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
 					break;
 				
 				case 3:
 					queries.push_back(
-						new CBlastQuery<3>(mImpl->mHits, mImpl->mLock, mImpl->mQuery, mImpl->mMatrix, whiStaticData3,
+						new CBlastQuery<3>(mImpl->mHits, mImpl->sLock, mImpl->mQuery, mImpl->mMatrix, whiStaticData3,
 							mImpl->mExpect, mImpl->mGapped, inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
 					break;
 				
 				case 4:
 					queries.push_back(
-						new CBlastQuery<4>(mImpl->mHits, mImpl->mLock, mImpl->mQuery, mImpl->mMatrix, whiStaticData4,
+						new CBlastQuery<4>(mImpl->mHits, mImpl->sLock, mImpl->mQuery, mImpl->mMatrix, whiStaticData4,
 							mImpl->mExpect, mImpl->mGapped, inDb.GetBlastDbLength(), inDb.GetBlastDbCount()));
 					break;
 			}
