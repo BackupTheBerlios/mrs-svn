@@ -7,456 +7,206 @@
 #include <fstream>
 #include <map>
 
+#include <libxml/tree.h>
+#include <libxml/parser.h>
+#include <libxml/xpath.h>
+#include <libxml/xpathInternals.h>
+
+#include <boost/filesystem/operations.hpp>
+#include <boost/filesystem/path.hpp>
+
 #include "WConfig.h"
+#include "WError.h"
 
 using namespace std;
+namespace fs = boost::filesystem;
 
-config_exception::config_exception(const string& inError, int inLine)
+#define nil NULL
+
+// --------------------------------------------------------------------
+//
+//	Implementation
+//
+
+struct WConfigFileImp
 {
-	snprintf(msg, sizeof msg, "Error in reading config file at line %d: %s", inLine, inError.c_str());
-}
+						WConfigFileImp(
+							const char*		inPath);
+						~WConfigFileImp();
 
-class CfParser
-{
-  public:
-					CfParser(const string& inPath);
+	string				GetValue(
+							const char*		inXPath) const;
 	
-	void			Parse(string& outDataDir, string& outFormatDir, vector<DbInfo>& outDbInfo);
+	bool				GetValue(
+							const char*		inPath,
+							DBInfoVector&	outValue) const;
 
-  private:
-	
-	void			ParseStatement();
-	void			ParseAssignment(const string& inVariable);
-	void			ParseList();
-	void			ParseHash();
+	bool				IsModified() const;
 
-	enum CfToken
-	{
-		cfEOF			= 0,
-		cfUndefined		= 256,
-		cfVariable,
-		cfIdentifier,
-		cfNumber,
-		cfString,
-		cfLeft,
-	};
-	
-	char			GetCharacter();
-	
-	void			Retract();
-	int				Restart(int inStart);
-
-	int				GetToken();
-	
-	void			Match(int inToken);
-
-	string			fPath;
-	ifstream		fFile;
-	int				fLine;
-	streamoff		fPointer;
-	string			fToken;
-	int				fLookahead;
-	map<int,string>	fTokenNames;
-
-	vector<DbInfo>	fDbInfo;
-	string			fDataDir;
-	string			fFormatDir;
+	string				mPath;
+	xmlDocPtr			mXMLDoc;
+	xmlXPathContextPtr	mXPathContext;
 };
 
-CfParser::CfParser(const string& inPath)
-	: fFile(inPath.c_str())
-	, fLine(1)
-	, fPointer(0)
+WConfigFileImp::WConfigFileImp(
+	const char*			inPath)
+	: mPath(inPath)
+	, mXMLDoc(nil)
+	, mXPathContext(nil)
 {
-	fLookahead = GetToken();
+	xmlInitParser();
+
+	mXMLDoc = xmlParseFile(inPath);
+	if (mXMLDoc == nil)
+		THROW(("Failed to parse mrs configuration file %s", inPath));
 	
-	fTokenNames[cfEOF] =		"end of file";
-	fTokenNames[cfUndefined] =	"undefined";
-	fTokenNames[cfVariable] =	"variable";
-	fTokenNames[cfIdentifier] =	"identifier";
-	fTokenNames[cfNumber] =		"number";
-	fTokenNames[cfString] =		"string";
-	fTokenNames[cfLeft] =		"comma";
+	mXPathContext = xmlXPathNewContext(mXMLDoc);
+	if (mXPathContext == nil)
+		THROW(("Failed to parse mrs configuration file %s (2)", inPath));
 }
 
-char CfParser::GetCharacter()
+WConfigFileImp::~WConfigFileImp()
 {
-	char result = cfEOF;
-	if (not fFile.eof())
-	{
-		result = fFile.get();
-		fToken += result;
-	}
+	if (mXPathContext)
+		xmlXPathFreeContext(mXPathContext);
+	
+	if (mXMLDoc)
+		xmlFreeDoc(mXMLDoc);
+	
+	xmlCleanupParser();
+	xmlMemoryDump();
+}
 
+string WConfigFileImp::GetValue(
+	const char*			inXPath) const
+{
+	string result;
+	
+	xmlXPathObjectPtr data = xmlXPathEvalExpression((const xmlChar*)inXPath, mXPathContext);
+	xmlNodeSetPtr nodes = data->nodesetval;
+
+	if (nodes != nil)
+	{
+		if (nodes->nodeNr >= 1)
+		{
+			xmlNodePtr node = nodes->nodeTab[0];
+			const char* text = (const char*)XML_GET_CONTENT(node->children);
+
+			if (text != nil)
+				result = text;
+		}
+		
+		xmlXPathFreeObject(data);
+	}
+	
 	return result;
 }
 
-void CfParser::Retract()
+bool WConfigFileImp::GetValue(
+	const char*		inXPath,
+	DBInfoVector&	outValue) const
 {
-	fFile.unget();
-	if (fToken.length() > 0)
-		fToken.erase(fToken.length() - 1, 1);
-}
+	xmlXPathObjectPtr data = xmlXPathEvalExpression((const xmlChar*)inXPath, mXPathContext);
 
-int CfParser::Restart(int inStart)
-{
-	int state = 0;
+	if (data == nil or data->nodesetval == nil)
+		THROW(("Failed to locate databank information in configuration file %s", mPath.c_str()));
 	
-	switch (inStart)
+	for (int i = 0; i < data->nodesetval->nodeNr; ++i)
 	{
-		case 1:		state = 10;	break;
-		case 10:	state = 20; break;
-		case 20:	state = 30; break;
-		case 30:	state = 40; break;
-		case 40:	state = 50; break;
-		case 50:	state = 60; break;
+		xmlNodePtr db = data->nodesetval->nodeTab[i];
+		if (strcmp((const char*)db->name, "db"))
+			continue;
+		
+		DBInfo dbi;
+		
+		const char* name = (const char*)XML_GET_CONTENT(db->children);
+		if (name == nil)
+			continue;
+		
+		dbi.name = name;
+		
+		const char* ignore = (const char*)xmlGetProp(db, (const xmlChar*)"ignore-in-all");
+		dbi.ignore_in_all = ignore != nil and strcmp(ignore, "0");
+		
+		const char* blast = (const char*)xmlGetProp(db, (const xmlChar*)"blast");
+		dbi.blast = blast != nil and strcmp(blast, "0");
+		
+		outValue.push_back(dbi);
 	}
 	
-	fToken.clear();
-	fFile.seekg(fPointer);
+	if (data)
+		xmlXPathFreeObject(data);
 	
-	return state;
+	return outValue.size() > 0;
 }
 
-int CfParser::GetToken()
+bool WConfigFileImp::IsModified() const
 {
-	int state = 1, start = 1;
-	int token = cfUndefined;
-	
-	fFile.seekg(fPointer);
-	
-	while (state != 0 and token == cfUndefined)
-	{
-		char ch = GetCharacter();
-		
-		switch (state)
-		{
-			case 1:
-			{
-				if (ch == ' ' or ch == '\t' or ch == '\n')
-				{
-					fToken.clear();
-					fPointer = fFile.tellg();
+	return false;
+}
 
-					if (ch == '\n')
-						++fLine;
-				}
-				else if (ch == '#')
-					state = 2;
-				else if (ch == 0)
-					token = cfEOF;
-				else
-					state = start = Restart(start);
-				break;
-			}
-			
-			case 2:
-			{
-				if (ch == '\n')
-				{
-					++fLine;
-					fToken.clear();
-					fPointer = fFile.tellg();
-					state = 1;
-				}
-				else if (ch == 0)
-					token = cfEOF;
-				break;
-			}
-			
-			case 10:
-			{
-				if (ch == '$' or ch == '@')
-					state = 11;
-				else
-					state = start = Restart(start);
-				break;
-			}
-			
-			case 11:
-			{
-				if (not (isalnum(ch) or ch == '_'))
-				{
-					Retract();
-					token = cfVariable;
-				}
-				break;				
-			}
-			
-			case 20:
-			{
-				if (ch == '\'')
-				{
-					fToken.clear();
-					state = 21;
-				}
-				else
-					state = start = Restart(start);
-				break;
-			}
-			
-			case 21:
-			{
-				if (ch == '\\')
-				{
-					fToken.erase(fToken.length() - 1, 1);
-					state = 22;
-				}
-				else if (ch == '\'')
-				{
-					token = cfString;
-					fToken.erase(fToken.length() - 1, 1);
-				}
-				else if (ch == 0)
-					throw config_exception("unterminated string constant", fLine);
-				break;
-			}
-			
-			case 22:
-				state = 21;
-				break;
-			
-			case 30:
-			{
-				if (ch == '"')
-				{
-					fToken.clear();
-					state = 31;
-				}
-				else
-					state = start = Restart(start);
-				break;
-			}
-			
-			case 31:
-			{
-				if (ch == '\\')
-				{
-					fToken.erase(fToken.length() - 1, 1);
-					state = 32;
-				}
-				else if (ch == '"')
-				{
-					token = cfString;
-					fToken.erase(fToken.length() - 1, 1);
-				}
-				else if (ch == 0)
-					throw config_exception("unterminated string constant", fLine);
-				break;
-			}
-			
-			case 32:
-				state = 31;
-				break;
-			
-			case 40:
-				if (isdigit(ch))
-					state = 41;
-				else
-					state = start = Restart(start);
-				break;
-			
-			case 41:
-				if (not isdigit(ch))
-				{
-					Retract();
-					token = cfNumber;
-				}
-				break;
-			
-			case 50:
-				if (isalpha(ch))
-					state = 51;
-				else
-					state = start = Restart(start);
-				break;
-			
-			case 51:
-				if (not (isalnum(ch) or ch == '_'))
-				{
-					Retract();
-					token = cfIdentifier;
-				}
-				break;
-			
-			case 60:
-				switch (ch)
-				{
-					case '=':
-						state = 61;
-						break;
-					
-					default:
-						token = ch;
-				}
-				break;
-			
-			case 61:
-				if (ch == '>')
-					token = cfLeft;
-				else
-				{
-					Retract();
-					token = '=';
-				}
-				break;
-			
-			default:
-				throw config_exception("invalid state in tokenizer", fLine);
-		}
+// --------------------------------------------------------------------
+//
+//	Interface
+//
+
+WConfigFile::WConfigFile(
+	const char*		inPath)
+	: mImpl(nil)
+{
+	fs::path configFile(inPath, fs::native);
+	
+	if (not fs::exists(configFile))
+	{
+		cerr << "Configuration file " << inPath << " does not exist, aborting" << endl;
+		exit(1);
 	}
 	
-	fPointer = fFile.tellg();
-	return token;
+	mImpl = new WConfigFileImp(configFile.string().c_str());
 }
 
-void CfParser::Match(int inToken)
+WConfigFile::~WConfigFile()
 {
-	if (fLookahead == inToken)
-		fLookahead = GetToken();
-	else
-	{
-		string err = "expected ";
-		
-		if (inToken == cfEOF or inToken >= cfUndefined)
-			err += fTokenNames[inToken];
-		else
-			err += char(inToken);
-		
-		err += " but found ";
-		
-		if (fLookahead == cfEOF or fLookahead >= cfUndefined)
-			err += fTokenNames[fLookahead];
-		else
-			err += char(fLookahead);
-		
-		throw config_exception(err, fLine);
-	}
+	delete mImpl;
 }
 
-void CfParser::Parse(string& outDataDir, string& outFormatDir, vector<DbInfo>& outDbInfo)
+bool WConfigFile::ReloadIfModified()
 {
-	while (fLookahead != cfEOF)
-		ParseStatement();
+	bool result = false;
 	
-	outDataDir = fDataDir;
-	outFormatDir = fFormatDir;
-	outDbInfo = fDbInfo;
-}
-
-void CfParser::ParseStatement()
-{
-	string variable = fToken;
-	Match(cfVariable);
-	ParseAssignment(variable);
-	Match(';');
-}
-
-void CfParser::ParseAssignment(const string& inVariable)
-{
-	Match('=');
-	if (fLookahead == '(')
+	if (mImpl->IsModified())
 	{
-		if (inVariable != "@dbs")
-			throw config_exception(string("unknown list variable ") + inVariable, fLine);
-		ParseList();
-	}
-	else
-	{
-		string value = fToken;
-		if (fLookahead == cfIdentifier)
-		{
-			Match(cfIdentifier);
-			if (value != "undef")
-				throw config_exception(string("unknown identifier ") + value, fLine);
-		}
-		else if (fLookahead == cfNumber)
-		{
-			Match(cfNumber);
-		}
-		else
-		{
-			Match(cfString);
-			if (inVariable == "$mrs_data")
-				fDataDir = value;
-			else if (inVariable == "$mrs_format")
-				fFormatDir = value;
-		}
-	}
-}
-
-void CfParser::ParseList()
-{
-	Match('(');
-	while (fLookahead != ')' and fLookahead != cfEOF)
-	{
-		if (fLookahead == '{')
-		{
-			fDbInfo.push_back(DbInfo());
-			ParseHash();
-		}
+		string path = mImpl->mPath;
 		
-		if (fLookahead == ',')
-			Match(',');
-		else
-			break;
-	}
-	Match(')');
-}
-
-void CfParser::ParseHash()
-{
-	Match('{');
-	
-	while (fLookahead != '}' and fLookahead != cfEOF)
-	{
-		string key, value;
+		delete mImpl;
+		mImpl = new WConfigFileImp(path.c_str());
 		
-		key = fToken;
-		
-		if (fLookahead == cfString)
-			Match(cfString);
-		else
-			Match(cfIdentifier);
-		
-		if (fLookahead == ',')
-			Match(',');
-		else
-			Match(cfLeft);
-		
-		value = fToken;
-		
-		if (fLookahead == cfIdentifier or fLookahead == cfNumber)
-			Match(fLookahead);
-		else
-			Match(cfString);
-		
-		if (key == "id")
-			fDbInfo.back().id = value;
-		else if (key == "name")
-			fDbInfo.back().name = value;
-		else if (key == "url")
-			fDbInfo.back().url = value;
-		else if (key == "script")
-			fDbInfo.back().script = value;
-		else if (key == "in_all")
-			fDbInfo.back().in_all = atoi(value.c_str()) != 0;
-		
-		if (fLookahead == ',')
-			Match(',');
-		else
-			break;
+		result = true;
 	}
 	
-	Match('}');
+	return result;
 }
 
-void ReadConfig(
-	const string&		inPath,
-	string&				outDataDir,
-	string&				outFormatDir,
-	vector<DbInfo>&		outDbInfo)
+bool WConfigFile::GetSetting(
+	const char*			inXPath,
+	string&				outValue) const
 {
-	CfParser p(inPath);
-	p.Parse(outDataDir, outFormatDir, outDbInfo);
+	outValue = mImpl->GetValue(inXPath);
+	return outValue.length() > 0;
+}
+
+bool WConfigFile::GetSetting(
+	const char*			inXPath,
+	long&				outValue) const
+{
+	string s = mImpl->GetValue(inXPath);
+	outValue = atoi(s.c_str());
+	return s.length() > 0;
+}
+
+bool WConfigFile::GetSetting(
+	const char*		inXPath,
+	DBInfoVector&	outValue) const
+{
+	return mImpl->GetValue(inXPath, outValue);
 }

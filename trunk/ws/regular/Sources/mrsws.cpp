@@ -29,6 +29,8 @@
 #include "CThread.h"
 #include "WError.h"
 #include "WFormat.h"
+#include "WUtils.h"
+#include "WConfig.h"
 
 #define nil NULL
 
@@ -50,13 +52,15 @@ namespace fs = boost::filesystem;
 #endif
 
 #ifndef MRS_LOG_FILE
-#define MRS_LOG_FILE "/var/log/mrsws.log"
+#define MRS_LOG_FILE "/var/log/mrsws-search.log"
 #endif
 
 fs::path gDataDir(MRS_DATA_DIR, fs::native);
 fs::path gParserDir(MRS_PARSER_DIR, fs::native);
 fs::path gConfigFile(MRS_CONFIG_FILE, fs::native);
 fs::path gLogFile(MRS_LOG_FILE, fs::native);
+
+WConfigFile*	gConfig = nil;
 
 extern double system_time();
 
@@ -108,78 +112,33 @@ void WSDatabankTable::ReloadDbs()
 	
 	cout << endl;
 	
-	if (fs::exists(gConfigFile))
+	DBInfoVector dbInfo;
+	
+	if (gConfig != nil and gConfig->GetSetting("/mrs-config/dbs/db", dbInfo))
 	{
-		xmlInitParser();
-
-		xmlDocPtr doc = nil;
-		xmlXPathContextPtr context = nil;
-		xmlXPathObjectPtr data = nil;
-
-		try
+		for (DBInfoVector::iterator dbi = dbInfo.begin(); dbi != dbInfo.end(); ++dbi)
 		{
-			doc = xmlParseFile(gConfigFile.string().c_str());
-			if (doc == nil)
-				THROW(("Failed to parse mrs configuration file %s", gConfigFile.string().c_str()));
-			
-			context = xmlXPathNewContext(doc);
-			if (context == nil)
-				THROW(("Failed to parse mrs configuration file %s (2)", gConfigFile.string().c_str()));
-			
-			data = xmlXPathEvalExpression((const xmlChar*)"/mrs-config/dbs/db", context);
-			if (data == nil or data->nodesetval == nil)
-				THROW(("Failed to locate databank information in configuration file %s", gConfigFile.string().c_str()));
-			
-			for (int i = 0; i < data->nodesetval->nodeNr; ++i)
+			fs::path f = gDataDir / (dbi->name + ".cmp");
+				
+			cout << "Loading " << dbi->name << " from " << f.string() << " ..."; cout.flush();
+				
+			try
 			{
-				xmlNodePtr db = data->nodesetval->nodeTab[i];
-				if (strcmp((const char*)db->name, "db"))
-					continue;
-				
-				const char* name = (const char*)XML_GET_CONTENT(db->children);
-				if (name == nil)
-					continue;
-				
-				fs::path f = gDataDir / (string(name) + ".cmp");
-				
-				cout << "Loading " << name << " from " << f.string() << " ..."; cout.flush();
-				
-				try
-				{
-					MDatabankPtr db(new MDatabank(f.string()));
-					db->PrefetchDocWeights("__ALL_TEXT__");
-					mDBs[name] = db;
-				}
-				catch (exception& e)
-				{
-					cout << " failed" << endl;
-					continue;
-				}
-				
-				const char* ignore = (const char*)xmlGetProp(db, (const xmlChar*)"ignore-in-all");
-				if (ignore != nil and strcmp(ignore, "0"))
-					mIgnore.insert(name);
-				
-				cout << " done" << endl;
+				MDatabankPtr db(new MDatabank(f.string()));
+				db->PrefetchDocWeights("__ALL_TEXT__");
+				mDBs[dbi->name] = db;
 			}
+			catch (exception& e)
+			{
+				cout << " failed" << endl;
+				continue;
+			}
+			
+			if (dbi->ignore_in_all)
+				mIgnore.insert(dbi->name);
+			
+			cout << " done" << endl;
 		}
-		catch (exception& e)
-		{
-			cout << "reloading of databanks failed: " << endl;
-			cout << e.what() << endl;
-		}
-		
-		if (data)
-			xmlXPathFreeObject(data);
-		
-		if (context)
-			xmlXPathFreeContext(context);
-		
-		if (doc)
-			xmlFreeDoc(doc);
-		
-		xmlCleanupParser();
-		xmlMemoryDump();
 	}
 	else
 	{
@@ -213,27 +172,6 @@ void WSDatabankTable::ReloadDbs()
 			cout << " done" << endl;
 		}
 	}
-}
-
-
-// --------------------------------------------------------------------
-//
-//	Utility routines
-// 
-
-ostream& Log()
-{
-	time_t now;
-	time(&now);
-	
-	struct tm tm;
-	localtime_r(&now, &tm);
-	
-	char s[1024];
-	strftime(s, sizeof(s), "[%d/%b/%Y:%H:%M:%S]", &tm);
-	
-	cout << ' ' << s << ' ';
-	return cout;
 }
 
 // --------------------------------------------------------------------
@@ -301,7 +239,7 @@ ns__GetDatabankInfo(
 	string								db,
 	vector<struct ns__DatabankInfo>&	info)
 {
-	Log() << __func__;
+	WLogger log(soap->ip, __func__);
 
 	int result = SOAP_OK;
 	
@@ -348,7 +286,7 @@ ns__GetIndices(
 	string						db,
 	vector<struct ns__Index >&	indices)
 {
-	Log() << __func__;
+	WLogger log(soap->ip, __func__);
 
 	int result = SOAP_OK;
 	
@@ -420,7 +358,7 @@ ns__GetEntry(
 	enum ns__Format	format,
 	string&			entry)
 {
-	Log() << __func__;
+	WLogger log(soap->ip, __func__);
 
 	int result = SOAP_OK;
 	
@@ -559,7 +497,8 @@ ns__Find(
 	int							maxresultcount,
 	struct ns__FindResponse&	response)
 {
-	Log() << __func__ << ':' << db;
+	WLogger log(soap->ip, __func__);
+	log << ':' << db;
 
 	int result = SOAP_OK;
 
@@ -672,7 +611,7 @@ ns__FindAll(
 	vector<struct ns__FindAllResult>&
 						response)
 {
-	Log() << __func__;
+	WLogger log(soap->ip, __func__);
 
 	int result = SOAP_OK;
 	
@@ -749,7 +688,7 @@ ns__SpellCheck(
 	string			queryterm,
 	vector<string>&	suggestions)
 {
-	Log() << __func__;
+	WLogger log(soap->ip, __func__);
 
 	int result = SOAP_OK;
 	
@@ -785,7 +724,7 @@ ns__FindSimilar(
 	int							maxresultcount,
 	struct ns__FindResponse&	response)
 {
-	Log() << __func__;
+	WLogger log(soap->ip, __func__);
 
 	int result = SOAP_OK;
 	
@@ -943,7 +882,7 @@ ns__FindAllSimilar(
 	vector<struct ns__FindAllResult>&
 						response)
 {
-	Log() << __func__;
+	WLogger log(soap->ip, __func__);
 	
 	int result = SOAP_OK;
 	
@@ -1068,92 +1007,9 @@ void usage()
 	exit(1);
 }
 
-bool FetchString(
-	xmlXPathContextPtr	inContext,
-	const string&		inXPath,
-	string&				outString)
-{
-	bool result = false;
-	
-	xmlXPathObjectPtr data = xmlXPathEvalExpression((const xmlChar*)inXPath.c_str(), inContext);
-	xmlNodeSetPtr nodes = data->nodesetval;
-
-	if (nodes != nil)
-	{
-		if (nodes->nodeNr >= 1)
-		{
-			xmlNodePtr node = nodes->nodeTab[0];
-			const char* text = (const char*)XML_GET_CONTENT(node->children);
-
-			if (text != nil)
-			{
-				outString = (const char*)text;
-				result = true;
-			}
-		}
-		
-		xmlXPathFreeObject(data);
-	}
-	
-	return result;
-}
-
-void FetchParametersFromConfigFile(
-	string& 		outAddress,
-	short&			outPort)
-{
-	xmlInitParser();
-
-	xmlDocPtr doc = nil;
-	xmlXPathContextPtr context = nil;
-
-	if (not fs::exists(gConfigFile))
-	{
-		cerr << "Configuration file " << gConfigFile.string() << " does not exist, aborting" << endl;
-		exit(1);
-	}
-
-	doc = xmlParseFile(gConfigFile.string().c_str());
-	if (doc == nil)
-		THROW(("Failed to parse mrs configuration file %s", gConfigFile.string().c_str()));
-	
-	context = xmlXPathNewContext(doc);
-	if (context == nil)
-		THROW(("Failed to parse mrs configuration file %s (2)", gConfigFile.string().c_str()));
-	
-	string s;
-	
-	if (FetchString(context, "/mrs-config/datadir", s))
-		gDataDir = fs::system_complete(fs::path(s, fs::native));
-	
-	if (FetchString(context, "/mrs-config/scriptdir", s))
-	{
-		gParserDir = fs::system_complete(fs::path(s, fs::native));
-		WFormatTable::SetParserDir(gParserDir.string());
-	}
-	
-	if (FetchString(context, "/mrs-config/logfile", s))
-		gLogFile = fs::system_complete(fs::path(s, fs::native));
-	
-	if (FetchString(context, "/mrs-config/address", s))
-		outAddress = s;
-	
-	if (FetchString(context, "/mrs-config/port", s))
-		outPort = atoi(s.c_str());
-	
-	if (context)
-		xmlXPathFreeContext(context);
-	
-	if (doc)
-		xmlFreeDoc(doc);
-	
-	xmlCleanupParser();
-	xmlMemoryDump();
-}
-
 int main(int argc, const char* argv[])
 {
-	int c, verbose = 0;
+	int c;
 	string input_file, address = "localhost", config_file;
 	short port = 8081;
 	bool daemon = false;
@@ -1187,7 +1043,7 @@ int main(int argc, const char* argv[])
 				break;
 			
 			case 'v':
-				++verbose;
+				++VERBOSE;
 				break;
 			
 			case 'b':
@@ -1203,8 +1059,30 @@ int main(int argc, const char* argv[])
 	// check the parameters
 	
 	if (fs::exists(gConfigFile))
-		FetchParametersFromConfigFile(address, port);
-	else if (verbose)
+	{
+		gConfig = new WConfigFile(gConfigFile.string().c_str());
+		
+		string s;
+		
+		if (gConfig->GetSetting("/mrs-config/datadir", s))
+			gDataDir = fs::system_complete(fs::path(s, fs::native));
+		
+		if (gConfig->GetSetting("/mrs-config/scriptdir", s))
+		{
+			gParserDir = fs::system_complete(fs::path(s, fs::native));
+			WFormatTable::SetParserDir(gParserDir.string());
+		}
+		
+		if (gConfig->GetSetting("/mrs-config/search-ws/logfile", s))
+			gLogFile = fs::system_complete(fs::path(s, fs::native));
+	
+		if (gConfig->GetSetting("/mrs-config/search-ws/address", s))
+			address = s;
+	
+		if (gConfig->GetSetting("/mrs-config/search-ws/port", s))
+			port = atoi(s.c_str());
+	}
+	else if (VERBOSE)
 		cerr << "Configuration file " << gConfigFile.string() << " does not exist, ignoring" << endl;
 	
 	if (not fs::exists(gDataDir) or not fs::is_directory(gDataDir))
@@ -1279,7 +1157,7 @@ int main(int argc, const char* argv[])
 //	soap_set_sent_logfile(&soap, "sent.log"); // append all messages sent in /logs/sent/service12.log
 //	soap_set_test_logfile(&soap, "test.log"); // no file name: do not save debug messages
 
-		if (verbose)
+		if (VERBOSE)
 			cout << "Binding address " << address << " port " << port << endl;
 
 		m = soap_bind(&soap, address.c_str(), port, 100);
@@ -1297,7 +1175,7 @@ int main(int argc, const char* argv[])
 				if (gQuit)
 					break;
 				
-				if (gNeedReload)
+				if (gNeedReload or gConfig->ReloadIfModified())
 					WSDatabankTable::Instance().ReloadDbs();
 
 				gNeedReload = false;
@@ -1313,13 +1191,6 @@ int main(int argc, const char* argv[])
 					break;
 				}
 				
-				cout << ((soap.ip >> 24) & 0xFF) << '.'
-					 << ((soap.ip >> 16) & 0xFF) << '.'
-					 << ((soap.ip >>  8) & 0xFF) << '.'
-					 << ( soap.ip        & 0xFF);
-				
-				double start = system_time();
-				
 				try
 				{
 					if (soap_serve(&soap) != SOAP_OK) // process RPC request
@@ -1333,9 +1204,6 @@ int main(int argc, const char* argv[])
 				{
 					cout << endl << "Unknown exception" << endl;
 				}
-				
-				cout.setf(ios::fixed);
-				cout << '\t' << setprecision(3) << system_time() - start << endl;
 				
 				soap_destroy(&soap); // clean up class instances
 				soap_end(&soap); // clean up everything and close socket

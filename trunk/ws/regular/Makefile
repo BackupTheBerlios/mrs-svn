@@ -146,6 +146,7 @@ Sources = \
 	./Sources/soapServer.cpp \
 	../common/Sources/WConfig.cpp \
 	../common/Sources/WFormat.cpp \
+	../common/Sources/WUtils.cpp \
 	../common/Sources/WError.cpp
 
 define SOURCES

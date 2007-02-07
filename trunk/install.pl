@@ -414,11 +414,16 @@ system("cd parser_scripts; find . | cpio -p $parser_script_dir") == 0
 
 # write the web service config file mrs-config.xml
 
+my $clustalw = `which clustalw`;
+chomp($clustalw);
+$clustalw = &ask_for_string("Where is your clustalw executable", $clustalw);
+
 my $ws_conf = &read_file("ws/mrs-config.xml.TEMPLATE");
 $ws_conf =~ s{__DATA_DIR__}		{$data_dir}g;
 $ws_conf =~ s{__PARSER_DIR__}	{$parser_script_dir}g;
 $ws_conf =~ s{__PARSER_DIR__}	{$parser_script_dir}g;
 $ws_conf =~ s{__HOST_NAME__}	{$hostname}g;
+$ws_conf =~ s{__CLUSTALW__}		{$clustalw}g;
 
 my $ws_conf_file = "$etcpath/mrs-config.xml";
 &write_file($ws_conf, $ws_conf_file);

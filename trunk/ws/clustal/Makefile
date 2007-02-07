@@ -41,7 +41,7 @@ ifeq ($(CPU),)
 endif
 
 SO_EXT		= .so
-TARGET		= mrsws-blast
+TARGET		= mrsws-clustal
 # DEBUG should be either 1 or 0
 DEBUG		= 0
 DEFINES		= CPU_$(CPU) MINI_H_LIB
@@ -141,12 +141,10 @@ LDFLAGS += $(addprefix -L, $(LIBPATHS))
 LIBNAME := lib$(LIBNAME).a
 
 Sources = \
-	./Sources/mrsws-blast.cpp \
+	./Sources/mrsws-clustal.cpp \
 	./Sources/soapC.cpp \
 	./Sources/soapServer.cpp \
-	./Sources/CJob.cpp \
 	../common/Sources/WConfig.cpp \
-	../common/Sources/WFormat.cpp \
 	../common/Sources/WUtils.cpp \
 	../common/Sources/WError.cpp
 
@@ -216,10 +214,10 @@ clean: FORCE
 dist: $(TARGET)
 
 install: dist
-	install mrsws-blast $(INSTALL_DIR)/mrsws-blast
+	install mrsws-clustal $(INSTALL_DIR)/mrsws-clustal
 	@ echo "To finish installation of the web-service you have to edit the file"
-	@ echo "ws/Sources/mrsws-blast.wsdl and put it in the proper location."
-#	install Sources/mrsws-blast.wsdl ../web-simple/htdocs/
+	@ echo "ws/Sources/mrsws-clustal.wsdl and put it in the proper location."
+#	install Sources/mrsws-clustal.wsdl ../web-simple/htdocs/
 
 tags: FORCE
 	$(CTAGS) $(wildcard $(addsuffix *, $(SRC_PATHS))) $(wildcard $(addsuffix *.h, $(INCPATHS)))
@@ -237,8 +235,8 @@ $(OBJDIR)/%.o: %.c
 
 include $(OBJS:%.o=%.d)
 
-soapC.cpp soapServer.cpp: Sources/mrsws-blast.h
-	$(SOAPCPP2) -d Sources/ Sources/mrsws-blast.h
+soapC.cpp soapServer.cpp: Sources/mrsws-clustal.h
+	$(SOAPCPP2) -d Sources/ Sources/mrsws-clustal.h
 
 $(OBJDIR)/%.d:%.cpp
 	@ test -d $(OBJDIR) || mkdir $(OBJDIR)

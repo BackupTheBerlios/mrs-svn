@@ -4,35 +4,55 @@
 	Config parser for an mrs web service, basically a simplified Perl parser...
 */
 
+#ifndef WCONFIG_H
+#define WCONFIG_H
+
 #include <string>
 #include <vector>
-#include <exception>
 
-struct DbInfo
+struct DBInfo
 {
-	std::string			id;
-	std::string			name;
-	std::string			script;
-	std::string			url;
-	bool				in_all;
-
-						DbInfo()
-							: in_all(false) {}
+	std::string		name;
+	bool			blast;
+	bool			ignore_in_all;
 };
 
-class config_exception : public std::exception
+typedef std::vector<DBInfo>	DBInfoVector;
+
+class WConfigFile
 {
   public:
-						config_exception(const std::string& inError, int inLine);
-
-	virtual const char*	what() const throw()		{ return msg; }
+					WConfigFile(
+						const char*		inPath);
+					~WConfigFile();
 	
+	bool			ReloadIfModified();
+	
+	bool			GetSetting(
+						const char*		inXPath,
+						std::string&	outValue) const;
+
+	bool			GetSetting(
+						const char*		inXPath,
+						long&			outValue) const;
+
+	bool			GetSetting(
+						const char*		inXPath,
+						DBInfoVector&	outValue) const;
+
+	std::string		operator[](
+						const char*		inXPath) const;
+
   private:
-	char				msg[1024];
+	struct WConfigFileImp*	mImpl;
 };
 
-void ReadConfig(
-	const std::string&		inPath,
-	std::string&			outDataDir,
-	std::string&			outFormatDir,
-	std::vector<DbInfo>&	outDbInfo);
+inline std::string WConfigFile::operator[](
+	const char*	inXPath) const
+{
+	std::string v;
+	GetSetting(inXPath, v);
+	return v;
+}
+
+#endif

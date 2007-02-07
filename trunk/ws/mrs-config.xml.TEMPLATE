@@ -1,10 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <mrs-config>
+	<!-- generic, paths and stuff -->
 	<datadir>__DATA_DIR__/mrs</datadir>
 	<scriptdir>__PARSER_DIR__</scriptdir>
-	<address>__HOST_NAME__</address>
 	<logfile>/var/log/mrsws.log</logfile>
-	<port>8081</port>
+	
+	<!-- service specific settings -->
+	<search-config>
+		<address>__HOST_NAME__</address>
+		<port>8081</port>
+		<logfile>/var/log/mrsws-search.log</logfile>
+	</search-config>
+	
+	<blast-config>
+		<address>__HOST_NAME__</address>
+		<port>8082</port>
+		<logfile>/var/log/mrsws-blast.log</logfile>
+	</blast-config>
+	
+	<clustal-config>
+		<address>__HOST_NAME__</address>
+		<port>8083</port>
+		<logfile>/var/log/mrsws-clustal.log</logfile>
+		<clustal-exe>__CLUSTALW__</clustal-exe>
+		<max-run-time>15</max-run-time>
+	</clustal-config>
+
+	<!-- list of databases to present -->
 	<dbs>
 		<db ignore-in-all="1">uniprot</db>
 		<db>embl</db>
