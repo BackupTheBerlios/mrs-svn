@@ -344,6 +344,8 @@ ns__ClustalW(
 {
 	WLogger log(soap->ip, __func__);
 	
+	log << input.size() << " sequences ";
+	
 	int result = SOAP_OK;
 
 	try
@@ -384,7 +386,7 @@ int main(int argc, const char* argv[])
 {
 	int c;
 	string input_file, address = "localhost", config_file;
-	short port = 8082;
+	short port = 8083;
 	bool daemon = false;
 	
 	while ((c = getopt(argc, const_cast<char**>(argv), "d:s:a:p:i:c:vbt:")) != -1)

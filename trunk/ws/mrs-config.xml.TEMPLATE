@@ -3,28 +3,27 @@
 	<!-- generic, paths and stuff -->
 	<datadir>__DATA_DIR__/mrs</datadir>
 	<scriptdir>__PARSER_DIR__</scriptdir>
-	<logfile>/var/log/mrsws.log</logfile>
 	
 	<!-- service specific settings -->
-	<search-config>
+	<search-ws>
 		<address>__HOST_NAME__</address>
 		<port>8081</port>
 		<logfile>/var/log/mrsws-search.log</logfile>
-	</search-config>
+	</search-ws>
 	
-	<blast-config>
+	<blast-ws>
 		<address>__HOST_NAME__</address>
 		<port>8082</port>
 		<logfile>/var/log/mrsws-blast.log</logfile>
-	</blast-config>
+	</blast-ws>
 	
-	<clustal-config>
+	<clustal-ws>
 		<address>__HOST_NAME__</address>
 		<port>8083</port>
 		<logfile>/var/log/mrsws-clustal.log</logfile>
-		<clustal-exe>__CLUSTALW__</clustal-exe>
+		<clustalw-exe>__CLUSTALW__</clustalw-exe>
 		<max-run-time>15</max-run-time>
-	</clustal-config>
+	</clustal-ws>
 
 	<!-- list of databases to present -->
 	<dbs>
