@@ -216,7 +216,7 @@ void RunClustalW(
 	fcntl(ofd[0], F_SETFL, flags | O_NONBLOCK);
 
 	close(efd[1]);
-	fcntl(ofd[0], F_GETFL, (int)&flags);
+	flags = fcntl(ofd[0], F_GETFL, 0);
 	fcntl(ofd[0], F_SETFL, flags | O_NONBLOCK);
 	
 	// OK, so now the executable is started and the pipes are set up
