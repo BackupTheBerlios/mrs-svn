@@ -48,7 +48,7 @@ DEFINES		= CPU_$(CPU) MINI_H_LIB
 WARNINGS	= -Wall -Wno-multichar
 RDEFINES	= -DMACOS=0 -DUNIX=1
 LIBNAME		= mrs
-LIBS		= z expat m bz2 gsoap++ boost_regex boost_filesystem xml2
+LIBS		= z expat m bz2 gsoap++ $(addsuffix $(BOOST_LIB_SUFFIX), boost_regex boost_filesystem) xml2
 LIBPATHS	=  ../../plugin/Lib/ /usr/local/lib/ ../../plugin/
 INCPATHS	= ../../plugin/Lib/Includes/ ../../plugin/Lib/X/ ../../plugin/Lib/ ../../plugin/Sources/
 SYSINCPATHS	= /usr/include
