@@ -10,6 +10,7 @@
 #include <cstdarg>
 #include <iomanip>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <signal.h>
 #include <getopt.h>
 
