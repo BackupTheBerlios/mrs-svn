@@ -106,8 +106,8 @@ void RunClustalW(
 	
 	string path = gClustalWExe.string();
 
-	char faFileName[] = "/tmp/clustal_input_XXXXXX.fa";
-	int fd = mkstemps(faFileName, 3);
+	char faFileName[] = "/tmp/clustal_input_XXXXXX";
+	int fd = mkstemp(faFileName);
 	
 	if (fd < 0)
 		THROW(("Failed to create fasta file: %s", strerror(fd)));
@@ -271,8 +271,8 @@ void RunClustalW(
 	setitimer(ITIMER_REAL, &it, nil);
 	
 	string gdeFileName(faFileName);
-	gdeFileName.erase(sizeof(faFileName) - 3, 2);
-	gdeFileName.append("gde");
+//	gdeFileName.erase(sizeof(faFileName) - 3, 2);
+	gdeFileName.append(".gde");
 	
 	ifstream gde(gdeFileName.c_str());
 	if (gde.is_open())
