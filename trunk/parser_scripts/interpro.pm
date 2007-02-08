@@ -39,6 +39,8 @@
 
 package MRS::Script::interpro;
 
+use XML::XSLT;
+
 our @ISA = "MRS::Script";
 
 sub new
@@ -161,13 +163,22 @@ sub pp
 {
 	my ($this, $q, $text) = @_;
 	
-	my $parser = XML::XSLT->new(Source => "interpro_xslt.xml");
+	my $script_dir = $this->script_dir;
+	
+	my $parser = XML::XSLT->new(Source => "$script_dir/interpro_xslt.xml");
 	
 	my $xml = $parser->serve($text, xml_declaration=>0, http_headers=>0);
 	
-	$xml =~ s|#PUBMED#(\d+)|<a href="http://www.ncbi.nlm.nih.gov/entrez/utils/qmap.cgi?uid=$1&amp;form=6&amp;db=m&amp;Dopt=r">$1</a>|g;
-	$xml =~ s|#INTERPRO#(IPR\d+)|<a href="mrs.cgi?db=interpro&amp;id=$1">$1</a>|g;
-	$xml =~ s|#PDB#(.{4})|<a href="mrs.cgi?db=pdb&amp;id=$1">$1</a>|g;
+	$xml =~ s|\[db_xref: (\S+?):(\S+?)\]|'<a href="?db=' . lc($1) . "&id=$2\">$2</a>"|eg;
+	$xml =~ s|\[cite: PUB(\d+)\]|(<a href="http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=pubmed&cmd=search&term=$1">$1</a>)|g;
+	
+	$xml =~ s|#PUBMED#(\d+)|<a href="http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=pubmed&cmd=search&term=$1">$1</a>|g;
+	$xml =~ s|#INTERPRO#(IPR\d+)|<a href="?db=interpro&amp;id=$1">$1</a>|g;
+	$xml =~ s|#PDB#(.{4})|<a href="?db=pdb&amp;id=$1">$1</a>|g;
+	
+	$xml =~ s|&gt;|>|g;
+	$xml =~ s|&lt;|<|g;
+	$xml =~ s|&amp;|\&|g;
 
 	return $xml;
 }

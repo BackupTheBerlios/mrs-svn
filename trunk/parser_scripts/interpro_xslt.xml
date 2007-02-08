@@ -5,20 +5,20 @@
 		<tr>
 			<td><span style="text-transform:lowercase;"><xsl:value-of select="@dbname"/></span></td>
 			<td><xsl:value-of select="@version"/></td>
-			<td><xsl:value-of select="@entry_count"/></td>
+			<td style="text-align:right;"><xsl:value-of select="@entry_count"/></td>
 			<td><span style="text-transform:lowercase;"><xsl:value-of select="@file_date"/></span></td>
 		</tr>
 	</xsl:template>
 
 	<xsl:template match="release">
-		<table class="list" cellspacing="0" cellpadding="0" width="100%">
+		<table class="list" cellspacing="0" cellpadding="0">
 			<tr><th>Databank</th><th>Version</th><th>Entry Count</th><th>File Date</th></tr>
 			<xsl:apply-templates/>
 		</table>
 	</xsl:template>
 	
 	<xsl:template match="class_list">
-		<table cellspacing="0" cellpadding="0" width="100%">
+		<table cellspacing="0" cellpadding="0">
 			<xsl:for-each select="classification">
 				<tr>
 					<td class="label"><xsl:value-of select="@id"/></td>
@@ -101,7 +101,7 @@
 			<xsl:for-each select="db_xref">
 				<tr>
 					<td><xsl:value-of select="@db"/></td>
-					<td><span style="text-transform:uppercase">#PDB#<xsl:value-of select="@dbkey"/></span></td>
+					<td><span style="text-transform:uppercase">[db_xref: <xsl:value-of select="@db"/>:<xsl:value-of select="@dbkey"/>]</span></td>
 				</tr>
 			</xsl:for-each>
 		</table>
@@ -112,12 +112,15 @@
 			<xsl:for-each select="taxon_data">
 				<tr>
 					<td><xsl:value-of select="@name"/></td>
-					<td><xsl:value-of select="@proteins_count"/></td>
+					<td style="text-align:right;"><xsl:value-of select="@proteins_count"/></td>
 				</tr>
 			</xsl:for-each>
 		</table>
 	</xsl:template>
 	
+	<xsl:template match="db_xref">[db_xref: <xsl:value-of select="@db"/>:<xsl:value-of select="@dbkey"/>]</xsl:template>
+	
+	<xsl:template match="cite">[cite: <xsl:value-of select="@idref"/>]</xsl:template>
 	
 	<xsl:template match="interpro">
 		<table class="list" cellspacing="0" cellpadding="0" width="100%">
@@ -147,7 +150,7 @@
 
 			<tr>
 				<td>Abstract</td>
-				<td><xsl:value-of select="abstract"/></td>
+				<td><xsl:apply-templates select="abstract"/></td>
 			</tr>
 			
 			<tr>
