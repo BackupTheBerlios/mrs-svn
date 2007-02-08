@@ -257,6 +257,10 @@ sub parse
 					$title .= $text;
 					$m->IndexText($field, $text);
 				}
+				elsif ($field eq 'project' and $text =~ /GenomeProject:(\d+)/o)
+                {
+                       $m->IndexWord('project', $1);
+                }
 				else
 				{
 					$m->IndexText($field, $text) if defined $text;
