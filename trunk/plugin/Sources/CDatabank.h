@@ -154,6 +154,9 @@ class CDatabankBase
 						SuggestCorrection(const std::string& inKey);
 
 	virtual void		GetStopWords(std::set<std::string>& outStopWords) const;
+	
+	virtual void		Expand(const std::string& inIndex, const std::string& inPattern,
+							std::vector<std::string>& outWords) const = 0;
 
 	virtual std::vector<std::string>
 						GetMetaDataFields() const = 0;
@@ -282,6 +285,9 @@ class CDatabank : public CDatabankBase
 	CDocIterator*		GetImpForPattern(const std::string& inIndex,
 							const std::string& inKey);
 
+	virtual void		Expand(const std::string& inIndex, const std::string& inPattern,
+							std::vector<std::string>& outWords) const;
+
 //	virtual void		RecalculateDocumentWeights(const std::string& inIndex);	
 	
 	HStreamBase&	GetDataFile()			{ return *fDataFile; }
@@ -404,6 +410,9 @@ class CJoinedDatabank : public CDatabankBase
 						GetMetaDataFields() const;
 
 	virtual std::string	GetDbName() const;
+
+	virtual void		Expand(const std::string& inIndex, const std::string& inPattern,
+							std::vector<std::string>& outWords) const;
 
   private:
 	

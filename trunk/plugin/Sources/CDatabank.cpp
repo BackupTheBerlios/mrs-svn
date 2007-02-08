@@ -1534,6 +1534,26 @@ CDocIterator* CDatabank::CreateDocIterator(const string& inIndex,
 	return result;
 }
 
+class CKeyAccumulator
+{
+  public:
+					CKeyAccumulator(vector<string>& inWords)
+						: mWords(inWords) {}
+	void			Visit(const string& inKey, int64 inValue)
+						{ mWords.push_back(inKey); }
+  private:
+	vector<string>&	mWords;
+};
+
+void CDatabank::Expand(const std::string& inIndex,
+	const string& inKey, vector<string>& outWords) const
+{
+	CKeyAccumulator accu(outWords);
+
+	auto_ptr<CIndex> index(fIndexer->GetIndex(inIndex));
+	index->VisitForPattern(inKey, &accu, &CKeyAccumulator::Visit);
+}
+
 //void CDatabank::RecalculateDocumentWeights(const std::string& inIndex)
 //{
 //	HFile::SafeSaver save(GetWeightFileURL(inIndex));
@@ -2171,5 +2191,12 @@ string CJoinedDatabank::GetDbName() const
 		result += fParts[p].fDb->GetDbName();
 	}
 	return result;
+}
+
+void CJoinedDatabank::Expand(const std::string& inIndex,
+	const string& inKey, vector<string>& outWords) const
+{
+	for (uint32 p = 0; p < fPartCount; ++p)
+		fParts[p].fDb->Expand(inIndex, inKey, outWords);
 }
 

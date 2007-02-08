@@ -433,6 +433,20 @@ PerformSearch(
 {
 	auto_ptr<MQueryResults> result;
 	
+	vector<string>::iterator qt = queryterms.begin();
+	while (qt != queryterms.end())
+	{
+		if (qt->find('*') != string::npos or qt->find('?') != string::npos)
+		{
+			booleanfilter += " ";
+			booleanfilter += *qt;
+			
+			qt = queryterms.erase(qt);
+		}
+		else
+			++qt;
+	}
+	
 	if (queryterms.size() > 0)
 	{
 		// first determine the set of value indices, needed as a special case in ranked searches
@@ -509,8 +523,6 @@ ns__Find(
 	
 	if (r.get() != NULL)
 	{
-		response.count = r->Count(true);
-		
 		const char* id;
 		while (resultoffset-- > 0 and (id = r->Next()) != NULL)
 			;
@@ -526,6 +538,8 @@ ns__Find(
 			
 			response.hits.push_back(h);
 		}
+
+		response.count = r->Count(true);
 	}
 	else
 		response.count = 0;
@@ -648,7 +662,6 @@ ns__FindAll(
 				ns__FindAllResult fa;
 
 				fa.db = t->Db();
-				fa.count = r->Count(true);
 				
 				const char* id;
 				int n = 5;
@@ -665,6 +678,7 @@ ns__FindAll(
 					fa.hits.push_back(h);
 				}
 
+				fa.count = r->Count(true);
 				response.push_back(fa);
 			}
 		}
@@ -766,8 +780,6 @@ ns__FindSimilar(
 
 		if (r.get() != NULL)
 		{
-			response.count = r->Count(true);
-			
 			const char* id;
 			while (resultoffset-- > 0 and (id = r->Next()) != NULL)
 				;
@@ -783,6 +795,8 @@ ns__FindSimilar(
 				
 				response.hits.push_back(h);
 			}
+
+			response.count = r->Count(true);
 		}
 	}
 	catch (exception& e)
@@ -927,7 +941,6 @@ ns__FindAllSimilar(
 				ns__FindAllResult fa;
 
 				fa.db = t->Db();
-				fa.count = r->Count(true);
 				
 				const char* id;
 				int n = 5;
@@ -944,6 +957,7 @@ ns__FindAllSimilar(
 					fa.hits.push_back(h);
 				}
 
+				fa.count = r->Count(true);
 				response.push_back(fa);
 			}
 		}

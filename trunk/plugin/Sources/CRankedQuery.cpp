@@ -62,6 +62,25 @@ struct Term
 	uint32							weight;
 	auto_ptr<CDbDocIteratorBase>	iter;
 	float							w;
+
+									Term()
+										: weight(0)
+										, w(0) {}
+									
+									Term(const Term& inOther)
+										: key(inOther.key)
+										, weight(inOther.weight)
+										, iter(nil)
+										, w(inOther.w) {}
+
+	Term&							operator=(const Term& inOther)
+									{
+										key = inOther.key;
+										weight = inOther.weight;
+										iter.release();
+										w = inOther.w;
+										return *this;
+									}
 	
 	bool operator<(const Term& inOther) const
 			{ return w < inOther.w; }
@@ -381,19 +400,52 @@ void CRankedQuery::PerformSearch(
 
 	// normalize the term frequencies.
 	
+//	TermVector expandedTerms;
+//	
 	uint32 maxTermFreq = 1;
 	for (TermVector::iterator t = fImpl->fTerms.begin(); t != fImpl->fTerms.end(); ++t)
+	{
 		if (t->weight > maxTermFreq)
 			maxTermFreq = t->weight;
+//		
+//		if (t->key.find('*') != string::npos or t->key.find('?') != string::npos)
+//		{
+//			inAllTermsRequired = false;
+//			
+//			vector<string> terms;
+//			inDatabank.Expand(inIndex, t->key, terms);
+//			
+//			for (vector<string>::iterator et = terms.begin(); et != terms.end(); ++et)
+//			{
+//				auto_ptr<Term> nt(new Term);
+//				nt->key = *et;
+//				nt->weight = t->weight;
+//				nt->w = 1.0f / terms.size();
+//				expandedTerms.push_back(nt.release());
+//			}
+//			
+//			t->weight = 0;
+//		}		
+	}
+//	
+//	if (expandedTerms.size())
+//		fImpl->fTerms.insert(fImpl->fTerms.end(), expandedTerms.begin(), expandedTerms.end());
 
 	// create the iterators and sort them by decreasing rank
 	for (TermVector::iterator t = fImpl->fTerms.begin(); t != fImpl->fTerms.end(); ++t)
 	{
+		if (t->weight == 0)
+			continue;
+		
 		t->weight = static_cast<uint32>(maxWeight * (static_cast<float>(t->weight) / maxTermFreq));
 		
 		t->iter.reset(inDatabank.GetDocWeightIterator(inIndex, t->key));
 		if (t->iter.get() != nil)
-			t->w = t->iter->Weight() * t->iter->GetIDFCorrectionFactor() * t->weight;
+		{
+			if (t->w == 0)
+				t->w = 1;
+			t->w *= t->iter->Weight() * t->iter->GetIDFCorrectionFactor() * t->weight;
+		}
 		else if (not inAllTermsRequired or stopWords.count(t->key) == 1)
 			t->w = 0;
 		else		// short cut, no results

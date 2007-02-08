@@ -840,6 +840,8 @@ class MQueryResults : public MRSObject<MQueryResults, struct MQueryResultsImp>
 	 *
 	 *	The number of hits in this MQueryResults object can be exact or guessed.
 	 *	\param inExact	Tell MRS to calculate the number of hits exactly or to return a guess.
+	 *					WARNING: when you have passed inExact the iterator can no longer
+	 *					be used to access data.
 	 */
 
 	unsigned long		Count(bool inExact) const;

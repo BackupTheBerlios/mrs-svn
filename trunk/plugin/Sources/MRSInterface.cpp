@@ -200,6 +200,7 @@ struct MQueryResultsImp
 									: fDatabank(&inDb)
 									, fScore(1.0f)
 									, fCount(inCount)
+									, fRead(0)
 									, fIter(inDocIterator) {}
 	virtual						~MQueryResultsImp() {}
 
@@ -212,25 +213,43 @@ struct MQueryResultsImp
 										result = vi->Next(outDoc, fScore, false);
 									else if (fIter.get() != nil)
 										result = fIter->Next(outDoc, false);
+									
+									if (result)
+										++fRead;
 
 									return result;
 								}
 
 	virtual uint32				Count(bool inExact)
 								{
+									uint32 result;
+
 									if (fCount == numeric_limits<uint32>::max())
 									{
-										fCount = 0;
-										if (fIter.get() != nil)
-											fCount = fIter->Count();
+										if (inExact)
+										{
+											fCount = fRead;
+											
+											uint32 d;
+											while (fIter->Next(d, false))
+												++fCount;
+											
+											result = fCount;
+										}
+										else if (fIter.get() != nil)
+											result = fIter->Count();
 									}
-									return fCount;
+									else
+										result = fCount;
+									
+									return result;
 								}
 
 	CDatabankBase*				fDatabank;
 	string						fScratch;
 	float						fScore;
 	uint32						fCount;
+	uint32						fRead;
 
 	auto_ptr<CDocIterator>		fIter;
 };

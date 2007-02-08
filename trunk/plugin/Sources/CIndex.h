@@ -211,12 +211,17 @@ class CIndex
 	template <class T>
 	void				Visit(T* inObject, typename Visitor<T>::VisitProc inMethod)
 							{ Visitor<T> v(inObject, inMethod); Visit(v); }
+
+	template <class T>
+	void				VisitForPattern(const std::string& inPattern, T* inObject, typename Visitor<T>::VisitProc inMethod)
+							{ Visitor<T> v(inObject, inMethod); VisitForPattern(inPattern, v); }
 	
   private:
 						CIndex(const CIndex&);
 	CIndex&				operator=(CIndex&);
 
 	void				Visit(VisitorBase& inVisitor);
+	void				VisitForPattern(const std::string& inPattern, VisitorBase& inVisitor);
 
 	struct CIndexImp*	fImpl;
 };

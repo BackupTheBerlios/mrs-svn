@@ -910,13 +910,13 @@ struct CIndexImp
 	virtual iterator
 					LowerBound(const string& inKey) = 0;
 
-	virtual bool	GetValue(const string& inKey, int64& outValue) const = 0;
-
-	virtual void	GetValuesForPattern(const string& inKey, vector<uint32>& outValues) const = 0;
-
 	virtual uint32	GetCount(uint32 inPage) const = 0;
 
+	virtual bool	GetValue(const string& inKey, int64& outValue) const = 0;
+
 	virtual void	Visit(uint32 inPage, CIndex::VisitorBase& inVisitor) = 0;
+	virtual void	VisitForPattern(const string& inPattern, uint32 inPage,
+						CIndex::VisitorBase& inVisitor) = 0;
 
 	virtual void	CreateFromIterator(CIteratorBase& inIter) = 0;
 
@@ -930,10 +930,13 @@ struct CIndexImp
 	int				Compare(const string& inA, const string& inB) const
 						{ return Compare(inA.c_str(), inA.length(), inB.c_str(), inB.length()); }
 
+	void			ValueAccumulator(const string& inKey, int64 inValue);
+
 	HStreamBase&	fFile;
 	int64			fBaseOffset;
 	uint32			fRoot;
 	uint32			fKind;
+	vector<uint32>*	fValues;
 };
 
 CIndexImp::CIndexImp(uint32 inKind, HStreamBase& inFile, int64 inOffset, uint32 inRoot)
@@ -941,6 +944,7 @@ CIndexImp::CIndexImp(uint32 inKind, HStreamBase& inFile, int64 inOffset, uint32 
 	, fBaseOffset(inOffset)
 	, fRoot(inRoot)
 	, fKind(inKind)
+	, fValues(nil)
 {
 }
 
@@ -948,6 +952,12 @@ int CIndexImp::Compare(const char* inA, uint32 inLengthA,
 	const char* inB, uint32 inLengthB) const
 {
 	return CompareKeyString(inA, inLengthA, inB, inLengthB);
+}
+
+void CIndexImp::ValueAccumulator(const string& inKey, int64 inValue)
+{
+	fValues->push_back(inValue);
+	push_heap(fValues->begin(), fValues->end());
 }
 
 // ---------------------------------------------------------------------------
@@ -973,11 +983,13 @@ struct CIndexImpT : public CIndexImp
 
 	virtual bool	GetValue(const string& inKey, int64& outValue) const;
 
-	virtual void	GetValuesForPattern(const string& inKey, vector<uint32>& outValues) const;
-
 	virtual uint32	GetCount(uint32 inPage) const;
 
 	virtual void	Visit(uint32 inPage, CIndex::VisitorBase& inVisitor);
+	virtual void	VisitForPattern(
+						const string&			inPattern,
+						uint32					inPage,
+						CIndex::VisitorBase&	inVisitor);
 
 	virtual void	CreateFromIterator(CIteratorBase& inIter);
 
@@ -1120,102 +1132,6 @@ bool CIndexImpT<DD>::GetValue(const string& inKey, int64& outValue) const
 }
 
 template<typename DD>
-void CIndexImpT<DD>::GetValuesForPattern(const string& inKey, vector<uint32>& outValues) const
-{
-	uint32 page = fRoot;
-	
-	pair<uint32,uint32> v(page, 0);
-	stack<pair<uint32,uint32> > pStack;
-
-	outValues.clear();	// init the vector
-
-	uint32 c;
-	int64 val;
-	string key;
-	
-	while (page != 0)
-	{
-		const CIndexPage p(fFile, fBaseOffset, page);
-
-		int32 L = 0;
-		int32 R = static_cast<int32>(p.GetN()) - 1;
-		while (L <= R)
-		{
-			int32 i = (L + R) / 2;
-
-			p.GetData(i, key, val, c);
-		
-			MatchResult m = Match(inKey.c_str(), key.c_str());
-
-			if (m == eNoMatchAndLess)
-				L = i + 1;
-			else
-				R = i - 1;
-		}
-		
-		v.first = page;
-		
-		if (L > 0)
-			v.second = L - 1;
-		else
-			v.second = 0;
-
-		pStack.push(v);
-		
-		if (R < 0)
-			page = p.GetP0();
-		else
-			page = p.GetData().GetP(R);
-	}
-
-	bool done = false;
-	
-	while (not done and not pStack.empty())
-	{
-		v = pStack.top();
-		const CIndexPage p(fFile, fBaseOffset, v.first);
-		
-		if (v.second < p.GetN())
-		{
-			p.GetData(v.second, key, val, c);
-			++pStack.top().second;
-			
-			MatchResult m = Match(inKey.c_str(), key.c_str());
-
-			if (m == eMatch)
-			{
-				if (val >= numeric_limits<uint32>::max())
-					THROW(("index value out of range"));
-				
-				// keep the values sorted
-				outValues.push_back(val);
-				push_heap(outValues.begin(), outValues.end());
-			}
-			else if (m == eNoMatchAndGreater)
-				done = true;
-			
-			if (not (m == eNoMatchAndLess and v.second == p.GetN() - 1))
-			{
-				while (c != 0)
-				{
-					v.first = c;
-					v.second = 0;
-				
-					pStack.push(v);
-					
-					const CIndexPage cp(fFile, fBaseOffset, c);
-					c = cp.GetP0();
-				}
-			}
-		}
-		else
-			pStack.pop();
-	}
-	
-	sort_heap(outValues.begin(), outValues.end());
-}
-
-template<typename DD>
 uint32 CIndexImpT<DD>::GetCount(uint32 inPage) const
 {
 	uint32 result = 0;
@@ -1258,6 +1174,99 @@ void CIndexImpT<DD>::Visit(uint32 inPage, CIndex::VisitorBase& inVisitor)
 			if (p.GetP(i))
 				Visit(p.GetP(i), inVisitor);
 		}
+	}
+}
+
+template<typename DD>
+void CIndexImpT<DD>::VisitForPattern(
+	const string&			inPattern,
+	uint32					inPage,
+	CIndex::VisitorBase&	inVisitor)
+{
+	uint32 page = fRoot;
+	
+	pair<uint32,uint32> v(page, 0);
+	stack<pair<uint32,uint32> > pStack;
+
+	uint32 c;
+	int64 val;
+	string key;
+	
+	while (page != 0)
+	{
+		const CIndexPage p(fFile, fBaseOffset, page);
+
+		int32 L = 0;
+		int32 R = static_cast<int32>(p.GetN()) - 1;
+		while (L <= R)
+		{
+			int32 i = (L + R) / 2;
+
+			p.GetData(i, key, val, c);
+		
+			MatchResult m = Match(inPattern.c_str(), key.c_str());
+
+			if (m == eNoMatchAndLess)
+				L = i + 1;
+			else
+				R = i - 1;
+		}
+		
+		v.first = page;
+		
+		if (L > 0)
+			v.second = L - 1;
+		else
+			v.second = 0;
+
+		pStack.push(v);
+		
+		if (R < 0)
+			page = p.GetP0();
+		else
+			page = p.GetData().GetP(R);
+	}
+
+	bool done = false;
+	
+	while (not done and not pStack.empty())
+	{
+		v = pStack.top();
+		const CIndexPage p(fFile, fBaseOffset, v.first);
+		
+		if (v.second < p.GetN())
+		{
+			p.GetData(v.second, key, val, c);
+			++pStack.top().second;
+			
+			MatchResult m = Match(inPattern.c_str(), key.c_str());
+
+			if (m == eMatch)
+			{
+				if (val >= numeric_limits<uint32>::max())
+					THROW(("index value out of range"));
+				
+				inVisitor.Visit(key, val);
+			}
+			else if (m == eNoMatchAndGreater)
+				done = true;
+			
+			if (not (m == eNoMatchAndLess and v.second == p.GetN() - 1))
+			{
+				while (c != 0)
+				{
+					v.first = c;
+					v.second = 0;
+				
+					pStack.push(v);
+					
+					const CIndexPage cp(fFile, fBaseOffset, c);
+					c = cp.GetP0();
+				}
+			}
+		}
+		else
+			pStack.pop();
 	}
 }
 
@@ -1608,7 +1617,10 @@ bool CIndex::GetValue(const string& inKey, uint32& outValue) const
 
 void CIndex::GetValuesForPattern(const string& inKey, std::vector<uint32>& outValues)
 {
-	fImpl->GetValuesForPattern(inKey, outValues);
+	fImpl->fValues = &outValues;
+	VisitForPattern(inKey, fImpl, &CIndexImp::ValueAccumulator);
+	fImpl->fValues = nil;
+	sort_heap(outValues.begin(), outValues.end());
 }
 
 void CIndex::GetValuesForRange(const char* inLowerBound,
@@ -1688,6 +1700,11 @@ uint32 CIndex::GetKind() const
 void CIndex::Visit(VisitorBase& inVisitor)
 {
 	fImpl->Visit(fImpl->GetRoot(), inVisitor);
+}
+
+void CIndex::VisitForPattern(const string& inPattern, VisitorBase& inVisitor)
+{
+	fImpl->VisitForPattern(inPattern, fImpl->GetRoot(), inVisitor);
 }
 
 CIndex::iterator CIndex::begin()
