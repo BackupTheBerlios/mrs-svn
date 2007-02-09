@@ -719,7 +719,6 @@ class CBlastQueryBase
 	uint32					mHspsBetterThan10;
 	uint32					mSuccessfulGappedAlignments;
 	uint32					mGappedAlignmentAttempts;
-	uint32					mSequenceCount;
 	uint32					mGapCount;
 			
 	HMutex&					mLock;
@@ -1340,24 +1339,29 @@ void CBlastQueryBase::Cleanup()
 {
 	if (mLock.Wait())
 	{
-		mSequenceCount = 0;
 		mGapCount = 0;
-		
+
 		for (vector<Hit>::iterator hit = mHits.begin(); hit != mHits.end(); ++hit)
 		{
 			for (vector<Hsp>::iterator hsp = hit->mHsps.begin(); hsp != hit->mHsps.end(); ++hsp)
 			{
-				uint32 newScore = AlignGappedWithTraceBack(mXgFinal, *hsp);
-				
-				assert(hsp->mAlignedQuery.length() == hsp->mAlignedTarget.length());
-				
-				if (newScore >= hsp->mScore)
-					hsp->mScore = newScore;
-	
-				++mSequenceCount;
-				
-				if (hsp->mGapped)
-					++mGapCount;
+				if (mGapped)
+				{
+					uint32 newScore = AlignGappedWithTraceBack(mXgFinal, *hsp);
+					
+					assert(hsp->mAlignedQuery.length() == hsp->mAlignedTarget.length());
+					
+					if (newScore >= hsp->mScore)
+						hsp->mScore = newScore;
+		
+					if (hsp->mGapped)
+						++mGapCount;
+				}
+				else
+				{
+					hsp->mAlignedQuery = mQuery.substr(hsp->mQueryStart, hsp->mQueryEnd - hsp->mQueryStart);
+					hsp->mAlignedTarget = hsp->mTarget.substr(hsp->mTargetStart, hsp->mTargetEnd - hsp->mTargetStart);
+				}
 			}
 			
 			hit->Cleanup();
@@ -1749,7 +1753,6 @@ bool CBlast::Find(CDatabankBase& inDb, CDocIterator& inIter)
 	if (VERBOSE)
 		cerr << endl;
 	
-//	return mImpl->mBlastQuery->mSequenceCount > 0;
 	return true;
 }
 
@@ -1801,7 +1804,8 @@ bool CBlastHspIterator::Next()
 	{
 		result = true;
 		
-		mHit->mHsps[mHspNr].CalculateMidline(mBlast->mImpl->mUnfilteredQuery, mBlastQuery->mMatrix, mBlast->mImpl->mFilter);
+		mHit->mHsps[mHspNr].CalculateMidline(
+			mBlast->mImpl->mUnfilteredQuery, mBlastQuery->mMatrix, mBlast->mImpl->mFilter);
 	}
 
 	return result;
