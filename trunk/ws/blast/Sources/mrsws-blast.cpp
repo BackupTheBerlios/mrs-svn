@@ -316,6 +316,7 @@ class CBlastJob : public CJob
 	ns__JobStatus		Status() const							{ return mStatus; }
 	vector<ns__Hit>		Hits() const							{ mCollected = true; return mHits; }
 	string				ID() const;
+	string				Error() const							{ return mError; }
 
 	static void			CheckCache(bool inPurge);
 	
@@ -692,6 +693,37 @@ ns__BlastJobResult(
 			THROW(("Unknown job id %s", job_id.c_str()));
 		
 		response = job->Hits();
+	}
+	catch (exception& e)
+	{
+		return soap_receiver_fault(soap,
+			"An error occurred in blast",
+			e.what());
+	}
+
+	return result;
+}
+
+SOAP_FMAC5 int SOAP_FMAC6
+ns__BlastJobError(
+	struct soap*					soap,
+	xsd__string						job_id,
+	xsd__string&					response)
+{
+	WLogger log(soap->ip, __func__);
+
+	int result = SOAP_OK;
+	
+	try
+	{
+		log << job_id;
+
+		CBlastJob* job = CBlastJob::Find(job_id);
+		
+		if (job == NULL)
+			THROW(("Unknown job id %s", job_id.c_str()));
+		
+		response = job->Error();;
 	}
 	catch (exception& e)
 	{

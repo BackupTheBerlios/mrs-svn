@@ -78,3 +78,7 @@ int ns__BlastJobResult(
 	xsd__string					job_id,
 	std::vector<struct ns__Hit>&response);
 
+int ns__BlastJobError(
+	xsd__string					job_id,
+	xsd__string&				response);
+
