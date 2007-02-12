@@ -21,6 +21,3 @@ $(BLASTDIR)%.psq: $(SRCDIR)uniprot_%.dat.gz
 BLAST_FILES = $(BLASTDIR)sprot.psq $(BLASTDIR)trembl.psq
 
 include make.post
-
-test:
-	echo $(BLAST_FILES)

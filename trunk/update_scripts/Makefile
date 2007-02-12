@@ -11,8 +11,7 @@ endif
 
 # Here are the databases that need to be updated.
 # For each name listed here there should be a makefile
-# with the same name and an .make extension and an entry in 
-# the ftpmirror.cf file to mirror/fetch the data needed by this database
+# with the same name and an .make extension
 
 ALL_DATABASES	= $(basename $(wildcard *.make))
 
@@ -75,21 +74,21 @@ FORCE1:
 
 ${DBALLFLAGS:=.make}:
 	@ $(SCRIPTDIR)/run_and_log -r 3 -l $(STATUSDIR)${@F:.make=}.make_log \
-		$(MAKE) -f ${@F:.make=}.make data mrs blast || echo ${@F:.make=} >> $(STATUSDIR)failed_dbs.txt
+		$(MAKE) -r -f ${@F:.make=}.make data mrs blast || echo ${@F:.make=} >> $(STATUSDIR)failed_dbs.txt
 	sync
 	touch $(STATUSDIR)$(@F)
 	touch $@
 
 ${DBALLFLAGS:=.fetched}:
 	@ $(SCRIPTDIR)/run_and_log -r 3 -l $(STATUSDIR)${@F:.fetched=}.mirror_log \
-		$(MAKE) -f ${@F:.fetched=}.make fetch || echo ${@F:.make=} >> $(STATUSDIR)failed_dbs.txt
+		$(MAKE) -r -f ${@F:.fetched=}.make fetch || echo ${@F:.make=} >> $(STATUSDIR)failed_dbs.txt
 	sync
 	touch $(STATUSDIR)$(@F)
 	touch $@
 
 ${DBALLFLAGS:=.done}:
-	@ $(MAKE) $(@:.done=.fetched)
-	@ $(MAKE) $(@:.done=.make)
+	@ $(MAKE) -r $(@:.done=.fetched)
+	@ $(MAKE) -r $(@:.done=.make)
 	touch $(STATUSDIR)$(@F)
 	touch $@
 
