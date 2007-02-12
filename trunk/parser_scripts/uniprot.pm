@@ -268,7 +268,7 @@ sub parse
 my %links = (
 	'EMBL'	=>	{
 		match	=> qr|^(\S+?)(?=;)|i,
-		result	=> '$q->a({-href=>"$url?db=embl_release|embl_updates&query=ac:$1"}, $1)'
+		result	=> '$q->a({-href=>"$url?db=embl&query=ac:$1"}, $1)'
 	},
 
 	'UNIPROT'	=> {

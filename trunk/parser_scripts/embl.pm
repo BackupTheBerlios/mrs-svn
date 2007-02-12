@@ -248,7 +248,7 @@ sub parse
 my @links_db_xref = (
 	{
 		match	=> qr|^(embl:)(\S+)|i,
-		result	=> '$1.$q->a({-href=>"$url?db=embl_release|embl_updates&query=ac:$2"}, $2)'
+		result	=> '$1.$q->a({-href=>"$url?db=embl&query=ac:$2"}, $2)'
 	},
 	{
 		match	=> qr[^(swiss-prot|sptrembl|uniprot/swiss-prot|uniprot/trembl|UniProtKB/Swiss-Prot):(\S+)]i,
@@ -283,7 +283,7 @@ my @links_db_xref = (
 my %links = (
 	'EMBL'	=>	{
 		match	=> qr|^(\S+?)(?=;)|i,
-		result	=> '$q->a({-href=>"$url?db=embl_release|embl_updates&query=ac:$1"}, $1)'
+		result	=> '$q->a({-href=>"$url?db=embl&query=ac:$1"}, $1)'
 	},
 
 	'UNIPROT'	=> {
