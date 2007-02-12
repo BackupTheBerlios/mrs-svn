@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: CBlast.h 307 2007-02-01 12:46:00Z hekkel $
 	Copyright Maarten L. Hekkelman
 	Created Monday May 30 2005 15:50:21
 */

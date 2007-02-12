@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: MRSInterface.cpp 324 2007-02-08 12:36:05Z hekkel $
  */
 
 /*-

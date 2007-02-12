@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: HFile.cpp 331 2007-02-12 07:44:10Z hekkel $
 	Copyright Hekkelman Programmatuur b.v.
 	Created Tuesday September 12 2000 09:03:00
 */

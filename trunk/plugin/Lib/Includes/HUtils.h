@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: HUtils.h 331 2007-02-12 07:44:10Z hekkel $
 
 	Utils.h, Copyright Hekkelman Programmatuur b.v.
 	Created: 12/04/97 14:08:52 by Maarten Hekkelman

@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: HError.h 331 2007-02-12 07:44:10Z hekkel $
 	Copyright Hekkelman Programmatuur b.v.
 	Created Wednesday August 22 2001 15:01:20
 */

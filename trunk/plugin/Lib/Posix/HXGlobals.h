@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: HXGlobals.h 331 2007-02-12 07:44:10Z hekkel $
 	Copyright Hekkelman Programmatuur b.v.
 	Created Tuesday October 02 2001 09:23:52
 */

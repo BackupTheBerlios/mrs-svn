@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: HLibImp.h 18 2006-03-01 15:31:09Z hekkel $
 	Copyright Hekkelman Programmatuur b.v.
 	Created By Bas Vodde Sunday January 2002
 */

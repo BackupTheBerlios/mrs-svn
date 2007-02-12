@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: HPOSIXInterface.h 18 2006-03-01 15:31:09Z hekkel $
 	Copyright Hekkelman Programmatuur b.v.
 	Created By Bas Vodde on Saturday January 12 2002 16:15:17
 */

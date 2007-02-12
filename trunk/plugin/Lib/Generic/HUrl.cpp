@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: HUrl.cpp 331 2007-02-12 07:44:10Z hekkel $
 	Copyright Hekkelman Programmatuur b.v.
 	Created Thursday August 17 2000 15:17:58
 */

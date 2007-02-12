@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: CIdTable.cpp 331 2007-02-12 07:44:10Z hekkel $
 	Copyright Maarten L. Hekkelman
 	Created Friday April 02 2004 15:46:10
 */

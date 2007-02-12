@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: CDictionary.cpp 168 2006-11-03 11:14:54Z hekkel $
 	Copyright Maarten L. Hekkelman
 	Created Thursday August 25 2005 12:47:02
 */

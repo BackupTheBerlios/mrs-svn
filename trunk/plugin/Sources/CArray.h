@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: CArray.h 331 2007-02-12 07:44:10Z hekkel $
 	Copyright Maarten L. Hekkelman
 	Created Monday January 27 2003 20:14:57
 */

@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: CFilter.cpp 131 2006-08-10 12:02:09Z hekkel $
 	Copyright Maarten Hekkelman, CMBI
 	Created Monday April 26 2004 12:00:11
 */

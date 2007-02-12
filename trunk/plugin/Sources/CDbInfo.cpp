@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: CDbInfo.cpp 331 2007-02-12 07:44:10Z hekkel $
 	Copyright Maarten L. Hekkelman
 	Created Friday March 05 2004 14:45:43
 */

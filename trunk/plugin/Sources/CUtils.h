@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: CUtils.h 331 2007-02-12 07:44:10Z hekkel $
 	Copyright Maarten L. Hekkelman
 	Created Monday December 30 2002 14:34:43
 */

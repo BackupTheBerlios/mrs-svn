@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: CSequence.cpp 30 2006-04-30 17:36:03Z maarten $
 	Copyright Maarten L. Hekkelman
 	Created Friday May 27 2005 15:47:12
 */

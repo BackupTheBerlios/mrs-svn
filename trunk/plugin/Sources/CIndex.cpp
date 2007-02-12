@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: CIndex.cpp 331 2007-02-12 07:44:10Z hekkel $
 	Copyright Maarten L. Hekkelman
 	Created Monday December 09 2002 08:32:33
 */

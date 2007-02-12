@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: HGlobals.cpp 331 2007-02-12 07:44:10Z hekkel $
 	Copyright Hekkelman Programmatuur b.v.
 	Created by Bas Vodde Saturday January 26 2002 10:53:55
 */

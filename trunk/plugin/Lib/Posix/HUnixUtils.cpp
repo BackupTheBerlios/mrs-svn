@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: HUnixUtils.cpp 331 2007-02-12 07:44:10Z hekkel $
 	Copyright Hekkelman Programmatuur b.v.
 	Created Thursday October 04 2001 12:43:52
 */

@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: CRankedQuery.h 210 2006-11-27 13:47:47Z hekkel $
 	Copyright hekkelman
 	Created Monday February 20 2006 14:00:30
 */

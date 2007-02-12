@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: CDocIterator.cpp 331 2007-02-12 07:44:10Z hekkel $
 	Copyright Maarten L. Hekkelman
 	Created Sunday March 14 2004 13:57:17
 */

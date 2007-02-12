@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: CDecompress.cpp 331 2007-02-12 07:44:10Z hekkel $
 	Copyright Maarten L. Hekkelman
 	Created Saturday December 07 2002 21:01:35
 */

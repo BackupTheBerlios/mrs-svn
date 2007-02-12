@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: CDatabank.cpp 331 2007-02-12 07:44:10Z hekkel $
 	Copyright Maarten L. Hekkelman
 	Created Sunday January 05 2003 11:44:10
 */

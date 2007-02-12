@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: CSequence.h 185 2006-11-21 09:35:23Z hekkel $
 	Copyright Maarten L. Hekkelman
 	Created Friday May 27 2005 15:46:37
 */

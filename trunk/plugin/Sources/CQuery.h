@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: CQuery.h 331 2007-02-12 07:44:10Z hekkel $
 	Copyright Maarten L. Hekkelman
 	Created Tuesday January 07 2003 20:12:37
 */

@@ -1,4 +1,4 @@
-/*	$Id$
+/*	$Id: CValuePairArray.h 105 2006-06-14 06:22:25Z maarten $
 	Copyright hekkelman
 	Created Thursday February 09 2006 09:36:27
 */
