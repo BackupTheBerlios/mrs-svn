@@ -376,10 +376,7 @@ sub print_ref
 
 sub pp
 {
-	my ($this, $q, $text) = @_;
-	
-#	my $url = $q->url({-full=>1});
-	my $url = 'entry.do';
+	my ($this, $q, $text, $id, $url) = @_;
 	
 	my @rows;
 	my (%ref, @ref_rows);

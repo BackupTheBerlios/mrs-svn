@@ -141,6 +141,15 @@ class CDocNrIterator : public CDocIterator
 	uint32			fValue;
 };
 
+class CNullDocIterator : public CDocIterator
+{
+  public:
+					CNullDocIterator()					{}
+	virtual bool	Next(uint32& ioDoc, bool inSkip)	{ return false; }
+	virtual uint32	Count() const						{ return 0; }
+	virtual uint32	Read() const						{ return 0; }
+};
+
 class CDocUnionIterator : public CDocIterator
 {
   public:

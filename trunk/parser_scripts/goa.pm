@@ -124,9 +124,8 @@ sub parse
 
 sub pp
 {
-	my ($this, $q, $text) = @_;
+	my ($this, $q, $text, $id, $url) = @_;
 	
-	my $url = "<a href='" . $q->url({-full=>1}) . "?db=";
 	my $result = "";
 	
 	foreach my $line (split(m/\n/, $text))
@@ -156,9 +155,9 @@ sub pp
 		{
 			my $value = $fields[$n];
 	
-			$value = "${url}uniprot&id=$value'>$value</a>" if ($n == 2);
-			$value = "${url}uniprot&query=ac:$value'>$value</a>" if ($n == 1);
-			$value =~ s|(GO:)(\d+)|${url}go\&id=$2'>$1$2</a>|g if ($n == 4);
+			$value = "${url}?db=uniprot&id=$value'>$value</a>" if ($n == 2);
+			$value = "${url}?db=uniprot&query=ac:$value'>$value</a>" if ($n == 1);
+			$value =~ s|(GO:)(\d+)|${url}?db=go&id=$2'>$1$2</a>|g if ($n == 4);
 			
 			my $line = $labels[$n] . $value . "\n";
 			

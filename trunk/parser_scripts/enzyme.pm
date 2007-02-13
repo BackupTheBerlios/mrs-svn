@@ -135,9 +135,7 @@ sub parse
 
 sub pp
 {
-	my ($this, $q, $text) = @_;
-	
-	my $url = $q->url({-full=>1});
+	my ($this, $q, $text, $id, $url) = @_;
 	
 	my $result;
 	

@@ -268,12 +268,12 @@ sub parse
 my %links = (
 	'EMBL'	=>	{
 		match	=> qr|^(\S+?)(?=;)|i,
-		result	=> '$q->a({-href=>"$url?db=embl&query=ac:$1"}, $1)'
+		result	=> '$q->a({-href=>"query.do?db=embl&query=ac:$1"}, $1)'
 	},
 
 	'UNIPROT'	=> {
 		match	=> qr[^(\S+)(?=;)]i,
-		result	=> '$q->a({-href=>"$url?db=uniprot&query=ac:$1"}, $1)'
+		result	=> '$q->a({-href=>"query.do?db=uniprot&query=ac:$1"}, $1)'
 	},
 
 	'PDB'		=> {
@@ -298,7 +298,7 @@ my %links = (
 
 	'Pfam'		=> {
 		match	=> qr|^(\S+)(?=;)|i,
-		result	=> '$q->a({-href=>"$url?db=pfamseed|pfama|pfamb&query=ac:$1"}, $1)'
+		result	=> '$q->a({-href=>"query.do?db=pfama&query=ac:$1"}, $1)'
 	},
 	
 	'Ensembl'	=> {
@@ -313,13 +313,13 @@ my %links = (
 
 	'PROSITE'	=> {
 		match	=> qr|^(\S+)(?=;)|i,
-		result	=> '$q->a({-href=>"$url?db=prosite&query=ac:$1"}, $1)'
+		result	=> '$q->a({-href=>"query.do?db=prosite&query=ac:$1"}, $1)'
 	},
 
-#	'PRINTS'	=> {
-#		match	=> qr|^(\S+)(?=;)|i,
-#		result	=> '$q->a({-href=>"$url?db=prints&query=ac:$1"}, $1)'
-#	},
+	'PRINTS'	=> {
+		match	=> qr|^(\S+)(?=;)|i,
+		result	=> '$q->a({-href=>"query.do?db=prints&query=ac:$1"}, $1)'
+	},
 	
 );
 
@@ -371,10 +371,6 @@ sub pp
 {
 	my ($this, $q, $text, $id, $url) = @_;
 	
-	if (not defined $url or length($url) == 0) {
-		my $url = $q->url({-full=>1});
-	}
-
 	my (@entry_rows, @name_rows, @keywords_rows, @references_rows, @comments_rows,
 		@copyright_rows, @cross_reference_rows, @features_rows, @sequence_rows);
 	
@@ -1005,6 +1001,7 @@ END
 			for (my $i = 1; $i <= length($seq); ++$i)
 			{
 				my $ft_sig = $features{$i};
+				next unless $ft_sig;
 				
 				my $aa = substr($seq, $i - 1 , 1);
 				
@@ -1098,7 +1095,7 @@ END
 		push @name_rows, $q->Tr($q->td('Encoded on'), $q->td($og)) if $og;
 		
 		push @name_rows, $q->Tr($q->td('Taxonomy'), $q->td(
-			join("; ", map { $q->a({-href=>"$url?db=taxonomy&query=$_"}, $_) } @oc)));
+			join("; ", map { $q->a({-href=>"query.do?db=taxonomy&query=$_"}, $_) } @oc)));
 	}
 
 	if (%ref)

@@ -4,7 +4,6 @@ DATABANK			= uniprot
 MRSLIBS				= sprot trembl
 MRS_MERGE_LIBS		= uniprot
 MRSSCRIPT			= uniprot
-MRS_DICT_FILES		= sprot trembl uniprot
 
 include make.pre
 

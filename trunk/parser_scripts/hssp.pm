@@ -114,10 +114,7 @@ sub parse
 
 sub pp
 {
-	my ($this, $q, $text) = @_;
-	
-	my $url1 = $q->url({-full=>1}) . "?db=uniprot&id=";
-	my $url2 = $q->url({-full=>1}) . "?db=pdb&id=";
+	my ($this, $q, $text, $id, $url) = @_;
 	
 	$text =~ s/&/&amp;/g;
 	$text =~ s/</&lt;/g;
@@ -131,11 +128,11 @@ sub pp
 	{
 		if (defined $4 and length($4))
 		{
-			"$1" . $q->a({-href=>"$url1$2"}, $2) . $3 . 
-				$q->a({-href=>"$url2$4"}, $4);
+			"$1" . $q->a({-href=>"$url?db=uniprot&$2"}, $2) . $3 . 
+				$q->a({-href=>"$url?db=pdb&$4"}, $4);
 		}
 		else {
-			"$1" . $q->a({-href=>"$url1$2"}, $2) . $3;
+			"$1" . $q->a({-href=>"$url?db=uniprot&$2"}, $2) . $3;
 		}
 	}mxge;
 	

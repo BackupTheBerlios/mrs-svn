@@ -515,34 +515,46 @@ ns__Find(
 	log << ':' << db;
 
 	int result = SOAP_OK;
-
-	MDatabankPtr mrsDb = WSDatabankTable::Instance()[db];
 	
-	auto_ptr<MQueryResults> r =
-		PerformSearch(mrsDb, queryterms, algorithm, alltermsrequired, booleanfilter);
-	
-	if (r.get() != NULL)
+	try
 	{
-		const char* id;
-		while (resultoffset-- > 0 and (id = r->Next()) != NULL)
-			;
+		MDatabankPtr mrsDb = WSDatabankTable::Instance()[db];
 		
-		while (maxresultcount-- > 0 and (id = r->Next()) != NULL)
+		if (mrsDb.get() == nil)
+			THROW(("Databank not found: %s", db.c_str()));
+		
+		auto_ptr<MQueryResults> r =
+			PerformSearch(mrsDb, queryterms, algorithm, alltermsrequired, booleanfilter);
+		
+		if (r.get() != NULL)
 		{
-			ns__Hit h;
-
-			h.id = id;
-			h.score = r->Score();
-			h.db = db;
-			h.title = GetTitle(db, h.id);
+			const char* id;
+			while (resultoffset-- > 0 and (id = r->Next()) != NULL)
+				;
 			
-			response.hits.push_back(h);
+			while (maxresultcount-- > 0 and (id = r->Next()) != NULL)
+			{
+				ns__Hit h;
+	
+				h.id = id;
+				h.score = r->Score();
+				h.db = db;
+				h.title = GetTitle(db, h.id);
+				
+				response.hits.push_back(h);
+			}
+	
+			response.count = r->Count(true);
 		}
-
-		response.count = r->Count(true);
+		else
+			response.count = 0;
 	}
-	else
-		response.count = 0;
+	catch (std::exception& e)
+	{
+		return soap_receiver_fault(soap,
+			(string("An error occurred while trying do a search in db ") + db).c_str(),
+			e.what());
+	}
 
 	return result;
 }

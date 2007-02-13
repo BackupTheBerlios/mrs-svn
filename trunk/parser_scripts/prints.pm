@@ -142,10 +142,6 @@ sub pp
 {
 	my ($this, $q, $text, $id, $url) = @_;
 	
-	if (not defined $url or length($url) == 0) {
-		my $url = $q->url({-full=>1});
-	}
-	
 	$text =~ s/&/&amp;/g;
 	$text =~ s/</&lt;/g;
 	$text =~ s/>/&gt;/g;

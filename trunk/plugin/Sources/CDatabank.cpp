@@ -1007,27 +1007,18 @@ vector<string> CDatabank::GetMetaDataFields() const
 
 bool CDatabank::GetDocumentNr(const string& inDocID, uint32& outDocNr) const
 {
-	bool result = true;
+	bool result = false;
 
 	// our ID table inserts document ID's with the pattern '#docnr'
 	// make sure we recognize those	
-	if (not GetIndexer()->GetDocumentNr(inDocID, outDocNr) and
-		inDocID.length() > 1 and
-		inDocID[0] == '#')
+	if (GetIndexer()->GetDocumentNr(inDocID, outDocNr))
+		result = true;
+	else if (inDocID.length() > 1 and inDocID[0] == '#' and isdigit(inDocID[1]))
 	{
-		const char* p = inDocID.c_str() + 1;
+		char* e;
 		
-		outDocNr = 0;
-	
-		// parse number		
-		while (isdigit(*p))
-		{
-			outDocNr = outDocNr * 10 + (*p - '0');
-			++p;
-		}
-		
-		if (*p != 0)
-			result = false;
+		outDocNr = strtoul(inDocID.c_str() + 1, &e, 10);
+		result = (*e == 0);
 	}
 	
 	return result;

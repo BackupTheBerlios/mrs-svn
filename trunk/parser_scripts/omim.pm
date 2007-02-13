@@ -145,7 +145,7 @@ sub parse
 
 sub pp
 {
-	my ($this, $q, $text) = @_;
+	my ($this, $q, $text, $id, $url) = @_;
 	
 	my %labels = (
 		AV => 'Allelic variation',
@@ -166,8 +166,6 @@ sub pp
 	$text =~ s/^\*RECORD\*\s+//;
 	
 	my @fields = split(/^\*FIELD\* /om, $text);
-
-	my $url = $q->url({-full=>1});
 	
 	my @data;
 	

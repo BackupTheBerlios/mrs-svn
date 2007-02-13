@@ -161,7 +161,7 @@ sub parse
 
 sub pp
 {
-	my ($this, $q, $text) = @_;
+	my ($this, $q, $text, $id, $url) = @_;
 	
 	my $script_dir = $this->script_dir;
 	
@@ -169,12 +169,12 @@ sub pp
 	
 	my $xml = $parser->serve($text, xml_declaration=>0, http_headers=>0);
 	
-	$xml =~ s|\[db_xref: (\S+?):(\S+?)\]|'<a href="?db=' . lc($1) . "&id=$2\">$2</a>"|eg;
+	$xml =~ s|\[db_xref: (\S+?):(\S+?)\]|"<a href=\"$url?db=" . lc($1) . "&id=$2\">$2</a>"|eg;
 	$xml =~ s|\[cite: PUB(\d+)\]|(<a href="http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=pubmed&cmd=search&term=$1">$1</a>)|g;
 	
 	$xml =~ s|#PUBMED#(\d+)|<a href="http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=pubmed&cmd=search&term=$1">$1</a>|g;
-	$xml =~ s|#INTERPRO#(IPR\d+)|<a href="?db=interpro&amp;id=$1">$1</a>|g;
-	$xml =~ s|#PDB#(.{4})|<a href="?db=pdb&amp;id=$1">$1</a>|g;
+	$xml =~ s|#INTERPRO#(IPR\d+)|<a href="$url?db=interpro&amp;id=$1">$1</a>|g;
+	$xml =~ s|#PDB#(.{4})|<a href="$url?db=pdb&amp;id=$1">$1</a>|g;
 	
 	$xml =~ s|&gt;|>|g;
 	$xml =~ s|&lt;|<|g;

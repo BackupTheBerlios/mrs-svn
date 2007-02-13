@@ -111,9 +111,7 @@ sub parse
 
 sub pp
 {
-	my ($this, $q, $text) = @_;
-	
-	my $url = $q->url({-full=>1}) . "?db=go&id=";
+	my ($this, $q, $text, $id, $url) = @_;
 	
 	$text =~ s/&/&amp;/g;
 	$text =~ s/</&lt;/g;
@@ -121,7 +119,7 @@ sub pp
 	
 	$text =~ s|http://(\S+)|<a href='$&'>$&</a>|g;
 
-	$text =~ s|(?<!id: )(GO:)(\d+)|<a href=$url$2>$1$2</a>|g;
+	$text =~ s|(?<!id: )(GO:)(\d+)|<a href=$url?db=go\&id=$2>$1$2</a>|g;
 	
 	return $q->pre($text);
 }

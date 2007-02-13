@@ -384,9 +384,8 @@ sub parse
 
 sub pp
 {
-	my ($this, $q, $text) = @_;
-	
-#	my $url = "<a href='" . $q->url({-full=>1}) . "?db=";
+	my ($this, $q, $text, $id, $url) = @_;
+
 	my $result;
 	
 	chomp($text);

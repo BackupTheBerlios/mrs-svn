@@ -109,9 +109,7 @@ sub parse
 
 sub pp
 {
-	my ($this, $q, $text) = @_;
-	
-	my $url = $q->url({-full=>1}) . "?db=taxonomy&id=";
+	my ($this, $q, $text, $id, $url) = @_;
 	
 	$text =~ s/&/&amp;/g;
 	$text =~ s/</&lt;/g;
@@ -119,7 +117,7 @@ sub pp
 	
 	$text =~ s|http://(\S+)|<a href='$&'>$&</a>|g;
 
-	$text =~ s|^(PARENT ID\s+:\s+)(\d+)|$1<a href=$url$2>$2</a>|mo;
+	$text =~ s|^(PARENT ID\s+:\s+)(\d+)|$1<a href=$url?db=taxonomy&id=$2>$2</a>|mo;
 	
 	return $q->pre($text);
 }

@@ -146,8 +146,8 @@ my @links = (
 		result	=> '$1.$q->a({-href=>"$url?db=pdb&id=$2"}, $2)'
 	},
 	{
-		match	=> qr|^(#=GS .+AC )(\S+)|,
-		result	=> '$1.$q->a({-href=>"$url?db=uniprot&query=ac:$2"}, $2)'
+		match	=> qr|^(#=GS .+AC )([0-9A-Z]+)|,
+		result	=> '$1.$q->a({-href=>"query.do?db=uniprot&query=ac:$2"}, $2)'
 	},
 	{
 		match	=> qr|^(#=GF DR\s+PROSITE;\s)(\S+)(?=;)|,
@@ -157,9 +157,7 @@ my @links = (
 
 sub pp
 {
-	my ($this, $q, $text) = @_;
-	
-	my $url = $q->url({-full=>1});
+	my ($this, $q, $text, $id, $url) = @_;
 	
 	$text = $this->link_url($text);
 	

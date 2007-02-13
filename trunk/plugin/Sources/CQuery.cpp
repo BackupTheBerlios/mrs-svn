@@ -194,7 +194,7 @@ CDocIterator* CQueryImp::Parse()
 		result.reset(Parse_Query());
 		
 		if (result.get() == nil)
-			THROW(("Failed to parse query"));
+			result.reset(new CNullDocIterator());
 		
 		// here we fetch the first 1000 or so doc Id's
 		// for this query.
@@ -695,8 +695,22 @@ CDocIterator*
 CQueryImp::IteratorForOperator(const string& inIndex, const string& inKey,
 	CQueryOperator inOperator)
 {
+	bool validIndexName = false;
+
 	if (inIndex == "*")
 		THROW(("Index cannot be a wildcard for relational operators"));
+
+	for (uint32 ix = 0; ix < fIndexNames.size(); ++ix)
+	{
+		if (inIndex == fIndexNames[ix])
+		{
+			validIndexName = true;
+			break;
+		}
+	}
+	
+	if (not validIndexName)
+		THROW(("Index %s does not exists in this databank", inIndex.c_str()));
 	
 	return fDatabank.CreateDocIterator(inIndex, inKey, false, inOperator);
 }
@@ -706,6 +720,20 @@ CQueryImp::IteratorForString(const string& inIndex, const string& inString)
 {
 	if (inIndex != "*")
 		THROW(("string searching in a specific index is not supported yet, sorry"));
+
+	bool validIndexName = false;
+
+	for (uint32 ix = 0; ix < fIndexNames.size(); ++ix)
+	{
+		if (inIndex == fIndexNames[ix])
+		{
+			validIndexName = true;
+			break;
+		}
+	}
+	
+	if (not validIndexName)
+		THROW(("Index %s does not exists in this databank", inIndex.c_str()));
 
 	CDocIterator* result = nil;
 	

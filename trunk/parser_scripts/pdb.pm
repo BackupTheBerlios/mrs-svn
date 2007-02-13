@@ -291,7 +291,7 @@ END
 
 sub pp
 {
-	my ($this, $q, $text, $id) = @_;
+	my ($this, $q, $text, $id, $url) = @_;
 
 	$text =~ s/&/&amp;/g;
 	$text =~ s/</&lt;/g;
@@ -299,7 +299,7 @@ sub pp
 	
 	my $script = sprintf($jmol_script, $q->url(), $id);
 	
-	$text =~ s|(COMPND   \d? )EC: ((\d+\.){3}\d+)|$1<a href="?id=enzyme%3A$2">EC: $2</a>|gmo;
+	$text =~ s|(COMPND   \d? )EC: ((\d+\.){3}\d+)|$1<a href="$url?id=enzyme%3A$2">EC: $2</a>|gmo;
 	
 	return $script . $q->pre($text);
 }

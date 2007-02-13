@@ -162,7 +162,7 @@ my @links = (
 
 sub pp
 {
-	my ($this, $q, $text) = @_;
+	my ($this, $q, $text, $id, $url) = @_;
 
 	$text =~ s/<\!DOCTYPE.+?>\n(<Entrezgene-Set>)?/<Entrezgene-Set>/;
 
