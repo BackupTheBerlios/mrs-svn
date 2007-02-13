@@ -5,7 +5,8 @@ MRSLIBS			= prosite prosite_doc
 
 include make.pre
 
-DB_URL = ftp://ftp.expasy.org/databases/prosite/release/
+#DB_URL = ftp://ftp.expasy.org/databases/prosite/release/
+DB_URL = ftp://ftp.ebi.ac.uk/pub/databases/prosite/
 MIRROR_INCLUDE = prosite.*\.(dat|doc)$$
 
 # Now determine what sequence files need to be generated
