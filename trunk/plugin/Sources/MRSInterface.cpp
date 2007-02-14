@@ -1250,6 +1250,31 @@ const char* MBlastHits::ReportInXML()
 	return fImpl->fScratch.c_str();
 }
 
+unsigned long MBlastHits::DbCount()
+{
+	return fImpl->fBlast.DbCount();
+}
+
+unsigned long MBlastHits::DbLength()
+{
+	return fImpl->fBlast.DbLength();
+}
+
+double MBlastHits::Kappa()
+{
+	return fImpl->fBlast.Kappa();
+}
+
+double MBlastHits::Lambda()
+{
+	return fImpl->fBlast.Lambda();
+}
+
+double MBlastHits::Entropy()
+{
+	return fImpl->fBlast.Entropy();
+}
+
 MBlastHit* MBlastHits::Next()
 {
 	MBlastHit* result = nil;

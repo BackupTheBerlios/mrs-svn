@@ -928,6 +928,13 @@ class MBlastHits : public MRSObject<MBlastHits, struct MBlastHitsImp>
 {
   public:
 	const char*			ReportInXML();
+
+	unsigned long		DbCount();
+	unsigned long		DbLength();
+	double				Kappa();
+	double				Lambda();
+	double				Entropy();
+
 	MBlastHit*			Next();
 };
 

@@ -6609,6 +6609,206 @@ XS(_wrap_MBlastHits_ReportInXML) {
 }
 
 
+XS(_wrap_MBlastHits_DbCount) {
+    {
+        MBlastHits *arg1 = (MBlastHits *) 0 ;
+        unsigned long result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: MBlastHits_DbCount(self);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MBlastHits,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MBlastHits_DbCount. Expected _p_MBlastHits");
+            }
+        }
+        {
+            try {
+                result = (unsigned long)(arg1)->DbCount();
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        ST(argvi) = sv_newmortal();
+        sv_setuv(ST(argvi++), (UV) result);
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MBlastHits_DbLength) {
+    {
+        MBlastHits *arg1 = (MBlastHits *) 0 ;
+        unsigned long result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: MBlastHits_DbLength(self);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MBlastHits,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MBlastHits_DbLength. Expected _p_MBlastHits");
+            }
+        }
+        {
+            try {
+                result = (unsigned long)(arg1)->DbLength();
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        ST(argvi) = sv_newmortal();
+        sv_setuv(ST(argvi++), (UV) result);
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MBlastHits_Kappa) {
+    {
+        MBlastHits *arg1 = (MBlastHits *) 0 ;
+        double result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: MBlastHits_Kappa(self);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MBlastHits,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MBlastHits_Kappa. Expected _p_MBlastHits");
+            }
+        }
+        {
+            try {
+                result = (double)(arg1)->Kappa();
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        ST(argvi) = sv_newmortal();
+        sv_setnv(ST(argvi++), (double) result);
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MBlastHits_Lambda) {
+    {
+        MBlastHits *arg1 = (MBlastHits *) 0 ;
+        double result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: MBlastHits_Lambda(self);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MBlastHits,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MBlastHits_Lambda. Expected _p_MBlastHits");
+            }
+        }
+        {
+            try {
+                result = (double)(arg1)->Lambda();
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        ST(argvi) = sv_newmortal();
+        sv_setnv(ST(argvi++), (double) result);
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MBlastHits_Entropy) {
+    {
+        MBlastHits *arg1 = (MBlastHits *) 0 ;
+        double result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: MBlastHits_Entropy(self);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MBlastHits,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MBlastHits_Entropy. Expected _p_MBlastHits");
+            }
+        }
+        {
+            try {
+                result = (double)(arg1)->Entropy();
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        ST(argvi) = sv_newmortal();
+        sv_setnv(ST(argvi++), (double) result);
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
 XS(_wrap_MBlastHits_Next) {
     {
         MBlastHits *arg1 = (MBlastHits *) 0 ;
@@ -7585,6 +7785,11 @@ static swig_command_info swig_commands[] = {
 {"MRSc::new_MBlastHit", _wrap_new_MBlastHit},
 {"MRSc::delete_MBlastHit", _wrap_delete_MBlastHit},
 {"MRSc::MBlastHits_ReportInXML", _wrap_MBlastHits_ReportInXML},
+{"MRSc::MBlastHits_DbCount", _wrap_MBlastHits_DbCount},
+{"MRSc::MBlastHits_DbLength", _wrap_MBlastHits_DbLength},
+{"MRSc::MBlastHits_Kappa", _wrap_MBlastHits_Kappa},
+{"MRSc::MBlastHits_Lambda", _wrap_MBlastHits_Lambda},
+{"MRSc::MBlastHits_Entropy", _wrap_MBlastHits_Entropy},
 {"MRSc::MBlastHits_Next", _wrap_MBlastHits_Next},
 {"MRSc::new_MBlastHits", _wrap_new_MBlastHits},
 {"MRSc::delete_MBlastHits", _wrap_delete_MBlastHits},

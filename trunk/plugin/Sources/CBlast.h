@@ -121,6 +121,12 @@ class CBlast
 	
 	std::string			ReportInXML();
 
+	unsigned long		DbCount();
+	unsigned long		DbLength();
+	double				Kappa();
+	double				Lambda();
+	double				Entropy();
+
 	CBlastHitIterator	Hits();
 	
   private:

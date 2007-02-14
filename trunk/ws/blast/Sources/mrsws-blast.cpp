@@ -80,7 +80,12 @@ extern double system_time();
 struct CBlastJobParameters;
 void DoBlast(
 	const CBlastJobParameters&	inParams,
-	vector<ns__Hit>&			outHits);
+	vector<ns__Hit>&			outHits,
+	unsigned long&				outDbCount,
+	unsigned long&				outDbLength,
+	double&						outKappa,
+	double&						outLambda,
+	double&						outEntropy);
 
 typedef boost::shared_ptr<MDatabank>	MDatabankPtr;
 
@@ -315,6 +320,13 @@ class CBlastJob : public CJob
 
 	ns__JobStatus		Status() const							{ return mStatus; }
 	vector<ns__Hit>		Hits() const							{ mCollected = true; return mHits; }
+
+	unsigned long		DbCount()								{ return mDbCount; }
+	unsigned long		DbLength()								{ return mDbLength; }
+	double				Kappa()									{ return mKappa; }
+	double				Lambda()								{ return mLambda; }
+	double				Entropy()								{ return mEntropy; }
+
 	string				ID() const;
 	string				Error() const							{ return mError; }
 
@@ -340,6 +352,13 @@ class CBlastJob : public CJob
 	ns__JobStatus		mStatus;
 	CBlastJob*			mNext;
 	vector<ns__Hit>		mHits;
+
+	unsigned long		mDbCount;
+	unsigned long		mDbLength;
+	double				mKappa;
+	double				mLambda;
+	double				mEntropy;
+
 	mutable bool		mCollected;
 	double				mCreated;
 	double				mAccess;
@@ -468,7 +487,7 @@ void CBlastJob::Execute()
 	{
 		mStatus = running;
 		
-		DoBlast(mParams, mHits);
+		DoBlast(mParams, mHits, mDbCount, mDbLength, mKappa, mLambda, mEntropy);
 		
 		mStatus = finished;
 	}
@@ -514,7 +533,12 @@ WLogger& operator<<(
 
 void DoBlast(
 	const CBlastJobParameters&	inParams,
-	vector<ns__Hit>&			outHits)
+	vector<ns__Hit>&			outHits,
+	unsigned long&				outDbCount,
+	unsigned long&				outDbLength,
+	double&						outKappa,
+	double&						outLambda,
+	double&						outEntropy)
 {
 	if (VERBOSE)
 		cout << inParams << endl;
@@ -527,6 +551,12 @@ void DoBlast(
 
 	if (hits.get() != NULL)
 	{
+		outDbCount = hits->DbCount();
+		outDbLength = hits->DbLength();
+		outKappa = hits->Kappa();
+		outLambda = hits->Lambda();
+		outEntropy = hits->Entropy();
+		
 		for (auto_ptr<MBlastHit> hit(hits->Next()); hit.get() != NULL; hit.reset(hits->Next()))
 		{
 			ns__Hit h;
@@ -579,7 +609,7 @@ ns__BlastSync(
 	bool								gapped,
 	unsigned long						gap_open,
 	unsigned long						gap_extend,
-	vector<ns__Hit>&					response)
+	struct ns__BlastResult&				response)
 {
 	WLogger log(soap->ip, __func__);
 
@@ -592,7 +622,8 @@ ns__BlastSync(
 		
 		log << params;
 		
-		DoBlast(params, response);
+		DoBlast(params, response.hits, response.db_count, response.db_length,
+			response.kappa, response.lambda, response.entropy);
 	}
 	catch (exception& e)
 	{
@@ -677,7 +708,7 @@ SOAP_FMAC5 int SOAP_FMAC6
 ns__BlastJobResult(
 	struct soap*					soap,
 	xsd__string						job_id,
-	std::vector<struct ns__Hit>&	response)
+	struct ns__BlastResult&			response)
 {
 	WLogger log(soap->ip, __func__);
 
@@ -692,7 +723,9 @@ ns__BlastJobResult(
 		if (job == NULL)
 			THROW(("Unknown job id %s", job_id.c_str()));
 		
-		response = job->Hits();
+		
+		
+		response.hits = job->Hits();
 	}
 	catch (exception& e)
 	{

@@ -455,6 +455,11 @@ package MRS::MBlastHits;
 %OWNER = ();
 %ITERATORS = ();
 *ReportInXML = *MRSc::MBlastHits_ReportInXML;
+*DbCount = *MRSc::MBlastHits_DbCount;
+*DbLength = *MRSc::MBlastHits_DbLength;
+*Kappa = *MRSc::MBlastHits_Kappa;
+*Lambda = *MRSc::MBlastHits_Lambda;
+*Entropy = *MRSc::MBlastHits_Entropy;
 *Next = *MRSc::MBlastHits_Next;
 sub new {
     my $pkg = shift;

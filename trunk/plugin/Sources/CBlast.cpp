@@ -602,6 +602,13 @@ class CBlastQueryBase
 	void			JoinHits(CBlastQueryBase& inOther);
 	void			SortHits(const CDatabankBase& inDb);
 
+	unsigned long	DbCount()							{ return mDbCount; }
+	unsigned long	DbLength()							{ return mDbLength; }
+	double			Kappa()								{ return mMatrix.gapped.K; }
+	double			Lambda()							{ return mMatrix.gapped.lambda; }
+	double			Entropy()							{ return mMatrix.gapped.H; }
+
+
   protected:
 
 	struct Data
@@ -1759,6 +1766,31 @@ bool CBlast::Find(CDatabankBase& inDb, CDocIterator& inIter)
 string CBlast::ReportInXML()
 {
 	return mImpl->mBlastQuery->ReportInXML(*mImpl->mDb, mImpl->mFilter, mImpl->mUnfilteredQuery);
+}
+
+unsigned long CBlast::DbCount()
+{
+	return mImpl->mBlastQuery->DbCount();
+}
+
+unsigned long CBlast::DbLength()
+{
+	return mImpl->mBlastQuery->DbLength();
+}
+
+double CBlast::Kappa()
+{
+	return mImpl->mBlastQuery->Kappa();
+}
+
+double CBlast::Lambda()
+{
+	return mImpl->mBlastQuery->Lambda();
+}
+
+double CBlast::Entropy()
+{
+	return mImpl->mBlastQuery->Entropy();
 }
 
 //	----------------------------------------------------------------------------
