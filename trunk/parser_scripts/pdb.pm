@@ -98,6 +98,8 @@ sub GetTitle
 		$desc .= "; $compound";
 	}	
 	
+	$desc =~ s/ {2,}/ /g;
+	
 	return $desc;
 }
 
@@ -300,6 +302,36 @@ sub pp
 	my $script = sprintf($jmol_script, 'plain.do', $id);
 	
 	$text =~ s|(COMPND   \d? )EC: ((\d+\.){3}\d+)|$1<a href="$url?db=enzyme&id=$2">EC: $2</a>|gmo;
+	
+	$text =~ s{^DBREF.+}
+			  {
+			  	my $line = $&;
+			  	my $db = substr($&, 26, 5);
+			  	my $ac = substr($&, 33, 8);
+			  	my $id = substr($&, 42, 11);
+			  	
+			  	$db =~ s/\s//g;
+			  	$ac =~ s/\s//g;
+			  	$id =~ s/\s//g;
+			  	
+			  	if ($db eq 'SWS' or $db eq 'UNP' or $db eq 'TREMBL') {
+			  		$line =~ s|$id|<a href='entry.do?db=uniprot&id=$id'>$id</a>|;
+			  		$line =~ s|$ac|<a href='query.do?db=uniprot&query=ac:$ac'>$ac</a>|;
+			  		$line
+			  	}
+			  	elsif ($db eq 'GB') {
+			  		$line =~ s|$id|<a href='entry.do?db=genbank_release&id=$id'>$id</a>|;
+			  		$line =~ s|$ac|<a href='query.do?db=genbank_release&query=accession:$ac'>$ac</a>|;
+			  		$line
+			  	}
+			  	elsif ($db eq 'PDB') {
+			  		$line =~ s|$id|<a href='entry.do?db=pdb&id=$id'>$id</a>|;
+			  		$line
+			  	}
+			  	else {
+			  		$line
+			  	}
+			  }egm;
 	
 	return $script . $q->pre($text);
 }
