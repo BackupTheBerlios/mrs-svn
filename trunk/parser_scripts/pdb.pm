@@ -299,7 +299,7 @@ sub pp
 	
 	my $script = sprintf($jmol_script, 'plain.do', $id);
 	
-	$text =~ s|(COMPND   \d? )EC: ((\d+\.){3}\d+)|$1<a href="$url?id=enzyme%3A$2">EC: $2</a>|gmo;
+	$text =~ s|(COMPND   \d? )EC: ((\d+\.){3}\d+)|$1<a href="$url?db=enzyme&id=$2">EC: $2</a>|gmo;
 	
 	return $script . $q->pre($text);
 }

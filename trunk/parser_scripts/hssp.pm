@@ -128,11 +128,11 @@ sub pp
 	{
 		if (defined $4 and length($4))
 		{
-			"$1" . $q->a({-href=>"$url?db=uniprot&$2"}, $2) . $3 . 
-				$q->a({-href=>"$url?db=pdb&$4"}, $4);
+			"$1" . $q->a({-href=>"$url?db=uniprot&id=$2"}, $2) . $3 . 
+				$q->a({-href=>"$url?db=pdb&id=$4"}, $4);
 		}
 		else {
-			"$1" . $q->a({-href=>"$url?db=uniprot&$2"}, $2) . $3;
+			"$1" . $q->a({-href=>"$url?db=uniprot&id=$2"}, $2) . $3;
 		}
 	}mxge;
 	
