@@ -278,10 +278,10 @@ sub raw_files()
 # formatting
 
 my $jmol_script=<<END;
-<script src="/mrs/jmol/Jmol.js">
+<script src="jmol/Jmol.js">
 </script>
 <script language="JavaScript">
-	jmolInitialize("../jmol");
+	jmolInitialize("jmol");
 	jmolCheckBrowser("popup", "/browsercheck", "onClick");
 	
 	jmolApplet(250, "load %s?db=pdb&amp;id=%s&amp;exp=1&amp;save_to=text%%2Fplain;" +
@@ -297,7 +297,7 @@ sub pp
 	$text =~ s/</&lt;/g;
 	$text =~ s/>/&gt;/g;
 	
-	my $script = sprintf($jmol_script, $q->url(), $id);
+	my $script = sprintf($jmol_script, 'plain.do', $id);
 	
 	$text =~ s|(COMPND   \d? )EC: ((\d+\.){3}\d+)|$1<a href="$url?id=enzyme%3A$2">EC: $2</a>|gmo;
 	
