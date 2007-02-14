@@ -931,6 +931,7 @@ class MBlastHits : public MRSObject<MBlastHits, struct MBlastHitsImp>
 
 	unsigned long		DbCount();
 	unsigned long		DbLength();
+	unsigned long		EffectiveSpace();
 	double				Kappa();
 	double				Lambda();
 	double				Entropy();

@@ -1260,6 +1260,11 @@ unsigned long MBlastHits::DbLength()
 	return fImpl->fBlast.DbLength();
 }
 
+unsigned long MBlastHits::EffectiveSpace()
+{
+	return fImpl->fBlast.EffectiveSpace();
+}
+
 double MBlastHits::Kappa()
 {
 	return fImpl->fBlast.Kappa();

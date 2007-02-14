@@ -123,6 +123,7 @@ class CBlast
 
 	unsigned long		DbCount();
 	unsigned long		DbLength();
+	unsigned long		EffectiveSpace();
 	double				Kappa();
 	double				Lambda();
 	double				Entropy();

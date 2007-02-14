@@ -83,6 +83,7 @@ void DoBlast(
 	vector<ns__Hit>&			outHits,
 	unsigned long&				outDbCount,
 	unsigned long&				outDbLength,
+	unsigned long&				outEffectiveSpace,
 	double&						outKappa,
 	double&						outLambda,
 	double&						outEntropy);
@@ -323,6 +324,7 @@ class CBlastJob : public CJob
 
 	unsigned long		DbCount()								{ return mDbCount; }
 	unsigned long		DbLength()								{ return mDbLength; }
+	unsigned long		EffectiveSpace()						{ return mEffectiveSpace; }
 	double				Kappa()									{ return mKappa; }
 	double				Lambda()								{ return mLambda; }
 	double				Entropy()								{ return mEntropy; }
@@ -355,6 +357,7 @@ class CBlastJob : public CJob
 
 	unsigned long		mDbCount;
 	unsigned long		mDbLength;
+	unsigned long		mEffectiveSpace;
 	double				mKappa;
 	double				mLambda;
 	double				mEntropy;
@@ -487,7 +490,7 @@ void CBlastJob::Execute()
 	{
 		mStatus = running;
 		
-		DoBlast(mParams, mHits, mDbCount, mDbLength, mKappa, mLambda, mEntropy);
+		DoBlast(mParams, mHits, mDbCount, mDbLength, mEffectiveSpace, mKappa, mLambda, mEntropy);
 		
 		mStatus = finished;
 	}
@@ -536,6 +539,7 @@ void DoBlast(
 	vector<ns__Hit>&			outHits,
 	unsigned long&				outDbCount,
 	unsigned long&				outDbLength,
+	unsigned long&				outEffectiveSpace,
 	double&						outKappa,
 	double&						outLambda,
 	double&						outEntropy)
@@ -553,6 +557,7 @@ void DoBlast(
 	{
 		outDbCount = hits->DbCount();
 		outDbLength = hits->DbLength();
+		outEffectiveSpace = hits->EffectiveSpace();
 		outKappa = hits->Kappa();
 		outLambda = hits->Lambda();
 		outEntropy = hits->Entropy();
@@ -622,7 +627,8 @@ ns__BlastSync(
 		
 		log << params;
 		
-		DoBlast(params, response.hits, response.db_count, response.db_length,
+		DoBlast(params, response.hits,
+			response.db_count, response.db_length, response.eff_space,
 			response.kappa, response.lambda, response.entropy);
 	}
 	catch (exception& e)
@@ -723,7 +729,12 @@ ns__BlastJobResult(
 		if (job == NULL)
 			THROW(("Unknown job id %s", job_id.c_str()));
 		
-		
+		response.db_count = job->DbCount();
+		response.db_length = job->DbLength();
+		response.eff_space = job->EffectiveSpace();
+		response.kappa = job->Kappa();
+		response.lambda = job->Lambda();
+		response.entropy = job->Entropy();
 		
 		response.hits = job->Hits();
 	}

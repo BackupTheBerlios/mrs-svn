@@ -3,7 +3,7 @@
 //gsoap ns service name: mrsws-blast
 //gsoap ns service style: document
 //gsoap ns service encoding: literal
-//gsoap ns service location: http://localhost/mrs/cgi-bin/mrsws-blast
+//gsoap ns service location: http://mrs.cmbi.ru.nl/mrsws-blast
 //gsoap ns schema namespace: http://mrs.cmbi.ru.nl/mrsws-blast
 //gsoap ns service method-action: info ""
 

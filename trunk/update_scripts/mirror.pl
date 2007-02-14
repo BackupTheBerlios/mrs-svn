@@ -49,7 +49,8 @@ for (my $retry = 0; $ok == 0 and $retry < 5; ++$retry)
 	}
 }
 
-exit($ok ? 0 : 1);
+die "aborting\n" unless $ok;
+exit;
 
 sub VERSION_MESSAGE()
 {

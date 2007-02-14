@@ -604,6 +604,7 @@ class CBlastQueryBase
 
 	unsigned long	DbCount()							{ return mDbCount; }
 	unsigned long	DbLength()							{ return mDbLength; }
+	unsigned long	EffectiveSpace()					{ return mSearchSpace; }
 	double			Kappa()								{ return mMatrix.gapped.K; }
 	double			Lambda()							{ return mMatrix.gapped.lambda; }
 	double			Entropy()							{ return mMatrix.gapped.H; }
@@ -1776,6 +1777,11 @@ unsigned long CBlast::DbCount()
 unsigned long CBlast::DbLength()
 {
 	return mImpl->mBlastQuery->DbLength();
+}
+
+unsigned long CBlast::EffectiveSpace()
+{
+	return mImpl->mBlastQuery->EffectiveSpace();
 }
 
 double CBlast::Kappa()
