@@ -457,6 +457,7 @@ package MRS::MBlastHits;
 *ReportInXML = *MRSc::MBlastHits_ReportInXML;
 *DbCount = *MRSc::MBlastHits_DbCount;
 *DbLength = *MRSc::MBlastHits_DbLength;
+*EffectiveSpace = *MRSc::MBlastHits_EffectiveSpace;
 *Kappa = *MRSc::MBlastHits_Kappa;
 *Lambda = *MRSc::MBlastHits_Lambda;
 *Entropy = *MRSc::MBlastHits_Entropy;

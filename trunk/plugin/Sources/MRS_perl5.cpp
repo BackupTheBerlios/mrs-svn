@@ -6689,6 +6689,46 @@ XS(_wrap_MBlastHits_DbLength) {
 }
 
 
+XS(_wrap_MBlastHits_EffectiveSpace) {
+    {
+        MBlastHits *arg1 = (MBlastHits *) 0 ;
+        unsigned long result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: MBlastHits_EffectiveSpace(self);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MBlastHits,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MBlastHits_EffectiveSpace. Expected _p_MBlastHits");
+            }
+        }
+        {
+            try {
+                result = (unsigned long)(arg1)->EffectiveSpace();
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        ST(argvi) = sv_newmortal();
+        sv_setuv(ST(argvi++), (UV) result);
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
 XS(_wrap_MBlastHits_Kappa) {
     {
         MBlastHits *arg1 = (MBlastHits *) 0 ;
@@ -7787,6 +7827,7 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MBlastHits_ReportInXML", _wrap_MBlastHits_ReportInXML},
 {"MRSc::MBlastHits_DbCount", _wrap_MBlastHits_DbCount},
 {"MRSc::MBlastHits_DbLength", _wrap_MBlastHits_DbLength},
+{"MRSc::MBlastHits_EffectiveSpace", _wrap_MBlastHits_EffectiveSpace},
 {"MRSc::MBlastHits_Kappa", _wrap_MBlastHits_Kappa},
 {"MRSc::MBlastHits_Lambda", _wrap_MBlastHits_Lambda},
 {"MRSc::MBlastHits_Entropy", _wrap_MBlastHits_Entropy},
