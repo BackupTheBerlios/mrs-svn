@@ -1,0 +1,38 @@
+BODY {
+		font-style: normal;
+		font-weight: normal;
+		font-size: 10 pt;
+		line-height: 120%;
+		font-family: verdana, sans-serif;
+		color: black;
+		background-color: white;
+}
+
+		
+H3 {
+		font-weight: bold;
+		font-size: 13 pt;
+		line-height: 120%
+		font-family: verdana, sans-serif;
+		color: black;
+}
+
+.term {
+		font-weight: bold;
+		font-size: 10 pt;
+		line-height: 120%;
+		font-family: verdana, sans-serif;
+		color: black;
+		
+}				
+
+
+.row {
+		font-weight: normal;
+		font-size: 10 pt;
+		line-height: 120%;
+		font-family: verdana, sans-serif;
+		color: black;
+		background-color: #ddf;
+		
+}		

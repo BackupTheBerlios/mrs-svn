@@ -1,0 +1,116 @@
+Installation instructions MRS-3
+
+For the extremely impatient:
+
+perl install.pl
+make
+make install
+cd /usr/local/share/mrs/update_scripts
+make enzyme
+
+If that all went well, you have an enzyme.cmp file in /usr/local/data/mrs/ and you can use mrs_query to search it. Then install the mrs-3.war file in tomcat and if this runs on the same machine you have a web site at http://localhost:8080/mrs-3/ that allows you to search this enzyme databank. Then you're ready to index other databanks.
+
+If this didn't work, proceed to the next chapter.
+
+Overview
+
+The mrs-3 system consists of a lot of parts that need to work together. Unfortunately that also means a lot can go wrong. 
+
+Three main parts can be distinguished:
+1. the scripts to do databank updating and parsing/indexing
+2. a couple of binary files (executables) that use the data files to do searches
+3. the web interface
+
+To make installation easier there is an install.pl script that does most of the work for you. It creates all needed directories and copies script files into these directories. These files are patched for your specific setup. Then it create a couple of makefiles after which you can build the executables.
+
+If all goes well you will have something like the following after installation:
+
+/usr/local/data/...	       <== a directory tree containing all the MRS data
+                               when you plan to build all possible databanks
+                               including EMBL and Genbank you will need at
+                               least a terabyte of diskspace here.
+
+/usr/local/share/mrs/parser_scripts      <== this directory contains Perl scripts
+                                             that are used in processing databanks
+
+/usr/local/share/mrs/update_scripts      <== this directory contains make files and
+                                             other scripts used to fetch and update
+                                             mrs databanks
+
+/usr/local/bin/mrs*                      <== several executables
+
+and there will be a MRS plugin installed in the Perl library.
+
+
+
+Prerequisites
+
+This manual assumes you are using the Ubuntu Linux distribution. In case you use any other Unix flavour you should read this section and then figure out what to do yourself. MRS is known to work on Red Hat Enterprise Linux and MacOS X since those
+are the two major platforms used in development.
+
+In Ubuntu you will have to install the following packages using apt (Synaptic?)
+
+	g++-4.1
+	gSoap
+	libboost-dev
+	libboost-regex-dev
+	libboost-filesystem-dev
+	zlib1g-dev
+	libbz1-dev
+	libxml2-dev
+	libperl-dev
+	libexpat1-dev
+
+If these packages are available, MRS should build without any errors. One program is not installable using Synaptic and that is clustalw. You will have to fetch it from the EBI yourself.
+
+Now you have to think about the directories and more importantly, where you want to store your data files. Perhaps it is best to have a separate filesystem for this mounted on e.g. /data. You might also prefer another location for the scripts instead of /usr/local/share/mrs/
+
+Installation
+
+Then you start the install script:
+
+perl install.pl
+
+This script will ask a couple of questions and provides defaults for most. You can accept the defaults or provide your own values. Please note that MRS prefers the most recent GCC at the time of writing which is version 4.1. Do not try to use an older version since that will probably fail.
+
+You can always interrupt the install script and restart it later on.
+
+When the install script has finished you can type:
+
+make
+make install
+
+This will build all the binary files and install them in the proper location.
+
+After this, you can cd to the /usr/local/share/mrs/update_scripts directory and type
+
+make enzyme
+
+to build the simple enzyme databank. This should produce a file called enzyme.cmp in the directory /usr/local/data/mrs/
+
+If that works you can create other databanks as well. Keep in mind that creating an EMBL databank may take a couple of days to complete depending on the hardware you're using. Log files for all steps are written in the /usr/local/data/status directory.
+
+The next step is to either use the MRS perl plugin directly from your scripts, or use the mrs_query and mrs_blast applications to do your searching. You can also start the SOAP servers. To do this, you should first check the /usr/local/etc/mrs-config.xml file to see if it is correct for your setup. Then you can start the applications:
+
+/usr/local/bin/mrsws
+/usr/local/bin/mrsws-blast
+/usr/local/bin/mrsws-clustal
+
+They all accept the -b option to run them in the background. But perhaps it is best to not use that before you're comfortable with this software. It may be better to start each of them in a separate 'screen' session so you can follow what happens.
+
+The wsdl files for each of these services are not installed by default. You can find them in the directory mrs/ws/regular/Sources, mrs/ws/blast/Sources and mrs/ws/clustal/Sources respectively. You have to edit these wsdl files (notably the SOAP:address location attibute) and then put them somewhere on your web site.
+
+Web interface
+
+The web side of mrs-3 is provided as a .war file. To use this you will have to install Tomcat. Again, you can do this using the Synaptic package manager. You of course will have to have the Java SDK installed as well. mrs-3 was build for Java 1.4.2 or higher. 
+
+NOTE for Ubuntu: after installing tomcat5 you have to edit /etc/default/tomcat5 and change the line containing TOMCAT5_SECURITY to:
+
+TOMCAT5_SECURITY=no
+
+(note that you need to remove the leading # character as well!)
+
+Once you have tomcat running you can install the mrs-3.war file and if all went well you will have the familiar mrs-3 website at http://localhost:8180/mrs-3/
+
+Now suppose you want to run Tomcat on a different machine than the one running the SOAP services, you will have to tell the webapp about this other location. You can do so using the Tomcat Admin Tool (http://localhost:8180/admin/). Expand the tree on the left and edit the three Environment Entries for the mrs-3 context. In this case you will also have to make sure you edit the /usr/local/etc/mrs-config.xml file on the host running the SOAP services to make them listen on the correct address, by default these services listen to localhost (127.0.0.1) only.
+
