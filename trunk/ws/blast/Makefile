@@ -216,7 +216,7 @@ clean: FORCE
 dist: $(TARGET)
 
 install: dist
-	install mrsws-blast $(INSTALL_DIR)/mrsws-blast
+	$(SUDO) install mrsws-blast $(INSTALL_DIR)/mrsws-blast
 	@ echo "To finish installation of the web-service you have to edit the file"
 	@ echo "ws/Sources/mrsws-blast.wsdl and put it in the proper location."
 #	install Sources/mrsws-blast.wsdl ../web-simple/htdocs/

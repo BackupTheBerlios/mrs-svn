@@ -398,6 +398,7 @@ $db_conf =~ s{__MAINTAINER__}	{$maintainer}g;
 $db_conf =~ s{__SCRIPT_DIR__}	{$make_script_dir}g;
 $db_conf =~ s{__PARSER_DIR__}	{$parser_script_dir}g;
 $db_conf =~ s{__PERL__}			{$perlpath}g;
+$db_conf =~ s{__CXX__}			{$cc}g;
 
 my $hostname = `hostname -s`;
 chomp($hostname);

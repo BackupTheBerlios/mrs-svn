@@ -60,7 +60,7 @@ dirs: $(DIRS)
 
 # this may not run on all systems:
 $(SCRIPTDIR)/%: $(SCRIPTDIR)/%.cpp
-	g++ -o $@ $<
+	$(CXX) -o $@ $<
 
 tools: $(SCRIPTDIR)/run_and_log $(SCRIPTDIR)/lock_and_run $(SCRIPTDIR)/swiss2fasta
 
