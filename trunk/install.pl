@@ -399,7 +399,9 @@ $db_conf =~ s{__SCRIPT_DIR__}	{$make_script_dir}g;
 $db_conf =~ s{__PARSER_DIR__}	{$parser_script_dir}g;
 $db_conf =~ s{__PERL__}			{$perlpath}g;
 
-my $hostname = hostname;
+my $hostname = `hostname -s`;
+chomp($hostname);
+$hostname = hostname unless defined $hostname and length($hostname) > 0;
 
 my $db_conf_file = "$make_script_dir/make_$hostname.conf";
 &write_file($db_conf, $db_conf_file);
@@ -422,39 +424,61 @@ my $ws_conf = &read_file("ws/mrs-config.xml.TEMPLATE");
 $ws_conf =~ s{__DATA_DIR__}		{$data_dir}g;
 $ws_conf =~ s{__PARSER_DIR__}	{$parser_script_dir}g;
 $ws_conf =~ s{__PARSER_DIR__}	{$parser_script_dir}g;
-$ws_conf =~ s{__HOST_NAME__}	{$hostname}g;
+$ws_conf =~ s{__HOST_NAME__}	{localhost}g;				# changed this from $hostname
 $ws_conf =~ s{__CLUSTALW__}		{$clustalw}g;
 
 my $ws_conf_file = "$etcpath/mrs-config.xml";
 &write_file($ws_conf, $ws_conf_file);
 
-print "\nOK, installation seems to have worked fine up until now.\n";
-print "Next steps are to build the actual plugins, as stated above you have to\n";
-print "enter the following commands for this:\n";
-print "\n";
-print "cd plugin\n";
-print "make\n";
-print "make install\n";
-print "\n";
-print "The make install may fail if you don't have sudo and don't have the permission\n";
-print "to install the plugin or executables. In that case you have to run that\n";
-print "make install step as root.\n";
-print "\n";
-print "Once you've installed the plugins you can cd into $make_script_dir and to test the\n";
-print "scripts there you could e.g. type:\n";
-print "\n";
-print "make enzyme\n";
-print "\n";
-print "That command will create the directories and tools needed to do updates, it then\n";
-print "continues fetching the enzyme data files and creates an mrs file from them.\n";
-print "\n";
-print "Other useful commands you can type in the make directory are:\n";
-print "\n";
-print "make -j 2 daily		# update all daily dbs using 2 processors\n";
-print "make -j 2 weekly		# update all dbs\n";
-print "\n";
-print "Have a look at the $db_conf_file for local settings.\n";
+my $epilog=<<EOF;
+OK, installation seems to have worked fine up until now.
+Next steps are to build the actual plugins, as stated above you have to
+enter the following commands for this:
 
+make
+make install
+
+The make install may fail if you don't have sudo and don't have the permission
+to install the plugin or executables. In that case you have to run the
+`make install' step as root.
+
+Once you've installed the plugins you can cd into
+
+	$make_script_dir
+	
+and test the scripts there. You could e.g. type:
+
+make enzyme
+
+That command will create the directories and tools needed to do updates, it then
+continues fetching the enzyme data files and creates an mrs file from them.
+
+Other useful commands you can type in the make directory are:
+
+make -j 2 daily     # update all daily dbs using 2 processors
+make -j 2 weekly    # update all dbs
+
+Have a look at the file 
+	
+	$db_conf_file
+	
+for local settings.
+
+There are three SOAP servers installed and you have to launch them each
+manually. They are listening to port 8081, 8082 and 8083 and address
+`localhost' by default. To edit this you will have to edit the file
+
+	$etcpath/mrs-config.xml
+
+This file also contains all the other information the SOAP servers need to work.
+
+The mrs-3.war file can be installed the usual way in Tomcat or your favorite
+servlet container. You may have to edit the environmental variables for mrs-3
+after installation using the Tomcat Admin Tool if your SOAP servers are not on
+the same host as Tomcat.
+EOF
+
+print $epilog;
 exit;
 
 sub check_dir {
