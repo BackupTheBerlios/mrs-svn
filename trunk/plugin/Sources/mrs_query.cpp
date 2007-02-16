@@ -178,9 +178,7 @@ int main(int argc, const char* argv[])
 	
 	if (r.get() != NULL)
 	{
-		unsigned long count = r->Count(true);
-		
-		cout << "Found " << count << " hits, displaying the first " << min(10UL, count) << endl;
+		stringstream s;
 		
 		int n = 10;
 		const char* id;
@@ -190,8 +188,13 @@ int main(int argc, const char* argv[])
 			string desc;
 			if (title != NULL)
 				desc = title;
-			cout << id << '\t' << r->Score() << '\t' << desc << endl;
+			s << id << '\t' << r->Score() << '\t' << desc << endl;
 		}
+
+		unsigned long count = r->Count(true);
+		cout << "Found " << count << " hits, displaying the first " << min(10UL, count) << endl;
+		cout << s.str() << endl;
+		
 	}
 	else
 		cout << "No hits found" << endl;
