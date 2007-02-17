@@ -192,6 +192,10 @@ int main(int argc, const char* argv[])
 				desc = title;
 			cout << id << '\t' << r->Score() << '\t' << desc << endl;
 		}
+
+		unsigned long count = r->Count(true);
+		cout << "Found " << count << " hits, displaying the first " << min(10UL, count) << endl;
+		cout << s.str() << endl;
 	}
 	else
 		cout << "No hits found" << endl;

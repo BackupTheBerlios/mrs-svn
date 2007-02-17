@@ -599,10 +599,10 @@ void CDocBitVectorIterator::Add(CDocIterator* inIter)
 	while (iter->Next(docNr, false))
 	{
 		assert(docNr < fDocCount);
-		
+
 		uint32 byte = docNr >> 3;
 		uint32 bit = docNr & 0x07;
-		
+
 		assert(bit < 8);
 		assert(byte < (fDocCount >> 3) + 1);
 		
@@ -636,14 +636,14 @@ bool CDocBitVectorIterator::Next(uint32& ioDoc, bool inSkip)
 			
 			result = (fData[byte] & (1 << bit)) != 0;
 			
+			if (result)
+				ioDoc = fCur;
+		
 			++fCur;
 		}
 		
 		if (result)
-		{
-			ioDoc = fCur;
 			++fRead;
-		}
 	}
 	
 	return result;
