@@ -997,6 +997,8 @@ int main(int argc, const char* argv[])
 			gNeedReload = true;
 			
 			soap.accept_timeout = 1;	// timeout
+			soap.recv_timeout = 10;
+			soap.send_timeout = 10;
 			
 			for (;;)
 			{
