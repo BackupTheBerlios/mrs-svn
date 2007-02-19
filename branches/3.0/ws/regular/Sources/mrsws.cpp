@@ -1214,7 +1214,7 @@ int main(int argc, const char* argv[])
 				if (s < 0)
 				{
 					soap_print_fault(&soap, stderr);
-					break;
+					continue;
 				}
 				
 				try
