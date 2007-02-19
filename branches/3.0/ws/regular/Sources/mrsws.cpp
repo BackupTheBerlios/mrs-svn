@@ -1174,7 +1174,8 @@ int main(int argc, const char* argv[])
 		
 		sigaction(SIGINT, &sa, NULL);
 		sigaction(SIGHUP, &sa, NULL);
-			
+		sigaction(SIGPIPE, &sa, NULL);
+		
 		struct soap soap;
 		int m, s; // master and slave sockets
 		soap_init2(&soap, SOAP_IO_KEEPALIVE, SOAP_IO_KEEPALIVE|SOAP_C_UTFSTRING);
@@ -1195,6 +1196,9 @@ int main(int argc, const char* argv[])
 			gNeedReload = true;
 			
 			soap.accept_timeout = 1;	// timeout
+			soap.recv_timeout = 10;
+			soap.send_timeout = 10;
+			soap.max_keep_alive = 10;
 			
 			for (;;)
 			{

@@ -497,6 +497,7 @@ int main(int argc, const char* argv[])
 		sigaction(SIGINT, &sa, NULL);
 //		sigaction(SIGHUP, &sa, NULL);
 		sigaction(SIGALRM, &sa, NULL);
+		sigaction(SIGPIPE, &sa, NULL);
 			
 		struct soap soap;
 		int m, s; // master and slave sockets
@@ -517,6 +518,9 @@ int main(int argc, const char* argv[])
 			gQuit = false;
 			
 			soap.accept_timeout = 1;	// timeout
+			soap.recv_timeout = 10;
+			soap.send_timeout = 10;
+			soap.max_keep_alive = 10;
 			
 			for (;;)
 			{
