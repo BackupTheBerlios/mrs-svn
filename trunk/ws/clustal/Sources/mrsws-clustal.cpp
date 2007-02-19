@@ -497,6 +497,7 @@ int main(int argc, const char* argv[])
 		sigaction(SIGINT, &sa, NULL);
 //		sigaction(SIGHUP, &sa, NULL);
 		sigaction(SIGALRM, &sa, NULL);
+		sigaction(SIGPIPE, &sa, NULL);
 			
 		struct soap soap;
 		int m, s; // master and slave sockets
