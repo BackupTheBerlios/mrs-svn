@@ -888,7 +888,7 @@ END
 			foreach my $kw (@kw)
 			{
 				$kw =~ s/\.$//;
-				my $kw_url = $url . "query.do?db=uniprot&query=";
+				my $kw_url = "${url}query.do?db=uniprot&query=";
 				foreach my $kww (split(m/\s/, $kw))
 				{
 					$kw_url .= "kw:$kww ";
@@ -1060,6 +1060,12 @@ END
 				}
 				
 				$case .= "\t}\n";
+			}
+			
+			if (length($nseq) == 0 and length($seq) > 0) {
+				$nseq = $seq;
+				$nseq =~ s/(.{60})/$1\n/g;
+				$nseq =~ s/(.{10})/$1 /g;
 			}
 			
 			$js =~ s/#1/$case/;
