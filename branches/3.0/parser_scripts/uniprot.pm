@@ -1,5 +1,3 @@
-#!/usr/bin/perl -w
-#
 # $Id: uniprot.pm 151 2006-10-31 09:03:08Z hekkel $
 #
 # Copyright (c) 2005
@@ -41,8 +39,8 @@ package MRS::Script::uniprot;
 
 our @ISA = "MRS::Script";
 
-use strict;
-use warnings;
+#use strict;
+#use warnings;
 use POSIX qw/strftime/;
 
 my $commentLine1 = "CC   -----------------------------------------------------------------------";
@@ -358,9 +356,9 @@ sub print_ref
 		if defined $ref->{rg};
 	
 	my @l;
-	push @l, $ref->{ra};
+	push @l, $ref->{ra}				if $ref->{ra};
 	push @l, $q->strong($ref->{rt}) if $ref->{rt};
-	push @l, $ref->{rl};
+	push @l, $ref->{rl}				if $ref->{rl};
 	push @l, $q->br;
 	push @l, $q->table({-cellspacing=>'0', -cellpadding=>'0', -width=>'100%'}, @rr) if scalar @rr;
 	
@@ -370,6 +368,8 @@ sub print_ref
 sub pp
 {
 	my ($this, $q, $text, $id, $url) = @_;
+	
+	$url = '' unless defined $url;
 	
 	my (@entry_rows, @name_rows, @keywords_rows, @references_rows, @comments_rows,
 		@copyright_rows, @cross_reference_rows, @features_rows, @sequence_rows);
@@ -781,7 +781,7 @@ END
 							}
 							
 							$name = $1;
-							push @synonyms, split(m/,\s*/, $3);
+							push @synonyms, split(m/,\s*/, $3) if $3;
 						}
 						elsif ($cc =~ /IsoId=(.+?);\s*(Sequence=(.+);)?/)
 						{
@@ -888,7 +888,7 @@ END
 			foreach my $kw (@kw)
 			{
 				$kw =~ s/\.$//;
-				my $kw_url = $url . "query.do?db=uniprot&query=";
+				my $kw_url = "${url}query.do?db=uniprot&query=";
 				foreach my $kww (split(m/\s/, $kw))
 				{
 					$kw_url .= "kw:$kww ";
@@ -914,10 +914,10 @@ END
 			
 			for (;;)
 			{
-				my $key = substr($line, 5, 8);		$key =~ s/\s+$//;
-				my $from = substr($line, 14, 6);	$from =~ s/\s+$//;
-				my $to = substr($line, 21, 6);		$to =~ s/\s+$//;
-				my $desc = substr($line, 34, 41);
+				my ($key, $from, $to, $desc) = ($line =~ m/.{5}(.{9})(.{6})(.{7})(.*)/);
+				$key =~ s/\s+$//;
+				($from) = ($from =~ /^\s*(.+?)\s*$/);	# trim
+				($to) = ($to =~ /^\s*(.+?)\s*$/);
 				
 				while ($lookahead =~ /^FT\s{10}/)
 				{
@@ -1001,7 +1001,7 @@ END
 			for (my $i = 1; $i <= length($seq); ++$i)
 			{
 				my $ft_sig = $features{$i};
-				next unless $ft_sig;
+				$ft_sig = 'undef' unless defined $ft_sig;
 				
 				my $aa = substr($seq, $i - 1 , 1);
 				
@@ -1011,8 +1011,8 @@ END
 				elsif ($i % 10 == 0) {
 					$aa .= ' ';
 				}
-				
-				while ($i + 1 <= length($seq) and $features{$i + 1} eq $ft_sig)
+
+				while ($i + 1 <= length($seq) and defined($ft_sig) and $features{$i + 1} eq $ft_sig)
 				{
 					$aa .= substr($seq, $i, 1);
 					++$i;
@@ -1024,17 +1024,22 @@ END
 					}
 				}
 				
-				$nseq .= $q->span({-id => "fs_$fs"}, $aa);
-				
-				foreach my $ft_id (split(m/:/, $ft_sig))
-				{
-					if (ref($fm{$ft_id}) ne "ARRAY")
+				if ($ft_sig eq 'undef') {
+					$nseq .= $aa;
+				}
+				else {
+					$nseq .= $q->span({-id => "fs_$fs"}, $aa);
+					
+					foreach my $ft_id (split(m/:/, $ft_sig))
 					{
-						my @a = ( $fs );
-						$fm{$ft_id} = \@a;
-					}
-					else {
-						push @{$fm{$ft_id}}, $fs;
+						if (ref($fm{$ft_id}) ne "ARRAY")
+						{
+							my @a = ( $fs );
+							$fm{$ft_id} = \@a;
+						}
+						else {
+							push @{$fm{$ft_id}}, $fs;
+						}
 					}
 				}
 				
