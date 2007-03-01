@@ -2,8 +2,8 @@
 
 package MRS::Script;
 
-use strict;
-use warnings;
+#use strict;
+#use warnings;
 
 sub new
 {
@@ -169,8 +169,8 @@ sub FlushDocument {}
 
 package Embed::WSFormat;
 
-use strict;
-use warnings;
+#use strict;
+#use warnings;
 use CGI;
 use Data::Dumper;
 
