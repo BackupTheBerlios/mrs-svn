@@ -94,6 +94,7 @@ ${DBALLFLAGS:=.done}:
 
 tell_ws: FORCE1
 	@ $(KILLALL) -HUP mrsws || echo 'mrsws does not seem to run'
+	@ $(KILLALL) -HUP mrsws-blast || echo 'mrsws-blast does not seem to run'
 
 # the main rules
 
@@ -129,19 +130,5 @@ ${ALL_DATABASES}: tools dirs
 	$(MAKE) $(FLAGSDIR)$@.done
 	@ $(MAKE) tell_ws
 	rm $(FLAGSDIR)$@.*
-
-# The next rules are used on cmbi8 to regenerate the structure databanks
-
-dssp: uniprot pdb
-
-hssp: uniprot pdb dssp
-
-pdbfinder: uniprot pdb dssp hsssp
-
-pdbfinder2:  uniprot pdb dssp hssp pdbfinder
-
-structure_dbs: uniprot pdb dssp hssp pdbfinder pdbfinder2
-	@ find $(FLAGSDIR) -type f | xargs rm
-	echo "Structure DB update done"
 
 FORCE:
