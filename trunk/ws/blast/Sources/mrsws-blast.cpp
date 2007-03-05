@@ -622,6 +622,9 @@ ns__BlastSync(
 	
 	try
 	{
+		if (query.length() <= word_size)
+			THROW(("Query sequence too short"));
+		
 		CBlastJobParameters params(db, query, program, matrix, word_size,
 			expect, low_complexity_filter, gapped, gap_open, gap_extend);
 		
@@ -662,6 +665,9 @@ ns__BlastAsync(
 	
 	try
 	{
+		if (query.length() <= word_size)
+			THROW(("Query sequence too short"));
+		
 		CBlastJobParameters params(db, query, program, matrix, word_size,
 			expect, low_complexity_filter, gapped, gap_open, gap_extend);
 
@@ -728,6 +734,9 @@ ns__BlastJobResult(
 		
 		if (job == NULL)
 			THROW(("Unknown job id %s", job_id.c_str()));
+
+		if (job->Status() != finished)
+			THROW(("Job %s not finished yet", job_id.c_str()));
 		
 		response.db_count = job->DbCount();
 		response.db_length = job->DbLength();
