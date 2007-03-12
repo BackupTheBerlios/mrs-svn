@@ -384,9 +384,6 @@ sub Create()
 
 	@raw_files = map {	$p->map_ext2cmd($_) } @raw_files;
 
-print Dumper(\@raw_files);
-exit(1);
-	
 	my $n = 1;
 	my $m = scalar @raw_files;
 
