@@ -49,11 +49,11 @@ sub new
 		name		=> '(Entrez-) Gene',
 		meta		=> [ 'title' ],
 		section		=> 'gene',
-		raw_files	=> qr/All_Data.ags.gz/,
-		ext_mapping	=> (
+		raw_files	=> qr/All_Data\.ags\.gz/,
+		ext_mapping	=> {
 			extension	=> qr/.+\.ags\.gz$/,
-			command		=> '"$gene2xml -i $file -o stdout -b -c |"'
-		),
+			command		=> '"./gene2xml -i $file -o stdout -b -c |"'
+		},
 		@_
 	};
 	return bless $self, "MRS::Script::gene";
@@ -134,20 +134,6 @@ sub parse
 	}
 }
 
-sub raw_files()
-{
-	my ($self) = @_;
-
-	my $raw_dir = $self->{raw_dir} or die "raw_dir is not defined\n";
-	
-	my $gene2xml = `which gene2xml`;
-	chomp($gene2xml);
-	$gene2xml = "./gene2xml" unless -x $gene2xml;
-	$gene2xml = "gene2xml" unless -x $gene2xml;
-	
-	return "$gene2xml -i $raw_dir/All_Data.ags.gz -o stdout -b -c |";
-}
-
 # formatting
 
 my @links = (
@@ -212,3 +198,4 @@ sub pp
 }
 
 1;
+
