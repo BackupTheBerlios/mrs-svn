@@ -47,8 +47,13 @@ sub new
 	my $self = {
 		url			=> 'http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=gene',
 		name		=> '(Entrez-) Gene',
-#		meta		=> [ 'title' ],
+		meta		=> [ 'title' ],
 		section		=> 'gene',
+		raw_files	=> qr/All_Data.ags.gz/,
+		ext_mapping	=> (
+			extension	=> qr/.+\.ags\.gz$/,
+			command		=> '"$gene2xml -i $file -o stdout -b -c |"'
+		),
 		@_
 	};
 	return bless $self, "MRS::Script::gene";
@@ -121,6 +126,10 @@ sub parse
 			my ($key, $text) = ($1, $2);
 			
 			$m->IndexText('text', $2);
+			
+			if ($key eq 'Prot-ref_name_E') {
+				$m->StoreMetaData('title', $text);
+			}
 		}
 	}
 }
@@ -188,48 +197,6 @@ sub pp
 		my $mrs_script_dir = $this->script_dir();
 	
 		open X, "$mrs_bin_dir/Xalan /tmp/input-$$.xml $mrs_script_dir/gene_xslt.xml|";
-		local($/) = undef;
-		$result = <X>;
-		close X;
-	};
-	
-	if ($@)
-	{
-		$result = $q->pre($@);
-	}
-	unlink "/tmp/input-$$.xml";
-	
-	return $result;
-}
-
-sub describe
-{
-	my ($this, $q, $text) = @_;
-
-	$text =~ s/<\!DOCTYPE.+?>\n(<Entrezgene-Set>)?/<Entrezgene-Set>/;
-
-	my $result;
-
-	eval
-	{
-		open X, ">/tmp/input-$$.xml";
-		print X $text;
-		close X;
-
-		our $mrs_bin_dir;
-		
-		my $settings = 'mrs.conf';
-		unless (my $return = do $settings)
-		{
-			warn "couldn't parse $settings: $@" if $@;
-			warn "couldn't do $settings: $!" unless defined $return;
-			warn "couldn't run $settings" unless $return;
-		}
-
-		$mrs_bin_dir = "/usr/pkg/bin/" unless defined $mrs_bin_dir;
-		my $mrs_script_dir = $this->script_dir();
-	
-		open X, "$mrs_bin_dir/Xalan /tmp/input-$$.xml $mrs_script_dir/gene_list_xslt.xml|";
 		local($/) = undef;
 		$result = <X>;
 		close X;
