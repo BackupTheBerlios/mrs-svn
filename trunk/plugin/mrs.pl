@@ -382,17 +382,10 @@ sub Create()
 
 	die "No files to process!\n" unless scalar(@raw_files);
 
-	@raw_files = map {
-		if ($_ =~ m/\.(gz|Z)$/) {
-			"gunzip -c $_ |";
-		}
-		elsif ($_ =~ m/\.(bz2)$/) {
-			"bunzip2 -c $_ |";
-		}
-		else {
-			"<$_";
-		}
-	} @raw_files;
+	@raw_files = map {	$p->map_ext2cmd($_) } @raw_files;
+
+print Dumper(\@raw_files);
+exit(1);
 	
 	my $n = 1;
 	my $m = scalar @raw_files;
@@ -772,6 +765,35 @@ sub raw_files
 	closedir DIR;
 
 	return map { "$raw_dir/$_" } @raw_files;
+}
+
+sub map_ext2cmd
+{
+	my ($self, $file) = @_;
+	
+	my @mapping;
+	
+	if (defined $self->{ext_mapping}) {
+		push @mapping, $self->{ext_mapping};
+	}
+	else {
+		@mapping = (
+			{
+				extension	=> qr/.+\.(gz|Z)$/,
+				command		=> '"gunzip -c $file |"'
+			},
+			{
+				extension	=> qr/.+\.bz2$/,
+				command		=> '"bunzip2 -c $file |"'
+			}
+		);
+	}
+
+	foreach my $re (@mapping) {
+		$file =~ s/$re->{extension}/$re->{command}/eegm;
+	}
+	
+	return $file;
 }
 
 1;
