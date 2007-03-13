@@ -7,6 +7,8 @@
 #include <fstream>
 #include <map>
 
+#include <sys/stat.h>
+
 #include <libxml/tree.h>
 #include <libxml/parser.h>
 #include <libxml/xpath.h>
@@ -41,9 +43,8 @@ struct WConfigFileImp
 							const char*		inPath,
 							DBInfoVector&	outValue) const;
 
-	bool				IsModified() const;
-
 	string				mPath;
+	time_t				mLastModified;
 	xmlDocPtr			mXMLDoc;
 	xmlXPathContextPtr	mXPathContext;
 };
@@ -51,6 +52,7 @@ struct WConfigFileImp
 WConfigFileImp::WConfigFileImp(
 	const char*			inPath)
 	: mPath(inPath)
+	, mLastModified(0)
 	, mXMLDoc(nil)
 	, mXPathContext(nil)
 {
@@ -140,11 +142,6 @@ bool WConfigFileImp::GetValue(
 	return outValue.size() > 0;
 }
 
-bool WConfigFileImp::IsModified() const
-{
-	return false;
-}
-
 // --------------------------------------------------------------------
 //
 //	Interface
@@ -163,6 +160,7 @@ WConfigFile::WConfigFile(
 	}
 	
 	mImpl = new WConfigFileImp(configFile.string().c_str());
+	mImpl->mLastModified = last_write_time(configFile);
 }
 
 WConfigFile::~WConfigFile()
@@ -173,13 +171,15 @@ WConfigFile::~WConfigFile()
 bool WConfigFile::ReloadIfModified()
 {
 	bool result = false;
+
+	fs::path configFile(mImpl->mPath);
 	
-	if (mImpl->IsModified())
+	if (fs::exists(configFile) and
+		mImpl->mLastModified != last_write_time(configFile))
 	{
-		string path = mImpl->mPath;
-		
 		delete mImpl;
-		mImpl = new WConfigFileImp(path.c_str());
+		mImpl = new WConfigFileImp(configFile.string().c_str());
+		mImpl->mLastModified = last_write_time(configFile);
 		
 		result = true;
 	}
