@@ -107,6 +107,14 @@ END
 			sprot	=> qr/uniprot_sprot\.dat\.gz$/,
 			trembl	=> qr/uniprot_trembl\.dat\.gz$/,
 			gpcrdb	=> qr/gpcrdb.dat/,
+			
+			ipi_human		=> qr/^ipi\.HUMAN\.dat\.gz$/,
+			ipi_mouse		=> qr/^ipi\.MOUSE\.dat\.gz$/,
+			ipi_rat			=> qr/^ipi\.RAT\.dat\.gz$/,
+			ipi_zebrafish	=> qr/^ipi\.BRARE\.dat\.gz$/,
+			ipi_arabidopsis	=> qr/^ipi\.ARATH\.dat\.gz$/,
+			ipi_chicken		=> qr/^ipi\.CHICK\.dat\.gz$/,
+			ipi_cow			=> qr/^ipi\.BOVIN\.dat\.gz$/,
 		);
 		
 		$self->{raw_files} = $FILES{$self->{db}};
@@ -117,6 +125,14 @@ END
 			trembl		=> 'TrEMBL',
 			uniprot		=> 'UniProt KB',
 			gpcrdb		=> 'GPCRDB',
+
+			ipi_human		=> 'IPI - Human',
+			ipi_mouse		=> 'IPI - Mouse',
+			ipi_rat			=> 'IPI - Rat',
+			ipi_zebrafish	=> 'IPI - Zebrafish',
+			ipi_arabidopsis	=> 'IPI - Arabidopsis',
+			ipi_chicken		=> 'IPI - Chicken',
+			ipi_cow			=> 'IPI - Cow',
 		);
 
 		$self->{name} = $NAMES{$self->{db}};
