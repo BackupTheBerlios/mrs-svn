@@ -100,6 +100,7 @@ END
 	if (defined $self->{db})
 	{
 		$self->{raw_dir} =~ s'(sprot|trembl)/?$'uniprot';
+		$self->{raw_dir} =~ s'ipi_.+?/?$'ipi';
 
 		$self->{raw_dir} =~ s|raw|uncompressed| if $self->{db} eq 'gpcrdb';
 
