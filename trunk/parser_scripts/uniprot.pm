@@ -286,9 +286,29 @@ my %links = (
 		result	=> '$q->a({-href=>"query.do?db=embl&query=ac:$1"}, $1)'
 	},
 
+	'UniProtKB/Swiss-Prot'	=> {
+		match	=> qr[^(\S+)(?=;)]i,
+		result	=> '$q->a({-href=>"query.do?db=uniprot&query=ac:$1"}, $1)'
+	},
+
 	'UNIPROT'	=> {
 		match	=> qr[^(\S+)(?=;)]i,
 		result	=> '$q->a({-href=>"query.do?db=uniprot&query=ac:$1"}, $1)'
+	},
+
+	'REFSEQ_VALIDATED'	=> {
+		match	=> qr[^(\S+)(?=;)]i,
+		result	=> '$q->a({-href=>"entry.do?db=refseq&id=$1"}, $1)'
+	},
+
+	'UniGene'	=> {
+		match	=> qr[^(\S+)(?=;)]i,
+		result	=> '$q->a({-href=>"entry.do?db=unigene&id=$1"}, $1)'
+	},
+
+	'Entrez Gene'	=> {
+		match	=> qr[^(\S+)(?=;)]i,
+		result	=> '$q->a({-href=>"entry.do?db=gene&id=$1"}, $1)'
 	},
 
 	'PDB'		=> {
