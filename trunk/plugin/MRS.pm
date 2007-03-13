@@ -116,20 +116,60 @@ sub new {
 *DumpIndex = *MRSc::MDatabank_DumpIndex;
 *PrefetchDocWeights = *MRSc::MDatabank_PrefetchDocWeights;
 *CountForKey = *MRSc::MDatabank_CountForKey;
-*Find = *MRSc::MDatabank_Find;
-*Match = *MRSc::MDatabank_Match;
-*MatchRel = *MRSc::MDatabank_MatchRel;
-*BooleanQuery = *MRSc::MDatabank_BooleanQuery;
+sub Find {
+	my $result = MRSc::MDatabank::Find(@_);
+	MRS::MQueryResults::ACQUIRE($result) if defined $result;
+	return $result;
+}
+
+sub Match {
+	my $result = MRSc::MDatabank::Match(@_);
+	MRS::MBooleanQuery::ACQUIRE($result) if defined $result;
+	return $result;
+}
+
+sub MatchRel {
+	my $result = MRSc::MDatabank_MatchRel(@_);
+	MRS::MBooleanQuery::ACQUIRE($result) if defined $result;
+	return $result;
+}
+
+sub BooleanQuery {
+	my $result = MRSc::MDatabank_BooleanQuery(@_);
+	MRS::MBooleanQuery::ACQUIRE($result) if defined $result;
+	return $result;
+}
+
 *RankedQuery = *MRSc::MDatabank_RankedQuery;
 *Get = *MRSc::MDatabank_Get;
 *GetMetaData = *MRSc::MDatabank_GetMetaData;
 *GetDescription = *MRSc::MDatabank_GetDescription;
 *ContainsBlastIndex = *MRSc::MDatabank_ContainsBlastIndex;
 *Sequence = *MRSc::MDatabank_Sequence;
-*Blast = *MRSc::MDatabank_Blast;
-*Index = *MRSc::MDatabank_Index;
-*Indices = *MRSc::MDatabank_Indices;
-*SuggestCorrection = *MRSc::MDatabank_SuggestCorrection;
+sub Blast {
+	my $result = MRSc::MDatabank_Blast(@_);
+	MRS::MBlastHits::ACQUIRE($result) if defined $result;
+	return $result;
+}
+
+sub Index {
+	my $result = MRSc::MDatabank_Index(@_);
+	MRS::MIndex::ACQUIRE($result) if defined $result;
+	return $result;
+}
+
+sub Indices {
+	my $result = MRSc::MDatabank_Indices(@_);
+	MRS::MIndices::ACQUIRE($result) if defined $result;
+	return $result;
+}
+
+sub SuggestCorrection {
+	my $result = MRSc::MDatabank_SuggestCorrection(@_);
+	MRS::MStringIterator::ACQUIRE($result) if defined $result;
+	return $result;
+}
+
 *SetStopWords = *MRSc::MDatabank_SetStopWords;
 *StoreMetaData = *MRSc::MDatabank_StoreMetaData;
 *Store = *MRSc::MDatabank_Store;
@@ -177,7 +217,12 @@ package MRS::MBooleanQuery;
 *Not = *MRSc::MBooleanQuery_Not;
 *Union = *MRSc::MBooleanQuery_Union;
 *Intersection = *MRSc::MBooleanQuery_Intersection;
-*Perform = *MRSc::MBooleanQuery_Perform;
+sub Perform {
+	my $result = MRSc::MBooleanQuery_Perform(@_);
+	MRS::MQueryResults::ACQUIRE($result) if defined $result;
+	return $result;
+}
+
 *Prefetch = *MRSc::MBooleanQuery_Prefetch;
 sub new {
     my $pkg = shift;
@@ -220,7 +265,12 @@ package MRS::MRankedQuery;
 *SetAllTermsRequired = *MRSc::MRankedQuery_SetAllTermsRequired;
 *SetMaxReturn = *MRSc::MRankedQuery_SetMaxReturn;
 *SetAlgorithm = *MRSc::MRankedQuery_SetAlgorithm;
-*Perform = *MRSc::MRankedQuery_Perform;
+sub Perform {
+	my $result = MRSc::MRankedQuery_Perform(@_);
+	MRS::MRankedQuery::ACQUIRE($result) if defined $result;
+	return $result;
+}
+
 sub new {
     my $pkg = shift;
     my $self = MRSc::new_MRankedQuery(@_);
@@ -261,7 +311,12 @@ package MRS::MQueryResults;
 *Score = *MRSc::MQueryResults_Score;
 *Skip = *MRSc::MQueryResults_Skip;
 *Count = *MRSc::MQueryResults_Count;
-*Blast = *MRSc::MQueryResults_Blast;
+sub Blast {
+	my $result = MRSc::MQueryResults_Blast(@_);
+	MRS::MBlastHits::ACQUIRE($result) if defined $result;
+	return $result;
+}
+
 sub new {
     my $pkg = shift;
     my $self = MRSc::new_MQueryResults(@_);
@@ -339,8 +394,18 @@ package MRS::MIndex;
 *Code = *MRSc::MIndex_Code;
 *Type = *MRSc::MIndex_Type;
 *Count = *MRSc::MIndex_Count;
-*Keys = *MRSc::MIndex_Keys;
-*FindKey = *MRSc::MIndex_FindKey;
+sub Keys {
+	my $result = MRSc::MIndex_Keys(@_);
+	MRS::MKeys::ACQUIRE($result) if defined $result;
+	return $result;
+}
+
+sub FindKey {
+	my $result = MRSc::MIndex_FindKey(@_);
+	MRS::MKeys::ACQUIRE($result) if defined $result;
+	return $result;
+}
+
 *GetIDF = *MRSc::MIndex_GetIDF;
 sub new {
     my $pkg = shift;
@@ -378,7 +443,12 @@ package MRS::MIndices;
 @ISA = qw( MRS );
 %OWNER = ();
 %ITERATORS = ();
-*Next = *MRSc::MIndices_Next;
+sub Next {
+	my $result = MRSc::MIndices_Next(@_);
+	MRS::MIndex::ACQUIRE($result) if defined $result;
+	return $result;
+}
+
 sub new {
     my $pkg = shift;
     my $self = MRSc::new_MIndices(@_);
@@ -417,7 +487,12 @@ package MRS::MBlastHit;
 %ITERATORS = ();
 *Id = *MRSc::MBlastHit_Id;
 *Title = *MRSc::MBlastHit_Title;
-*Hsps = *MRSc::MBlastHit_Hsps;
+sub Hsps {
+	my $result = MRSc::MBlastHit_Hsps(@_);
+	MRS::MBlastHsps::ACQUIRE($result) if defined $result;
+	return $result;
+}
+
 sub new {
     my $pkg = shift;
     my $self = MRSc::new_MBlastHit(@_);
@@ -461,7 +536,12 @@ package MRS::MBlastHits;
 *Kappa = *MRSc::MBlastHits_Kappa;
 *Lambda = *MRSc::MBlastHits_Lambda;
 *Entropy = *MRSc::MBlastHits_Entropy;
-*Next = *MRSc::MBlastHits_Next;
+sub Next {
+	my $result = MRSc::MBlastHits_Next(@_);
+	MRS::MBlastHit::ACQUIRE($result) if defined $result;
+	return $result;
+}
+
 sub new {
     my $pkg = shift;
     my $self = MRSc::new_MBlastHits(@_);
@@ -546,7 +626,12 @@ package MRS::MBlastHsps;
 @ISA = qw( MRS );
 %OWNER = ();
 %ITERATORS = ();
-*Next = *MRSc::MBlastHsps_Next;
+sub Next {
+	my $result = MRSc::MBlastHsps_Next(@_);
+	MRS::MBlastHsp::ACQUIRE($result) if defined $result;
+	return $result;
+}
+
 sub new {
     my $pkg = shift;
     my $self = MRSc::new_MBlastHsps(@_);

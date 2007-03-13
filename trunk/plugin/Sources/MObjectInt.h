@@ -41,12 +41,18 @@
 #ifndef MOBJECTINT_H
 #define MOBJECTINT_H
 
+//#include <typeinfo>
+//#include "HError.h"
+
 #include "MObject.h"
 
 template<class Derived, class Impl>
 Derived* MRSObject<Derived,Impl>::Create(Impl* inImpl)
 {
 	Derived* result = new Derived;
+
+//PRINT(("New object of type %s: %p\n", typeid(inImpl).name(), inImpl));
+
 	result->fImpl = inImpl;
 	return result;
 }
@@ -54,6 +60,8 @@ Derived* MRSObject<Derived,Impl>::Create(Impl* inImpl)
 template<class Derived, class Impl>
 MRSObject<Derived,Impl>::~MRSObject()
 {
+//PRINT(("Deleting object of type %s: %p\n", typeid(fImpl).name(), fImpl));
+
 	delete fImpl;
 }
 

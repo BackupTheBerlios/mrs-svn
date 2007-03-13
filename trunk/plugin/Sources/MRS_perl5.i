@@ -126,6 +126,169 @@ extern std::string gErrStr;
 	}
 }
 
+%feature("shadow") MDatabank::Find
+%{
+	sub Find {
+		my $result = MRSc::MDatabank::Find(@_);
+		MRS::MQueryResults::ACQUIRE($result) if defined $result;
+		return $result;
+	}
+%}
+
+%feature("shadow") MDatabank::Match
+%{
+	sub Match {
+		my $result = MRSc::MDatabank::Match(@_);
+		MRS::MBooleanQuery::ACQUIRE($result) if defined $result;
+		return $result;
+	}
+%}
+
+%feature("shadow") MDatabank::MatchRel
+%{
+	sub MatchRel {
+		my $result = MRSc::MDatabank_MatchRel(@_);
+		MRS::MBooleanQuery::ACQUIRE($result) if defined $result;
+		return $result;
+	}
+%}
+
+%feature("shadow") MDatabank::BooleanQuery
+%{
+	sub BooleanQuery {
+		my $result = MRSc::MDatabank_BooleanQuery(@_);
+		MRS::MBooleanQuery::ACQUIRE($result) if defined $result;
+		return $result;
+	}
+%}
+
+%feature("shadow") MDatabank::Blast
+%{
+	sub Blast {
+		my $result = MRSc::MDatabank_Blast(@_);
+		MRS::MBlastHits::ACQUIRE($result) if defined $result;
+		return $result;
+	}
+%}
+
+%feature("shadow") MDatabank::Index
+%{
+	sub Index {
+		my $result = MRSc::MDatabank_Index(@_);
+		MRS::MIndex::ACQUIRE($result) if defined $result;
+		return $result;
+	}
+%}
+
+%feature("shadow") MDatabank::Indices
+%{
+	sub Indices {
+		my $result = MRSc::MDatabank_Indices(@_);
+		MRS::MIndices::ACQUIRE($result) if defined $result;
+		return $result;
+	}
+%}
+
+%feature("shadow") MDatabank::SuggestCorrection
+%{
+	sub SuggestCorrection {
+		my $result = MRSc::MDatabank_SuggestCorrection(@_);
+		MRS::MStringIterator::ACQUIRE($result) if defined $result;
+		return $result;
+	}
+%}
+
+// why do static functions not work?
+%feature("shadow") MBooleanQuery::Not
+%{
+	sub Not {
+		my $result = MRSc::MBooleanQuery_Not(@_);
+		MRS::MBooleanQuery::ACQUIRE($result) if defined $result;
+		return $result;
+	}
+%}
+
+%feature("shadow") MBooleanQuery::Perform
+%{
+	sub Perform {
+		my $result = MRSc::MBooleanQuery_Perform(@_);
+		MRS::MQueryResults::ACQUIRE($result) if defined $result;
+		return $result;
+	}
+%}
+
+%feature("shadow") MRankedQuery::Perform
+%{
+	sub Perform {
+		my $result = MRSc::MRankedQuery_Perform(@_);
+		MRS::MRankedQuery::ACQUIRE($result) if defined $result;
+		return $result;
+	}
+%}
+
+%feature("shadow") MQueryResults::Blast
+%{
+	sub Blast {
+		my $result = MRSc::MQueryResults_Blast(@_);
+		MRS::MBlastHits::ACQUIRE($result) if defined $result;
+		return $result;
+	}
+%}
+
+%feature("shadow") MIndex::Keys
+%{
+	sub Keys {
+		my $result = MRSc::MIndex_Keys(@_);
+		MRS::MKeys::ACQUIRE($result) if defined $result;
+		return $result;
+	}
+%}
+
+%feature("shadow") MIndex::FindKey
+%{
+	sub FindKey {
+		my $result = MRSc::MIndex_FindKey(@_);
+		MRS::MKeys::ACQUIRE($result) if defined $result;
+		return $result;
+	}
+%}
+
+%feature("shadow") MIndices::Next
+%{
+	sub Next {
+		my $result = MRSc::MIndices_Next(@_);
+		MRS::MIndex::ACQUIRE($result) if defined $result;
+		return $result;
+	}
+%}
+
+%feature("shadow") MBlastHit::Hsps
+%{
+	sub Hsps {
+		my $result = MRSc::MBlastHit_Hsps(@_);
+		MRS::MBlastHsps::ACQUIRE($result) if defined $result;
+		return $result;
+	}
+%}
+
+%feature("shadow") MBlastHits::Next
+%{
+	sub Next {
+		my $result = MRSc::MBlastHits_Next(@_);
+		MRS::MBlastHit::ACQUIRE($result) if defined $result;
+		return $result;
+	}
+%}
+
+%feature("shadow") MBlastHsps::Next
+%{
+	sub Next {
+		my $result = MRSc::MBlastHsps_Next(@_);
+		MRS::MBlastHsp::ACQUIRE($result) if defined $result;
+		return $result;
+	}
+%}
+
 %{
 #include "MRSInterface.h"
 %}
