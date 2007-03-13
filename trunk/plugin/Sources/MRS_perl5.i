@@ -129,7 +129,7 @@ extern std::string gErrStr;
 %feature("shadow") MDatabank::Find
 %{
 	sub Find {
-		my $result = MRSc::MDatabank::Find(@_);
+		my $result = MRSc::MDatabank_Find(@_);
 		MRS::MQueryResults::ACQUIRE($result) if defined $result;
 		return $result;
 	}
@@ -138,7 +138,7 @@ extern std::string gErrStr;
 %feature("shadow") MDatabank::Match
 %{
 	sub Match {
-		my $result = MRSc::MDatabank::Match(@_);
+		my $result = MRSc::MDatabank_Match(@_);
 		MRS::MBooleanQuery::ACQUIRE($result) if defined $result;
 		return $result;
 	}
