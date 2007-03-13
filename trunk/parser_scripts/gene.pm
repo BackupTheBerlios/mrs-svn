@@ -66,7 +66,7 @@ sub parse
 	
 	my $m = $self->{mrs};
 	
-	my ($doc, $last_id, $lookahead, $xml_header);
+	my ($doc, $title, $last_id, $lookahead, $xml_header);
 	my ($date_created, $date_updated, $date_discontinued);
 	
 	$lookahead = <IN>;
@@ -101,10 +101,13 @@ sub parse
 				$m->IndexDate("${k}d", $date);
 			}
 			
+			$m->StoreMetaData('title', $title);
 			$m->Store("$xml_header<Entrezgene-Set>\n$doc</Entrezgene-Set>\n");
 			$m->FlushDocument;
 			
 			$doc = undef;
+			$title = undef;
+
 			$date_created = undef;
 			$date_updated = undef;
 			$date_discontinued = undef;
@@ -128,7 +131,12 @@ sub parse
 			$m->IndexText('text', $2);
 			
 			if ($key eq 'Prot-ref_name_E') {
-				$m->StoreMetaData('title', $text);
+				if (defined $title) {
+					$title = "$title; $2";
+				}
+				else {
+					$title = $2;
+				}
 			}
 		}
 	}
