@@ -167,7 +167,7 @@ sub version
 	}
 	close RELDATE;
 
-	$version = "unknown uniprot version for db '$db'" unless defined $version;
+	$version = $self->SUPER::version() unless defined $version;
 	chomp($version);
 	
 	return $version;
