@@ -112,13 +112,18 @@ sub fetch($$$)
 		next if $e eq "." or $e eq "..";
 
 		my $path = "$remote_dir/$e";
+
+		if ($e =~ m/(.+) -> (.+)/) {   # a symbolic link perhaps? treat as regular file...
+			$path = "$remote_dir/$2";
+			$e = $1;
+		}
 		
 		my ($mdtm, $size);
 		
 		if (not defined $include or $e =~ /$include/)
 		{
-			$mdtm = $s->mdtm($e) or warn "Server does not support mdtm ($e)\n";
-			$size = $s->size($e) if defined $mdtm;
+			$mdtm = $s->mdtm($path) or warn "Server does not support mdtm ($path)\n";
+			$size = $s->size($path) if defined $mdtm;
 		}
 
 		if (defined $mdtm and defined $size)

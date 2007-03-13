@@ -11,7 +11,7 @@ MIRROR_INCLUDE=All_Data\.ags\.gz
 # what to make
 
 ZIPFILES = $(SRCDIR)All_Data.ags.gz
-# DATFILES = $(DSTDIR)All_Data.xgs.gz
+DATFILES = $(DSTDIR)All_Data.xgs.gz
 
 $(DSTDIR)All_Data.xgs.gz: $(SRCDIR)All_Data.ags.gz
 	$(GENE2XML) -i $< -o stdout -b -c | gzip -c > $@
