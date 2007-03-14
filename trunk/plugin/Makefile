@@ -56,7 +56,7 @@ endif
 
 SO_EXT		= .so
 LIBNAME		= libmrs
-VERSION		= 3.0a1
+VERSION		= 3.0.1
 # DEBUG should be either 1 or 0
 DEBUG		= 0
 DEFINES		= CPU_$(CPU) MINI_H_LIB
