@@ -47,6 +47,7 @@ struct ns__BlastResult {
 
 int ns__BlastSync(
 	xsd__string					db,
+	xsd__string					mrsBooleanQuery = "",
 	xsd__string					query,
 	xsd__string					program = "blastp",
 	xsd__string					matrix = "BLOSUM62",
@@ -60,6 +61,7 @@ int ns__BlastSync(
 
 int ns__BlastAsync(
 	xsd__string					db,
+	xsd__string					mrsBooleanQuery = "",
 	xsd__string					query,
 	xsd__string					program = "blastp",
 	xsd__string					matrix = "BLOSUM62",

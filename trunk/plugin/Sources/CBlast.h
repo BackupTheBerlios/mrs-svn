@@ -118,8 +118,6 @@ class CBlast
 	
 
 	bool				Find(CDatabankBase& inDb, CDocIterator& inIter);
-	
-	std::string			ReportInXML();
 
 	unsigned long		DbCount();
 	unsigned long		DbLength();

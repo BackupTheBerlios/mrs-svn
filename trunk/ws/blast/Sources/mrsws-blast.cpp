@@ -204,6 +204,7 @@ struct CBlastJobParameters
 {
 						CBlastJobParameters(
 							string			inDB,
+							string			inMrsBooleanQuery,
 							string			inQuery,
 							string			inProgram,
 							string			inMatrix,
@@ -218,6 +219,7 @@ struct CBlastJobParameters
 							const CBlastJobParameters& inOther);
 
 	string				mDB;
+	string				mMrsBooleanQuery;
 	string				mQuery;
 	string				mProgram;
 	string				mMatrix;
@@ -233,6 +235,7 @@ struct CBlastJobParameters
 
 CBlastJobParameters::CBlastJobParameters(
 	string			inDB,
+	string			inMrsBooleanQuery,
 	string			inQuery,
 	string			inProgram,
 	string			inMatrix,
@@ -243,6 +246,7 @@ CBlastJobParameters::CBlastJobParameters(
 	unsigned long	inGapOpen,
 	unsigned long	inGapExtend)
 	: mDB(inDB)
+	, mMrsBooleanQuery(inMrsBooleanQuery)
 	, mQuery(inQuery)
 	, mProgram(inProgram)
 	, mMatrix(inMatrix)
@@ -258,6 +262,7 @@ CBlastJobParameters::CBlastJobParameters(
 CBlastJobParameters::CBlastJobParameters(
 	const CBlastJobParameters& inOther)
 	: mDB(inOther.mDB)
+	, mMrsBooleanQuery(inOther.mMrsBooleanQuery)
 	, mQuery(inOther.mQuery)
 	, mProgram(inOther.mProgram)
 	, mMatrix(inOther.mMatrix)
@@ -274,6 +279,7 @@ bool CBlastJobParameters::operator==(const CBlastJobParameters& inOther) const
 {
 	return
 		mDB == inOther.mDB and
+		mMrsBooleanQuery == inOther.mMrsBooleanQuery and
 		mQuery == inOther.mQuery and
 		mProgram == inOther.mProgram and
 		mMatrix == inOther.mMatrix and
@@ -296,6 +302,7 @@ ostream& operator<<(ostream& inStream, const CBlastJobParameters& inParams)
 	
 	inStream << endl << "params" << endl
 			 << "db:                    " << inParams.mDB << endl
+			 << "mrs-boolean-query:     " << inParams.mMrsBooleanQuery << endl
 			 << "query:                 " << query << endl
 			 << "program:               " << inParams.mProgram << endl
 			 << "matrix:                " << inParams.mMatrix << endl
@@ -549,9 +556,22 @@ void DoBlast(
 	
 	MDatabankPtr mrsDb = WSDatabankTable::Instance()[inParams.mDB];
 
-	auto_ptr<MBlastHits> hits(mrsDb->Blast(inParams.mQuery, inParams.mMatrix,
-		inParams.mWordSize, inParams.mExpect, inParams.mLowComplexityFilter,
-		inParams.mGapped, inParams.mGapOpen, inParams.mGapExtend));
+	auto_ptr<MBlastHits> hits;
+	
+	if (inParams.mMrsBooleanQuery.length() > 0)
+	{
+		auto_ptr<MQueryResults> qr(mrsDb->Find(inParams.mMrsBooleanQuery));
+		if (qr.get() != nil)
+		{
+			hits.reset(qr->Blast(inParams.mQuery, inParams.mMatrix,
+				inParams.mWordSize, inParams.mExpect, inParams.mLowComplexityFilter,
+				inParams.mGapped, inParams.mGapOpen, inParams.mGapExtend));
+		}
+	}
+	else
+		hits.reset(mrsDb->Blast(inParams.mQuery, inParams.mMatrix,
+			inParams.mWordSize, inParams.mExpect, inParams.mLowComplexityFilter,
+			inParams.mGapped, inParams.mGapOpen, inParams.mGapExtend));
 
 	if (hits.get() != NULL)
 	{
@@ -605,6 +625,7 @@ SOAP_FMAC5 int SOAP_FMAC6
 ns__BlastSync(
 	struct soap*						soap,
 	string								db,
+	string								mrsBooleanQuery,
 	string								query,
 	string								program,
 	string								matrix,
@@ -625,8 +646,8 @@ ns__BlastSync(
 		if (query.length() <= word_size)
 			THROW(("Query sequence too short"));
 		
-		CBlastJobParameters params(db, query, program, matrix, word_size,
-			expect, low_complexity_filter, gapped, gap_open, gap_extend);
+		CBlastJobParameters params(db, mrsBooleanQuery, query, program, matrix,
+			word_size, expect, low_complexity_filter, gapped, gap_open, gap_extend);
 		
 		log << params;
 		
@@ -648,6 +669,7 @@ SOAP_FMAC5 int SOAP_FMAC6
 ns__BlastAsync(
 	struct soap*						soap,
 	string								db,
+	string								mrsBooleanQuery,
 	string								query,
 	string								program,
 	string								matrix,
@@ -668,8 +690,8 @@ ns__BlastAsync(
 		if (query.length() <= word_size)
 			THROW(("Query sequence too short"));
 		
-		CBlastJobParameters params(db, query, program, matrix, word_size,
-			expect, low_complexity_filter, gapped, gap_open, gap_extend);
+		CBlastJobParameters params(db, mrsBooleanQuery, query, program, matrix,
+			word_size, expect, low_complexity_filter, gapped, gap_open, gap_extend);
 
 		log << params;
 		

@@ -135,6 +135,11 @@ int ns__FindAllSimilar(
 	std::vector<struct ns__FindAllResult>&
 								response);
 
+int ns__Count(
+	xsd__string					db,
+	xsd__string					booleanquery,
+	unsigned long&				response);
+
 int ns__SpellCheck(
 	xsd__string					db,
 	xsd__string					queryterm,

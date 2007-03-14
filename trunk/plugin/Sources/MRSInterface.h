@@ -225,20 +225,20 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 							const std::string& inName, const std::string& inURL,
 							const std::string& inScriptName, const std::string& inSection);
 
-	long				Count();			/**< \brief Return the number of documents in this databank */
-	std::string			GetCode();			/**< \brief Return the short name (also called code) for this databank */
-	std::string			GetVersion();		/**< \brief Return the version string for this databank */
-	std::string			GetUUID();			/**< \brief Return the UUID for this databank */
-	std::string			GetName();			/**< \brief Return the pretty name for this databank */
-	std::string			GetInfoURL();		/**< \brief Return the URL pointing to information about this databank */
-	std::string			GetScriptName();	/**< \brief Return the name of the script used for processing this databank */
-	std::string			GetSection();		/**< \brief Return the section to which this databank belongs (protein, literature, etc.) */
-	std::string			GetFilePath();		/**< \brief Return the path to the file for this databank */
-	bool				IsUpToDate();		/**< \brief Checks to see if our data still resides on disk */
-	long long			GetRawDataSize();	/**< \brief Return the original data size (size of all Stored documents) */
-	void				DumpInfo();			/**< \brief Print to stdout some information about this databank */
-	void				DumpIndex(const std::string& inIndex);
-											/**< \brief Print on stdout the contents of index \a inIndex */
+	long				Count() const;			/**< \brief Return the number of documents in this databank */
+	std::string			GetCode() const;		/**< \brief Return the short name (also called code) for this databank */
+	std::string			GetVersion() const;		/**< \brief Return the version string for this databank */
+	std::string			GetUUID() const;		/**< \brief Return the UUID for this databank */
+	std::string			GetName() const;		/**< \brief Return the pretty name for this databank */
+	std::string			GetInfoURL() const;		/**< \brief Return the URL pointing to information about this databank */
+	std::string			GetScriptName() const;	/**< \brief Return the name of the script used for processing this databank */
+	std::string			GetSection() const;		/**< \brief Return the section to which this databank belongs (protein, literature, etc.) */
+	std::string			GetFilePath() const;	/**< \brief Return the path to the file for this databank */
+	bool				IsUpToDate() const;		/**< \brief Checks to see if our data still resides on disk */
+	long long			GetRawDataSize() const;	/**< \brief Return the original data size (size of all Stored documents) */
+	void				DumpInfo() const;		/**< \brief Print to stdout some information about this databank */
+	void				DumpIndex(const std::string& inIndex) const;
+												/**< \brief Print on stdout the contents of index \a inIndex */
 	
 	/** \brief	Load the document weight vectors into memory for the specified index
 	 *
@@ -927,8 +927,6 @@ class MBlastHit : public MRSObject<MBlastHit, struct MBlastHitImp>
 class MBlastHits : public MRSObject<MBlastHits, struct MBlastHitsImp>
 {
   public:
-	const char*			ReportInXML();
-
 	unsigned long		DbCount();
 	unsigned long		DbLength();
 	unsigned long		EffectiveSpace();

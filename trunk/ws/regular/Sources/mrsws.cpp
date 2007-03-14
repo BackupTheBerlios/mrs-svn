@@ -986,6 +986,37 @@ ns__FindAllSimilar(
 	return result;
 }
 
+SOAP_FMAC5 int SOAP_FMAC6
+ns__Count(
+	struct soap*		soap,
+	string				db,
+	string				booleanquery,
+	unsigned long&		response)
+{
+	WLogger log(soap->ip, __func__);
+	
+	int result = SOAP_OK;
+	response = 0;
+	
+	try
+	{
+		WSDatabankTable& dbt = WSDatabankTable::Instance();
+		
+		MDatabankPtr mrsDb = dbt[db];
+		auto_ptr<MQueryResults> r(mrsDb->Find(booleanquery));
+		if (r.get() != nil)
+			response = r->Count(true);
+	}
+	catch (exception& e)
+	{
+		return soap_receiver_fault(soap,
+			"An error occurred while doing a Count",
+			e.what());
+	}
+
+	return result;
+}
+
 // --------------------------------------------------------------------
 // 
 //   main body

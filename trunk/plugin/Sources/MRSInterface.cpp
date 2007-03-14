@@ -548,67 +548,67 @@ void MDatabank::Merge(const string& inPath, MDatabankArray inDbs, bool inCopyDat
 		PrintStatistics();
 }
 
-long MDatabank::Count()
+long MDatabank::Count() const
 {
 	return fImpl->fDatabank->Count();
 }
 
-string MDatabank::GetCode()
+string MDatabank::GetCode() const
 {
 	return fImpl->fDatabank->GetDbName();
 }
 
-string MDatabank::GetVersion()
+string MDatabank::GetVersion() const
 {
 	return fImpl->fDatabank->GetVersion();
 }
 
-string MDatabank::GetUUID()
+string MDatabank::GetUUID() const
 {
 	return fImpl->fDatabank->GetUUID();
 }
 
-string MDatabank::GetName()
+string MDatabank::GetName() const
 {
 	return fImpl->fDatabank->GetName();
 }
 
-string MDatabank::GetInfoURL()
+string MDatabank::GetInfoURL() const
 {
 	return fImpl->fDatabank->GetInfoURL();
 }
 
-string MDatabank::GetScriptName()
+string MDatabank::GetScriptName() const
 {
 	return fImpl->fDatabank->GetScriptName();
 }
 
-string MDatabank::GetSection()
+string MDatabank::GetSection() const
 {
 	return fImpl->fDatabank->GetSection();
 }
 
-bool MDatabank::IsUpToDate()
+bool MDatabank::IsUpToDate() const
 {
 	return fImpl->fDatabank->IsUpToDate();
 }
 
-string MDatabank::GetFilePath()
+string MDatabank::GetFilePath() const
 {
 	return fImpl->GetDB()->GetDataUrl().GetURL();
 }
 
-long long MDatabank::GetRawDataSize()
+long long MDatabank::GetRawDataSize() const
 {
 	return fImpl->fDatabank->GetRawDataSize();
 }
 
-void MDatabank::DumpInfo()
+void MDatabank::DumpInfo() const
 {
 	fImpl->fDatabank->PrintInfo();
 }
 
-void MDatabank::DumpIndex(const string& inIndex)
+void MDatabank::DumpIndex(const string& inIndex) const
 {
 	fImpl->GetDB()->DumpIndex(inIndex);
 }
@@ -1243,12 +1243,6 @@ MBlastHsps* MBlastHit::Hsps()
 //
 //  class MBlastHits
 //
-
-const char* MBlastHits::ReportInXML()
-{
-	fImpl->fScratch = fImpl->fBlast.ReportInXML();
-	return fImpl->fScratch.c_str();
-}
 
 unsigned long MBlastHits::DbCount()
 {
