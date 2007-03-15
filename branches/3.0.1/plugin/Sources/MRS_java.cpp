@@ -843,10 +843,17 @@ JNIEXPORT jlong JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_new_1MDatabank(JNIEnv *
 }
 
 
-JNIEXPORT jlong JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1Create(JNIEnv *jenv, jclass jcls, jstring jarg1) {
+JNIEXPORT jlong JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1Create(JNIEnv *jenv, jclass jcls, jstring jarg1, jlong jarg2, jstring jarg3, jstring jarg4, jstring jarg5, jstring jarg6, jstring jarg7) {
     jlong jresult = 0 ;
     std::string *arg1 = 0 ;
+    SwigValueWrapper<std::vector<std::string > > arg2 ;
+    std::string *arg3 = 0 ;
+    std::string *arg4 = 0 ;
+    std::string *arg5 = 0 ;
+    std::string *arg6 = 0 ;
+    std::string *arg7 = 0 ;
     MDatabank *result;
+    MStringArray *argp2 ;
     
     (void)jenv;
     (void)jcls;
@@ -859,9 +866,60 @@ JNIEXPORT jlong JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1Create(JNIEn
     std::string arg1_str(arg1_pstr);
     arg1 = &arg1_str;
     jenv->ReleaseStringUTFChars(jarg1, arg1_pstr); 
+    argp2 = *(MStringArray **)(void *)&jarg2; 
+    if (!argp2) {
+        SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null MStringArray");
+        return 0;
+    }
+    arg2 = *argp2; 
+    if(!jarg3) {
+        SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "null std::string");
+        return 0;
+    }
+    const char *arg3_pstr = (const char *)jenv->GetStringUTFChars(jarg3, 0); 
+    if (!arg3_pstr) return 0;
+    std::string arg3_str(arg3_pstr);
+    arg3 = &arg3_str;
+    jenv->ReleaseStringUTFChars(jarg3, arg3_pstr); 
+    if(!jarg4) {
+        SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "null std::string");
+        return 0;
+    }
+    const char *arg4_pstr = (const char *)jenv->GetStringUTFChars(jarg4, 0); 
+    if (!arg4_pstr) return 0;
+    std::string arg4_str(arg4_pstr);
+    arg4 = &arg4_str;
+    jenv->ReleaseStringUTFChars(jarg4, arg4_pstr); 
+    if(!jarg5) {
+        SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "null std::string");
+        return 0;
+    }
+    const char *arg5_pstr = (const char *)jenv->GetStringUTFChars(jarg5, 0); 
+    if (!arg5_pstr) return 0;
+    std::string arg5_str(arg5_pstr);
+    arg5 = &arg5_str;
+    jenv->ReleaseStringUTFChars(jarg5, arg5_pstr); 
+    if(!jarg6) {
+        SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "null std::string");
+        return 0;
+    }
+    const char *arg6_pstr = (const char *)jenv->GetStringUTFChars(jarg6, 0); 
+    if (!arg6_pstr) return 0;
+    std::string arg6_str(arg6_pstr);
+    arg6 = &arg6_str;
+    jenv->ReleaseStringUTFChars(jarg6, arg6_pstr); 
+    if(!jarg7) {
+        SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "null std::string");
+        return 0;
+    }
+    const char *arg7_pstr = (const char *)jenv->GetStringUTFChars(jarg7, 0); 
+    if (!arg7_pstr) return 0;
+    std::string arg7_str(arg7_pstr);
+    arg7 = &arg7_str;
+    jenv->ReleaseStringUTFChars(jarg7, arg7_pstr); 
     {
         try {
-            result = (MDatabank *)MDatabank::Create((std::string const &)*arg1);
+            result = (MDatabank *)MDatabank::Create((std::string const &)*arg1,arg2,(std::string const &)*arg3,(std::string const &)*arg4,(std::string const &)*arg5,(std::string const &)*arg6,(std::string const &)*arg7);
             
         }
         catch (const std::exception& e) {
@@ -882,10 +940,14 @@ JNIEXPORT jlong JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1Create(JNIEn
 }
 
 
-JNIEXPORT void JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1Merge(JNIEnv *jenv, jclass jcls, jstring jarg1, jlong jarg2, jboolean jarg3) {
+JNIEXPORT void JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1Merge(JNIEnv *jenv, jclass jcls, jstring jarg1, jlong jarg2, jboolean jarg3, jstring jarg4, jstring jarg5, jstring jarg6, jstring jarg7) {
     std::string *arg1 = 0 ;
     SwigValueWrapper<std::vector<MDatabank * > > arg2 ;
     bool arg3 ;
+    std::string *arg4 = 0 ;
+    std::string *arg5 = 0 ;
+    std::string *arg6 = 0 ;
+    std::string *arg7 = 0 ;
     jint size2 ;
     
     (void)jenv;
@@ -916,9 +978,45 @@ JNIEXPORT void JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1Merge(JNIEnv 
         arg2 = a;
     }
     arg3 = jarg3 ? true : false; 
+    if(!jarg4) {
+        SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "null std::string");
+        return ;
+    }
+    const char *arg4_pstr = (const char *)jenv->GetStringUTFChars(jarg4, 0); 
+    if (!arg4_pstr) return ;
+    std::string arg4_str(arg4_pstr);
+    arg4 = &arg4_str;
+    jenv->ReleaseStringUTFChars(jarg4, arg4_pstr); 
+    if(!jarg5) {
+        SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "null std::string");
+        return ;
+    }
+    const char *arg5_pstr = (const char *)jenv->GetStringUTFChars(jarg5, 0); 
+    if (!arg5_pstr) return ;
+    std::string arg5_str(arg5_pstr);
+    arg5 = &arg5_str;
+    jenv->ReleaseStringUTFChars(jarg5, arg5_pstr); 
+    if(!jarg6) {
+        SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "null std::string");
+        return ;
+    }
+    const char *arg6_pstr = (const char *)jenv->GetStringUTFChars(jarg6, 0); 
+    if (!arg6_pstr) return ;
+    std::string arg6_str(arg6_pstr);
+    arg6 = &arg6_str;
+    jenv->ReleaseStringUTFChars(jarg6, arg6_pstr); 
+    if(!jarg7) {
+        SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "null std::string");
+        return ;
+    }
+    const char *arg7_pstr = (const char *)jenv->GetStringUTFChars(jarg7, 0); 
+    if (!arg7_pstr) return ;
+    std::string arg7_str(arg7_pstr);
+    arg7 = &arg7_str;
+    jenv->ReleaseStringUTFChars(jarg7, arg7_pstr); 
     {
         try {
-            MDatabank::Merge((std::string const &)*arg1,arg2,arg3);
+            MDatabank::Merge((std::string const &)*arg1,arg2,arg3,(std::string const &)*arg4,(std::string const &)*arg5,(std::string const &)*arg6,(std::string const &)*arg7);
             
         }
         catch (const std::exception& e) {
@@ -947,7 +1045,7 @@ JNIEXPORT jint JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1Count(JNIEnv 
     arg1 = *(MDatabank **)(void *)&jarg1; 
     {
         try {
-            result = (long)(arg1)->Count();
+            result = (long)((MDatabank const *)arg1)->Count();
             
         }
         catch (const std::exception& e) {
@@ -968,6 +1066,37 @@ JNIEXPORT jint JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1Count(JNIEnv 
 }
 
 
+JNIEXPORT jstring JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1GetCode(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    jstring jresult = 0 ;
+    MDatabank *arg1 = (MDatabank *) 0 ;
+    std::string result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MDatabank **)(void *)&jarg1; 
+    {
+        try {
+            result = ((MDatabank const *)arg1)->GetCode();
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
+    }
+    jresult = jenv->NewStringUTF((&result)->c_str()); 
+    return jresult;
+}
+
+
 JNIEXPORT jstring JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1GetVersion(JNIEnv *jenv, jclass jcls, jlong jarg1) {
     jstring jresult = 0 ;
     MDatabank *arg1 = (MDatabank *) 0 ;
@@ -978,7 +1107,7 @@ JNIEXPORT jstring JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1GetVersion
     arg1 = *(MDatabank **)(void *)&jarg1; 
     {
         try {
-            result = (arg1)->GetVersion();
+            result = ((MDatabank const *)arg1)->GetVersion();
             
         }
         catch (const std::exception& e) {
@@ -1009,7 +1138,7 @@ JNIEXPORT jstring JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1GetUUID(JN
     arg1 = *(MDatabank **)(void *)&jarg1; 
     {
         try {
-            result = (arg1)->GetUUID();
+            result = ((MDatabank const *)arg1)->GetUUID();
             
         }
         catch (const std::exception& e) {
@@ -1030,6 +1159,223 @@ JNIEXPORT jstring JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1GetUUID(JN
 }
 
 
+JNIEXPORT jstring JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1GetName(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    jstring jresult = 0 ;
+    MDatabank *arg1 = (MDatabank *) 0 ;
+    std::string result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MDatabank **)(void *)&jarg1; 
+    {
+        try {
+            result = ((MDatabank const *)arg1)->GetName();
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
+    }
+    jresult = jenv->NewStringUTF((&result)->c_str()); 
+    return jresult;
+}
+
+
+JNIEXPORT jstring JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1GetInfoURL(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    jstring jresult = 0 ;
+    MDatabank *arg1 = (MDatabank *) 0 ;
+    std::string result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MDatabank **)(void *)&jarg1; 
+    {
+        try {
+            result = ((MDatabank const *)arg1)->GetInfoURL();
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
+    }
+    jresult = jenv->NewStringUTF((&result)->c_str()); 
+    return jresult;
+}
+
+
+JNIEXPORT jstring JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1GetScriptName(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    jstring jresult = 0 ;
+    MDatabank *arg1 = (MDatabank *) 0 ;
+    std::string result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MDatabank **)(void *)&jarg1; 
+    {
+        try {
+            result = ((MDatabank const *)arg1)->GetScriptName();
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
+    }
+    jresult = jenv->NewStringUTF((&result)->c_str()); 
+    return jresult;
+}
+
+
+JNIEXPORT jstring JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1GetSection(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    jstring jresult = 0 ;
+    MDatabank *arg1 = (MDatabank *) 0 ;
+    std::string result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MDatabank **)(void *)&jarg1; 
+    {
+        try {
+            result = ((MDatabank const *)arg1)->GetSection();
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
+    }
+    jresult = jenv->NewStringUTF((&result)->c_str()); 
+    return jresult;
+}
+
+
+JNIEXPORT jstring JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1GetFilePath(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    jstring jresult = 0 ;
+    MDatabank *arg1 = (MDatabank *) 0 ;
+    std::string result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MDatabank **)(void *)&jarg1; 
+    {
+        try {
+            result = ((MDatabank const *)arg1)->GetFilePath();
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
+    }
+    jresult = jenv->NewStringUTF((&result)->c_str()); 
+    return jresult;
+}
+
+
+JNIEXPORT jboolean JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1IsUpToDate(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    jboolean jresult = 0 ;
+    MDatabank *arg1 = (MDatabank *) 0 ;
+    bool result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MDatabank **)(void *)&jarg1; 
+    {
+        try {
+            result = (bool)((MDatabank const *)arg1)->IsUpToDate();
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
+    }
+    jresult = (jboolean)result; 
+    return jresult;
+}
+
+
+JNIEXPORT jlong JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1GetRawDataSize(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    jlong jresult = 0 ;
+    MDatabank *arg1 = (MDatabank *) 0 ;
+    long long result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MDatabank **)(void *)&jarg1; 
+    {
+        try {
+            result = (long long)((MDatabank const *)arg1)->GetRawDataSize();
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
+    }
+    jresult = (jlong)result; 
+    return jresult;
+}
+
+
 JNIEXPORT void JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1DumpInfo(JNIEnv *jenv, jclass jcls, jlong jarg1) {
     MDatabank *arg1 = (MDatabank *) 0 ;
     
@@ -1038,7 +1384,7 @@ JNIEXPORT void JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1DumpInfo(JNIE
     arg1 = *(MDatabank **)(void *)&jarg1; 
     {
         try {
-            (arg1)->DumpInfo();
+            ((MDatabank const *)arg1)->DumpInfo();
             
         }
         catch (const std::exception& e) {
@@ -1075,7 +1421,7 @@ JNIEXPORT void JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1DumpIndex(JNI
     jenv->ReleaseStringUTFChars(jarg2, arg2_pstr); 
     {
         try {
-            (arg1)->DumpIndex((std::string const &)*arg2);
+            ((MDatabank const *)arg1)->DumpIndex((std::string const &)*arg2);
             
         }
         catch (const std::exception& e) {
@@ -1595,6 +1941,133 @@ JNIEXPORT jstring JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1Get(JNIEnv
 }
 
 
+JNIEXPORT jstring JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1GetMetaData(JNIEnv *jenv, jclass jcls, jlong jarg1, jstring jarg2, jstring jarg3) {
+    jstring jresult = 0 ;
+    MDatabank *arg1 = (MDatabank *) 0 ;
+    std::string *arg2 = 0 ;
+    std::string *arg3 = 0 ;
+    char *result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MDatabank **)(void *)&jarg1; 
+    if(!jarg2) {
+        SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "null std::string");
+        return 0;
+    }
+    const char *arg2_pstr = (const char *)jenv->GetStringUTFChars(jarg2, 0); 
+    if (!arg2_pstr) return 0;
+    std::string arg2_str(arg2_pstr);
+    arg2 = &arg2_str;
+    jenv->ReleaseStringUTFChars(jarg2, arg2_pstr); 
+    if(!jarg3) {
+        SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "null std::string");
+        return 0;
+    }
+    const char *arg3_pstr = (const char *)jenv->GetStringUTFChars(jarg3, 0); 
+    if (!arg3_pstr) return 0;
+    std::string arg3_str(arg3_pstr);
+    arg3 = &arg3_str;
+    jenv->ReleaseStringUTFChars(jarg3, arg3_pstr); 
+    {
+        try {
+            result = (char *)(arg1)->GetMetaData((std::string const &)*arg2,(std::string const &)*arg3);
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
+    }
+    {
+        if(result) jresult = jenv->NewStringUTF(result); 
+    }
+    return jresult;
+}
+
+
+JNIEXPORT jstring JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1GetDescription(JNIEnv *jenv, jclass jcls, jlong jarg1, jstring jarg2) {
+    jstring jresult = 0 ;
+    MDatabank *arg1 = (MDatabank *) 0 ;
+    std::string *arg2 = 0 ;
+    char *result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MDatabank **)(void *)&jarg1; 
+    if(!jarg2) {
+        SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "null std::string");
+        return 0;
+    }
+    const char *arg2_pstr = (const char *)jenv->GetStringUTFChars(jarg2, 0); 
+    if (!arg2_pstr) return 0;
+    std::string arg2_str(arg2_pstr);
+    arg2 = &arg2_str;
+    jenv->ReleaseStringUTFChars(jarg2, arg2_pstr); 
+    {
+        try {
+            result = (char *)(arg1)->GetDescription((std::string const &)*arg2);
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
+    }
+    {
+        if(result) jresult = jenv->NewStringUTF(result); 
+    }
+    return jresult;
+}
+
+
+JNIEXPORT jboolean JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1ContainsBlastIndex(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    jboolean jresult = 0 ;
+    MDatabank *arg1 = (MDatabank *) 0 ;
+    bool result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MDatabank **)(void *)&jarg1; 
+    {
+        try {
+            result = (bool)((MDatabank const *)arg1)->ContainsBlastIndex();
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
+    }
+    jresult = (jboolean)result; 
+    return jresult;
+}
+
+
 JNIEXPORT jstring JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1Sequence_1_1SWIG_10(JNIEnv *jenv, jclass jcls, jlong jarg1, jstring jarg2, jlong jarg3) {
     jstring jresult = 0 ;
     MDatabank *arg1 = (MDatabank *) 0 ;
@@ -1876,6 +2349,53 @@ JNIEXPORT void JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1SetStopWords(
     {
         try {
             (arg1)->SetStopWords(arg2);
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return ;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return ;
+        }
+    }
+}
+
+
+JNIEXPORT void JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1StoreMetaData(JNIEnv *jenv, jclass jcls, jlong jarg1, jstring jarg2, jstring jarg3) {
+    MDatabank *arg1 = (MDatabank *) 0 ;
+    std::string *arg2 = 0 ;
+    std::string *arg3 = 0 ;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MDatabank **)(void *)&jarg1; 
+    if(!jarg2) {
+        SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "null std::string");
+        return ;
+    }
+    const char *arg2_pstr = (const char *)jenv->GetStringUTFChars(jarg2, 0); 
+    if (!arg2_pstr) return ;
+    std::string arg2_str(arg2_pstr);
+    arg2 = &arg2_str;
+    jenv->ReleaseStringUTFChars(jarg2, arg2_pstr); 
+    if(!jarg3) {
+        SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "null std::string");
+        return ;
+    }
+    const char *arg3_pstr = (const char *)jenv->GetStringUTFChars(jarg3, 0); 
+    if (!arg3_pstr) return ;
+    std::string arg3_str(arg3_pstr);
+    arg3 = &arg3_str;
+    jenv->ReleaseStringUTFChars(jarg3, arg3_pstr); 
+    {
+        try {
+            (arg1)->StoreMetaData((std::string const &)*arg2,(std::string const &)*arg3);
             
         }
         catch (const std::exception& e) {
@@ -2326,25 +2846,19 @@ JNIEXPORT void JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1FlushDocument
 }
 
 
-JNIEXPORT void JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1SetVersion(JNIEnv *jenv, jclass jcls, jlong jarg1, jstring jarg2) {
+JNIEXPORT void JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1Finish_1_1SWIG_10(JNIEnv *jenv, jclass jcls, jlong jarg1, jboolean jarg2, jboolean jarg3) {
     MDatabank *arg1 = (MDatabank *) 0 ;
-    std::string *arg2 = 0 ;
+    bool arg2 ;
+    bool arg3 ;
     
     (void)jenv;
     (void)jcls;
     arg1 = *(MDatabank **)(void *)&jarg1; 
-    if(!jarg2) {
-        SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "null std::string");
-        return ;
-    }
-    const char *arg2_pstr = (const char *)jenv->GetStringUTFChars(jarg2, 0); 
-    if (!arg2_pstr) return ;
-    std::string arg2_str(arg2_pstr);
-    arg2 = &arg2_str;
-    jenv->ReleaseStringUTFChars(jarg2, arg2_pstr); 
+    arg2 = jarg2 ? true : false; 
+    arg3 = jarg3 ? true : false; 
     {
         try {
-            (arg1)->SetVersion((std::string const &)*arg2);
+            (arg1)->Finish(arg2,arg3);
             
         }
         catch (const std::exception& e) {
@@ -2363,7 +2877,7 @@ JNIEXPORT void JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1SetVersion(JN
 }
 
 
-JNIEXPORT void JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1Finish_1_1SWIG_10(JNIEnv *jenv, jclass jcls, jlong jarg1, jboolean jarg2) {
+JNIEXPORT void JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1Finish_1_1SWIG_11(JNIEnv *jenv, jclass jcls, jlong jarg1, jboolean jarg2) {
     MDatabank *arg1 = (MDatabank *) 0 ;
     bool arg2 ;
     
@@ -2392,7 +2906,7 @@ JNIEXPORT void JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1Finish_1_1SWI
 }
 
 
-JNIEXPORT void JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1Finish_1_1SWIG_11(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+JNIEXPORT void JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MDatabank_1Finish_1_1SWIG_12(JNIEnv *jenv, jclass jcls, jlong jarg1) {
     MDatabank *arg1 = (MDatabank *) 0 ;
     
     (void)jenv;
@@ -2614,6 +3128,33 @@ JNIEXPORT jlong JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBooleanQuery_1Perform(
 }
 
 
+JNIEXPORT void JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBooleanQuery_1Prefetch(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    MBooleanQuery *arg1 = (MBooleanQuery *) 0 ;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MBooleanQuery **)(void *)&jarg1; 
+    {
+        try {
+            (arg1)->Prefetch();
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return ;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return ;
+        }
+    }
+}
+
+
 JNIEXPORT jlong JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_new_1MBooleanQuery(JNIEnv *jenv, jclass jcls) {
     jlong jresult = 0 ;
     MBooleanQuery *result;
@@ -2691,6 +3232,43 @@ JNIEXPORT void JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MRankedQuery_1AddTerm(JN
     {
         try {
             (arg1)->AddTerm((std::string const &)*arg2,arg3);
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return ;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return ;
+        }
+    }
+}
+
+
+JNIEXPORT void JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MRankedQuery_1AddTermsFromText(JNIEnv *jenv, jclass jcls, jlong jarg1, jstring jarg2) {
+    MRankedQuery *arg1 = (MRankedQuery *) 0 ;
+    std::string *arg2 = 0 ;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MRankedQuery **)(void *)&jarg1; 
+    if(!jarg2) {
+        SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "null std::string");
+        return ;
+    }
+    const char *arg2_pstr = (const char *)jenv->GetStringUTFChars(jarg2, 0); 
+    if (!arg2_pstr) return ;
+    std::string arg2_str(arg2_pstr);
+    arg2 = &arg2_str;
+    jenv->ReleaseStringUTFChars(jarg2, arg2_pstr); 
+    {
+        try {
+            (arg1)->AddTermsFromText((std::string const &)*arg2);
             
         }
         catch (const std::exception& e) {
@@ -3669,6 +4247,39 @@ JNIEXPORT jstring JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBlastHit_1Id(JNIEnv 
 }
 
 
+JNIEXPORT jstring JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBlastHit_1Title(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    jstring jresult = 0 ;
+    MBlastHit *arg1 = (MBlastHit *) 0 ;
+    char *result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MBlastHit **)(void *)&jarg1; 
+    {
+        try {
+            result = (char *)(arg1)->Title();
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
+    }
+    {
+        if(result) jresult = jenv->NewStringUTF(result); 
+    }
+    return jresult;
+}
+
+
 JNIEXPORT jlong JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBlastHit_1Hsps(JNIEnv *jenv, jclass jcls, jlong jarg1) {
     jlong jresult = 0 ;
     MBlastHit *arg1 = (MBlastHit *) 0 ;
@@ -3756,17 +4367,17 @@ JNIEXPORT void JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_delete_1MBlastHit(JNIEnv
 }
 
 
-JNIEXPORT jstring JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBlastHits_1ReportInXML(JNIEnv *jenv, jclass jcls, jlong jarg1) {
-    jstring jresult = 0 ;
+JNIEXPORT jlong JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBlastHits_1DbCount(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    jlong jresult = 0 ;
     MBlastHits *arg1 = (MBlastHits *) 0 ;
-    char *result;
+    unsigned long result;
     
     (void)jenv;
     (void)jcls;
     arg1 = *(MBlastHits **)(void *)&jarg1; 
     {
         try {
-            result = (char *)(arg1)->ReportInXML();
+            result = (unsigned long)(arg1)->DbCount();
             
         }
         catch (const std::exception& e) {
@@ -3782,9 +4393,162 @@ JNIEXPORT jstring JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBlastHits_1ReportInX
             return 0;
         }
     }
+    jresult = (jlong)result; 
+    return jresult;
+}
+
+
+JNIEXPORT jlong JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBlastHits_1DbLength(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    jlong jresult = 0 ;
+    MBlastHits *arg1 = (MBlastHits *) 0 ;
+    unsigned long result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MBlastHits **)(void *)&jarg1; 
     {
-        if(result) jresult = jenv->NewStringUTF(result); 
+        try {
+            result = (unsigned long)(arg1)->DbLength();
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
     }
+    jresult = (jlong)result; 
+    return jresult;
+}
+
+
+JNIEXPORT jlong JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBlastHits_1EffectiveSpace(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    jlong jresult = 0 ;
+    MBlastHits *arg1 = (MBlastHits *) 0 ;
+    unsigned long result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MBlastHits **)(void *)&jarg1; 
+    {
+        try {
+            result = (unsigned long)(arg1)->EffectiveSpace();
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
+    }
+    jresult = (jlong)result; 
+    return jresult;
+}
+
+
+JNIEXPORT jdouble JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBlastHits_1Kappa(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    jdouble jresult = 0 ;
+    MBlastHits *arg1 = (MBlastHits *) 0 ;
+    double result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MBlastHits **)(void *)&jarg1; 
+    {
+        try {
+            result = (double)(arg1)->Kappa();
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
+    }
+    jresult = (jdouble)result; 
+    return jresult;
+}
+
+
+JNIEXPORT jdouble JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBlastHits_1Lambda(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    jdouble jresult = 0 ;
+    MBlastHits *arg1 = (MBlastHits *) 0 ;
+    double result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MBlastHits **)(void *)&jarg1; 
+    {
+        try {
+            result = (double)(arg1)->Lambda();
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
+    }
+    jresult = (jdouble)result; 
+    return jresult;
+}
+
+
+JNIEXPORT jdouble JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBlastHits_1Entropy(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    jdouble jresult = 0 ;
+    MBlastHits *arg1 = (MBlastHits *) 0 ;
+    double result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MBlastHits **)(void *)&jarg1; 
+    {
+        try {
+            result = (double)(arg1)->Entropy();
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
+    }
+    jresult = (jdouble)result; 
     return jresult;
 }
 
@@ -3969,6 +4733,99 @@ JNIEXPORT jdouble JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBlastHsp_1Expect(JNI
 }
 
 
+JNIEXPORT jlong JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBlastHsp_1Identity(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    jlong jresult = 0 ;
+    MBlastHsp *arg1 = (MBlastHsp *) 0 ;
+    unsigned long result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MBlastHsp **)(void *)&jarg1; 
+    {
+        try {
+            result = (unsigned long)(arg1)->Identity();
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
+    }
+    jresult = (jlong)result; 
+    return jresult;
+}
+
+
+JNIEXPORT jlong JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBlastHsp_1Positive(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    jlong jresult = 0 ;
+    MBlastHsp *arg1 = (MBlastHsp *) 0 ;
+    unsigned long result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MBlastHsp **)(void *)&jarg1; 
+    {
+        try {
+            result = (unsigned long)(arg1)->Positive();
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
+    }
+    jresult = (jlong)result; 
+    return jresult;
+}
+
+
+JNIEXPORT jlong JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBlastHsp_1Gaps(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    jlong jresult = 0 ;
+    MBlastHsp *arg1 = (MBlastHsp *) 0 ;
+    unsigned long result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MBlastHsp **)(void *)&jarg1; 
+    {
+        try {
+            result = (unsigned long)(arg1)->Gaps();
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
+    }
+    jresult = (jlong)result; 
+    return jresult;
+}
+
+
 JNIEXPORT jlong JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBlastHsp_1QueryStart(JNIEnv *jenv, jclass jcls, jlong jarg1) {
     jlong jresult = 0 ;
     MBlastHsp *arg1 = (MBlastHsp *) 0 ;
@@ -4031,6 +4888,37 @@ JNIEXPORT jlong JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBlastHsp_1SubjectStart
 }
 
 
+JNIEXPORT jlong JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBlastHsp_1SubjectLength(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    jlong jresult = 0 ;
+    MBlastHsp *arg1 = (MBlastHsp *) 0 ;
+    unsigned long result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MBlastHsp **)(void *)&jarg1; 
+    {
+        try {
+            result = (unsigned long)(arg1)->SubjectLength();
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
+    }
+    jresult = (jlong)result; 
+    return jresult;
+}
+
+
 JNIEXPORT jstring JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBlastHsp_1QueryAlignment(JNIEnv *jenv, jclass jcls, jlong jarg1) {
     jstring jresult = 0 ;
     MBlastHsp *arg1 = (MBlastHsp *) 0 ;
@@ -4073,6 +4961,37 @@ JNIEXPORT jstring JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBlastHsp_1SubjectAli
     {
         try {
             result = (arg1)->SubjectAlignment();
+            
+        }
+        catch (const std::exception& e) {
+            gErrStr = e.what();
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, e.what());
+            return 0;
+        }
+        catch (...) {
+            gErrStr = "Unknown exception";
+            jclass clazz = jenv->FindClass("java/lang/Exception");
+            jenv->ThrowNew(clazz, "Unknown exception");
+            return 0;
+        }
+    }
+    jresult = jenv->NewStringUTF((&result)->c_str()); 
+    return jresult;
+}
+
+
+JNIEXPORT jstring JNICALL Java_nl_ru_cmbi_MRSPlugin_MRSJNI_MBlastHsp_1Midline(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+    jstring jresult = 0 ;
+    MBlastHsp *arg1 = (MBlastHsp *) 0 ;
+    std::string result;
+    
+    (void)jenv;
+    (void)jcls;
+    arg1 = *(MBlastHsp **)(void *)&jarg1; 
+    {
+        try {
+            result = (arg1)->Midline();
             
         }
         catch (const std::exception& e) {
