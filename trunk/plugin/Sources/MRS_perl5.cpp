@@ -1839,7 +1839,7 @@ XS(_wrap_MDatabank_Count) {
         }
         {
             try {
-                result = (long)(arg1)->Count();
+                result = (long)((MDatabank const *)arg1)->Count();
                 
             }
             
@@ -1879,7 +1879,7 @@ XS(_wrap_MDatabank_GetCode) {
         }
         {
             try {
-                result = (arg1)->GetCode();
+                result = ((MDatabank const *)arg1)->GetCode();
                 
             }
             
@@ -1923,7 +1923,7 @@ XS(_wrap_MDatabank_GetVersion) {
         }
         {
             try {
-                result = (arg1)->GetVersion();
+                result = ((MDatabank const *)arg1)->GetVersion();
                 
             }
             
@@ -1967,7 +1967,7 @@ XS(_wrap_MDatabank_GetUUID) {
         }
         {
             try {
-                result = (arg1)->GetUUID();
+                result = ((MDatabank const *)arg1)->GetUUID();
                 
             }
             
@@ -2011,7 +2011,7 @@ XS(_wrap_MDatabank_GetName) {
         }
         {
             try {
-                result = (arg1)->GetName();
+                result = ((MDatabank const *)arg1)->GetName();
                 
             }
             
@@ -2055,7 +2055,7 @@ XS(_wrap_MDatabank_GetInfoURL) {
         }
         {
             try {
-                result = (arg1)->GetInfoURL();
+                result = ((MDatabank const *)arg1)->GetInfoURL();
                 
             }
             
@@ -2099,7 +2099,7 @@ XS(_wrap_MDatabank_GetScriptName) {
         }
         {
             try {
-                result = (arg1)->GetScriptName();
+                result = ((MDatabank const *)arg1)->GetScriptName();
                 
             }
             
@@ -2143,7 +2143,7 @@ XS(_wrap_MDatabank_GetSection) {
         }
         {
             try {
-                result = (arg1)->GetSection();
+                result = ((MDatabank const *)arg1)->GetSection();
                 
             }
             
@@ -2187,7 +2187,7 @@ XS(_wrap_MDatabank_GetFilePath) {
         }
         {
             try {
-                result = (arg1)->GetFilePath();
+                result = ((MDatabank const *)arg1)->GetFilePath();
                 
             }
             
@@ -2231,7 +2231,7 @@ XS(_wrap_MDatabank_IsUpToDate) {
         }
         {
             try {
-                result = (bool)(arg1)->IsUpToDate();
+                result = (bool)((MDatabank const *)arg1)->IsUpToDate();
                 
             }
             
@@ -2271,7 +2271,7 @@ XS(_wrap_MDatabank_GetRawDataSize) {
         }
         {
             try {
-                result = (long long)(arg1)->GetRawDataSize();
+                result = (long long)((MDatabank const *)arg1)->GetRawDataSize();
                 
             }
             
@@ -2314,7 +2314,7 @@ XS(_wrap_MDatabank_DumpInfo) {
         }
         {
             try {
-                (arg1)->DumpInfo();
+                ((MDatabank const *)arg1)->DumpInfo();
                 
             }
             
@@ -2364,7 +2364,7 @@ XS(_wrap_MDatabank_DumpIndex) {
         }
         {
             try {
-                (arg1)->DumpIndex((std::string const &)*arg2);
+                ((MDatabank const *)arg1)->DumpIndex((std::string const &)*arg2);
                 
             }
             
@@ -6565,50 +6565,6 @@ XS(_wrap_delete_MBlastHit) {
 }
 
 
-XS(_wrap_MBlastHits_ReportInXML) {
-    {
-        MBlastHits *arg1 = (MBlastHits *) 0 ;
-        char *result;
-        int argvi = 0;
-        dXSARGS;
-        
-        if ((items < 1) || (items > 1)) {
-            SWIG_croak("Usage: MBlastHits_ReportInXML(self);");
-        }
-        {
-            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MBlastHits,0) < 0) {
-                SWIG_croak("Type error in argument 1 of MBlastHits_ReportInXML. Expected _p_MBlastHits");
-            }
-        }
-        {
-            try {
-                result = (char *)(arg1)->ReportInXML();
-                
-            }
-            
-            catch (const std::exception& e) {
-                gErrStr = e.what();
-                SWIG_croak(e.what());
-            }
-            catch (...) {
-                gErrStr = "Unknown exception";
-                SWIG_croak("unknown exception");
-            }
-        }
-        ST(argvi) = sv_newmortal();
-        if (result) {
-            sv_setpv((SV*)ST(argvi++), (char *) result);
-        } else {
-            sv_setsv((SV*)ST(argvi++), &PL_sv_undef);
-        }
-        XSRETURN(argvi);
-        fail:
-        ;
-    }
-    croak(Nullch);
-}
-
-
 XS(_wrap_MBlastHits_DbCount) {
     {
         MBlastHits *arg1 = (MBlastHits *) 0 ;
@@ -7824,7 +7780,6 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MBlastHit_Hsps", _wrap_MBlastHit_Hsps},
 {"MRSc::new_MBlastHit", _wrap_new_MBlastHit},
 {"MRSc::delete_MBlastHit", _wrap_delete_MBlastHit},
-{"MRSc::MBlastHits_ReportInXML", _wrap_MBlastHits_ReportInXML},
 {"MRSc::MBlastHits_DbCount", _wrap_MBlastHits_DbCount},
 {"MRSc::MBlastHits_DbLength", _wrap_MBlastHits_DbLength},
 {"MRSc::MBlastHits_EffectiveSpace", _wrap_MBlastHits_EffectiveSpace},

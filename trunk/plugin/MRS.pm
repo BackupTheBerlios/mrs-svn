@@ -529,7 +529,6 @@ package MRS::MBlastHits;
 @ISA = qw( MRS );
 %OWNER = ();
 %ITERATORS = ();
-*ReportInXML = *MRSc::MBlastHits_ReportInXML;
 *DbCount = *MRSc::MBlastHits_DbCount;
 *DbLength = *MRSc::MBlastHits_DbLength;
 *EffectiveSpace = *MRSc::MBlastHits_EffectiveSpace;
