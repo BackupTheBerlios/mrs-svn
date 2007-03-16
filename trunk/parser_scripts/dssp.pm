@@ -61,7 +61,7 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
-	my ($doc, $m, $state, $title);
+	my ($doc, $m, $state, $title, $compound);
 
 	$m = $self->{mrs};
 	
