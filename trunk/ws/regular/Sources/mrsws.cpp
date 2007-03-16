@@ -17,6 +17,7 @@
 #include <boost/ptr_container/ptr_vector.hpp>
 #include <boost/filesystem/operations.hpp>
 #include <boost/filesystem/path.hpp>
+#include <boost/regex.hpp>
 
 #include <libxml/tree.h>
 #include <libxml/parser.h>
@@ -784,7 +785,7 @@ ns__FindSimilar(
 				THROW(("Unsupported search algorithm"));
 				break;
 		}
-			
+		
 		q->SetAllTermsRequired(false);
 		q->AddTermsFromText(entry);
 
@@ -1013,6 +1014,112 @@ ns__Count(
 			"An error occurred while doing a Count",
 			e.what());
 	}
+
+	return result;
+}
+
+SOAP_FMAC5 int SOAP_FMAC6
+ns__Cooccurrence(
+	struct soap*		soap,
+	string				db,
+	vector<string>		ids,
+	float				idf_cutoff,
+	vector<string>&		response)
+{
+	WLogger log(soap->ip, __func__);
+	
+	int result = SOAP_OK;
+	
+	try
+	{
+		WSDatabankTable& dbt = WSDatabankTable::Instance();
+		
+		MDatabankPtr mrsDb = dbt[db];
+
+		boost::regex re("\\s");
+		
+		set<string> r;
+
+		for (vector<string>::iterator id = ids.begin(); id != ids.end(); ++id)
+		{
+			string data;
+			if (not mrsDb->Get(*id, data))
+				THROW(("Entry '%s' not found in '%d'", id->c_str(), db.c_str()));
+
+			string entry = Format(mrsDb, "indexed", data, *id);
+
+			boost::sregex_token_iterator i(entry.begin(), entry.end(), re, -1), j;
+			
+			if (id == ids.begin())
+				copy(i, j, inserter(r, r.begin()));
+			else
+			{
+				set<string> t1;
+				copy(i, j, inserter(t1, t1.begin()));
+				
+				set<string> t2;
+				set_intersection(r.begin(), r.end(), t1.begin(), t1.end(), inserter(t2, t2.begin()));
+
+				r = t2;
+			}
+		}
+		
+		response.reserve(r.size());
+		
+		if (idf_cutoff > 0)
+		{
+			map<long,long> histogram;
+			long m = 0;
+			
+			auto_ptr<MIndex> index(mrsDb->Index("__ALL_TEXT__"));
+
+cout << "asked for cut off: " << idf_cutoff << endl;
+			
+			idf_cutoff = index->GetIDFCutOff(static_cast<unsigned long>(idf_cutoff * 100));
+
+cout << "using cut off: " << idf_cutoff << endl;
+			
+			for (set<string>::iterator t = r.begin(); t != r.end(); ++t)
+			{
+				try
+				{
+					float idf = index->GetIDF(*t);
+					
+cout << *t << '\t' << idf << endl;
+
+					if (idf < idf_cutoff)
+						continue;
+
+					if (m < static_cast<long>(10 * idf))
+						m = static_cast<long>(10 * idf);
+
+					histogram[static_cast<long>(10 * idf)] += 1;
+					
+					if (index->GetIDF(*t) > idf_cutoff)
+						response.push_back(*t);
+				}
+				catch (...) {}
+			}
+			
+			//copy(histogram.begin(), histogram.end(), ostream_iterator<unsigned long>(cout,
+			cout << "histogram" << endl;
+			for (long i = 0; i < m; ++i)
+				cout << i << '\t' << histogram[i] << endl;
+//			
+//			for (map<long,long>::iterator i = histogram.begin(); i != histogram.end(); ++i)
+//				cout << i->first << '\t' << i->second << endl;
+		}		
+		else
+			copy(r.begin(), r.end(), back_inserter(response));
+	}
+	catch (exception& e)
+	{
+		return soap_receiver_fault(soap,
+			"An error occurred while doing a Count",
+			e.what());
+	}
+
+copy(response.begin(), response.end(), ostream_iterator<string>(cout, " "));
 
 	return result;
 }

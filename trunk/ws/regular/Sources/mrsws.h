@@ -140,6 +140,12 @@ int ns__Count(
 	xsd__string					booleanquery,
 	unsigned long&				response);
 
+int ns__Cooccurrence(
+	xsd__string					db,
+	std::vector<xsd__string>	ids,
+	float						idf_cutoff = 0,
+	std::vector<xsd__string>&	terms);
+
 int ns__SpellCheck(
 	xsd__string					db,
 	xsd__string					queryterm,
