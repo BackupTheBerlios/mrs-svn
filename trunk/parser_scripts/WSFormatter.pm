@@ -95,7 +95,7 @@ sub new
 
 	my $self = {
 		name => 'default',
-		text => '',
+		text => [],
 		meta => \%meta,
 		@_
 	};
@@ -103,32 +103,41 @@ sub new
 	return $result;	
 }
 
+sub SplitWords
+{
+	my ($self, $text) = @_;
+	
+	my @result;
+	$text =~ s/([0-9a-z_]+((-|\.)[0-9a-z_]+)*)/push @result, $1;/ieegm;
+	return map { lc $_ } @result;
+}
+
 sub IndexText
 {
 	my ($self, $index, $text) = @_;
 	
-	$self->{text} .= "$text ";
+	push @{$self->{words}}, $self->SplitWords($text);
 }
 
 sub IndexTextAndNumbers
 {
 	my ($self, $index, $text) = @_;
 	
-	$self->{text} .= "$text ";
+	push @{$self->{words}}, $self->SplitWords($text);
 }
 
 sub IndexWord
 {
 	my ($self, $index, $text) = @_;
 	
-	$self->{text} .= "$text ";
+	push @{$self->{words}}, lc $text;
 }
 
 sub IndexValue
 {
 	my ($self, $index, $text) = @_;
 	
-	$self->{text} .= "$text ";
+	push @{$self->{words}}, lc $text;
 }
 
 sub IndexWordWithWeight
@@ -137,7 +146,7 @@ sub IndexWordWithWeight
 	
 	while ($freq-- > 0)
 	{
-		$self->{text} .= "$text ";
+		push @{$self->{words}}, lc $text;
 	}
 }
 
@@ -145,14 +154,14 @@ sub IndexDate
 {
 	my ($self, $index, $text) = @_;
 	
-	$self->{text} .= "$text ";
+	push @{$self->{words}}, lc $text;
 }
 
 sub IndexNumber
 {
 	my ($self, $index, $text) = @_;
 	
-	$self->{text} .= "$text ";
+	push @{$self->{words}}, lc $text;
 }
 
 sub AddSequence {}
@@ -289,7 +298,7 @@ sub indexed
 		$p->parse(*TEXT, 0, $db, undef);
 		close TEXT;
 
-		$result = $m->{text};
+		$result = join(" ", @{$m->{words}});
 	};
 	
 	if ($@)

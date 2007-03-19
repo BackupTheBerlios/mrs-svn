@@ -321,6 +321,12 @@ uint32 CDatabankBase::GetMaxWeight() const
 	THROW(("GetMaxWeight unsupported"));
 }
 
+float CDatabankBase::GetIDFCutOff(
+	const string& inIndex, uint32 inPercentage)
+{
+	THROW(("GetIDFCutOff unsupported for this databank"));
+}
+
 void CDatabankBase::CreateDictionaryForIndexes(const vector<string>& inIndexNames,
 	uint32 inMinOccurrence, uint32 inMinWordLength)
 {
@@ -1256,6 +1262,11 @@ CDocWeightArray CDatabank::GetDocWeights(const std::string& inIndex)
 uint32 CDatabank::GetMaxWeight() const
 {
 	return GetIndexer()->GetMaxWeight();
+}
+
+float CDatabank::GetIDFCutOff(const string& inIndex, uint32 inPercentage)
+{
+	return GetIndexer()->GetIDFCutOff(inIndex, inPercentage);
 }
 
 CDbDocIteratorBase* CDatabank::GetDocWeightIterator(

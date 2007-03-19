@@ -95,6 +95,9 @@ class CIndexer
 	
 	CDocWeightArray	GetDocWeights(const std::string& inIndex) const;
 	
+	float			GetIDFCutOff(const std::string& inIndex,
+						uint32 inPercentage) const;
+	
 	CDbDocIteratorBase*
 					GetDocWeightIterator(const std::string& inIndex, const std::string& inKey) const;
 	

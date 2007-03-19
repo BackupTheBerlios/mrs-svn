@@ -1180,13 +1180,25 @@ MKeys* MIndex::FindKey(const string& inKey)
 
 float MIndex::GetIDF(const string& inKey)
 {
+	float result = 0;
+	
 	auto_ptr<CDbDocIteratorBase> iter(
 		fImpl->fDatabank->GetDocWeightIterator(Code(), inKey));
 	
 	if (iter.get() == nil)
-		THROW(("No key %s in index %s", inKey.c_str(), Code().c_str()));
+	{
+		if (VERBOSE)
+			cerr << "No key '" << inKey << "' in index " << Code() << endl;
+	}
+	else
+		result = iter->GetIDFCorrectionFactor();
 	
-	return iter->GetIDFCorrectionFactor();
+	return result;
+}
+
+float MIndex::GetIDFCutOff(unsigned long inPercentage)
+{
+	return fImpl->fDatabank->GetIDFCutOff(Code(), inPercentage);
 }
 
 // ---------------------------------------------------------------------------

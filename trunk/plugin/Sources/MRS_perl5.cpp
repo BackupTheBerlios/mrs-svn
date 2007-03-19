@@ -6181,6 +6181,48 @@ XS(_wrap_MIndex_GetIDF) {
 }
 
 
+XS(_wrap_MIndex_GetIDFCutOff) {
+    {
+        MIndex *arg1 = (MIndex *) 0 ;
+        unsigned long arg2 ;
+        float result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 2) || (items > 2)) {
+            SWIG_croak("Usage: MIndex_GetIDFCutOff(self,inPercentage);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MIndex,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MIndex_GetIDFCutOff. Expected _p_MIndex");
+            }
+        }
+        arg2 = (unsigned long) SvUV(ST(1));
+        {
+            try {
+                result = (float)(arg1)->GetIDFCutOff(arg2);
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        ST(argvi) = sv_newmortal();
+        sv_setnv(ST(argvi++), (double) result);
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
 XS(_wrap_new_MIndex) {
     {
         MIndex *result;
@@ -7770,6 +7812,7 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MIndex_Keys", _wrap_MIndex_Keys},
 {"MRSc::MIndex_FindKey", _wrap_MIndex_FindKey},
 {"MRSc::MIndex_GetIDF", _wrap_MIndex_GetIDF},
+{"MRSc::MIndex_GetIDFCutOff", _wrap_MIndex_GetIDFCutOff},
 {"MRSc::new_MIndex", _wrap_new_MIndex},
 {"MRSc::delete_MIndex", _wrap_delete_MIndex},
 {"MRSc::MIndices_Next", _wrap_MIndices_Next},

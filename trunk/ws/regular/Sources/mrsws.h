@@ -144,6 +144,8 @@ int ns__Cooccurrence(
 	xsd__string					db,
 	std::vector<xsd__string>	ids,
 	float						idf_cutoff = 0,
+	int							resultoffset = 0,
+	int							maxresultcount = 10,
 	std::vector<xsd__string>&	terms);
 
 int ns__SpellCheck(

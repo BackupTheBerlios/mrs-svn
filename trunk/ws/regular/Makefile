@@ -50,7 +50,7 @@ RDEFINES	= -DMACOS=0 -DUNIX=1
 LIBNAME		= mrs
 LIBS		= z expat m bz2 gsoap++ xml2 $(addsuffix $(BOOST_LIB_SUFFIX), boost_regex boost_filesystem)
 LIBPATHS	=  ../../plugin/Lib/ /usr/local/lib/ ../../plugin/
-INCPATHS	= ../../plugin/Lib/Includes/ ../../plugin/Lib/X/ ../../plugin/Lib/ ../../plugin/Sources/
+INCPATHS	= ../../plugin/Lib/Includes/ ../../plugin/Lib/Posix/ ../../plugin/Lib/ ../../plugin/Sources/
 SYSINCPATHS	= /usr/include
 WARNINGS	=  -Wall -Wno-multichar -Wno-unknown-pragmas -Wno-long-long -Wno-sign-compare
 CFLAGS		= -fsigned-char -g -ffor-scope

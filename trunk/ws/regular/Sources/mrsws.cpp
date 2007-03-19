@@ -3,6 +3,8 @@
 	Created Sunday January 05 2003 11:44:10
 */
 
+#include "HLib.h"
+
 #include <map>
 #include <set>
 #include <sstream>
@@ -1018,17 +1020,40 @@ ns__Count(
 	return result;
 }
 
+struct CoTerm {
+	string		term;
+	uint32		count;
+	float		idf;
+	
+	bool		operator<(const CoTerm& rhs) const
+					{ return term < rhs.term; }
+	
+};
+
+struct CoTermScoreGreater
+{
+	bool operator()(const CoTerm& a, const CoTerm& b) const
+		{ return (a.idf * a.count) > (b.idf * b.count); }
+};
+
+typedef set<CoTerm> CoTermSet;
+
 SOAP_FMAC5 int SOAP_FMAC6
 ns__Cooccurrence(
 	struct soap*		soap,
 	string				db,
 	vector<string>		ids,
 	float				idf_cutoff,
+	int					resultoffset,
+	int					maxresultcount,
 	vector<string>&		response)
 {
 	WLogger log(soap->ip, __func__);
 	
 	int result = SOAP_OK;
+	
+	if (idf_cutoff < 0)
+		idf_cutoff = 0;
 	
 	try
 	{
@@ -1037,8 +1062,13 @@ ns__Cooccurrence(
 		MDatabankPtr mrsDb = dbt[db];
 
 		boost::regex re("\\s");
+		boost::regex re2("^\\d+(\\.\\d+)?$");	// numbers are not allowed...
 		
-		set<string> r;
+		// build a list of terms, 
+		CoTermSet r;
+		
+		set<string> idSet;
+		copy(ids.begin(), ids.end(), inserter(idSet, idSet.begin()));
 
 		for (vector<string>::iterator id = ids.begin(); id != ids.end(); ++id)
 		{
@@ -1048,69 +1078,68 @@ ns__Cooccurrence(
 
 			string entry = Format(mrsDb, "indexed", data, *id);
 
+			set<string> u;
 			boost::sregex_token_iterator i(entry.begin(), entry.end(), re, -1), j;
-			
-			if (id == ids.begin())
-				copy(i, j, inserter(r, r.begin()));
-			else
-			{
-				set<string> t1;
-				copy(i, j, inserter(t1, t1.begin()));
-				
-				set<string> t2;
-				set_intersection(r.begin(), r.end(), t1.begin(), t1.end(), inserter(t2, t2.begin()));
 
-				r = t2;
+			for (; i != j; ++i)
+			{
+				string s = *i;
+				if (idSet.count(*i) == 0 and not boost::regex_match(s, re2))
+					u.insert(s);
+			}
+
+			for (set<string>::iterator i = u.begin(); i != u.end(); ++i)
+			{
+				CoTerm t = {};
+				t.term = *i;
+				
+				pair<CoTermSet::iterator,bool> f = r.insert(t);
+				const_cast<CoTerm&>(*f.first).count += 1;
 			}
 		}
 		
-		response.reserve(r.size());
+		vector<CoTerm> terms;
+		terms.reserve(r.size());
+
+		auto_ptr<MIndex> index(mrsDb->Index("__ALL_TEXT__"));
 		
-		if (idf_cutoff > 0)
+		for (CoTermSet::iterator t = r.begin(); t != r.end(); ++t)
 		{
-			map<long,long> histogram;
-			long m = 0;
-			
-			auto_ptr<MIndex> index(mrsDb->Index("__ALL_TEXT__"));
-
-cout << "asked for cut off: " << idf_cutoff << endl;
-			
-			idf_cutoff = index->GetIDFCutOff(static_cast<unsigned long>(idf_cutoff * 100));
-
-cout << "using cut off: " << idf_cutoff << endl;
-			
-			for (set<string>::iterator t = r.begin(); t != r.end(); ++t)
+			if (t->count > 1)
 			{
 				try
 				{
-					float idf = index->GetIDF(*t);
+					const_cast<CoTerm&>(*t).idf = index->GetIDF(t->term);
 					
-cout << *t << '\t' << idf << endl;
-
-					if (idf < idf_cutoff)
-						continue;
-
-					if (m < static_cast<long>(10 * idf))
-						m = static_cast<long>(10 * idf);
-
-					histogram[static_cast<long>(10 * idf)] += 1;
-					
-					if (index->GetIDF(*t) > idf_cutoff)
-						response.push_back(*t);
+					if (t->idf > idf_cutoff)
+						terms.push_back(*t);
 				}
 				catch (...) {}
 			}
+		}
+
+		// do we have enough terms?
+		if (terms.size() > maxresultcount - resultoffset)
+		{
+			sort(terms.begin(), terms.end(), CoTermScoreGreater());
 			
-			//copy(histogram.begin(), histogram.end(), ostream_iterator<unsigned long>(cout,
-			cout << "histogram" << endl;
-			for (long i = 0; i < m; ++i)
-				cout << i << '\t' << histogram[i] << endl;
-//			
-//			for (map<long,long>::iterator i = histogram.begin(); i != histogram.end(); ++i)
-//				cout << i->first << '\t' << i->second << endl;
-		}		
-		else
-			copy(r.begin(), r.end(), back_inserter(response));
+			vector<CoTerm>::iterator t = terms.begin();
+			uint32 n = 0;
+			
+			while (n < resultoffset and t != terms.end())
+			{
+				++t;
+				++n;
+			}
+			
+			while (n < resultoffset + maxresultcount and t != terms.end())
+			{
+//cout << t->term << '\t' << t->count * t->idf << endl;
+				response.push_back(t->term);
+				++t;
+				++n;
+			}
+		}
 	}
 	catch (exception& e)
 	{
@@ -1119,7 +1148,7 @@ cout << *t << '\t' << idf << endl;
 			e.what());
 	}
 
-copy(response.begin(), response.end(), ostream_iterator<string>(cout, " "));
+//copy(response.begin(), response.end(), ostream_iterator<string>(cout, " "));
 
 	return result;
 }
