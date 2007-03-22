@@ -1196,11 +1196,6 @@ float MIndex::GetIDF(const string& inKey)
 	return result;
 }
 
-float MIndex::GetIDFCutOff(unsigned long inPercentage)
-{
-	return fImpl->fDatabank->GetIDFCutOff(Code(), inPercentage);
-}
-
 // ---------------------------------------------------------------------------
 //
 //  class MIndices

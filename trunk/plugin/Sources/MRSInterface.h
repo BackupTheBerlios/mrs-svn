@@ -904,9 +904,6 @@ class MIndex : public MRSObject<MIndex, struct MIndexImp>
 	
 	float				GetIDF(const std::string& inKey);
 												/**< Return the Inverse Document Frequency for a inKey, used in ranked searches */
-
-	float				GetIDFCutOff(unsigned long inPercentage);
-												/**< Return the Inverse Document Frequency that results in at least \a inPercentage keys  */
 };
 
 /** \brief An object that iterates over all indices in a databank */

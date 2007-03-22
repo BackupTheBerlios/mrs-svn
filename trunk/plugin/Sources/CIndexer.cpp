@@ -131,8 +131,6 @@ struct SIndexPart
 	
 	// members that are implictly part of the above
 	CIndexVersion	index_version;
-	bool			idf_distribution_inited;
-	float			idf_distribution[100];
 };
 
 const uint32
@@ -257,8 +255,6 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexPart& inStruct)
 	if (inStruct.size >= kSIndexPartSizeV2)
 		data >> inStruct.tree_size >> inStruct.bits_size;
 
-	inStruct.idf_distribution_inited = false;
-	
 	return inData;
 }
 
@@ -2851,103 +2847,6 @@ void CIndexer::RecalculateDocumentWeights(const std::string& inIndex)
 	
 	if (VERBOSE > 0)
 		cout << "done" << endl;
-}
-
-class CIDFAccumulator
-{
-  public:
-					CIDFAccumulator(uint32 inKind, HStreamBase& inFile,
-							uint32 inIDF[], float inScale, int64 inDocCount)
-						: fKind(inKind)
-						, fFile(inFile)
-						, fIDF(inIDF)
-						, fScale(inScale)
-						, fDocCount(inDocCount)
-					{
-					}
-	
-	void			Visit(const string& inKey, int64 inValue);
-
-  private:
-	uint32			fKind;
-	HStreamBase&	fFile;
-	uint32*			fIDF;
-	float			fScale;
-	int64			fDocCount;
-};
-
-void CIDFAccumulator::Visit(const string& inKey, int64 inValue)
-{
-	auto_ptr<CDbDocIteratorBase> iter(CreateDbDocWeightIterator(fKind, fFile, inValue, fDocCount));
-	
-	float idf = iter->GetIDFCorrectionFactor();
-	
-	uint32 int_idf = (idf / fScale) - 1;
-
-	if (int_idf < 1000)
-		fIDF[int_idf] += 1;
-}
-
-float CIndexer::GetIDFCutOff(const string& inIndex, uint32 inPercentage) const
-{
-	float result = 0;
-
-	string index = inIndex;
-	if (index != kAllTextIndexName)
-		index = tolower(inIndex);
-	
-	auto_ptr<CIndex> indx;
-
-	uint32 ix;
-	for (ix = 0; ix < fHeader->count; ++ix)
-	{
-		if (index != fParts[ix].name or fParts[ix].kind != kWeightedIndex)
-			continue;
-
-		indx.reset(new CIndex(fParts[ix].kind, fParts[ix].index_version,
-			*fFile, fParts[ix].tree_offset, fParts[ix].root));
-		break;
-	}
-
-	if (indx.get() == nil)
-		THROW(("Index %s not found!", inIndex.c_str()));
-	
-	if (fParts[ix].idf_distribution_inited == false)
-	{
-		float maxIDF = log(1.0 + static_cast<double>(fHeader->entries));
-		float scale = maxIDF / 1000;	// base on max 1000 values
-	
-		HAutoBuf<uint32> idfs(new uint32[1000]);
-		uint32* a = idfs.get();
-		memset(a, 0, sizeof(uint32) * 1000);
-
-		int64 bitsOffset = fParts[ix].bits_offset;
-		HStreamView bits(*fFile, bitsOffset, fFile->Size() - bitsOffset);
-
-		CIDFAccumulator accu(fHeader->array_compression_kind, bits, a, scale, fHeader->entries);
-		indx->Visit(&accu, &CIDFAccumulator::Visit);
-		
-		uint32 n = 0;
-		uint32 ai = 0;
-		float* idf_distribution = fParts[ix].idf_distribution;
-		
-		for (uint32 p = 0; p < 100; ++p)
-		{
-			idf_distribution[p] = (ai + 1) * scale;
-			
-			while (((100 * n) / fHeader->entries) < p and ai < 1000)
-				n += a[ai++];
-		}
-
-		cout << endl << "table" << endl;
-		copy(idf_distribution, idf_distribution + 100, ostream_iterator<float>(cout, "\n"));
-		cout << endl;
-	}
-
-	if (inPercentage < 100)
-		result = fParts[ix].idf_distribution[inPercentage];
-	
-	return result;
 }
 
 void CIndexer::FixupDocWeights()

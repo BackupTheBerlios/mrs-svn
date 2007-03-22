@@ -132,8 +132,6 @@ class CDatabankBase
 	virtual CDocWeightArray
 						GetDocWeights(const std::string& inIndex);
 	virtual uint32		GetMaxWeight() const;
-	virtual float		GetIDFCutOff(const std::string& inIndex,
-							uint32 inPercentage);
 
 	virtual long		GetIndexCount() = 0;
 	virtual	void		GetIndexInfo(uint32 inIndexNr, std::string& outCode,
@@ -272,8 +270,6 @@ class CDatabank : public CDatabankBase
 	virtual CDocWeightArray
 						GetDocWeights(const std::string& inIndex);
 	virtual uint32		GetMaxWeight() const;
-	virtual float		GetIDFCutOff(const std::string& inIndex,
-							uint32 inPercentage);
 
 	virtual CDbDocIteratorBase*
 						GetDocWeightIterator(const std::string& inIndex,
