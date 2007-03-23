@@ -73,7 +73,10 @@ enum CIndexKind
 	kDateIndex			= FOUR_CHAR_INLINE('date'),
 	
 			// index containing ascii representation of an integer
-	kNumberIndex		= FOUR_CHAR_INLINE('nmbr')
+	kNumberIndex		= FOUR_CHAR_INLINE('nmbr'),
+	
+			// text index containing 'in document' locations
+	kInDocLocTextIndex	= FOUR_CHAR_INLINE('dloc'),
 };
 
 const uint32

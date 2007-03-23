@@ -407,7 +407,6 @@ sub FindKey {
 }
 
 *GetIDF = *MRSc::MIndex_GetIDF;
-*GetIDFCutOff = *MRSc::MIndex_GetIDFCutOff;
 sub new {
     my $pkg = shift;
     my $self = MRSc::new_MIndex(@_);
