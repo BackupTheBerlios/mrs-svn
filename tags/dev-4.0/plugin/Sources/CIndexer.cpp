@@ -1321,12 +1321,9 @@ void CTextIndex::AddDocTerm(uint32 inDoc, uint8 inFrequency, DocLoc& inDocLoc)
 	CIndexBase::AddDocTerm(inDoc, inFrequency, inDocLoc);
 	
 	if (inDocLoc.size() == 0)
-		WriteBinary(fBits, 0, 1);
-	else
-	{
-		WriteBinary(fBits, 1, 1);
-		CompressArray(fBits, inDocLoc, numeric_limits<uint16>::max(), kAC_SelectorCode);
-	}
+		THROW(("Doc Loc vector should really contain locations here..."));
+	
+	CompressArray(fBits, inDocLoc, numeric_limits<uint16>::max(), kAC_SelectorCode);
 }
 
 bool CTextIndex::Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo)
