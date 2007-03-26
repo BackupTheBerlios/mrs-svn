@@ -1525,6 +1525,12 @@ CDocIterator* CDatabank::CreateDocIterator(const string& inIndex,
 	return result;
 }
 
+CDocIterator* CDatabank::CreateDocIteratorForPhrase(
+	const string& inIndex, const vector<string>& inPhrase)
+{
+	return GetIndexer()->CreateDocIteratorForPhrase(inIndex, inPhrase);
+}
+
 class CKeyAccumulator
 {
   public:
@@ -2012,6 +2018,31 @@ CDocIterator* CJoinedDatabank::CreateDocIterator(
 	{
 		CDocIterator* imp = fParts[ix].fDb->CreateDocIterator(
 			inIndex, inKey, inKeyIsPattern, inOperator);
+		
+		if (imp != nil)
+		{
+			if (first > 0)
+				imps.push_back(new CDocDeltaIterator(imp, first));
+			else
+				imps.push_back(imp);
+		}
+		
+		first += fParts[ix].fCount;
+	}
+	
+	return CDocUnionIterator::Create(imps);
+}
+
+CDocIterator* CJoinedDatabank::CreateDocIteratorForPhrase(
+	const string& inIndex, const vector<string>& inPhrase)
+{
+	vector<CDocIterator*> imps;
+	uint32 first = 0;
+	
+	for (uint32 ix = 0; ix < fPartCount; ++ix)
+	{
+		CDocIterator* imp = fParts[ix].fDb->CreateDocIteratorForPhrase(
+			inIndex, inPhrase);
 		
 		if (imp != nil)
 		{

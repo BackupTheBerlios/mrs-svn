@@ -419,6 +419,58 @@ class CDbJoinedIterator : public CDbDocIteratorBase
 	uint32					fCount, fRead;
 };
 
+template<uint32 K>
+class CDbIDLDocIteratorBaseT : public CDbDocIteratorBaseT<uint32, K>
+{
+  public:
+					CDbIDLDocIteratorBaseT(HStreamBase& inData, int64 inOffset, int64 inMax,
+						uint32 inDelta = 0);
+
+	virtual bool	Next(uint32& ioDoc, bool inSkip);
+	virtual bool	Next(uint32& ioDoc, uint8& ioRank, bool inSkip);
+	virtual bool	Next(uint32& ioDoc, std::vector<uint32>& outLoc, bool inSkip);
+};
+
+typedef CDbIDLDocIteratorBaseT<kAC_GolombCode>						CDbIDLDocIteratorGC;
+typedef CDbIDLDocIteratorBaseT<kAC_SelectorCode>					CDbIDLDocIteratorSC;
+
+template<uint32 K>
+class CDbPhraseDocIterator : public CDocIterator
+{
+	typedef			CDbIDLDocIteratorBaseT<K>					CDbIDLDocIterator;
+
+  public:
+					CDbPhraseDocIterator(std::vector<CDocIterator*>& inTermIterators);
+					~CDbPhraseDocIterator();
+
+	virtual bool	Next(uint32& ioDoc, bool inSkip);
+	virtual uint32	Count() const;
+	virtual uint32	Read() const;
+
+	virtual void	PrintHierarchy(int inLevel) const;
+	
+  protected:
+	struct CSubIter
+	{
+		uint32				fValue;
+		uint32				fIndex;		// index in phrase
+		std::vector<uint32>	fIDL;
+		CDbIDLDocIterator*	fIter;
+		
+		bool operator<(const CSubIter& inOther) const
+				{ return fValue < inOther.fValue; }
+	};
+	
+	typedef std::vector<CSubIter>					CSubIterList;
+	typedef typename CSubIterList::iterator			CSubIterIterator;
+	typedef typename CSubIterList::const_iterator	CSubIterConstIterator;
+
+	CSubIterList			fIterators;
+	std::vector<uint32>		fIDLCache1;
+	std::vector<uint32>		fIDLCache2;
+	uint32					fCount, fRead;
+};
+
 #include "CDocIterator.inl"
 
 #endif // CDOCITERATOR_H

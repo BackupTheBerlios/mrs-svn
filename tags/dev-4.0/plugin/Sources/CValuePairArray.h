@@ -41,6 +41,11 @@ class CIBitStream;
 //	about 20% however, surprisingly the gain in compression ratio in the typical
 //	bioinformatics databank results in MRS files that are typically 10 to 20%
 //	smaller.
+//
+//	A new feature in MRS 4.0 asked for a small change in the code. The need to
+//	store 'in document locations' asked for a way to insert data into the
+//	bit-stream interleaved between the data for the array. This was solved by
+//	adding a callback mechanism.
 
 enum CArrayCompressionKind {
 	kAC_GolombCode		= FOUR_CHAR_INLINE('golo'),
@@ -49,6 +54,12 @@ enum CArrayCompressionKind {
 
 namespace CValuePairCompression
 {
+
+struct CInterleavedDataWriter
+{
+	virtual			~CInterleavedDataWriter() {}
+	virtual void	WriteData(COBitStream& inStream) = 0;
+};
 
 template<typename V, typename W>
 struct WeightGreater
@@ -143,7 +154,8 @@ inline void Shift(T& ioIterator, int64& ioLast, uint32& outDelta, uint32& outWid
 }
 
 template<typename T>
-void CompressSimpleArraySelector(COBitStream& inBits, std::vector<T>& inArray, int64 inMax)
+void CompressSimpleArraySelector(COBitStream& inBits, std::vector<T>& inArray, int64 inMax,
+	CInterleavedDataWriter* inWriter = nil)
 {
 	uint32 cnt = inArray.size();
 
@@ -188,7 +200,16 @@ void CompressSimpleArraySelector(COBitStream& inBits, std::vector<T>& inArray, i
 		if (width > 0)
 		{
 			for (uint32 i = 0; i < n; ++i)
+			{
 				WriteBinary(inBits, dv[i], width);
+				if (inWriter != nil)
+					inWriter->WriteData(inBits);
+			}
+		}
+		else if (inWriter != nil)
+		{
+			for (uint32 i = 0; i < n; ++i)
+				inWriter->WriteData(inBits);
 		}
 		
 		bc -= n;
@@ -205,7 +226,8 @@ void CompressSimpleArraySelector(COBitStream& inBits, std::vector<T>& inArray, i
 }
 
 template<typename T>
-void CompressSimpleArrayGolomb(COBitStream& inBits, std::vector<T>& inArray, int64 inMax)
+void CompressSimpleArrayGolomb(COBitStream& inBits, std::vector<T>& inArray, int64 inMax,
+	CInterleavedDataWriter* inWriter = nil)
 {
 	uint32 cnt = inArray.size();
 	int32 b = CalculateB(inMax, cnt);
@@ -253,6 +275,9 @@ void CompressSimpleArrayGolomb(COBitStream& inBits, std::vector<T>& inArray, int
 			}
 		}
 		
+		if (inWriter != nil)
+			inWriter->WriteData(inBits);
+		
 		lv = *i;
 	}
 }
@@ -268,21 +293,23 @@ struct ValuePairTraitsPOD
 	typedef 			void							rank_type;
 
 	static void			CompressArray(COBitStream& inBits,
-							std::vector<T>& inArray, int64 inMax, uint32 inKind);
+							std::vector<T>& inArray, int64 inMax, uint32 inKind,
+							CInterleavedDataWriter* inWriter = nil);
 };
 
 template<typename T>
 void ValuePairTraitsPOD<T>::CompressArray(COBitStream& inBits,
-	std::vector<T>& inArray, int64 inMax, uint32 inKind)
+	std::vector<T>& inArray, int64 inMax, uint32 inKind,
+	CInterleavedDataWriter* inWriter)
 {
 	switch (inKind)
 	{
 		case kAC_GolombCode:
-			CompressSimpleArrayGolomb(inBits, inArray, inMax);
+			CompressSimpleArrayGolomb(inBits, inArray, inMax, inWriter);
 			break;
 		
 		case kAC_SelectorCode:
-			CompressSimpleArraySelector(inBits, inArray, inMax);
+			CompressSimpleArraySelector(inBits, inArray, inMax, inWriter);
 			break;
 		
 		default:
@@ -301,13 +328,17 @@ struct ValuePairTraitsPair
 	typedef typename	T::second_type					rank_type;
 
 	static void			CompressArray(COBitStream& inBits, std::vector<T>& inArray, int64 inMax,
-							uint32 inKind);
+							uint32 inKind, CInterleavedDataWriter* inWriter = nil);
 };
 
 template<typename T>
 void ValuePairTraitsPair<T>::CompressArray(COBitStream& inBits, std::vector<T>& inArray,
-	int64 inMax, uint32 inKind)
+	int64 inMax, uint32 inKind, CInterleavedDataWriter* inWriter)
 {
+	assert(inWriter == nil);		// this is an unsupported feature, right now...
+	if (inWriter != nil)
+		THROW(("Unsupported for now, you cannot have 'in document locations' for a weighted index"));
+
 	WriteGamma(inBits, inArray.size());
 
 	sort(inArray.begin(), inArray.end(), WeightGreater<value_type,rank_type>());
@@ -502,14 +533,11 @@ class IteratorBase<T, kAC_SelectorCode>
 									fWidth = fMaxWidth;
 								else
 									fWidth += kSelectors[selector].databits;
-					//std::cout << "Read selector " << selector << ", width now " << fWidth << " and span " << fSpan << std::endl;
 							}
 					
 							if (fWidth > 0)
 								fValue += ReadBinary<int64>(*fBits, fWidth);
 							fValue += 1;
-					
-					//std::cout << "Value " << fValue << std::endl;
 					
 							--fSpan;
 							++fRead;
@@ -660,7 +688,8 @@ struct ValuePairTraitsTypeFactory : public ValuePairTraitsTypeFactoryBase<T, K, 
 }
 
 template<typename T>
-void CompressArray(COBitStream& inBits, T& inArray, int64 inMax, uint32 inKind)
+void CompressArray(COBitStream& inBits, T& inArray, int64 inMax, uint32 inKind,
+	CValuePairCompression::CInterleavedDataWriter* inWriter = nil)
 {
 	using namespace		CValuePairCompression;
 
@@ -671,17 +700,34 @@ void CompressArray(COBitStream& inBits, T& inArray, int64 inMax, uint32 inKind)
 		case kAC_GolombCode:
 		{
 			typedef typename	ValuePairTraitsTypeFactory<vector_value_type,kAC_GolombCode>::type	traits;
-			traits::CompressArray(inBits, inArray, inMax, inKind);
+			traits::CompressArray(inBits, inArray, inMax, inKind, inWriter);
 			break;
 		}
 
 		case kAC_SelectorCode:
 		{
 			typedef typename	ValuePairTraitsTypeFactory<vector_value_type,kAC_SelectorCode>::type traits;
-			traits::CompressArray(inBits, inArray, inMax, inKind);
+			traits::CompressArray(inBits, inArray, inMax, inKind, inWriter);
 			break;
 		}
 	}
+}
+
+template<typename T, uint32 K>
+void DecompressArray(CIBitStream& inBits, T& inArray, int64 inMax)
+{
+	using namespace		CValuePairCompression;
+
+	typedef typename	T::value_type												vector_value_type;
+	typedef typename	ValuePairTraitsTypeFactory<vector_value_type,K>::iterator	iterator;
+	
+	iterator iter(inBits, inMax);
+	
+	inArray.clear();
+	inArray.reserve(iter.Count());
+	
+	while (iter.Next())
+		inArray.push_back(iter.Value());
 }
 
 #endif // CVALUEPAIRARRAY_H

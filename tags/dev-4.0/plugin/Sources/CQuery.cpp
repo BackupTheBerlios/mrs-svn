@@ -43,8 +43,13 @@
 
 #include <sstream>
 #include <iostream>
+#include <iterator>
+
 #include "HError.h"
 #include "HUtils.h"
+
+#include <boost/regex.hpp>
+#include <boost/functional.hpp>
 
 #include "CQuery.h"
 #include "CDatabank.h"
@@ -549,9 +554,25 @@ CDocIterator* CQueryImp::Parse_Test()
 			break;
 		
 		case qeString:
-			result.reset(IteratorForString("*", fToken));
+		{
+			boost::regex re("[0-9a-z_]+((-|\\.)[0-9a-z_]+)*");
+			boost::sregex_iterator a(fToken.begin(), fToken.end(), re), b;
+			
+			vector<string> terms;
+			while (a != b)
+			{
+				terms.push_back(a->str());
+				++a;
+			}
+//			transform(a, b, back_inserter(terms),
+//				boost::mem_fun(
+//					&boost::match_results<std::string::const_iterator>::str));
+
+			result.reset(fDatabank.CreateDocIteratorForPhrase("*", terms));
+
 			Match(qeString);
 			break;
+		}
 			
 		case qeIdent:
 		{
@@ -642,9 +663,23 @@ CDocIterator* CQueryImp::Parse_Term(const string& inIndex)
 	switch (fLookahead)
 	{
 		case qeString:
+		{
+			boost::regex re("[0-9a-z_]+((-|\\.)[0-9a-z_]+)*");
+			boost::sregex_iterator a(fToken.begin(), fToken.end(), re), b;
+			
+			vector<string> terms;
+//			copy(a, b, back_inserter(terms));
+			while (a != b)
+			{
+				terms.push_back(a->str());
+				++a;
+			}
+
+			result.reset(fDatabank.CreateDocIteratorForPhrase(inIndex, terms));
+
 			Match(qeString);
-			result.reset(IteratorForTerm(inIndex, fToken, false));
 			break;
+		}
 
 		case qeIdent:
 			if (fAutoWildcard)

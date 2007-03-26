@@ -160,6 +160,8 @@ class CDatabankBase
 	virtual CDocIterator* CreateDocIterator(const std::string& inIndex,
 							const std::string& inKey, bool inKeyIsPattern,
 							CQueryOperator inOperator) = 0;
+	virtual CDocIterator* CreateDocIteratorForPhrase(const std::string& inIndex,
+							const std::vector<std::string>& inPhrase) = 0;
 
 	// I give up, we have to have separate files. Dictionary files for 
 	// spell checker functionality and weights files for ranked searches.
@@ -263,20 +265,24 @@ class CDatabank : public CDatabankBase
 	virtual uint32		CountDocumentsContainingKey(const std::string& inIndex,
 							const std::string& inKey);
 
+	CDocIterator*		GetImpForPattern(const std::string& inIndex,
+							const std::string& inKey);
+
 	virtual CDocIterator* CreateDocIterator(const std::string& inIndex,
 						const std::string& inKey, bool inKeyIsPattern,
 						CQueryOperator inOperator);
 
-	virtual CDocWeightArray
-						GetDocWeights(const std::string& inIndex);
-	virtual uint32		GetMaxWeight() const;
+	virtual CDocIterator* CreateDocIteratorForPhrase(const std::string& inIndex,
+							const std::vector<std::string>& inPhrase);
 
 	virtual CDbDocIteratorBase*
 						GetDocWeightIterator(const std::string& inIndex,
 							const std::string& inKey);
 	
-	CDocIterator*		GetImpForPattern(const std::string& inIndex,
-							const std::string& inKey);
+	virtual CDocWeightArray
+						GetDocWeights(const std::string& inIndex);
+
+	virtual uint32		GetMaxWeight() const;
 
 	virtual void		Expand(const std::string& inIndex, const std::string& inPattern,
 							std::vector<std::string>& outWords) const;
@@ -398,6 +404,8 @@ class CJoinedDatabank : public CDatabankBase
 	virtual CDocIterator* CreateDocIterator(const std::string& inIndex,
 							const std::string& inKey, bool inKeyIsPattern,
 							CQueryOperator inOperator);
+	virtual CDocIterator* CreateDocIteratorForPhrase(const std::string& inIndex,
+							const std::vector<std::string>& inPhrase);
 
 	virtual std::vector<std::string>
 						GetMetaDataFields() const;

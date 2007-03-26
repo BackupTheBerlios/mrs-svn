@@ -86,6 +86,9 @@ class CIndexer
 	CDocIterator*	CreateDocIterator(const std::string& inIndex,
 						const std::string& inKey, bool inKeyIsPattern,
 						CQueryOperator inOperator) const;
+	CDocIterator*	CreateDocIteratorForPhrase(const std::string& inIndex,
+						const std::vector<std::string>& inPhrase) const;
+
 	// It would be better to return CIndexIterator * here, but that
 	// gives trouble because that type needs inclusion of extra header
 	// files.

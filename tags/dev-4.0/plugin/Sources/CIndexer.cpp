@@ -130,15 +130,17 @@ struct SIndexPart
 	int64			tree_size;		// these are new since V2
 	int64			bits_size;
 	
-	int64			doc_loc_offset;	// new in version V3
-	int64			doc_loc_size;
+	uint32			flags;			// new for version V3
 	
 	// members that are implictly part of the above
 	CIndexVersion	index_version;
 };
 
 const uint32
-	kSIndexPartSizeV3 = 5 * sizeof(uint32) + 7 * sizeof(int64) + 16,	// V3
+	kContainsIDL	= (1 << 0);
+
+const uint32
+	kSIndexPartSizeV3 = 6 * sizeof(uint32) + 5 * sizeof(int64) + 16,	// V3
 	kSIndexPartSizeV2 = 5 * sizeof(uint32) + 5 * sizeof(int64) + 16,	// V2
 	kSIndexPartSizeV1 = 5 * sizeof(uint32) + 3 * sizeof(int64) + 16,	// V1
 	kSIndexPartSizeV0 = 5 * sizeof(uint32) + 2 * sizeof(int64) + 16,	// V0
@@ -208,7 +210,7 @@ HStreamBase& operator<<(HStreamBase& inData, const SIndexPart& inStruct)
 		 << inStruct.root << inStruct.entries
 		 << inStruct.weight_offset
 		 << inStruct.tree_size << inStruct.bits_size
-		 << inStruct.doc_loc_offset << inStruct.doc_loc_size;
+		 << inStruct.flags;
 	
 	return inData;
 }
@@ -260,12 +262,11 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexPart& inStruct)
 
 	if (inStruct.size >= kSIndexPartSizeV2)
 		data >> inStruct.tree_size >> inStruct.bits_size;
-
-	inStruct.doc_loc_offset = 0;
-	inStruct.doc_loc_size = 0;
+	
+	inStruct.flags = 0;
 
 	if (inStruct.size >= kSIndexPartSizeV3)
-		data >> inStruct.doc_loc_offset >> inStruct.doc_loc_size;
+		data >> inStruct.flags;
 
 	return inData;
 }
@@ -319,7 +320,7 @@ const uint32
 	kRunBlockSize = 0x100000,		// 1 Mb
 	kBufferEntryCount = 2000000;	// that's about 2.5 megabytes compressed
 
-typedef vector<uint16> DocLoc;
+typedef vector<uint32> DocLoc;
 
 struct LexEntry
 {
@@ -561,6 +562,8 @@ void CFullTextIndex::AddWord(uint8 inIndex, const string& inWord, uint8 inFreque
 void CFullTextIndex::AddWord(uint8 inIndex, uint32 inWord, uint8 inFrequency)
 {
 	++fDocWordLocation;	// always increment, no matter if we do not add the word
+	if (fDocWordLocation >= kMaxInDocumentLocation)	// cycle...
+		fDocWordLocation = 1;
 	
 	if (inIndex > kMaxIndexNr)
 		THROW(("Too many full text indices"));
@@ -849,16 +852,19 @@ class CIndexBase
 	uint16			fIndexNr;
 	bool			fEmpty;
 	bool			fIsUpdate;
+	bool			fUsesIDL;
 	uint32			fWeightBitCount;
 	
 	// data for the second pass
 	uint32			fLastDoc;
 	COBitStream*	fBits;
+	COBitStream*	fIDFBits;
 	uint32			fDocCount;
 	
 	HUrl			fBitUrl;
 	HStreamBase*	fBitFile;
 	HMemoryStream	fScratch;
+	HMemoryStream	fIDLScratch;
 	
 	COBitStream*	fRawIndex;
 	uint32			fRawIndexCnt;
@@ -894,9 +900,11 @@ CIndexBase::CIndexBase(CFullTextIndex& inFullTextIndex, const string& inName,
 	, fIndexNr(inIndexNr)
 	, fEmpty(true)
 	, fIsUpdate(false)
+	, fUsesIDL(false)
 	, fWeightBitCount(0)
 	, fLastDoc(0)
 	, fBits(nil)
+	, fIDFBits(nil)
 	, fDocCount(0)
 	, fBitUrl(inScratch)
 	, fRawIndex(nil)
@@ -955,9 +963,40 @@ void CIndexBase::AddDocTerm(uint32 inDoc, uint8 inFrequency, DocLoc& inDocLoc)
 		WriteBinary(*fBits, inFrequency, fWeightBitCount);
 	}
 	
+	if (fUsesIDL)
+	{
+		if (fIDFBits == nil)
+			fIDFBits = new COBitStream(fIDLScratch);
+
+		CompressArray(*fIDFBits, inDocLoc, kMaxInDocumentLocation, kAC_SelectorCode);
+	}
+	
 	fLastDoc = inDoc;
 	++fDocCount;
 	fEmpty = false;
+}
+
+class CIDLInterleaver : public CValuePairCompression::CInterleavedDataWriter
+{
+  public:
+					CIDLInterleaver(HStreamBase& inData);
+	virtual void	WriteData(COBitStream& inBits);
+
+  private:
+	CIBitStream			fIDLBits;
+	vector<uint32>		fIDL;		// cache to avoid reallocation for each vector
+};
+
+CIDLInterleaver::CIDLInterleaver(HStreamBase& inData)
+	: fIDLBits(inData, 0)
+{
+}
+
+void CIDLInterleaver::WriteData(COBitStream& inBits)
+{
+	fIDL.clear();
+	DecompressArray<std::vector<uint32>,kAC_SelectorCode>(fIDLBits, fIDL, kMaxInDocumentLocation);
+	CompressArray(inBits, fIDL, kMaxInDocumentLocation, kAC_SelectorCode);
 }
 
 void CIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
@@ -1027,6 +1066,14 @@ void CIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 		}
 		else
 		{
+			auto_ptr<CIDLInterleaver> interleaver;
+			
+			if (fUsesIDL)
+			{
+				fIDFBits->sync();
+				interleaver.reset(new CIDLInterleaver(fIDLScratch));
+			}
+			
 			vector<uint32> docs;
 			
 			CIBitStream bits(fScratch, 0, fScratch.Size());
@@ -1041,7 +1088,7 @@ void CIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 				docs.push_back(docNr);
 			}
 
-			CompressArray(docBits, docs, inDocCount, kAC_SelectorCode);
+			CompressArray(docBits, docs, inDocCount, kAC_SelectorCode, interleaver.get());
 		}
 
 		docBits.sync();
@@ -1052,6 +1099,14 @@ void CIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 	fDocCount = 0;
 	fLastDoc = 0;
 	fScratch.Truncate(0);
+	
+	if (fIDFBits != nil)
+	{
+		delete fIDFBits;
+		fIDFBits = nil;
+		fIDLScratch.Truncate(0);
+	}
+	
 	fEmpty = true;
 }
 
@@ -1194,6 +1249,10 @@ bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPar
 	outInfo.root = indx->GetRoot();
 	outInfo.entries = lexicon.size();
 	
+	outInfo.flags = 0;
+	if (fUsesIDL)
+		outInfo.flags |= kContainsIDL;
+	
 	if (VERBOSE >= 1)
 		cout << "done" << endl << "Wrote " << lexicon.size() << " entries." << endl;
 	
@@ -1294,63 +1353,14 @@ class CTextIndex : public CIndexBase
 					CTextIndex(CFullTextIndex& inFullTextIndex,
 						const string& inName, uint16 inIndexNr,
 						const HUrl& inScratch);
-
-	virtual void	AddDocTerm(uint32 inDoc, uint8 inFrequency, DocLoc& inDocLoc);
-
-	virtual bool	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
-
-  private:
-	HUrl			fDLScratchUrl;
-	auto_ptr<HStreamBase>
-					fDLScratch;
-	COBitStream		fBits;
 };
 
 CTextIndex::CTextIndex(CFullTextIndex& inFullTextIndex,
 		const string& inName, uint16 inIndexNr, const HUrl& inScratch)
 	: CIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kTextIndex)
-	, fDLScratchUrl(HUrl(inScratch.GetURL() + "_dl"))
-	, fDLScratch(new HTempFileStream(fDLScratchUrl))
-	, fBits(*fDLScratch.get())
 {
 	inFullTextIndex.SetUsesInDocLocation(inIndexNr);
-}
-
-void CTextIndex::AddDocTerm(uint32 inDoc, uint8 inFrequency, DocLoc& inDocLoc)
-{
-	CIndexBase::AddDocTerm(inDoc, inFrequency, inDocLoc);
-	
-	if (inDocLoc.size() == 0)
-		THROW(("Doc Loc vector should really contain locations here..."));
-	
-	CompressArray(fBits, inDocLoc, numeric_limits<uint16>::max(), kAC_SelectorCode);
-}
-
-bool CTextIndex::Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo)
-{
-	if (not CIndexBase::Write(inDataFile, inDocCount, outInfo))
-		return false;
-	
-	fBits.sync();
-	
-	outInfo.doc_loc_offset = inDataFile.Seek(0, SEEK_END);
-	outInfo.doc_loc_size = fDLScratch->Size();
-	
-	const int kBufSize = 4096;
-	HAutoBuf<char> b(new char[kBufSize]);
-	int64 k = fDLScratch->Size();
-	fDLScratch->Seek(0, SEEK_SET);
-	while (k > 0)
-	{
-		uint32 n = kBufSize;
-		if (n > k)
-			n = k;
-		fDLScratch->Read(b.get(), n);
-		inDataFile.Write(b.get(), n);
-		k -= n;
-	}
-	
-	return true;
+	fUsesIDL = true;
 }
 
 class CWeightedWordIndex : public CIndexBase
@@ -2338,7 +2348,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 							{
 								docIters.push_back(
 									CreateDbDocIterator(md[i].array_compression_kind, *md[i].mappedBits,
-										v[j].second, md[i].count, first));
+										v[j].second, md[i].count, first, (fParts[ix].flags & kContainsIDL) != 0));
 
 								count += docIters.back().Count();
 								break;
@@ -2565,7 +2575,7 @@ CDocIterator* CIndexer::GetImpForPattern(const string& inIndex,
 
 			for (vector<uint32>::iterator i = values->begin(); i != values->end(); ++i)
 				ixs.push_back(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
-					fParts[ix].bits_offset + *i, fHeader->entries));
+					fParts[ix].bits_offset + *i, fHeader->entries, 0, (fParts[ix].flags & kContainsIDL) != 0));
 
 			result.reset(CDocUnionIterator::Create(ixs));
 		}
@@ -2626,7 +2636,7 @@ CDocIterator* CIndexer::CreateDocIterator(const string& inIndex, const string& i
 								fParts[ix].bits_offset + *i, fHeader->entries));
 						else
 							bitIter->Add(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
-								fParts[ix].bits_offset + *i, fHeader->entries));
+								fParts[ix].bits_offset + *i, fHeader->entries, 0, (fParts[ix].flags & kContainsIDL) != 0));
 					}
 					
 					iters.push_back(bitIter.release());
@@ -2640,7 +2650,7 @@ CDocIterator* CIndexer::CreateDocIterator(const string& inIndex, const string& i
 								fParts[ix].bits_offset + *i, fHeader->entries));
 						else
 							iters.push_back(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
-								fParts[ix].bits_offset + *i, fHeader->entries));
+								fParts[ix].bits_offset + *i, fHeader->entries, 0, (fParts[ix].flags & kContainsIDL) != 0));
 //						iters.push_back(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
 //							fParts[ix].bits_offset + *i, fHeader->entries));
 					}
@@ -2662,8 +2672,59 @@ CDocIterator* CIndexer::CreateDocIterator(const string& inIndex, const string& i
 						fParts[ix].bits_offset + value, fHeader->entries));
 				else
 					iters.push_back(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
-						fParts[ix].bits_offset + value, fHeader->entries));
+						fParts[ix].bits_offset + value, fHeader->entries, 0, (fParts[ix].flags & kContainsIDL) != 0));
 			}
+		}
+	}
+	
+	return CDocUnionIterator::Create(iters);
+}
+
+CDocIterator* CIndexer::CreateDocIteratorForPhrase(const string& inIndex, const vector<string>& inPhrase) const
+{
+	vector<CDocIterator*> iters;
+
+	string index = inIndex;
+	if (index != kAllTextIndexName)
+		index = tolower(inIndex);
+
+	for (uint32 ix = 0; ix < fHeader->count; ++ix)
+	{
+		if (index != fParts[ix].name and index != "*")
+			continue;
+		
+		if ((fParts[ix].flags & kContainsIDL) == 0 or fParts[ix].kind != kTextIndex)
+			continue;
+
+		auto_ptr<CIndex> indx(new CIndex(fParts[ix].kind, fParts[ix].index_version,
+			*fFile, fParts[ix].tree_offset, fParts[ix].root));
+	
+		vector<int64> values;
+		
+		for (vector<string>::const_iterator term = inPhrase.begin(); term != inPhrase.end(); ++term)
+		{
+			int64 value;
+
+			if (indx->GetValue(*term, value))
+				values.push_back(value);
+			else
+				break;
+		}
+		
+		if (values.size() == inPhrase.size())
+		{
+			vector<CDocIterator*> termIters;
+			
+			for (vector<int64>::iterator value = values.begin(); value != values.end(); ++value)
+			{
+				termIters.push_back(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
+					fParts[ix].bits_offset + *value, fHeader->entries, 0, true));
+			}
+			
+			if (fHeader->array_compression_kind == kAC_SelectorCode)
+				iters.push_back(new CDbPhraseDocIterator<kAC_SelectorCode>(termIters));
+			else
+				iters.push_back(new CDbPhraseDocIterator<kAC_GolombCode>(termIters));
 		}
 	}
 	
@@ -2716,12 +2777,14 @@ void CIndexer::PrintInfo() const
 		if (p.kind == kWeightedIndex)
 			cout << "  weight offset: " << p.weight_offset << endl;
 
-		if (p.kind == kTextIndex and p.doc_loc_size > 0)
+		if (p.flags)
 		{
-			cout << "  idl offset:    " << p.doc_loc_offset << endl;
-			cout << "  idl size:      " << p.doc_loc_size << endl;
+			cout << "  flags:         ";
+			if (p.flags & kContainsIDL)
+				cout << "IDL ";
+			cout << endl;
 		}
-		
+
 		cout << endl;
 	}
 }
@@ -2994,13 +3057,14 @@ uint32 CIndexer::GetMaxWeight() const
 
 struct CIndexTester
 {
-					CIndexTester(uint32 inKind, HStreamBase& inFile, uint32 inDocCount, uint32 inIxCount)
+					CIndexTester(uint32 inKind, HStreamBase& inFile, uint32 inDocCount, uint32 inIxCount, uint32 inFlags)
 						: fKind(inKind)
 						, fFile(inFile)
 						, fDocCount(inDocCount)
 						, fCount(0)
 						, fIxCount(inIxCount)
 						, fTick(inIxCount / 60)
+						, fFlags(inFlags)
 					{
 					}
 	
@@ -3014,6 +3078,7 @@ struct CIndexTester
 	uint32			fCount;
 	uint32			fIxCount;
 	uint32			fTick;
+	uint32			fFlags;
 };
 
 void CIndexTester::VisitValue(const string& inKey, int64 inValue)
@@ -3047,7 +3112,8 @@ void CIndexTester::VisitSimple(const string& inKey, int64 inValue)
 		fCount = 0;
 	}
 
-	auto_ptr<CDbDocIteratorBase> iter(CreateDbDocIterator(fKind, fFile, inValue, fDocCount));
+	auto_ptr<CDbDocIteratorBase> iter(
+		CreateDbDocIterator(fKind, fFile, inValue, fDocCount, 0, (fFlags & kContainsIDL) != 0));
 
 	uint32 doc;
 	uint32 cnt = iter->Count(), n = 0;
@@ -3125,7 +3191,8 @@ void CIndexer::Test()
 		int64 bitsOffset = fParts[ix].bits_offset;
 		HStreamView bits(*fFile, fParts[ix].bits_offset, fFile->Size() - bitsOffset);
 
-		CIndexTester tester(fHeader->array_compression_kind, bits, fHeader->entries, fParts[ix].entries);
+		CIndexTester tester(
+			fHeader->array_compression_kind, bits, fHeader->entries, fParts[ix].entries, fParts[ix].flags);
 
 		switch (fParts[ix].kind)
 		{
