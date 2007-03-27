@@ -74,14 +74,11 @@ enum CIndexKind
 	
 			// index containing ascii representation of an integer
 	kNumberIndex		= FOUR_CHAR_INLINE('nmbr'),
-	
-			// text index containing 'in document' locations
-	kInDocLocTextIndex	= FOUR_CHAR_INLINE('dloc'),
 };
 
 const uint32
 	kInvalidDocID = std::numeric_limits<uint32>::max(),
-	kMaxInDocumentLocation = 0x7ffff;	// half a million words... seems enough to me
+	kMaxInDocumentLocation = 0xffff;	// 64k words... seems enough to me
 
 enum CQueryOperator
 {

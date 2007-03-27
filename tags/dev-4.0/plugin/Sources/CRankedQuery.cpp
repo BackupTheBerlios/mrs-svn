@@ -311,11 +311,11 @@ void CRankedQuery::AddTermsFromText(const string& inText)
 		return;
 	
 	CTokenizer tok(inText.c_str(), inText.length());
-	bool isWord, isNumber;
+	bool isWord, isNumber, isPunct;
 	
 	map<string,uint32> words;
 	
-	while (tok.GetToken(isWord, isNumber))
+	while (tok.GetToken(isWord, isNumber, isPunct))
 	{
 		uint32 l = tok.GetTokenLength();
 

@@ -358,6 +358,9 @@ class CFullTextIndex
 	// two versions for AddWord, one works with lexicon's ID's
 	void			AddWord(uint8 inIndex, const string& inWord, uint8 inFrequency);
 	void			AddWord(uint8 inIndex, uint32 inWord, uint8 inFrequency);
+	
+	void			Stop();				// called to increase fDocWordLocation
+	
 	uint32			Store(const string& inWord)
 					{
 						return lexicon.Store(inWord);
@@ -584,6 +587,13 @@ void CFullTextIndex::AddWord(uint8 inIndex, uint32 inWord, uint8 inFrequency)
 		if (UsesInDocLocation(inIndex))
 			const_cast<DocWord&>(*i).loc.push_back(fDocWordLocation);
 	}
+}
+
+void CFullTextIndex::Stop()
+{
+	++fDocWordLocation;
+	if (fDocWordLocation >= kMaxInDocumentLocation)	// cycle...
+		fDocWordLocation = 1;
 }
 
 void CFullTextIndex::FlushDoc(uint32 inDoc)
@@ -1565,20 +1575,25 @@ void CIndexer::IndexText(const string& inIndex, const string& inText, bool inInd
 	CIndexBase* index = GetIndexBase<CTextIndex>(inIndex);
 
 	CTokenizer tok(inText.c_str(), inText.length());
-	bool isWord, isNumber;
+	bool isWord, isNumber, isPunct;
 	
-	while (tok.GetToken(isWord, isNumber))
+	while (tok.GetToken(isWord, isNumber, isPunct))
 	{
 		uint32 l = tok.GetTokenLength();
-
-		if (not (isWord or isNumber) or l == 0)
-			continue;
 		
-		if (isNumber and not inIndexNrs)
+		if (isPunct or (isNumber and not inIndexNrs))
+		{
+			fFullTextIndex->Stop();
+			continue;
+		}
+		
+		if (not (isWord or isNumber) or l == 0)
 			continue;
 
 		if (l <= kMaxKeySize)
 			index->AddWord(string(tok.GetTokenValue(), l));
+		else	
+			fFullTextIndex->Stop();
 	}
 }
 

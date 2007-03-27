@@ -369,24 +369,6 @@ class CDocCachedIterator : public CDocIterator
 	bool							fCacheContainsAll;
 };
 
-class CDbStringMatchIterator : public CDocIterator
-{
-  public:
-					CDbStringMatchIterator(CDatabankBase& inDb, const std::vector<std::string>& inStringWords,
-						CDocIterator* inBaseIterator);
-	virtual			~CDbStringMatchIterator();
-
-	virtual bool	Next(uint32& ioDoc, bool inSkip);
-	virtual uint32	Count() const;
-	virtual uint32	Read() const;
-
-  private:
-	CDatabankBase&	fDb;
-	std::vector<std::string>
-					fStringWords;
-	CDocIterator*	fIter;
-};
-
 class CDbJoinedIterator : public CDbDocIteratorBase
 {
   public:
