@@ -476,7 +476,7 @@ class CFullTextIndex
 						if (ftix.UsesInDocLocation(ix))
 						{
 							uint32 cnt = ReadGamma(bits) - 2;
-							uint16 l = ReadGamma(bits) - 1;
+							uint32 l = ReadGamma(bits) - 1;
 							loc.push_back(l);
 							while (cnt-- > 0)
 							{
@@ -675,7 +675,7 @@ void CFullTextIndex::FlushRun()
 			WriteGamma(bits, buffer[i].loc.size() + 1);
 			
 			DocLoc::iterator l = buffer[i].loc.begin();
-			uint16 cl = *l++;
+			uint32 cl = *l++;
 			WriteGamma(bits, cl + 1);
 			for (; l != buffer[i].loc.end(); ++l)
 			{

@@ -78,7 +78,7 @@ enum CIndexKind
 
 const uint32
 	kInvalidDocID = std::numeric_limits<uint32>::max(),
-	kMaxInDocumentLocation = 0xffff;	// 64k words... seems enough to me
+	kMaxInDocumentLocation = 0x7ffff;	// half a million words... seems enough to me
 
 enum CQueryOperator
 {
