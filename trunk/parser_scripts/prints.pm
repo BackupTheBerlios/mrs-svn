@@ -155,7 +155,7 @@ sub pp
 		{
 			foreach my $id (split(m/\s+/, $2))
 			{
-				$links{$id} = $q->a({-href=>"$url?db=sprot%2Btrembl&query=id:$id%20OR%20ac:$id"}, $id);
+				$links{$id} = $q->a({-href=>"$url?db=uniprot&query=id:$id%20OR%20ac:$id"}, $id);
 			}
 		}
 	}

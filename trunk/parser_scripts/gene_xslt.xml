@@ -113,7 +113,7 @@
 
 			<xsl:when test="Other-source_src/Dbtag/Dbtag_db = 'UniProt'">
 				<xsl:variable name="id" select="Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_str"/>
-				<a href="mrs.cgi?db=sprot%2Btrembl&amp;query=ac:{$id}"><xsl:value-of select="$anchor"/></a>
+				<a href="mrs.cgi?db=uniprot&amp;query=ac:{$id}"><xsl:value-of select="$anchor"/></a>
 			</xsl:when>
 			
 			<xsl:otherwise>
