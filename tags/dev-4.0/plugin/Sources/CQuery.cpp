@@ -64,8 +64,9 @@ using namespace std;
 // 	the regular expression [0-9a-z_]+((-|\\.)[0-9a-z_]+)*
 //	causes a bus error in boost... so we had to alter it.
 
-const
-	boost::regex kWordRE("[0-9a-z_]+([-.][0-9a-z_]+)*");
+const boost::regex
+	kWordRE("[0-9a-z_]+([-.][0-9a-z_]+)*"),
+	kSplitWordRE("^([0-9a-z_]+)-([0-9a-z_]+)$");
 
 enum CQueryToken
 {
@@ -565,7 +566,15 @@ CDocIterator* CQueryImp::Parse_Test()
 			vector<string> terms;
 			while (a != b)
 			{
-				terms.push_back(a->str());
+				boost::smatch m;
+				
+				if (boost::regex_match(a->str(), m, kSplitWordRE))
+				{
+					terms.push_back(m.str(1));
+					terms.push_back(m.str(2));
+				}
+				else
+					terms.push_back(a->str());
 				++a;
 			}
 //			transform(a, b, back_inserter(terms),

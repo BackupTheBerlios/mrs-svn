@@ -634,6 +634,10 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 
 	void				FlushDocument();
 
+	void				AddXPathForIndex(const std::string& inIndex, bool inIsValueIndex,
+							bool inIndexNumbers, bool inStoreAsMetaData, const std::string& inXPath);
+	void				AddXMLDocument(const std::string& inDoc);
+
 	/** \brief	Create the final MRS file.
 	 *
 	 *	When all documents have been processed you can ask MRS to create the final .cmp file

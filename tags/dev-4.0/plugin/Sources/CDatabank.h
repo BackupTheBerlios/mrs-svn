@@ -243,7 +243,14 @@ class CDatabank : public CDatabankBase
 #ifndef NO_BLAST
 	void				AddSequence(const std::string& inSequence);
 #endif
+
 	void				FlushDocument();
+
+	// XML Import interface
+	void				AddXPathForIndex(const std::string& inIndex, bool inIsValueIndex,
+							bool inIndexNumbers, bool inStoreAsMetaData,
+							const std::string& inXPath);
+	void				AddXMLDocument(const std::string& inDoc);
 
 	void				Finish(bool inCreateAllTextIndex, bool inCreateUpdateDatabank);
 	
@@ -322,6 +329,8 @@ class CDatabank : public CDatabankBase
 		std::string	data;		// used during indexing only
 	};
 	
+	typedef std::vector<struct CXMLIndex*>	CXMLIndexList;
+	
 	HUrl			fPath;
 	int64			fModificationTime;
 	HStreamBase*	fDataFile;
@@ -334,6 +343,8 @@ class CDatabank : public CDatabankBase
 #ifndef NO_BLAST
 	CBlastIndex*	fBlastIndex;
 #endif
+
+	CXMLIndexList	fXMLIndexList;
 
 	// on disk info
 	SHeader*		fHeader;

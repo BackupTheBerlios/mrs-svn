@@ -4443,6 +4443,124 @@ XS(_wrap_MDatabank_FlushDocument) {
 }
 
 
+XS(_wrap_MDatabank_AddXPathForIndex) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        std::string *arg2 = 0 ;
+        bool arg3 ;
+        bool arg4 ;
+        bool arg5 ;
+        std::string *arg6 = 0 ;
+        std::string temp2 ;
+        std::string temp6 ;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 6) || (items > 6)) {
+            SWIG_croak("Usage: MDatabank_AddXPathForIndex(self,inIndex,inIsValueIndex,inIndexNumbers,inStoreAsMetaData,inXPath);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_AddXPathForIndex. Expected _p_MDatabank");
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(1), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 2 of MDatabank_AddXPathForIndex.");
+            } else {
+                temp2.assign(ptr, len);
+                arg2 = &temp2;
+            }
+        }
+        arg3 = SvIV(ST(2)) ? true : false;
+        arg4 = SvIV(ST(3)) ? true : false;
+        arg5 = SvIV(ST(4)) ? true : false;
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(5), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 6 of MDatabank_AddXPathForIndex.");
+            } else {
+                temp6.assign(ptr, len);
+                arg6 = &temp6;
+            }
+        }
+        {
+            try {
+                (arg1)->AddXPathForIndex((std::string const &)*arg2,arg3,arg4,arg5,(std::string const &)*arg6);
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MDatabank_AddXMLDocument) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        std::string *arg2 = 0 ;
+        std::string temp2 ;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 2) || (items > 2)) {
+            SWIG_croak("Usage: MDatabank_AddXMLDocument(self,inDoc);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_AddXMLDocument. Expected _p_MDatabank");
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(1), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 2 of MDatabank_AddXMLDocument.");
+            } else {
+                temp2.assign(ptr, len);
+                arg2 = &temp2;
+            }
+        }
+        {
+            try {
+                (arg1)->AddXMLDocument((std::string const &)*arg2);
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
 XS(_wrap_MDatabank_Finish__SWIG_0) {
     {
         MDatabank *arg1 = (MDatabank *) 0 ;
@@ -7735,6 +7853,8 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MDatabank_IndexNumber", _wrap_MDatabank_IndexNumber},
 {"MRSc::MDatabank_AddSequence", _wrap_MDatabank_AddSequence},
 {"MRSc::MDatabank_FlushDocument", _wrap_MDatabank_FlushDocument},
+{"MRSc::MDatabank_AddXPathForIndex", _wrap_MDatabank_AddXPathForIndex},
+{"MRSc::MDatabank_AddXMLDocument", _wrap_MDatabank_AddXMLDocument},
 {"MRSc::MDatabank_Finish", _wrap_MDatabank_Finish},
 {"MRSc::MDatabank_CreateDictionary", _wrap_MDatabank_CreateDictionary},
 {"MRSc::delete_MDatabank", _wrap_delete_MDatabank},

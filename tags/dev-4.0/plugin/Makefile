@@ -60,7 +60,7 @@ VERSION		= 3.0.1
 # DEBUG should be either 1 or 0
 DEBUG		= 0
 DEFINES		= CPU_$(CPU) MINI_H_LIB
-LIBS		= z m bz2 $(addsuffix $(BOOST_LIB_SUFFIX), boost_regex)
+LIBS		= z m bz2 xml2 $(addsuffix $(BOOST_LIB_SUFFIX), boost_regex)
 LIBPATHS	=  ./Lib/ /usr/local/lib/
 INCPATHS	= ./Lib/Includes/ ./Lib/X/ ./Lib/
 SYSINCPATHS	= /usr/include $(BOOST)

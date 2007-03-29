@@ -56,6 +56,16 @@
 #include "zlib.h"
 #include "uuid/uuid.h"
 
+#include <libxml/xpath.h>
+#include <libxml/tree.h>
+#include <libxml/parser.h>
+#include <libxml/debugXML.h>
+#include <libxml/xmlmemory.h>
+#include <libxml/parserInternals.h>
+#include <libxml/xpathInternals.h>
+#include <libxml/xmlerror.h>
+#include <libxml/globals.h>
+
 #include "CDatabank.h"
 #include "CCompress.h"
 #include "CDecompress.h"
@@ -166,6 +176,104 @@ HStreamBase& operator<<(HStreamBase& inData, SDataPart& inStruct);
 HStreamBase& operator>>(HStreamBase& inData, SDataPart& inStruct);
 HStreamBase& operator<<(HStreamBase& inData, SBlastIndexHeader& inStruct);
 HStreamBase& operator>>(HStreamBase& inData, SBlastIndexHeader& inStruct);
+
+///////////////////////////////////////////////////////////////////////
+//
+//	XML support
+//
+
+struct CXMLIndex
+{
+	string						index;
+	bool						isValue;
+	bool						indexNumbers;
+	bool						storeAsMetaData;
+	vector<xmlXPathCompExprPtr>	expr;
+
+								~CXMLIndex();
+};
+
+CXMLIndex::~CXMLIndex()
+{
+	for (vector<xmlXPathCompExprPtr>::iterator e = expr.begin(); e != expr.end(); ++e)
+		xmlXPathFreeCompExpr(*e);
+}
+
+class CXMLDocument
+{
+  public:
+						CXMLDocument(const string& inData);
+	virtual				~CXMLDocument();
+	
+	void				FetchText(xmlXPathCompExprPtr inPath, string& outText);
+
+  private:
+
+	void				CollectText(xmlNodePtr inNode, string& outText);
+
+	xmlDocPtr			mDoc;
+	xmlXPathContextPtr	mXPathContext;
+};
+
+CXMLDocument::CXMLDocument(const string& inData)
+	: mDoc(nil)
+	, mXPathContext(nil)
+{
+	mDoc = xmlReadDoc(BAD_CAST inData.c_str(), nil, nil, 0);
+	if (mDoc == nil)
+		THROW(("Failed to read XML doc"));
+	
+	mXPathContext = xmlXPathNewContext(mDoc);
+	if (mXPathContext == nil)
+		THROW(("Failed to create XPath context"));
+	
+	mXPathContext->node = xmlDocGetRootElement(mDoc);
+}
+
+CXMLDocument::~CXMLDocument()
+{
+	xmlXPathFreeContext(mXPathContext);
+	xmlFreeDoc(mDoc);
+	xmlCleanupParser();
+}
+
+void CXMLDocument::CollectText(xmlNodePtr inNode, string& outText)
+{
+	const char* text = (const char*)XML_GET_CONTENT(inNode);
+	if (text != nil)
+	{
+		outText += text;
+		outText += ' ';
+	}
+	
+	xmlNodePtr next = inNode->children;
+	while (next != nil)
+	{	
+		CollectText(next, outText);
+		next = next->next;
+	}
+}
+
+void CXMLDocument::FetchText(xmlXPathCompExprPtr inPath, string& outText)
+{
+	xmlXPathObjectPtr res = xmlXPathCompiledEval(inPath, mXPathContext);
+	if (res != nil)
+	{
+		xmlNodeSetPtr nodes = res->nodesetval;
+		if (nodes != nil)
+		{
+			for (int i = 0; i < nodes->nodeNr; ++i)
+			{
+				xmlNodePtr node = nodes->nodeTab[i];
+				CollectText(node, outText);
+			}
+		}
+		
+		xmlXPathFreeObject(res);
+	}
+}
+
+
 
 /*
 	Base classes
@@ -542,6 +650,9 @@ CDatabank::~CDatabank()
 {
 	for (CPartList::iterator i = fDataParts.begin(); i != fDataParts.end(); ++i)
 		delete (*i).fDecompressor;
+
+	for (CXMLIndexList::iterator i = fXMLIndexList.begin(); i != fXMLIndexList.end(); ++i)
+		delete *i;
 	
 	delete[] fParts;
 	delete fDataHeader;
@@ -1512,6 +1623,69 @@ void CDatabank::FlushDocument()
 		else
 			cout.flush();
 	}
+}
+
+void CDatabank::AddXPathForIndex(const std::string& inIndex, bool inIsValueIndex,
+	bool inIndexNumbers, bool inStoreAsMetaData, const std::string& inXPath)
+{
+	string index = tolower(inIndex);
+	
+	CXMLIndex* xmlIndex = nil;
+	for (CXMLIndexList::iterator i = fXMLIndexList.begin(); i != fXMLIndexList.end(); ++i)
+	{
+		if ((*i)->index == inIndex)
+		{
+			xmlIndex = *i;
+			break;
+		}
+	}
+	
+	if (xmlIndex == nil)
+	{
+		xmlIndex = new CXMLIndex;
+		xmlIndex->index = index;
+		xmlIndex->isValue = inIsValueIndex;
+		xmlIndex->indexNumbers = inIndexNumbers;
+		xmlIndex->storeAsMetaData = inStoreAsMetaData;
+		fXMLIndexList.push_back(xmlIndex);
+	}
+	
+	xmlXPathCompExprPtr expr = xmlXPathCompile(BAD_CAST inXPath.c_str());
+	if (expr == nil)
+		THROW(("Invalid XPath expression: '%s'", inXPath.c_str()));
+	
+	xmlIndex->expr.push_back(expr);
+}
+
+void CDatabank::AddXMLDocument(const std::string& inDoc)
+{
+	CXMLDocument doc(inDoc);
+	
+	for (CXMLIndexList::iterator i = fXMLIndexList.begin(); i != fXMLIndexList.end(); ++i)
+	{
+		CXMLIndex* ix = *i;
+		
+		string text;
+
+		for (vector<xmlXPathCompExprPtr>::iterator ce = ix->expr.begin(); ce != ix->expr.end(); ++ce)
+			doc.FetchText(*ce, text);
+		
+		if (text.length() > 0)
+		{
+			if (ix->storeAsMetaData)
+				StoreMetaData(ix->index, text);
+			
+			if (ix->isValue)
+				IndexValue(ix->index, text);
+			else if (ix->indexNumbers)
+				IndexTextAndNumbers(ix->index, text);
+			else
+				IndexText(ix->index, text);
+		}
+	}
+	
+	Store(inDoc);
+	FlushDocument();
 }
 
 CDocIterator* CDatabank::CreateDocIterator(const string& inIndex,

@@ -965,6 +965,18 @@ void MDatabank::FlushDocument()
 	fImpl->GetDB()->FlushDocument();
 }
 
+void MDatabank::AddXPathForIndex(const string& inIndex,
+	bool inIsValueIndex, bool inIndexNumbers, bool inStoreAsMetaData, const string& inXPath)
+{
+	fImpl->GetDB()->AddXPathForIndex(inIndex, inIsValueIndex, inIndexNumbers, inStoreAsMetaData, inXPath);
+}
+
+void MDatabank::AddXMLDocument(const std::string& inDoc)
+{
+	CStopwatch sw(fImpl->fIndexTime);
+	fImpl->GetDB()->AddXMLDocument(inDoc);
+}
+
 void MDatabank::Finish(bool inCreateAllTextIndex, bool inCreateUpdateDatabank)
 {
 	{

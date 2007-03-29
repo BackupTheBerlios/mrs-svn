@@ -182,6 +182,8 @@ sub SuggestCorrection {
 *IndexNumber = *MRSc::MDatabank_IndexNumber;
 *AddSequence = *MRSc::MDatabank_AddSequence;
 *FlushDocument = *MRSc::MDatabank_FlushDocument;
+*AddXPathForIndex = *MRSc::MDatabank_AddXPathForIndex;
+*AddXMLDocument = *MRSc::MDatabank_AddXMLDocument;
 *Finish = *MRSc::MDatabank_Finish;
 *CreateDictionary = *MRSc::MDatabank_CreateDictionary;
 sub DESTROY {

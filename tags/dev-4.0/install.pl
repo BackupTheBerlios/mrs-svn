@@ -327,7 +327,9 @@ open MCFG, ">plugin/make.config" or die "Could not open the file plugin/make.con
 print MCFG "CC = $cc\n";
 print MCFG "SWIG = $swig\n" if defined $swig;
 print MCFG "SYSINCPATHS += $boost_inc\n" if defined $boost_inc;
+print MCFG "SYSINCPATHS += $libxml_inc\n" if defined $libxml_inc;
 print MCFG "LIBPATHS += $boost_lib\n" if defined $boost_lib;
+print MCFG "LIBPATHS += $libxml_lib\n" if defined $libxml_lib;
 print MCFG "BOOST_LIB_SUFFIX = $boost_lib_suffix\n" if length($boost_lib_suffix) > 0;
 print MCFG "HAVE_TR1 = $use_tr1\n";
 print MCFG "IQUOTE = 0\n" if $gcc_version < 4;	# use -I- in case of older compiler
