@@ -273,8 +273,6 @@ void CXMLDocument::FetchText(xmlXPathCompExprPtr inPath, string& outText)
 	}
 }
 
-
-
 /*
 	Base classes
 */

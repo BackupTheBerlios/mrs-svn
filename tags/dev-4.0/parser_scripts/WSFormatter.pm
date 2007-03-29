@@ -84,6 +84,8 @@ package MRS::Script::ParserInterface;
 
 use strict;
 use warnings;
+use XML::LibXML;
+use XML::LibXML::XPathContext;
 
 # code needed for Find Similar
 
@@ -101,6 +103,41 @@ sub new
 	};
 	my $result = bless $self, "MRS::Script::ParserInterface";
 	return $result;	
+}
+
+sub AddXPathForIndex
+{
+	my ($self, $index, $isValueIndex, $indexNumbers, $storeAsMetaData, $xPath) = @_;
+	
+	my $xpaths = $self->{xpaths};
+	if (not defined $xpaths) {
+		my %xpaths = (
+			'$index' =>	[ $xPath ]
+		);
+		$self->{xpaths} = \%xpaths;
+	}
+	else {
+		push @{$xpaths->{$index}}, $xPath;
+	}
+}
+
+sub AddXMLDocument
+{
+	my ($self, $doc) = @_;
+	
+	my $parser = XML::LibXML->new;
+	my $xdoc = $parser->parse_string($doc);
+	my $xpc = XML::LibXML::XPathContext->new($xdoc);
+	
+	foreach my $ix (keys %{$self->{xpath}}) {
+		foreach my $xpath (@{$ix}) {
+			my @nodes = $xpc->find($xpath);
+			
+			foreach my $node (@nodes) {
+				print "textContent: ", $node->textContent, "\n"; 
+			}
+		}
+	}
 }
 
 sub SplitWords

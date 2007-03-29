@@ -57,6 +57,7 @@ struct WFormatTableImp
 	
 	PerlInterpreter*		my_perl;
 	string					parser_dir;
+	time_t					lastModified;	// the WSFormatter.pm script
 };
 
 WFormatTableImp::WFormatTableImp(
@@ -72,6 +73,8 @@ WFormatTableImp::WFormatTableImp(
 	
 	fs::path pd(inParserDir, fs::native);
 	fs::path sp(pd / "WSFormatter.pm");
+	
+	lastModified = last_write_time(sp);
 
 	char* embedding[] = { "", const_cast<char*>(sp.string().c_str()) };
 	
@@ -181,12 +184,14 @@ WFormatTable& WFormatTable::Instance()
 {
 	static WFormatTable sInstance;
 	
-	if (sInstance.mImpl == NULL)
+	fs::path pd(sParserDir, fs::native);
+	fs::path ps(pd / "WSFormatter.pm");
+	if (not fs::exists(ps))
+		THROW(("The WSFormatter.pm script cannot be found, it should be located in the parser scripts directory"));
+
+	if (sInstance.mImpl == NULL or last_write_time(ps) > sInstance.mImpl->lastModified)
 	{
-		fs::path pd(sParserDir, fs::native);
-		if (not fs::exists(pd / "WSFormatter.pm"))
-			THROW(("The WSFormatter.pm script cannot be found, it should be located in the parser scripts directory"));
-		
+		delete sInstance.mImpl;
 		sInstance.mImpl = new WFormatTableImp(sParserDir);
 	}
 
