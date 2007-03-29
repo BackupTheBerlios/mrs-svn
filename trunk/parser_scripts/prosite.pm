@@ -52,7 +52,7 @@ my %INDICES = (
 	'pp' => 'Post-Processing Rule',
 	'pr' => 'Prorule link',
 	'ru' => 'Rule',
-	'type' => 'Type (PATTERN, MATRIX or RULE)'
+	'type' => 'Type (PATTERN or MATRIX)'
 );
 
 sub new
