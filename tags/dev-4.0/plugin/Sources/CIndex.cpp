@@ -220,17 +220,10 @@ struct COnDiskDataV0
 	static uint32	PageNrToAddr(uint32 inPageNr)	{ return inPageNr; }
 	static uint32	PageAddrToNr(uint32 inPageAddr)	{ return inPageAddr; }
 
-	void			SwapBytesHToN();
-	void			SwapBytesNToH();
+	void			SwapBytes();
 };
 
-void COnDiskDataV0::SwapBytesNToH()
-{
-	n = byte_swapper::swap(n);
-	p0 = byte_swapper::swap(p0);
-}
-
-void COnDiskDataV0::SwapBytesHToN()
+void COnDiskDataV0::SwapBytes()
 {
 	n = byte_swapper::swap(n);
 	p0 = byte_swapper::swap(p0);
@@ -239,8 +232,11 @@ void COnDiskDataV0::SwapBytesHToN()
 //	The MRS 2.0 version of the BTree, used for indices with a bits 
 //	section size smaller than 4 Gb.
 
+template<class BYTE_SWAPPER>
 struct COnDiskDataV1
 {
+	typedef BYTE_SWAPPER	swapper;
+	
 	unsigned char	keys[kKeySpace];
 	struct
 	{
@@ -253,47 +249,46 @@ struct COnDiskDataV1
 	
 	uint32			GetValue(int32 inIndex) const
 					{
-						return net_swapper::swap(e[-inIndex].value_);
+						return swapper::swap(e[-inIndex].value_);
 					}
 	void			SetValue(int32 inIndex, uint32 inValue)
 					{
-						e[-inIndex].value_ = net_swapper::swap(inValue);
+						e[-inIndex].value_ = swapper::swap(inValue);
 					}
 	uint32			GetP(int32 inIndex) const
 					{
-						return net_swapper::swap(e[-inIndex].p_);
+						return swapper::swap(e[-inIndex].p_);
 					}
 	void			SetP(int32 inIndex, uint32 inP)
 					{
-						e[-inIndex].p_ = net_swapper::swap(inP);
+						e[-inIndex].p_ = swapper::swap(inP);
 					}
 	
 	static uint32	PageNrToAddr(uint32 inPageNr)	{ return inPageNr; }
 	static uint32	PageAddrToNr(uint32 inPageAddr)	{ return inPageAddr; }
 
-	void			SwapBytesHToN();
-	void			SwapBytesNToH();
+	void			SwapBytes();
 };
 
-void COnDiskDataV1::SwapBytesNToH()
+template<class BYTE_SWAPPER>
+void COnDiskDataV1<BYTE_SWAPPER>::SwapBytes()
 {
 	n = byte_swapper::swap(n);
 	p0 = byte_swapper::swap(p0);
 	pp = byte_swapper::swap(pp);
 }
 
-void COnDiskDataV1::SwapBytesHToN()
-{
-	n = byte_swapper::swap(n);
-	p0 = byte_swapper::swap(p0);
-	pp = byte_swapper::swap(pp);
-}
+typedef COnDiskDataV1<byte_swapper>		COnDiskDataV1S;
+typedef COnDiskDataV1<no_swapper>		COnDiskDataV1N;
 
 //	The MRS 2.0 version of the BTree, used for indices with a bits 
 //	section size larger than 4 Gb.
 
+template<class BYTE_SWAPPER>
 struct COnDiskDataV2
 {
+	typedef BYTE_SWAPPER	swapper;
+	
 	uint32			p0;
 	uint32			pp;
 	int32			n;
@@ -309,51 +304,47 @@ struct COnDiskDataV2
 
 	int64			GetValue(int32 inIndex) const
 					{
-						return net_swapper::swap(e[-inIndex].d) >> 24;
+						return swapper::swap(e[-inIndex].d) >> 24;
 					}
 	void			SetValue(int32 inIndex, int64 inValue)
 					{
-						int64 ev = net_swapper::swap(e[-inIndex].d);
+						int64 ev = swapper::swap(e[-inIndex].d);
 						
 						ev &= 0x0FFFFFFULL;
 						ev |= inValue << 24;
 						
-						e[-inIndex].d = net_swapper::swap(ev);
+						e[-inIndex].d = swapper::swap(ev);
 					}
 	uint32			GetP(int32 inIndex) const
 					{
-						return net_swapper::swap(e[-inIndex].d) & 0x0FFFFFFULL;
+						return swapper::swap(e[-inIndex].d) & 0x0FFFFFFULL;
 					}
 	void			SetP(int32 inIndex, uint32 inP)
 					{
-						int64 ev = net_swapper::swap(e[-inIndex].d);
+						int64 ev = swapper::swap(e[-inIndex].d);
 						
 						ev &= ~0x0FFFFFFULL;
 						ev |= (inP & 0x0FFFFFFULL);
 						
-						e[-inIndex].d = net_swapper::swap(ev);
+						e[-inIndex].d = swapper::swap(ev);
 					}
 
 	static int64	PageNrToAddr(uint32 inPageNr)	{ return static_cast<int64>(inPageNr - 1) * kPageSize; }
 	static uint32	PageAddrToNr(int64 inPageAddr)	{ return static_cast<uint32>(inPageAddr / kPageSize) + 1; }
 
-	void			SwapBytesHToN();
-	void			SwapBytesNToH();
+	void			SwapBytes();
 };
 
-void COnDiskDataV2::SwapBytesNToH()
+template<class BYTE_SWAPPER>
+void COnDiskDataV2<BYTE_SWAPPER>::SwapBytes()
 {
 	n = byte_swapper::swap(n);
 	p0 = byte_swapper::swap(p0);
 	pp = byte_swapper::swap(pp);
 }
 
-void COnDiskDataV2::SwapBytesHToN()
-{
-	n = byte_swapper::swap(n);
-	p0 = byte_swapper::swap(p0);
-	pp = byte_swapper::swap(pp);
-}
+typedef COnDiskDataV2<byte_swapper>		COnDiskDataV2S;
+typedef COnDiskDataV2<no_swapper>		COnDiskDataV2N;
 
 template<typename DD>
 class CIndexPage
@@ -728,10 +719,6 @@ void CIndexPage<DD>::Copy(CIndexPage& inFromPage, int32 inFromIndex, int32 inToI
 template<typename DD>
 void CIndexPage<DD>::Read()
 {
-//#if P_DEBUG
-//int64 offset = fBaseOffset + DD::PageNrToAddr(fOffset);
-//cerr << "reading page from offset: " << offset << " (base offset = " << fBaseOffset << ", hex: " << hex << offset << dec << ')' << endl;
-//#endif
 	uint32 read = fFile->PRead(&fData, kPageSize, fBaseOffset + DD::PageNrToAddr(fOffset));
 	assert(read == kPageSize);
 	if (read != kPageSize)
@@ -739,49 +726,19 @@ void CIndexPage<DD>::Read()
 	
 	fDirty = false;
 
-#if P_LITTLEENDIAN
-	fData.SwapBytesNToH();
-#endif
-
-//#if P_DEBUG
-//	cout << "dumping page " << fOffset
-//		 << ", parent=" << GetParent()
-//		 << ", p0=" << GetP0()
-//		 << ", n=" << fData.n << endl;
-//
-//	for (uint32 i = 0; i < fData.n; ++i)
-//	{
-//		string k;
-//		int64 v;
-//		uint32 c;
-//		
-//		GetData(i, k, v, c);
-//		
-//		cout << "ix: " << i << ", p: " << c << ", key: " << k << endl;
-//	}
-//#endif
+	if (fFile->SwapsBytes())
+		fData.SwapBytes();
 }
 
 template<typename DD>
 void CIndexPage<DD>::Write()
 {
-#if P_LITTLEENDIAN
-		fData.SwapBytesHToN();
-#endif
-
-//int64 offset = fBaseOffset + DD::PageNrToAddr(fOffset);
-//cerr << "writing page to offset: " << offset << " base offset = " << fBaseOffset << endl;
-//	
 	uint32 written = fFile->PWrite(&fData, kPageSize, fBaseOffset + DD::PageNrToAddr(fOffset));
 	assert(written == kPageSize);
 	if (written != kPageSize)
 		THROW(("IO Error, writing page for index"));
 	
 	fDirty = false;
-
-#if P_LITTLEENDIAN
-	fData.SwapBytesNToH();
-#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -1501,12 +1458,18 @@ CIndex::CIndex(uint32 inKind, CIndexVersion inVersion, HStreamBase& inFile, int6
 					fImpl = new CIndexImpT<COnDiskDataV0>(inKind, inFile, inOffset, inRoot);
 					break;
 
-				case kCIndexVersionV1:	
-					fImpl = new CIndexImpT<COnDiskDataV1>(inKind, inFile, inOffset, inRoot);
+				case kCIndexVersionV1:
+					if (inFile.SwapsBytes())
+						fImpl = new CIndexImpT<COnDiskDataV1S>(inKind, inFile, inOffset, inRoot);
+					else
+						fImpl = new CIndexImpT<COnDiskDataV1N>(inKind, inFile, inOffset, inRoot);
 					break;
 				
 				case kCIndexVersionV2:
-					fImpl = new CIndexImpT<COnDiskDataV2>(inKind, inFile, inOffset, inRoot);
+					if (inFile.SwapsBytes())
+						fImpl = new CIndexImpT<COnDiskDataV2S>(inKind, inFile, inOffset, inRoot);
+					else
+						fImpl = new CIndexImpT<COnDiskDataV2N>(inKind, inFile, inOffset, inRoot);
 					break;
 
 				default:
@@ -1522,12 +1485,18 @@ CIndex::CIndex(uint32 inKind, CIndexVersion inVersion, HStreamBase& inFile, int6
 					fImpl = new CNumberIndexImp<COnDiskDataV0>(inKind, inFile, inOffset, inRoot);
 					break;
 
-				case kCIndexVersionV1:	
-					fImpl = new CNumberIndexImp<COnDiskDataV1>(inKind, inFile, inOffset, inRoot);
+				case kCIndexVersionV1:
+					if (inFile.SwapsBytes())
+						fImpl = new CNumberIndexImp<COnDiskDataV1S>(inKind, inFile, inOffset, inRoot);
+					else
+						fImpl = new CNumberIndexImp<COnDiskDataV1N>(inKind, inFile, inOffset, inRoot);
 					break;
 				
 				case kCIndexVersionV2:
-					fImpl = new CNumberIndexImp<COnDiskDataV2>(inKind, inFile, inOffset, inRoot);
+					if (inFile.SwapsBytes())
+						fImpl = new CNumberIndexImp<COnDiskDataV2S>(inKind, inFile, inOffset, inRoot);
+					else
+						fImpl = new CNumberIndexImp<COnDiskDataV2N>(inKind, inFile, inOffset, inRoot);
 					break;
 
 				default:

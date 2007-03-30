@@ -82,8 +82,8 @@ struct CCompressorImp
 	
 	static CCompressorImp* Create(HStreamBase& inData, const string& inCompressionType);
 	
-	HSwapStream<net_swapper>	data;
-	uint32						sig;
+	HStreamBase&	data;
+	uint32			sig;
 };
 
 CCompressorImp::CCompressorImp(HStreamBase& inData, uint32 inSig)

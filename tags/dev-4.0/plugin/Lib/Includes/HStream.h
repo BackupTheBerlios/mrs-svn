@@ -67,6 +67,7 @@ class HStreamBase
 	virtual int64	Size() const;
 	
 	void			SetSwapBytes(bool inSwap);
+	bool			SwapsBytes() const					{ return fSwap; }
 
 	HStreamBase&	operator>> (int8& d);
 	HStreamBase&	operator>> (int16& d);
@@ -251,20 +252,20 @@ class HMMappedFileStream : public HMemoryStream
 //	void*			fBasePtr;
 };
 
-template<class T>
-class HSwapStream : public HStreamBase
-{
-  public:
-					HSwapStream(HStreamBase& inOther);
-
-	virtual int32	Write(const void* inBuffer, uint32 inSize);
-	virtual int32	Read(void* inBuffer, uint32 inSize);
-	virtual int64	Seek(int64 inOffset, int inMode);
-	virtual void	Truncate(int64 inOffset);
-
-  private:
-	HStreamBase&	fStream;
-};
+//template<class T>
+//class HSwapStream : public HStreamBase
+//{
+//  public:
+//					HSwapStream(HStreamBase& inOther);
+//
+//	virtual int32	Write(const void* inBuffer, uint32 inSize);
+//	virtual int32	Read(void* inBuffer, uint32 inSize);
+//	virtual int64	Seek(int64 inOffset, int inMode);
+//	virtual void	Truncate(int64 inOffset);
+//
+//  private:
+//	HStreamBase&	fStream;
+//};
 
 class HStreamView : public HStreamBase
 {
@@ -284,52 +285,52 @@ class HStreamView : public HStreamBase
 	int64			fPointer;
 };
 
-template<class T>
-inline
-HSwapStream<T>::HSwapStream(HStreamBase& inOther)
-	: fStream(inOther)
-{
-	assert(false);
-}
-
-template<>
-inline
-HSwapStream<net_swapper>::HSwapStream(HStreamBase& inOther)
-	: fStream(inOther)
-{
-#if P_LITTLEENDIAN
-	SetSwapBytes(true);
-#endif
-}
-
-template<class T>
-inline
-int32 HSwapStream<T>::Write(const void* inBuffer, uint32 inSize)
-{
-	return fStream.Write(inBuffer, inSize);
-}
-
-template<class T>
-inline
-int32 HSwapStream<T>::Read(void* inBuffer, uint32 inSize)
-{
-	return fStream.Read(inBuffer, inSize);
-}
-
-template<class T>
-inline
-int64 HSwapStream<T>::Seek(int64 inOffset, int inMode)
-{
-	return fStream.Seek(inOffset, inMode);
-}
-
-template<class T>
-inline
-void HSwapStream<T>::Truncate(int64 inOffset)
-{
-	return fStream.Truncate(inOffset);
-}
-
+//template<class T>
+//inline
+//HSwapStream<T>::HSwapStream(HStreamBase& inOther)
+//	: fStream(inOther)
+//{
+//	assert(false);
+//}
+//
+//template<>
+//inline
+//HSwapStream<net_swapper>::HSwapStream(HStreamBase& inOther)
+//	: fStream(inOther)
+//{
+//#if P_LITTLEENDIAN
+//	SetSwapBytes(true);
+//#endif
+//}
+//
+//template<class T>
+//inline
+//int32 HSwapStream<T>::Write(const void* inBuffer, uint32 inSize)
+//{
+//	return fStream.Write(inBuffer, inSize);
+//}
+//
+//template<class T>
+//inline
+//int32 HSwapStream<T>::Read(void* inBuffer, uint32 inSize)
+//{
+//	return fStream.Read(inBuffer, inSize);
+//}
+//
+//template<class T>
+//inline
+//int64 HSwapStream<T>::Seek(int64 inOffset, int inMode)
+//{
+//	return fStream.Seek(inOffset, inMode);
+//}
+//
+//template<class T>
+//inline
+//void HSwapStream<T>::Truncate(int64 inOffset)
+//{
+//	return fStream.Truncate(inOffset);
+//}
+//
 //class HCompressedStream
 //{
 //  public:

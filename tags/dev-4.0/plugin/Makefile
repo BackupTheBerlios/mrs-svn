@@ -220,6 +220,7 @@ Sources = \
 	./Sources/CUtils.cpp \
 	./Sources/CTextTable.cpp \
 	./Sources/CThread.cpp \
+	./Sources/CXMLDocument.cpp \
 	./Lib/Generic/HStream.cpp \
 	./Lib/Generic/HError.cpp \
 	./Lib/Generic/HFile.cpp \

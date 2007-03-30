@@ -57,14 +57,6 @@
 #include "uuid/uuid.h"
 
 #include <libxml/xpath.h>
-#include <libxml/tree.h>
-#include <libxml/parser.h>
-#include <libxml/debugXML.h>
-#include <libxml/xmlmemory.h>
-#include <libxml/parserInternals.h>
-#include <libxml/xpathInternals.h>
-#include <libxml/xmlerror.h>
-#include <libxml/globals.h>
 
 #include "CDatabank.h"
 #include "CCompress.h"
@@ -82,6 +74,7 @@
 #endif
 #include "CDictionary.h"
 #include "CDocWeightArray.h"
+#include "CXMLDocument.h"
 
 using namespace std;
 
@@ -90,7 +83,13 @@ using namespace std;
 */
 
 const uint32
-	kHeaderSig = FOUR_CHAR_INLINE('MRSd'),
+	kBEHeaderSig = FOUR_CHAR_INLINE('MRSd'),
+	kLEHeaderSig = FOUR_CHAR_INLINE('mrsD'),
+#if P_BIGENDIAN
+	kHeaderSig = kBEHeaderSig,
+#else
+	kHeaderSig = kLEHeaderSig,
+#endif
 	kDataSig = FOUR_CHAR_INLINE('data'),
 	kMetaDataSig = FOUR_CHAR_INLINE('meta'),
 	kPartSig = FOUR_CHAR_INLINE('part'),
@@ -199,80 +198,6 @@ CXMLIndex::~CXMLIndex()
 		xmlXPathFreeCompExpr(*e);
 }
 
-class CXMLDocument
-{
-  public:
-						CXMLDocument(const string& inData);
-	virtual				~CXMLDocument();
-	
-	void				FetchText(xmlXPathCompExprPtr inPath, string& outText);
-
-  private:
-
-	void				CollectText(xmlNodePtr inNode, string& outText);
-
-	xmlDocPtr			mDoc;
-	xmlXPathContextPtr	mXPathContext;
-};
-
-CXMLDocument::CXMLDocument(const string& inData)
-	: mDoc(nil)
-	, mXPathContext(nil)
-{
-	mDoc = xmlReadDoc(BAD_CAST inData.c_str(), nil, nil, 0);
-	if (mDoc == nil)
-		THROW(("Failed to read XML doc"));
-	
-	mXPathContext = xmlXPathNewContext(mDoc);
-	if (mXPathContext == nil)
-		THROW(("Failed to create XPath context"));
-	
-	mXPathContext->node = xmlDocGetRootElement(mDoc);
-}
-
-CXMLDocument::~CXMLDocument()
-{
-	xmlXPathFreeContext(mXPathContext);
-	xmlFreeDoc(mDoc);
-	xmlCleanupParser();
-}
-
-void CXMLDocument::CollectText(xmlNodePtr inNode, string& outText)
-{
-	const char* text = (const char*)XML_GET_CONTENT(inNode);
-	if (text != nil)
-	{
-		outText += text;
-		outText += ' ';
-	}
-	
-	xmlNodePtr next = inNode->children;
-	while (next != nil)
-	{	
-		CollectText(next, outText);
-		next = next->next;
-	}
-}
-
-void CXMLDocument::FetchText(xmlXPathCompExprPtr inPath, string& outText)
-{
-	xmlXPathObjectPtr res = xmlXPathCompiledEval(inPath, mXPathContext);
-	if (res != nil)
-	{
-		xmlNodeSetPtr nodes = res->nodesetval;
-		if (nodes != nil)
-		{
-			for (int i = 0; i < nodes->nodeNr; ++i)
-			{
-				xmlNodePtr node = nodes->nodeTab[i];
-				CollectText(node, outText);
-			}
-		}
-		
-		xmlXPathFreeObject(res);
-	}
-}
-
 /*
 	Base classes
 */
@@ -293,10 +218,6 @@ string CDatabankBase::GetDbName() const
 {
 	return kEmptyString;
 }
-
-//void CDatabankBase::DumpIndex(const string& inIndex)
-//{
-//}
 
 CIteratorBase* CDatabankBase::GetIteratorForIndex(const string& inIndex)
 {
@@ -484,7 +405,7 @@ CDatabank::CDatabank(const HUrl& inPath, const vector<string>& inMetaDataFields,
 	
 //	fDataFile = new HBufferedFileStream(fPath, mode);
 	fDataFile = new HFileStream(fPath, mode);
-	
+
 	fHeader->sig = kHeaderSig;
 	
 	// generate a uuid based on time and MAC address
@@ -569,10 +490,28 @@ CDatabank::CDatabank(const HUrl& inUrl)
 	
 	fDataFile = new HBufferedFileStream(fPath, mode);
 	
-	*fDataFile >> *fHeader;
-
-	if (fHeader->sig != kHeaderSig)
+	// first check the endianness of our file
+	uint32 sig;
+	
+	*fDataFile >> sig;
+	if (sig == kLEHeaderSig)
+	{
+#if P_BIGENDIAN
+		fDataFile->SetSwapBytes(true);
+#endif
+	}
+	else if (sig == kBEHeaderSig)
+	{
+#if P_LITTLEENDIAN
+		fDataFile->SetSwapBytes(true);
+#endif
+	}
+	else
 		THROW(("Not a mrs data file"));
+
+	fDataFile->Seek(0, SEEK_SET);
+	
+	*fDataFile >> *fHeader;
 	
 	if (fHeader->data_offset == 0 or fHeader->data_size == 0 or
 		fHeader->index_offset == 0 or fHeader->index_size == 0)
@@ -1741,31 +1680,27 @@ HStreamBase& operator<<(HStreamBase& inData, SHeader& inStruct)
 {
 	inStruct.size = sizeof(inStruct);
 	
-	HSwapStream<net_swapper> data(inData);
+	inData.Write(&inStruct.sig, sizeof(inStruct.sig));
 	
-	data.Write(&inStruct.sig, sizeof(inStruct.sig));
-	
-	data << inStruct.size << inStruct.entries
+	inData << inStruct.size << inStruct.entries
 		 << inStruct.data_offset << inStruct.data_size
 		 << inStruct.index_offset << inStruct.index_size
 		 << inStruct.info_offset << inStruct.info_size
 		 << inStruct.id_offset << inStruct.id_size
 		 << inStruct.blast_ix_offset << inStruct.blast_ix_size;
 	
-	data.Write(inStruct.uuid, sizeof(inStruct.uuid));
+	inData.Write(inStruct.uuid, sizeof(inStruct.uuid));
 	
-	data << inStruct.omit_vector_offset;
+	inData << inStruct.omit_vector_offset;
 	
 	return inData;
 }
 
 HStreamBase& operator>>(HStreamBase& inData, SHeader& inStruct)
 {
-	HSwapStream<net_swapper> data(inData);
+	inData.Read(&inStruct.sig, sizeof(inStruct.sig));
 	
-	data.Read(&inStruct.sig, sizeof(inStruct.sig));
-	
-	data >> inStruct.size >> inStruct.entries
+	inData >> inStruct.size >> inStruct.entries
 		 >> inStruct.data_offset >> inStruct.data_size
 		 >> inStruct.index_offset >> inStruct.index_size
 		 >> inStruct.info_offset >> inStruct.info_size
@@ -1773,10 +1708,10 @@ HStreamBase& operator>>(HStreamBase& inData, SHeader& inStruct)
 		 >> inStruct.blast_ix_offset >> inStruct.blast_ix_size;
 	
 	if (inStruct.size >= kSHeaderSizeV1)
-		data.Read(inStruct.uuid, sizeof(inStruct.uuid));
+		inData.Read(inStruct.uuid, sizeof(inStruct.uuid));
 	
 	if (inStruct.size >= kSHeaderSizeV2)
-		data >> inStruct.omit_vector_offset;
+		inData >> inStruct.omit_vector_offset;
 
 	return inData;
 }
@@ -1785,11 +1720,9 @@ HStreamBase& operator<<(HStreamBase& inData, SDataHeader& inStruct)
 {
 	inStruct.size = sizeof(inStruct);
 
-	HSwapStream<net_swapper> data(inData);
+	inData.Write(&inStruct.sig, sizeof(inStruct.sig));
 	
-	data.Write(&inStruct.sig, sizeof(inStruct.sig));
-	
-	data << inStruct.size << inStruct.count << inStruct.meta_data_count;
+	inData << inStruct.size << inStruct.count << inStruct.meta_data_count;
 	
 	return inData;
 }
@@ -1797,14 +1730,13 @@ HStreamBase& operator<<(HStreamBase& inData, SDataHeader& inStruct)
 HStreamBase& operator>>(HStreamBase& inData, SDataHeader& inStruct)
 {
 	int64 offset = inData.Tell();
-	HSwapStream<net_swapper> data(inData);
 	
-	data.Read(&inStruct.sig, sizeof(inStruct.sig));
+	inData.Read(&inStruct.sig, sizeof(inStruct.sig));
 	
-	data >> inStruct.size >> inStruct.count;
+	inData >> inStruct.size >> inStruct.count;
 	
 	if (inStruct.size >= sizeof(inStruct))
-		data >> inStruct.meta_data_count;
+		inData >> inStruct.meta_data_count;
 	
 	if (inStruct.size != sizeof(inStruct))
 		inData.Seek(offset + inStruct.size, SEEK_SET);
@@ -1816,11 +1748,9 @@ HStreamBase& operator<<(HStreamBase& inData, SMetaData& inStruct)
 {
 	inStruct.size = sizeof(inStruct);
 
-	HSwapStream<net_swapper> data(inData);
-	
-	data.Write(&inStruct.sig, sizeof(inStruct.sig));
-	data << inStruct.size;
-	data.Write(inStruct.name, sizeof(inStruct.name));
+	inData.Write(&inStruct.sig, sizeof(inStruct.sig));
+	inData << inStruct.size;
+	inData.Write(inStruct.name, sizeof(inStruct.name));
 	
 	return inData;
 }
@@ -1828,11 +1758,10 @@ HStreamBase& operator<<(HStreamBase& inData, SMetaData& inStruct)
 HStreamBase& operator>>(HStreamBase& inData, SMetaData& inStruct)
 {
 	int64 offset = inData.Tell();
-	HSwapStream<net_swapper> data(inData);
 	
-	data.Read(&inStruct.sig, sizeof(inStruct.sig));
-	data >> inStruct.size;
-	data.Read(inStruct.name, sizeof(inStruct.name));
+	inData.Read(&inStruct.sig, sizeof(inStruct.sig));
+	inData >> inStruct.size;
+	inData.Read(inStruct.name, sizeof(inStruct.name));
 	
 	if (inStruct.size != sizeof(inStruct))
 		inData.Seek(offset + inStruct.size, SEEK_SET);
@@ -1844,16 +1773,14 @@ HStreamBase& operator<<(HStreamBase& inData, SDataPart& inStruct)
 {
 	inStruct.size = sizeof(inStruct);
 
-	HSwapStream<net_swapper> data(inData);
+	inData.Write(&inStruct.sig, sizeof(inStruct.sig));
 	
-	data.Write(&inStruct.sig, sizeof(inStruct.sig));
-	
-	data << inStruct.size
+	inData << inStruct.size
 		<< inStruct.data_offset << inStruct.data_size
 		<< inStruct.table_offset << inStruct.table_size
 		<< inStruct.count;
-	data.Write(&inStruct.kind, sizeof(inStruct.kind));
-	data << inStruct.raw_data_size;
+	inData.Write(&inStruct.kind, sizeof(inStruct.kind));
+	inData << inStruct.raw_data_size;
 	
 	return inData;
 }
@@ -1861,18 +1788,17 @@ HStreamBase& operator<<(HStreamBase& inData, SDataPart& inStruct)
 HStreamBase& operator>>(HStreamBase& inData, SDataPart& inStruct)
 {
 	int64 offset = inData.Tell();
-	HSwapStream<net_swapper> data(inData);
 	
-	data.Read(&inStruct.sig, sizeof(inStruct.sig));
+	inData.Read(&inStruct.sig, sizeof(inStruct.sig));
 	
-	data >> inStruct.size
+	inData >> inStruct.size
 		>> inStruct.data_offset >> inStruct.data_size
 		>> inStruct.table_offset >> inStruct.table_size
 		>> inStruct.count;
-	data.Read(&inStruct.kind, sizeof(inStruct.kind));
+	inData.Read(&inStruct.kind, sizeof(inStruct.kind));
 	
 	if (inStruct.size >= sizeof(inStruct))
-		data >> inStruct.raw_data_size;
+		inData >> inStruct.raw_data_size;
 	else
 		inStruct.raw_data_size = 0;
 	
@@ -1886,17 +1812,15 @@ HStreamBase& operator<<(HStreamBase& inData, SBlastIndexHeader& inStruct)
 {
 	inStruct.size = sizeof(inStruct);
 	
-	HSwapStream<net_swapper> data(inData);
+	inData.Write(&inStruct.sig, sizeof(inStruct.sig));
 	
-	data.Write(&inStruct.sig, sizeof(inStruct.sig));
-	
-	data << inStruct.size
+	inData << inStruct.size
 		 << inStruct.data_offset << inStruct.data_size
 		 << inStruct.table_offset << inStruct.table_size
 		 << inStruct.db_length << inStruct.seq_count
 		 << inStruct.count;
 
-	data.Write(&inStruct.kind, sizeof(inStruct.kind));
+	inData.Write(&inStruct.kind, sizeof(inStruct.kind));
 	
 	return inData;
 }
@@ -1904,17 +1828,16 @@ HStreamBase& operator<<(HStreamBase& inData, SBlastIndexHeader& inStruct)
 HStreamBase& operator>>(HStreamBase& inData, SBlastIndexHeader& inStruct)
 {
 	int64 offset = inData.Tell();
-	HSwapStream<net_swapper> data(inData);
 	
-	data.Read(&inStruct.sig, sizeof(inStruct.sig));
+	inData.Read(&inStruct.sig, sizeof(inStruct.sig));
 	
-	data >> inStruct.size
+	inData >> inStruct.size
 		 >> inStruct.data_offset >> inStruct.data_size
 		 >> inStruct.table_offset >> inStruct.table_size
 		 >> inStruct.db_length >> inStruct.seq_count
 		 >> inStruct.count;
 
-	data.Read(&inStruct.kind, sizeof(inStruct.kind));
+	inData.Read(&inStruct.kind, sizeof(inStruct.kind));
 	
 	if (inStruct.size != sizeof(inStruct))
 	{

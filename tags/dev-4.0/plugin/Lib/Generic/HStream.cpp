@@ -806,6 +806,7 @@ HStreamView::HStreamView(HStreamBase& inMain, int64 inOffset,
 	, fSize(inSize)
 	, fPointer(0)
 {
+	SetSwapBytes(inMain.SwapsBytes());
 }
 
 int32 HStreamView::Write(const void* inBuffer, uint32 inSize)

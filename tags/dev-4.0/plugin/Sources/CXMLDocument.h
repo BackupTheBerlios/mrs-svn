@@ -1,6 +1,6 @@
-/*	$Id: CDbInfo.cpp 331 2007-02-12 07:44:10Z hekkel $
+/*	$Id: CXMLDocument.h 331 2007-02-12 07:44:10Z hekkel $
 	Copyright Maarten L. Hekkelman
-	Created Friday March 05 2004 14:45:43
+	Created Sunday January 05 2003 11:41:32
 */
 
 /*-
@@ -39,82 +39,23 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
  
-#include "MRS.h"
+#ifndef CXMLDOCUMENT_H
+#define CXMLDOCUMENT_H
 
-#include "HStream.h"
-#include "HUtils.h"
-
-#include "CDbInfo.h"
-
-using namespace std;
-
-CDbInfo::CDbInfo()
+class CXMLDocument
 {
-}
-
-CDbInfo::CDbInfo(HStreamBase& inInfo)
-{
-	try
-	{
-		uint32 size;
-		
-		size = inInfo.Size();
-		
-		while (inInfo.Tell() < size)
-		{
-			uint32 k, s;
+  public:
+						CXMLDocument(const std::string& inData);
+	virtual				~CXMLDocument();
 	
-			inInfo >> k >> s;
-			
-			HAutoBuf<char> b(new char[s]);
-			inInfo.Read(b.get(), s);
-			
-			CInfoRec r;
-			r.fKind = k;
-			r.fData.assign(b.get(), s);
-			
-			fInfo.push_back(r);
-		}
-	}
-	catch (...)
-	{
-	}
-}
+	void				FetchText(xmlXPathCompExprPtr inPath, std::string& outText);
 
-bool CDbInfo::Next(uint32& ioCookie, std::string& outData,
-	uint32& outKind, uint32 inFilter) const
-{
-	bool result = false;
-	
-	while (not result and ioCookie < fInfo.size())
-	{
-		if (inFilter == 0 or fInfo[ioCookie].fKind == inFilter)
-		{
-			result = true;
-			outData = fInfo[ioCookie].fData;
-			outKind = fInfo[ioCookie].fKind;
-		}
-		
-		++ioCookie;
-	}
-	
-	return result;
-}
+  private:
 
-void CDbInfo::Add(uint32 inKind, std::string inData)
-{
-	CInfoRec r;
-	r.fKind = inKind;
-	r.fData = inData;
-	fInfo.push_back(r);
-}
+	void				CollectText(xmlNodePtr inNode, std::string& outText);
 
-void CDbInfo::Write(HStreamBase& inFile)
-{
-	for (vector<CInfoRec>::iterator i = fInfo.begin(); i != fInfo.end(); ++i)
-	{
-		uint32 size = (*i).fData.length();
-		inFile << (*i).fKind << size;
-		inFile.Write((*i).fData.c_str(), (*i).fData.length());
-	}
-}
+	xmlDocPtr			mDoc;
+	xmlXPathContextPtr	mXPathContext;
+};
+
+#endif

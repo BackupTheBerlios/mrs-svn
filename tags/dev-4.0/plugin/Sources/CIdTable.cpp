@@ -69,8 +69,7 @@ struct CIdTablePage
 	uint32		offset[1];
 	char		data[kMaxDataOffset];
 	
-	void		NetToHost();
-	void		HostToNet();
+	void		SwapBytes();
 	
 	string		GetID(uint32 inIndex) const;
 	bool		Store(string inID);
@@ -84,23 +83,13 @@ string CIdTablePage::GetID(uint32 inIndex) const
 }
 
 void
-CIdTablePage::NetToHost()
+CIdTablePage::SwapBytes()
 {
 	first = net_swapper::swap(first);
 	count = net_swapper::swap(count);
 	
 	for (uint32 i = 0; i <= count; ++i)
 		offset[i] = net_swapper::swap(offset[i]);
-}
-
-void
-CIdTablePage::HostToNet()
-{
-	for (uint32 i = 0; i <= count; ++i)
-		offset[i] = net_swapper::swap(offset[i]);
-
-	first = net_swapper::swap(first);
-	count = net_swapper::swap(count);
 }
 
 bool CIdTablePage::Store(string inID)
@@ -162,7 +151,8 @@ string CIdTable::GetID(uint32 inDocNr)
 		int64 offset = fImp->fOffset + i * sizeof(p);
 		
 		fImp->fDataFile->PRead(&p, sizeof(p), offset);
-		p.NetToHost();
+		if (fImp->fDataFile->SwapsBytes())
+			p.SwapBytes();
 		
 		if (p.first > inDocNr)
 			R = i - 1;
@@ -279,7 +269,6 @@ void CIdTable::Create(
 			{
 				uint32 first = p.first + p.count;
 				
-				p.HostToNet();
 				inFile.Write(&p, sizeof(p));
 
 				p.first = first;
@@ -292,10 +281,7 @@ void CIdTable::Create(
 		}
 		
 		if (p.count > 0)
-		{
-			p.HostToNet();
 			inFile.Write(&p, sizeof(p));
-		}
 	}
 	catch (std::exception& e)
 	{

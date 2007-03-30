@@ -86,7 +86,6 @@ void CDocWeightArrayImp::Release()
 
 struct CSimpleDocWeightArrayImp : public CDocWeightArrayImp
 {
-						CSimpleDocWeightArrayImp(HUrl& inFile, uint32 inCount);
 						CSimpleDocWeightArrayImp(HFileStream& inFile,
 							int64 inOffset, uint32 inCount);
 						~CSimpleDocWeightArrayImp();
@@ -94,24 +93,16 @@ struct CSimpleDocWeightArrayImp : public CDocWeightArrayImp
 	virtual float		at(uint32 inIndex) const;
 	virtual void		Prefetch();
 	
-	HFileStream*		fFile;
 	HMMappedFileStream*	fMap;
 	const float*		fData;
+	bool				fSwap;
 };
-
-CSimpleDocWeightArrayImp::CSimpleDocWeightArrayImp(HUrl& inFile, uint32 inCount)
-	: CDocWeightArrayImp(inCount)
-	, fFile(new HFileStream(inFile, O_RDONLY))
-	, fMap(new HMMappedFileStream(*fFile, 0, inCount * sizeof(float)))
-	, fData(static_cast<const float*>(fMap->Buffer()))
-{
-}
 
 CSimpleDocWeightArrayImp::CSimpleDocWeightArrayImp(HFileStream& inFile, int64 inOffset, uint32 inCount)
 	: CDocWeightArrayImp(inCount)
-	, fFile(nil)
 	, fMap(new HMMappedFileStream(inFile, inOffset, inCount * sizeof(float)))
 	, fData(static_cast<const float*>(fMap->Buffer()))
+	, fSwap(inFile.SwapsBytes())
 {
 }
 
@@ -121,13 +112,16 @@ CSimpleDocWeightArrayImp::~CSimpleDocWeightArrayImp()
 		delete fMap;
 	else
 		delete[] fData;
-	
-	delete fFile;
 }
 
 float CSimpleDocWeightArrayImp::at(uint32 inIndex) const
 {
-	return net_swapper::swap(fData[inIndex]);
+	float result = fData[inIndex];
+
+	if (fSwap)
+		result = byte_swapper::swap(result);
+	
+	return result;
 }
 
 void CSimpleDocWeightArrayImp::Prefetch()
@@ -181,10 +175,10 @@ float CJoinedDocWeightArrayImp::at(uint32 inIndex) const
 	return result;
 }
 
-CDocWeightArray::CDocWeightArray(HUrl& inFile, uint32 inCount)
-	: fImpl(new CSimpleDocWeightArrayImp(inFile, inCount))
-{
-}
+//CDocWeightArray::CDocWeightArray(HUrl& inFile, uint32 inCount)
+//	: fImpl(new CSimpleDocWeightArrayImp(inFile, inCount))
+//{
+//}
 
 CDocWeightArray::CDocWeightArray(HFileStream& inFile, int64 inOffset, uint32 inCount)
 	: fImpl(new CSimpleDocWeightArrayImp(inFile, inOffset, inCount))

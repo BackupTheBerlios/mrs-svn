@@ -1,6 +1,6 @@
-/*	$Id: CDbInfo.cpp 331 2007-02-12 07:44:10Z hekkel $
+/*	$Id: CXMLDocument.cpp 331 2007-02-12 07:44:10Z hekkel $
 	Copyright Maarten L. Hekkelman
-	Created Friday March 05 2004 14:45:43
+	Created Sunday January 05 2003 11:44:10
 */
 
 /*-
@@ -41,80 +41,69 @@
  
 #include "MRS.h"
 
-#include "HStream.h"
-#include "HUtils.h"
+#include <libxml/xpath.h>
 
-#include "CDbInfo.h"
+#include "HError.h"
+
+#include "CXMLDocument.h"
 
 using namespace std;
 
-CDbInfo::CDbInfo()
+CXMLDocument::CXMLDocument(const string& inData)
+	: mDoc(nil)
+	, mXPathContext(nil)
 {
+	mDoc = xmlReadDoc(BAD_CAST inData.c_str(), nil, nil, 0);
+	if (mDoc == nil)
+		THROW(("Failed to read XML doc"));
+	
+	mXPathContext = xmlXPathNewContext(mDoc);
+	if (mXPathContext == nil)
+		THROW(("Failed to create XPath context"));
+	
+	mXPathContext->node = xmlDocGetRootElement(mDoc);
 }
 
-CDbInfo::CDbInfo(HStreamBase& inInfo)
+CXMLDocument::~CXMLDocument()
 {
-	try
+	xmlXPathFreeContext(mXPathContext);
+	xmlFreeDoc(mDoc);
+	xmlCleanupParser();
+}
+
+void CXMLDocument::CollectText(xmlNodePtr inNode, string& outText)
+{
+	const char* text = (const char*)XML_GET_CONTENT(inNode);
+	if (text != nil)
 	{
-		uint32 size;
-		
-		size = inInfo.Size();
-		
-		while (inInfo.Tell() < size)
+		outText += text;
+		outText += ' ';
+	}
+	
+	xmlNodePtr next = inNode->children;
+	while (next != nil)
+	{	
+		CollectText(next, outText);
+		next = next->next;
+	}
+}
+
+void CXMLDocument::FetchText(xmlXPathCompExprPtr inPath, string& outText)
+{
+	xmlXPathObjectPtr res = xmlXPathCompiledEval(inPath, mXPathContext);
+	if (res != nil)
+	{
+		xmlNodeSetPtr nodes = res->nodesetval;
+		if (nodes != nil)
 		{
-			uint32 k, s;
-	
-			inInfo >> k >> s;
-			
-			HAutoBuf<char> b(new char[s]);
-			inInfo.Read(b.get(), s);
-			
-			CInfoRec r;
-			r.fKind = k;
-			r.fData.assign(b.get(), s);
-			
-			fInfo.push_back(r);
-		}
-	}
-	catch (...)
-	{
-	}
-}
-
-bool CDbInfo::Next(uint32& ioCookie, std::string& outData,
-	uint32& outKind, uint32 inFilter) const
-{
-	bool result = false;
-	
-	while (not result and ioCookie < fInfo.size())
-	{
-		if (inFilter == 0 or fInfo[ioCookie].fKind == inFilter)
-		{
-			result = true;
-			outData = fInfo[ioCookie].fData;
-			outKind = fInfo[ioCookie].fKind;
+			for (int i = 0; i < nodes->nodeNr; ++i)
+			{
+				xmlNodePtr node = nodes->nodeTab[i];
+				CollectText(node, outText);
+			}
 		}
 		
-		++ioCookie;
-	}
-	
-	return result;
-}
-
-void CDbInfo::Add(uint32 inKind, std::string inData)
-{
-	CInfoRec r;
-	r.fKind = inKind;
-	r.fData = inData;
-	fInfo.push_back(r);
-}
-
-void CDbInfo::Write(HStreamBase& inFile)
-{
-	for (vector<CInfoRec>::iterator i = fInfo.begin(); i != fInfo.end(); ++i)
-	{
-		uint32 size = (*i).fData.length();
-		inFile << (*i).fKind << size;
-		inFile.Write((*i).fData.c_str(), (*i).fData.length());
+		xmlXPathFreeObject(res);
 	}
 }
+

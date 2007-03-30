@@ -226,17 +226,15 @@ void CBlastIndex::FlushDoc()
 	uint32 count = fSequences.size();
 
 //	fBlastData->Seek(offset, SEEK_SET);
-	HSwapStream<net_swapper> data(*fBlastData);
-	
-	data << count;
+	*fBlastData << count;
 	
 	uint32 offset = (count + 2) * sizeof(uint32);
 	for (uint32 i = 0; i < count; ++i)
 	{
-		data << offset;
+		*fBlastData << offset;
 		offset += fSequences[i].length();
 	}
-	data << offset;
+	*fBlastData << offset;
 	
 	for (uint32 i = 0; i < count; ++i)
 		fBlastData->Write(fSequences[i].c_str(), fSequences[i].length());

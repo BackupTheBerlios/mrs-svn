@@ -154,31 +154,27 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexPart& inStruct);
 
 HStreamBase& operator<<(HStreamBase& inData, const SIndexHeader& inStruct)
 {
-	HSwapStream<net_swapper> data(inData);
-	
-	data.Write(&inStruct.sig, sizeof(inStruct.sig));
-	data << kSIndexHeaderSize << inStruct.entries
+	inData.Write(&inStruct.sig, sizeof(inStruct.sig));
+	inData << kSIndexHeaderSize << inStruct.entries
 		 << inStruct.count << inStruct.weight_bit_count;
-	data.Write(&inStruct.array_compression_kind, sizeof(inStruct.array_compression_kind));
+	inData.Write(&inStruct.array_compression_kind, sizeof(inStruct.array_compression_kind));
 	
 	return inData;
 }
 
 HStreamBase& operator>>(HStreamBase& inData, SIndexHeader& inStruct)
 {
-	HSwapStream<net_swapper> data(inData);
-	
-	data.Read(&inStruct.sig, sizeof(inStruct.sig));
-	data >> inStruct.size >> inStruct.entries >> inStruct.count;
+	inData.Read(&inStruct.sig, sizeof(inStruct.sig));
+	inData >> inStruct.size >> inStruct.entries >> inStruct.count;
 	
 	if (inStruct.size >= kSIndexHeaderSize - sizeof(uint32))
-		data >> inStruct.weight_bit_count;
+		inData >> inStruct.weight_bit_count;
 	else
 		inStruct.weight_bit_count = 6;
 
 	if (inStruct.size >= kSIndexHeaderSize)
 	{
-		data.Read(&inStruct.array_compression_kind, sizeof(inStruct.array_compression_kind));
+		inData.Read(&inStruct.array_compression_kind, sizeof(inStruct.array_compression_kind));
 		
 		// stupid me...
 		
@@ -195,18 +191,16 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexHeader& inStruct)
 
 HStreamBase& operator<<(HStreamBase& inData, const SIndexPart& inStruct)
 {
-	HSwapStream<net_swapper> data(inData);
-	
 	if (inStruct.sig != 0)
 		assert((inStruct.sig == kIndexPartSig and inStruct.index_version == kCIndexVersionV1) or
 			   (inStruct.sig == kIndexPartSigV2 and inStruct.index_version == kCIndexVersionV2));
 
-	data.Write(&inStruct.sig, sizeof(inStruct.sig));
-	data << kSIndexPartSize;
-	data.Write(inStruct.name, sizeof(inStruct.name));
-	data.Write(&inStruct.kind, sizeof(inStruct.kind));
+	inData.Write(&inStruct.sig, sizeof(inStruct.sig));
+	inData << kSIndexPartSize;
+	inData.Write(inStruct.name, sizeof(inStruct.name));
+	inData.Write(&inStruct.kind, sizeof(inStruct.kind));
 
-	data << inStruct.bits_offset << inStruct.tree_offset
+	inData << inStruct.bits_offset << inStruct.tree_offset
 		 << inStruct.root << inStruct.entries
 		 << inStruct.weight_offset
 		 << inStruct.tree_size << inStruct.bits_size
@@ -217,10 +211,8 @@ HStreamBase& operator<<(HStreamBase& inData, const SIndexPart& inStruct)
 
 HStreamBase& operator>>(HStreamBase& inData, SIndexPart& inStruct)
 {
-	HSwapStream<net_swapper> data(inData);
-	
-	data.Read(&inStruct.sig, sizeof(inStruct.sig));
-	data >> inStruct.size;
+	inData.Read(&inStruct.sig, sizeof(inStruct.sig));
+	inData >> inStruct.size;
 
 	// backward compatibility code from here ...
 
@@ -247,26 +239,26 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexPart& inStruct)
 	else
 		THROW(("Incompatible index %4.4s", &inStruct.sig));
 	
-	data.Read(inStruct.name, sizeof(inStruct.name));
-	data.Read(&inStruct.kind, sizeof(inStruct.kind));
-	data >> inStruct.bits_offset >> inStruct.tree_offset
+	inData.Read(inStruct.name, sizeof(inStruct.name));
+	inData.Read(&inStruct.kind, sizeof(inStruct.kind));
+	inData >> inStruct.bits_offset >> inStruct.tree_offset
 		 >> inStruct.root >> inStruct.entries;
 	
 	inStruct.weight_offset = 0;
 	
 	if (inStruct.size >= kSIndexPartSizeV1)
-		data >> inStruct.weight_offset;
+		inData >> inStruct.weight_offset;
 
 	inStruct.tree_size = 0;
 	inStruct.bits_size = 0;
 
 	if (inStruct.size >= kSIndexPartSizeV2)
-		data >> inStruct.tree_size >> inStruct.bits_size;
+		inData >> inStruct.tree_size >> inStruct.bits_size;
 	
 	inStruct.flags = 0;
 
 	if (inStruct.size >= kSIndexPartSizeV3)
-		data >> inStruct.flags;
+		inData >> inStruct.flags;
 
 	return inData;
 }
@@ -2578,7 +2570,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 			fParts[ix].weight_offset = outData.Seek(0, SEEK_END);
 			
 			for (uint32 d = 0; d < fHeader->entries; ++d)
-				dw[d] = net_swapper::swap(sqrt(dw[d]));
+				dw[d] = sqrt(dw[d]);
 			
 			outData.Write(dw, sizeof(float) * fHeader->entries);
 		}
@@ -3114,7 +3106,7 @@ void CIndexer::RecalculateDocumentWeights(const std::string& inIndex)
 	for (uint32 d = 0; d < docCount; ++d)
 	{
 		if (dw[d] != 0)
-			dw[d] = net_swapper::swap(sqrt(dw[d]));
+			dw[d] = sqrt(dw[d]);
 	}
 	
 	fFile->PWrite(dw, docCount * sizeof(float), fParts[ix].weight_offset);
