@@ -2,7 +2,7 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile(
 	'NAME'				=> 'MRS',
-	"VERSION"			=> "3.0a1",
+	"VERSION"			=> "3.0.1",
 	'PMLIBDIRS'			=> [q[lib]],
 	'PM'				=>
 	{

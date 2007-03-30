@@ -86,6 +86,7 @@ use strict;
 use warnings;
 use XML::LibXML;
 use XML::LibXML::XPathContext;
+use Data::Dumper;
 
 # code needed for Find Similar
 
@@ -99,6 +100,7 @@ sub new
 		name => 'default',
 		text => [],
 		meta => \%meta,
+		inited => 0,
 		@_
 	};
 	my $result = bless $self, "MRS::Script::ParserInterface";
@@ -112,7 +114,7 @@ sub AddXPathForIndex
 	my $xpaths = $self->{xpaths};
 	if (not defined $xpaths) {
 		my %xpaths = (
-			'$index' =>	[ $xPath ]
+			$index =>	[ $xPath ]
 		);
 		$self->{xpaths} = \%xpaths;
 	}
@@ -121,20 +123,31 @@ sub AddXPathForIndex
 	}
 }
 
+sub collectText
+{
+	my ($node) = @_;
+	my $text = $node->textContent;
+	
+	foreach my $child ($node->childNodes) {
+		$text .= ' ' . &collectText($child);
+	}
+	
+	return $text;
+}
+
 sub AddXMLDocument
 {
 	my ($self, $doc) = @_;
-	
+
 	my $parser = XML::LibXML->new;
 	my $xdoc = $parser->parse_string($doc);
 	my $xpc = XML::LibXML::XPathContext->new($xdoc);
-	
-	foreach my $ix (keys %{$self->{xpath}}) {
-		foreach my $xpath (@{$ix}) {
-			my @nodes = $xpc->find($xpath);
-			
+
+	foreach my $ix (keys %{$self->{xpaths}}) {
+		foreach my $xpath (@{$self->{xpaths}->{$ix}}) {
+			my @nodes = $xpc->findnodes($xpath);
 			foreach my $node (@nodes) {
-				print "textContent: ", $node->textContent, "\n"; 
+				push @{$self->{words}}, $self->SplitWords(&collectText($node));
 			}
 		}
 	}
@@ -330,6 +343,7 @@ sub indexed
 
 		my $p = &getScript($mrs_format_dir, $name);
 		$p->{mrs} = $m;
+		$p->{inited} = 0;
 		
 		open TEXT, '<', \$text;
 		$p->parse(*TEXT, 0, $db, undef);
