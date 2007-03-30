@@ -2347,6 +2347,73 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 				}
 				
 				case kTextIndex:
+					if ((fParts[ix].flags & kContainsIDL) != 0)
+					{
+						uint32 first = 0;
+						
+						boost::ptr_vector<CDbDocIteratorBase>	docIters;
+						uint32 count = 0;
+	
+						for (i = 0; i < md.size(); ++i)
+						{
+							for (uint32 j = 0; j < v.size(); ++j)
+							{
+								if (v[j].first == i)
+								{
+									CDbDocIteratorBase* iter =
+										CreateDbDocIterator(md[i].array_compression_kind, *md[i].mappedBits,
+											v[j].second, md[i].count, first, true);
+									
+									if (dynamic_cast<CDbIDLDocIteratorSC*>(iter) == nil)
+										THROW(("Inconsistent use of IDL containing iterators"));
+									
+									docIters.push_back(iter);
+
+									count += docIters.back().Count();
+									break;
+								}
+							}
+							first += md[i].count;
+						}
+						
+						HMemoryStream idlBuffer;
+						COBitStream idlBits(idlBuffer);
+						
+						vector<uint32> docs;
+						docs.reserve(count);
+						DocLoc inDocLoc;
+	
+						for (i = 0; i < docIters.size(); ++i)
+						{
+							CDbIDLDocIteratorSC& iter = static_cast<CDbIDLDocIteratorSC&>(docIters[i]);
+							
+							uint32 doc;
+	
+							while (iter.Next(doc, inDocLoc, false))
+							{
+								docs.push_back(doc);
+								CompressArray(idlBits, inDocLoc, kMaxInDocumentLocation, kAC_SelectorCode);
+							}
+						}
+	
+						int64 offset = bitFile->Seek(0, SEEK_END);
+						if (offset > numeric_limits<uint32>::max())
+						{
+							fParts[ix].sig = kIndexPartSigV2;
+							fParts[ix].index_version = kCIndexVersionV2;
+						}
+						
+						idlBits.sync();
+						
+						CIDLInterleaver interleaver(idlBuffer);
+	
+						COBitStream bits(*bitFile.get());
+						CompressArray(bits, docs, fHeader->entries, kAC_SelectorCode, &interleaver);
+						
+						indx.push_back(make_pair(s, offset));
+						break;
+					} // else fall through...
+					
 				case kDateIndex:
 				case kNumberIndex:
 				{
@@ -2363,7 +2430,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 							{
 								docIters.push_back(
 									CreateDbDocIterator(md[i].array_compression_kind, *md[i].mappedBits,
-										v[j].second, md[i].count, first, (fParts[ix].flags & kContainsIDL) != 0));
+										v[j].second, md[i].count, first, false));
 
 								count += docIters.back().Count();
 								break;
