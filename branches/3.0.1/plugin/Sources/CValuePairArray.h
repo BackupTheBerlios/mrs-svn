@@ -149,11 +149,6 @@ void CompressSimpleArraySelector(COBitStream& inBits, std::vector<T>& inArray, i
 
 	WriteGamma(inBits, cnt);
 
-//std::cout << "Writing array with " << cnt << " elements:" << std::endl;
-//for (uint32 i = 0; i < cnt; ++i)
-//	std::cout << ' ' << inArray[i];
-//std::cout << std::endl;
-	
 	int32 maxWidth = 0;
 	int64 v = inMax;
 	while (v > 0)
@@ -173,18 +168,9 @@ void CompressSimpleArraySelector(COBitStream& inBits, std::vector<T>& inArray, i
 	
 	while (a != e or bc > 0)
 	{
-//if (bc > 0)
-//{
-//std::cout << "array now contains:" << std::endl;
-//
-//for (uint32 i = 0; i < bc; ++i)
-//std::cout << "           dv: " << dv[i] << ", bn: " << bn[i] << std::endl;
-//}
-//
 		while (bc < 4 and a != e)
 		{
 			Shift(a, last, dv[bc], bn[bc]);
-//std::cout << "shifted " << bc << ", dv: " << dv[bc] << ", bn: " << bn[bc] << std::endl;
 			++bc;
 		}
 		
@@ -198,16 +184,12 @@ void CompressSimpleArraySelector(COBitStream& inBits, std::vector<T>& inArray, i
 		uint32 n = kSelectors[s].span;
 		
 		WriteBinary(inBits, s, 4);
-//std::cout << "Selector " << s << " width: " << width << " values:";
+
 		if (width > 0)
 		{
 			for (uint32 i = 0; i < n; ++i)
-			{
-//std::cout << ' ' << dv[i];
 				WriteBinary(inBits, dv[i], width);
-			}
 		}
-//std::cout << std::endl;
 		
 		bc -= n;
 
