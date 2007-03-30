@@ -525,7 +525,7 @@ void CFullTextIndex::AddWord(uint8 inIndex, uint32 inWord, uint8 inFrequency)
 	if (fFTIndexCnt < inIndex + 1)
 		fFTIndexCnt = inIndex + 1;
 
-	if (inFrequency > 0 /*and not IsStopWord(inWord)*/)
+	if (inFrequency > 0)
 	{
 		DocWord w = { inWord, inIndex, inFrequency };
 		

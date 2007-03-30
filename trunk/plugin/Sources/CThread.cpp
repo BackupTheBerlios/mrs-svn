@@ -39,11 +39,14 @@
 #include <pthread.h>
 #include <assert.h>
 #include <iostream>
+#include <exception>
 
 #include "HError.h"
 
 #include "CThread.h"
 #include "CUtils.h"
+
+using namespace std;
 
 struct CThreadImp
 {
@@ -82,6 +85,14 @@ void CThread::Join()
 void* CThread::Entry(void* inArg)
 {
 	CThread* self = reinterpret_cast<CThread*>(inArg);
-	self->Run();
-	return NULL;
+	try
+	{
+		self->Run();
+	}
+	catch (const exception& e)
+	{
+		cerr << e.what() << endl;
+	}
+	catch (...) {}
+	pthread_exit(NULL);
 }
