@@ -132,6 +132,8 @@ void CBlastIndex::ExpandArray()
 		if (VERBOSE)
 			cerr << "Using plain file access for blast" << endl;
 	}
+	
+	fBlastData->SetSwapBytes(fData->SwapsBytes());	// make sure this flag is set correctly
 }
 
 uint32 CBlastIndex::CountSequencesForDocument(uint32 inDocNr)
@@ -146,9 +148,6 @@ uint32 CBlastIndex::CountSequencesForDocument(uint32 inDocNr)
 	size = static_cast<uint32>((*fDocIndex)[inDocNr + 1] - offset);
 
 	HStreamView data(*fBlastData, offset, size);
-#if P_LITTLEENDIAN
-	data.SetSwapBytes(true);
-#endif
 	
 	uint32 count;
 	data >> count;
@@ -173,10 +172,6 @@ CSequence CBlastIndex::GetSequence(uint32 inDocNr, uint32 inIndex)
 	
 	// use a wrapper here to make this function thread safe
 	HStreamView data(*fBlastData, offset, size);
-//	HMemoryStream data(fMappedBasePtr + offset, size);
-#if P_LITTLEENDIAN
-	data.SetSwapBytes(true);
-#endif
 
 	uint32 count;
 	data >> count;

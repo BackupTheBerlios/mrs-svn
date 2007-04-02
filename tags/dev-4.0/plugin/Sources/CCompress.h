@@ -52,12 +52,13 @@ class CLexicon;
 struct DatabankHeader;
 
 enum {
-	kZLibCompressed = FOUR_CHAR_INLINE('mrsz'),
-	kHuffWordCompressed = FOUR_CHAR_INLINE('mrsh'),
-	kbzLibCompressed = FOUR_CHAR_INLINE('mrsb'),
-	kInvalidData = FOUR_CHAR_INLINE('zero'),
-	kMergedData = FOUR_CHAR_INLINE('mrsm'),
-	kLinkedData = FOUR_CHAR_INLINE('link')
+	kZLibCompressedV1 = FOUR_CHAR_INLINE('mrsz'),
+	kbzLibCompressedV1 = FOUR_CHAR_INLINE('mrsb'),
+	kLinkedDataV1 = FOUR_CHAR_INLINE('link'),
+
+	kZLibCompressedV2 = FOUR_CHAR_INLINE('Mrsz'),
+	kbzLibCompressedV2 = FOUR_CHAR_INLINE('Mrsb'),
+	kLinkedDataV2 = FOUR_CHAR_INLINE('Link')
 };
 
 class CCompressor

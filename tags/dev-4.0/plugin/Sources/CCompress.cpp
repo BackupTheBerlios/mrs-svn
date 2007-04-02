@@ -113,7 +113,7 @@ struct CZLibCompressorImp : public CCompressorImp
 };
 
 CZLibCompressorImp::CZLibCompressorImp(HStreamBase& inData)
-	: CCompressorImp(inData, kZLibCompressed)
+	: CCompressorImp(inData, kZLibCompressedV2)
 {
 	memset(&z_stream, 0, sizeof(z_stream));
 
@@ -266,7 +266,7 @@ struct CbzLibCompressorImp : public CCompressorImp
 };
 
 CbzLibCompressorImp::CbzLibCompressorImp(HStreamBase& inData)
-	: CCompressorImp(inData, kbzLibCompressed)
+	: CCompressorImp(inData, kbzLibCompressedV2)
 {
 	memset(&fStream, 0, sizeof(fStream));
 
@@ -395,14 +395,7 @@ CCompressorImp* CCompressorImp::Create(HStreamBase& inData, const string& inComp
 {
 	CCompressorImp* result = NULL;
 	
-	if (inCompressionType == "huffword")
-	{
-		THROW(("huffword is no longer supported as compression algorithm"));
-//		result = new CHuffWordCompressorImp(inData);
-//		if (VERBOSE)
-//			cout << "Using huffword compression" << endl;
-	}
-	else if (inCompressionType == "zlib")
+	if (inCompressionType == "zlib")
 	{
 		result = new CZLibCompressorImp(inData);
 		if (VERBOSE)

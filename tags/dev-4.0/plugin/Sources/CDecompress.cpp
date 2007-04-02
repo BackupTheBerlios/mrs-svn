@@ -88,7 +88,8 @@ struct CDecompressorImp
 
 	virtual void	Init();
 	
-	HStreamBase*	fFile;
+	HStreamBase*	fFile_;
+	HStreamView		fData;
 	uint32			fKind;
 	int64			fDataOffset, fDataSize;
 	int64			fTableOffset, fTableSize;
@@ -98,7 +99,8 @@ struct CDecompressorImp
 CDecompressorImp::CDecompressorImp(HStreamBase& inFile, uint32 inKind,
 		int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize,
 		uint32 inMetaDataCount)
-	: fFile(&inFile)
+	: fFile_(&inFile)
+	, fData(inFile, inDataOffset, inDataSize)
 	, fKind(inKind)
 	, fDataOffset(inDataOffset)
 	, fDataSize(inDataSize)
@@ -115,7 +117,6 @@ CDecompressorImp::~CDecompressorImp()
 
 void CDecompressorImp::Init()
 {
-	fFile->Seek(fDataOffset, SEEK_SET);
 }
 
 void CDecompressorImp::LinkData(const std::string& inDataFileName,
@@ -133,7 +134,7 @@ void CDecompressorImp::LinkData(const std::string& inDataFileName,
 	outTableOffset = 0;
 	outTableSize = 0;
 	
-	outKind = kLinkedData;
+	outKind = kLinkedDataV2;
 }
 
 void CDecompressorImp::CopyData(HStreamBase& outData, uint32& outKind,
@@ -155,7 +156,7 @@ void CDecompressorImp::CopyData(HStreamBase& outData, uint32& outKind,
 		if (n > kBufferSize)
 			n = kBufferSize;
 		
-		fFile->PRead(buf.get(), static_cast<uint32>(n), o);
+		fFile_->PRead(buf.get(), static_cast<uint32>(n), o);
 		outData.Write(buf.get(), static_cast<uint32>(n));
 		
 		k -= n;
@@ -173,7 +174,7 @@ void CDecompressorImp::CopyData(HStreamBase& outData, uint32& outKind,
 		if (n > kBufferSize)
 			n = kBufferSize;
 		
-		fFile->PRead(buf.get(), static_cast<uint32>(n), o);
+		fFile_->PRead(buf.get(), static_cast<uint32>(n), o);
 		outData.Write(buf.get(), static_cast<uint32>(n));
 		
 		k -= n;
@@ -215,7 +216,7 @@ void CBasicDecompressorImp::Init()
 {
 	CDecompressorImp::Init();
 	
-	fDocIndex = new CCArray<int64>(*fFile, fTableOffset, fTableSize, fDataSize);
+	fDocIndex = new CCArray<int64>(*fFile_, fTableOffset, fTableSize, fDataSize);
 }
 
 string CBasicDecompressorImp::GetDocument(uint32 inDocNr)
@@ -228,7 +229,7 @@ string CBasicDecompressorImp::GetDocument(uint32 inDocNr)
 
 	assert(offset + size <= fDataSize);
 
-	return GetDocument(fDataOffset + fPrefixLength + offset, size);
+	return GetDocument(fPrefixLength + offset, size);
 }
 
 string CBasicDecompressorImp::GetField(uint32 inDocNr, uint32 inFieldNr)
@@ -241,7 +242,7 @@ string CBasicDecompressorImp::GetField(uint32 inDocNr, uint32 inFieldNr)
 
 	assert(offset + size <= fDataSize);
 
-	fFile->Seek(fDataOffset + fPrefixLength + offset, SEEK_SET);
+	fData.Seek(fPrefixLength + offset, SEEK_SET);
 	
 	uint32 offsetTableLength = sizeof(uint16) * fMetaDataCount;
 	
@@ -251,11 +252,11 @@ string CBasicDecompressorImp::GetField(uint32 inDocNr, uint32 inFieldNr)
 	for (uint32 ix = 1; ix <= fMetaDataCount; ++ix)
 	{
 		uint16 n;
-		*fFile >> n;
+		fData >> n;
 		offsets[ix] = offsets[ix - 1] + n;
 	}
 	
-	string result = GetDocument(fDataOffset + fPrefixLength + offset + offsetTableLength, size - offsetTableLength);
+	string result = GetDocument(fPrefixLength + offset + offsetTableLength, size - offsetTableLength);
 	
 	if (inFieldNr < fMetaDataCount)
 		result = result.substr(offsets[inFieldNr], offsets[inFieldNr + 1] - offsets[inFieldNr]);
@@ -269,7 +270,7 @@ string CBasicDecompressorImp::GetField(uint32 inDocNr, uint32 inFieldNr)
 
 struct CZLibDecompressorImp : public CBasicDecompressorImp
 {
-					CZLibDecompressorImp(HStreamBase& inFile,
+					CZLibDecompressorImp(HStreamBase& inFile, uint32 inKind,
 						int64 inDataOffset, int64 inDataSize,
 						int64 inTableOffset, int64 inTableSize,
 						uint32 inMetaDataCount);
@@ -284,12 +285,18 @@ struct CZLibDecompressorImp : public CBasicDecompressorImp
 	uint32			fDictLength;
 };
 
-CZLibDecompressorImp::CZLibDecompressorImp(HStreamBase& inFile,
+CZLibDecompressorImp::CZLibDecompressorImp(HStreamBase& inFile, uint32 inKind,
 		int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize, uint32 inMetaDataCount)
-	: CBasicDecompressorImp(inFile, kZLibCompressed, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount)
+	: CBasicDecompressorImp(inFile, inKind, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount)
 	, fDictionary(NULL)
 	, fDictLength(0)
 {
+#if P_LITTLEENDIAN
+	if (inKind == kZLibCompressedV1)
+	{
+		fData.SetSwapBytes(true);
+	}
+#endif
 }
 
 CZLibDecompressorImp::~CZLibDecompressorImp()
@@ -304,14 +311,14 @@ void CZLibDecompressorImp::Init()
 
 	// read fDictionary
 	uint16 n;
-	*fFile >> n;
+	fData >> n;
 
 	if (n > 0)
 	{
 		fDictLength = n;
 		fDictionary = new unsigned char[fDictLength];
 	
-		fFile->Read(fDictionary, fDictLength);
+		fData.Read(fDictionary, fDictLength);
 	}
 	
 	fPrefixLength = sizeof(n) + n;
@@ -360,7 +367,7 @@ string CZLibDecompressorImp::GetDocument(int64 inOffset, uint32 inLength)
 				size = static_cast<uint32>(inLength);
 			inLength -= size;
 
-			inOffset += fFile->PRead(src_buf.get() + fZStream.avail_in, size, inOffset);
+			inOffset += fData.PRead(src_buf.get() + fZStream.avail_in, size, inOffset);
 			fZStream.avail_in += size;
 		}
 		else
@@ -392,7 +399,7 @@ string CZLibDecompressorImp::GetDocument(int64 inOffset, uint32 inLength)
 
 struct CbzLibDecompressorImp : public CBasicDecompressorImp
 {
-					CbzLibDecompressorImp(HStreamBase& inFile,
+					CbzLibDecompressorImp(HStreamBase& inFile, uint32 inKind,
 						int64 inDataOffset, int64 inDataSize,
 						int64 inTableOffset, int64 inTableSize,
 						uint32 inMetaDataCount);
@@ -401,10 +408,16 @@ struct CbzLibDecompressorImp : public CBasicDecompressorImp
 	virtual string	GetDocument(int64 inOffset, uint32 inSize);
 };
 
-CbzLibDecompressorImp::CbzLibDecompressorImp(HStreamBase& inFile,
+CbzLibDecompressorImp::CbzLibDecompressorImp(HStreamBase& inFile, uint32 inKind,
 		int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize, uint32 inMetaDataCount)
-	: CBasicDecompressorImp(inFile, kbzLibCompressed, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount)
+	: CBasicDecompressorImp(inFile, inKind, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount)
 {
+#if P_LITTLEENDIAN
+	if (inKind == kbzLibCompressedV1)
+	{
+		fData.SetSwapBytes(true);
+	}
+#endif
 }
 
 CbzLibDecompressorImp::~CbzLibDecompressorImp()
@@ -448,7 +461,7 @@ string CbzLibDecompressorImp::GetDocument(int64 inOffset, uint32 inLength)
 				size = static_cast<uint32>(inLength);
 			inLength -= size;
 
-			inOffset += fFile->PRead(src_buf.get() + stream.avail_in, size, inOffset);
+			inOffset += fData.PRead(src_buf.get() + stream.avail_in, size, inOffset);
 			stream.avail_in += size;
 		}
 
@@ -476,7 +489,7 @@ string CbzLibDecompressorImp::GetDocument(int64 inOffset, uint32 inLength)
 class CLinkedDataImp : public CDecompressorImp
 {
   public:
-					CLinkedDataImp(const HUrl& inURL, HStreamBase& inFile,
+					CLinkedDataImp(const HUrl& inURL, HStreamBase& inFile, uint32 inKind,
 						int64 inDataOffset, int64 inDataSize,
 						int64 inTableOffset, int64 inTableSize,
 						uint32 inMetaDataCount);
@@ -496,11 +509,18 @@ class CLinkedDataImp : public CDecompressorImp
 	string							fDataFileName, fDataFileUUID;
 };
 
-CLinkedDataImp::CLinkedDataImp(const HUrl& inURL, HStreamBase& inFile,
+CLinkedDataImp::CLinkedDataImp(const HUrl& inURL, HStreamBase& inFile, uint32 inKind,
 	int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize, uint32 inMetaDataCount)
 	: CDecompressorImp(inFile, 0, 0, 0, 0, 0, inMetaDataCount)
 {
 	HStreamView data(inFile, inDataOffset, inDataSize);
+
+#if P_LITTLEENDIAN
+	if (inKind == kLinkedDataV1)
+	{
+		data.SetSwapBytes(true);
+	}
+#endif
 	
 	data >> fDataFileName >> fDataFileUUID
 		 >> fKind
@@ -519,9 +539,9 @@ CLinkedDataImp::CLinkedDataImp(const HUrl& inURL, HStreamBase& inFile,
 		THROW(("UUID mismatch for linked data in file %s", url.GetURL().c_str()));
 	
 	fMyFile.reset(new HBufferedFileStream(url, O_RDONLY | O_BINARY));
-	fFile = fMyFile.get();
+	fFile_ = fMyFile.get();
 	
-	fDecompressor.reset(CDecompressorImp::Create(url, *fFile, fKind,
+	fDecompressor.reset(CDecompressorImp::Create(url, *fFile_, fKind,
 		fDataOffset, fDataSize, fTableOffset, fTableSize, inMetaDataCount));
 }
 
@@ -550,16 +570,19 @@ CDecompressorImp* CDecompressorImp::Create(const HUrl& inDb, HStreamBase& inFile
 	
 	switch (inKind)
 	{
-		case kZLibCompressed:
-			result = new CZLibDecompressorImp(inFile, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount);
+		case kZLibCompressedV1:
+		case kZLibCompressedV2:
+			result = new CZLibDecompressorImp(inFile, inKind, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount);
 			break;
 		
-		case kbzLibCompressed:
-			result = new CbzLibDecompressorImp(inFile, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount);
+		case kbzLibCompressedV1:
+		case kbzLibCompressedV2:
+			result = new CbzLibDecompressorImp(inFile, inKind, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount);
 			break;
 		
-		case kLinkedData:
-			result = new CLinkedDataImp(inDb, inFile, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount);
+		case kLinkedDataV1:
+		case kLinkedDataV2:
+			result = new CLinkedDataImp(inDb, inFile, inKind, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount);
 			break;
 		
 		default:
