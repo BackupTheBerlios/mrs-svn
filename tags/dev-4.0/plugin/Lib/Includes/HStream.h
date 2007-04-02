@@ -249,23 +249,7 @@ class HMMappedFileStream : public HMemoryStream
 
   private:
 	struct HMMappedFileStreamImp*	fImpl;
-//	void*			fBasePtr;
 };
-
-//template<class T>
-//class HSwapStream : public HStreamBase
-//{
-//  public:
-//					HSwapStream(HStreamBase& inOther);
-//
-//	virtual int32	Write(const void* inBuffer, uint32 inSize);
-//	virtual int32	Read(void* inBuffer, uint32 inSize);
-//	virtual int64	Seek(int64 inOffset, int inMode);
-//	virtual void	Truncate(int64 inOffset);
-//
-//  private:
-//	HStreamBase&	fStream;
-//};
 
 class HStreamView : public HStreamBase
 {
@@ -283,87 +267,6 @@ class HStreamView : public HStreamBase
 	int64			fOffset;
 	int64			fSize;
 	int64			fPointer;
-};
-
-//template<class T>
-//inline
-//HSwapStream<T>::HSwapStream(HStreamBase& inOther)
-//	: fStream(inOther)
-//{
-//	assert(false);
-//}
-//
-//template<>
-//inline
-//HSwapStream<net_swapper>::HSwapStream(HStreamBase& inOther)
-//	: fStream(inOther)
-//{
-//#if P_LITTLEENDIAN
-//	SetSwapBytes(true);
-//#endif
-//}
-//
-//template<class T>
-//inline
-//int32 HSwapStream<T>::Write(const void* inBuffer, uint32 inSize)
-//{
-//	return fStream.Write(inBuffer, inSize);
-//}
-//
-//template<class T>
-//inline
-//int32 HSwapStream<T>::Read(void* inBuffer, uint32 inSize)
-//{
-//	return fStream.Read(inBuffer, inSize);
-//}
-//
-//template<class T>
-//inline
-//int64 HSwapStream<T>::Seek(int64 inOffset, int inMode)
-//{
-//	return fStream.Seek(inOffset, inMode);
-//}
-//
-//template<class T>
-//inline
-//void HSwapStream<T>::Truncate(int64 inOffset)
-//{
-//	return fStream.Truncate(inOffset);
-//}
-//
-//class HCompressedStream
-//{
-//  public:
-//					HCompressedStream(HStream& inStream);
-//	virtual			~HCompressedStream();
-//	
-//	virtual int32	Write(const void* inBuffer, uint32 inSize);
-//	virtual int32	PWrite(const void* inBuffer, uint32 inSize, int64 inOffset);
-//
-//	virtual int32	Read(void* inBuffer, uint32 inSize);
-//	virtual int32	PRead(void* inBuffer, uint32 inSize, int64 inOffset);
-//	
-//	virtual int64	Seek(int64 inOffset, int inMode);
-//	virtual int64	Tell() const;
-//	virtual int64	Size() const;
-//
-//  private:
-//	struct HCompressedStreamImp*	fImpl;
-//};
-
-class HStringStream : public HStreamBase
-{
-  public:
-					HStringStream(std::string inData);
-	virtual			~HStringStream();
-	
-	virtual int32	Write(const void* inBuffer, uint32 inSize);
-	virtual int32	Read(void* inBuffer, uint32 inSize);
-	virtual int64	Seek(int64 inOffset, int inMode);
-
-  private:
-	std::string		fData;
-	uint32			fOffset;
 };
 
 #endif

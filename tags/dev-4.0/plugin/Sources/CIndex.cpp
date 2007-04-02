@@ -478,7 +478,7 @@ void CIndexPage<DD>::Allocate()
 	{
 		char c = 0xff;
 		fFile->Write(&c, 1);
-		fOffset = static_cast<uint32>(fFile->Tell() - fBaseOffset);
+		fOffset = DD::PageAddrToNr(fFile->Tell() - fBaseOffset);
 		assert(fOffset == 1);
 	}
 

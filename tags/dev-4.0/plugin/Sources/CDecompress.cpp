@@ -293,9 +293,7 @@ CZLibDecompressorImp::CZLibDecompressorImp(HStreamBase& inFile, uint32 inKind,
 {
 #if P_LITTLEENDIAN
 	if (inKind == kZLibCompressedV1)
-	{
 		fData.SetSwapBytes(true);
-	}
 #endif
 }
 
@@ -414,9 +412,7 @@ CbzLibDecompressorImp::CbzLibDecompressorImp(HStreamBase& inFile, uint32 inKind,
 {
 #if P_LITTLEENDIAN
 	if (inKind == kbzLibCompressedV1)
-	{
 		fData.SetSwapBytes(true);
-	}
 #endif
 }
 
@@ -513,16 +509,12 @@ CLinkedDataImp::CLinkedDataImp(const HUrl& inURL, HStreamBase& inFile, uint32 in
 	int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize, uint32 inMetaDataCount)
 	: CDecompressorImp(inFile, 0, 0, 0, 0, 0, inMetaDataCount)
 {
-	HStreamView data(inFile, inDataOffset, inDataSize);
-
 #if P_LITTLEENDIAN
 	if (inKind == kLinkedDataV1)
-	{
-		data.SetSwapBytes(true);
-	}
+		fData.SetSwapBytes(true);
 #endif
 	
-	data >> fDataFileName >> fDataFileUUID
+	fData >> fDataFileName >> fDataFileUUID
 		 >> fKind
 		 >> fDataOffset >> fDataSize
 		 >> fTableOffset >> fTableSize;

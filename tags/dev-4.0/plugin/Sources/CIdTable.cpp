@@ -85,11 +85,11 @@ string CIdTablePage::GetID(uint32 inIndex) const
 void
 CIdTablePage::SwapBytes()
 {
-	first = net_swapper::swap(first);
-	count = net_swapper::swap(count);
+	first = byte_swapper::swap(first);
+	count = byte_swapper::swap(count);
 	
 	for (uint32 i = 0; i <= count; ++i)
-		offset[i] = net_swapper::swap(offset[i]);
+		offset[i] = byte_swapper::swap(offset[i]);
 }
 
 bool CIdTablePage::Store(string inID)

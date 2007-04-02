@@ -892,8 +892,6 @@ struct SortLex
 	CIndexBase*		fBase;
 };
 
-
-
 CIndexBase::CIndexBase(CFullTextIndex& inFullTextIndex, const string& inName,
 		uint16 inIndexNr, const HUrl& inScratch, CIndexKind inKind)
 	: fName(inName)
@@ -1128,11 +1126,6 @@ bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPar
 	outInfo.kind = fKind;
 
 	outInfo.index_version = kCIndexVersionV1;
-#if P_DEBUG
-	outInfo.sig = kIndexPartSigV2;
-	outInfo.index_version = kCIndexVersionV2;
-#endif
-	
 	if (fBitFile->Size() >= numeric_limits<uint32>::max())
 	{
 		outInfo.sig = kIndexPartSigV2;
@@ -2495,16 +2488,6 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 
 						while (iter.Next(doc, freq, false))
 						{
-//							if (doc >= fHeader->entries)
-//							{
-//								cerr << "Error in index " << fParts[ix].name
-//									 << " key " << s
-//									 << ", docnr out of range: " << doc
-//									 << endl;
-//
-//								break;
-//							}							
-//							
 							docs.push_back(make_pair(doc, freq));
 
 							float wdt = freq * idf;
@@ -2698,7 +2681,6 @@ CDocIterator* CIndexer::CreateDocIterator(const string& inIndex, const string& i
 					for (vector<uint32>::iterator i = values.begin(); i != values.end(); ++i)
 						iters.push_back(new CDocNrIterator(*i));
 				}
-//				else// if (or fParts[ix].kind == kDateIndex or fParts[ix].kind == kNumberIndex)
 				else if (values.size() > 100)
 				{
 					auto_ptr<CDocBitVectorIterator> bitIter(new CDocBitVectorIterator(fHeader->entries));
@@ -2725,8 +2707,6 @@ CDocIterator* CIndexer::CreateDocIterator(const string& inIndex, const string& i
 						else
 							iters.push_back(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
 								fParts[ix].bits_offset + *i, fHeader->entries, 0, (fParts[ix].flags & kContainsIDL) != 0));
-//						iters.push_back(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
-//							fParts[ix].bits_offset + *i, fHeader->entries));
 					}
 				}
 			}
