@@ -179,7 +179,7 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexHeader& inStruct)
 		// stupid me...
 		
 		if (inStruct.array_compression_kind == FOUR_CHAR_INLINE('1les'))
-			inStruct.array_compression_kind = kAC_SelectorCode;
+			inStruct.array_compression_kind = kAC_SelectorCodeV1;
 		else if (inStruct.array_compression_kind == FOUR_CHAR_INLINE('olog'))
 			inStruct.array_compression_kind = kAC_GolombCode;
 	}
@@ -968,7 +968,7 @@ void CIndexBase::AddDocTerm(uint32 inDoc, uint8 inFrequency, DocLoc& inDocLoc)
 		if (fIDLBits == nil)
 			fIDLBits = new COBitStream(fIDLScratch);
 
-		CompressArray(*fIDLBits, inDocLoc, kMaxInDocumentLocation, kAC_SelectorCode);
+		CompressArray(*fIDLBits, inDocLoc, kMaxInDocumentLocation);
 	}
 	
 	fLastDoc = inDoc;
@@ -993,7 +993,7 @@ CIDLInterleaver::CIDLInterleaver(HStreamBase& inData)
 
 void CIDLInterleaver::WriteData(COBitStream& inBits)
 {
-	CopyArray<uint32>(fIDLBits, inBits, kMaxInDocumentLocation);
+	CopyArray<uint32,kAC_SelectorCodeV2>(fIDLBits, inBits, kMaxInDocumentLocation);
 }
 
 void CIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
@@ -1059,7 +1059,7 @@ void CIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 				docs.push_back(make_pair(docNr, weight));
 			}
 
-			CompressArray(docBits, docs, inDocCount, kAC_SelectorCode);
+			CompressArray(docBits, docs, inDocCount);
 		}
 		else
 		{
@@ -1085,7 +1085,7 @@ void CIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 				docs.push_back(docNr);
 			}
 
-			CompressArray(docBits, docs, inDocCount, kAC_SelectorCode, interleaver.get());
+			CompressArray(docBits, docs, inDocCount, interleaver.get());
 		}
 
 		docBits.sync();
@@ -1452,7 +1452,7 @@ CIndexer::CIndexer(const HUrl& inDb)
 	fHeader->count = 0;
 	fHeader->entries = 0;
 	fHeader->weight_bit_count = WEIGHT_BIT_COUNT;
-	fHeader->array_compression_kind = kAC_SelectorCode;
+	fHeader->array_compression_kind = kAC_SelectorCodeV2;
 
 	HUrl url(fDb + ".fulltext_indx");
 	fFullTextIndex = new CFullTextIndex(url, fHeader->weight_bit_count);
@@ -2128,30 +2128,6 @@ CMergeIndexBuffer::iterator::reference CMergeIndexBuffer::iterator::dereference(
 	return fCurrent;
 }
 
-//class CIDLInterleaverForMerge : public CValuePairCompression::CInterleavedDataWriter
-//{
-//  public:
-//					CIDLInterleaverForMerge(HStreamBase& inData);
-//	virtual void	WriteData(COBitStream& inBits);
-//
-//  private:
-//	CIBitStream			fIDLBits;
-//	vector<uint32>		fIDL;		// cache to avoid reallocation for each vector
-//};
-//
-//CIDLInterleaverForMerge::CIDLInterleaverForMerge(HStreamBase& inData)
-//	: fIDLBits(inData, 0)
-//{
-//}
-//
-//void CIDLInterleaverForMerge::WriteData(COBitStream& inBits)
-//{
-//	fIDL.clear();
-//	DecompressArray<std::vector<uint32>,kAC_SelectorCode>(fIDLBits, fIDL, kMaxInDocumentLocation);
-//	CompressArray(inBits, fIDL, kMaxInDocumentLocation, kAC_SelectorCode);
-//}
-
-
 // dang... the next function is nasty....
 // First find out what indices we're going to create.
 // Each part may contain a different set of indices
@@ -2353,71 +2329,67 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 				}
 				
 				case kTextIndex:
-//					if ((fParts[ix].flags & kContainsIDL) != 0)
-//					{
-//						uint32 first = 0;
-//						
-//						boost::ptr_vector<CDbDocIteratorBase>	docIters;
-//						uint32 count = 0;
-//	
-//						for (i = 0; i < md.size(); ++i)
-//						{
-//							for (uint32 j = 0; j < v.size(); ++j)
-//							{
-//								if (v[j].first == i)
-//								{
-//									CDbDocIteratorBase* iter =
-//										CreateDbDocIterator(md[i].array_compression_kind, *md[i].mappedBits,
-//											v[j].second, md[i].count, first, true);
-//									
-//									if (dynamic_cast<CDbIDLDocIteratorSC*>(iter) == nil)
-//										THROW(("Inconsistent use of IDL containing iterators"));
-//									
-//									docIters.push_back(iter);
-//
-//									count += docIters.back().Count();
-//									break;
-//								}
-//							}
-//							first += md[i].count;
-//						}
-//						
-//						HMemoryStream idlBuffer;
-//						COBitStream idlBits(idlBuffer);
-//						
-//						vector<uint32> docs;
-//						docs.reserve(count);
-//						CIDLInterleaverForMerge interleaver;
-//
-//						for (i = 0; i < docIters.size(); ++i)
-//						{
-//							CDbIDLDocIteratorSC& iter = static_cast<CDbIDLDocIteratorSC&>(docIters[i]);
-//							
-//							uint32 doc;
-//	
-//							while (iter.Next(doc, inDocLoc, false))
-//							{
-//								docs.push_back(doc);
-//								CompressArray(idlBits, inDocLoc, kMaxInDocumentLocation, kAC_SelectorCode);
-//							}
-//						}
-//	
-//						int64 offset = bitFile->Seek(0, SEEK_END);
-//						if (offset > numeric_limits<uint32>::max())
-//						{
-//							fParts[ix].sig = kIndexPartSigV2;
-//							fParts[ix].index_version = kCIndexVersionV2;
-//						}
-//						
-//						idlBits.sync();
-//						
-//	
-//						COBitStream bits(*bitFile.get());
-//						CompressArray(bits, docs, fHeader->entries, kAC_SelectorCode, &interleaver);
-//						
-//						indx.push_back(make_pair(s, offset));
-//						break;
-//					} // else fall through...
+					if ((fParts[ix].flags & kContainsIDL) != 0)
+					{
+						uint32 first = 0;
+						
+						boost::ptr_vector<CDbDocIteratorBase>	docIters;
+						uint32 count = 0;
+	
+						for (i = 0; i < md.size(); ++i)
+						{
+							for (uint32 j = 0; j < v.size(); ++j)
+							{
+								if (v[j].first == i)
+								{
+									CDbDocIteratorBase* iter =
+										CreateDbDocIterator(md[i].array_compression_kind, *md[i].mappedBits,
+											v[j].second, md[i].count, first, true);
+									
+									if (dynamic_cast<CDbIDLDocIteratorSC2*>(iter) == nil)
+										THROW(("Inconsistent use of IDL containing iterators"));
+									
+									docIters.push_back(iter);
+
+									count += docIters.back().Count();
+									break;
+								}
+							}
+							first += md[i].count;
+						}
+						
+						HMemoryStream idlBuffer;
+						COBitStream idlBits(idlBuffer);
+						
+						vector<uint32> docs;
+						docs.reserve(count);
+
+						for (i = 0; i < docIters.size(); ++i)
+						{
+							CDbIDLDocIteratorSC2& iter = static_cast<CDbIDLDocIteratorSC2&>(docIters[i]);
+							
+							uint32 doc;
+	
+							while (iter.Next(doc, idlBits, false))
+								docs.push_back(doc);
+						}
+	
+						int64 offset = bitFile->Seek(0, SEEK_END);
+						if (offset > numeric_limits<uint32>::max())
+						{
+							fParts[ix].sig = kIndexPartSigV2;
+							fParts[ix].index_version = kCIndexVersionV2;
+						}
+						
+						idlBits.sync();
+						CIDLInterleaver interleaver(idlBuffer);
+	
+						COBitStream bits(*bitFile.get());
+						CompressArray(bits, docs, fHeader->entries, &interleaver);
+						
+						indx.push_back(make_pair(s, offset));
+						break;
+					} // else fall through...
 					
 				case kDateIndex:
 				case kNumberIndex:
@@ -2465,7 +2437,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					}
 
 					COBitStream bits(*bitFile.get());
-					CompressArray(bits, docs, fHeader->entries, kAC_SelectorCode);
+					CompressArray(bits, docs, fHeader->entries);
 					
 					indx.push_back(make_pair(s, offset));
 					break;
@@ -2523,7 +2495,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					}
 
 					COBitStream bits(*bitFile.get());
-					CompressArray(bits, docs, fHeader->entries, kAC_SelectorCode);
+					CompressArray(bits, docs, fHeader->entries);
 					
 					indx.push_back(make_pair(s, offset));
 					break;
@@ -2795,8 +2767,10 @@ CDocIterator* CIndexer::CreateDocIteratorForPhrase(const string& inIndex, const 
 					fParts[ix].bits_offset + *value, fHeader->entries, 0, true));
 			}
 			
-			if (fHeader->array_compression_kind == kAC_SelectorCode)
-				iters.push_back(new CDbPhraseDocIterator<kAC_SelectorCode>(termIters));
+			if (fHeader->array_compression_kind == kAC_SelectorCodeV2)
+				iters.push_back(new CDbPhraseDocIterator<kAC_SelectorCodeV2>(termIters));
+			else if (fHeader->array_compression_kind == kAC_SelectorCodeV1)
+				iters.push_back(new CDbPhraseDocIterator<kAC_SelectorCodeV1>(termIters));
 			else
 				iters.push_back(new CDbPhraseDocIterator<kAC_GolombCode>(termIters));
 		}

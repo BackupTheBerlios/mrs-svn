@@ -126,8 +126,11 @@ class CDbDocIteratorBaseT : public CDbDocIteratorBase
 typedef CDbDocIteratorBaseT<uint32, kAC_GolombCode>						CDbDocIteratorGC;
 typedef CDbDocIteratorBaseT<std::pair<uint32,uint8>, kAC_GolombCode>	CDbDocWeightIteratorGC;
 
-typedef CDbDocIteratorBaseT<uint32, kAC_SelectorCode>					CDbDocIteratorSC;
-typedef CDbDocIteratorBaseT<std::pair<uint32,uint8>, kAC_SelectorCode>	CDbDocWeightIteratorSC;
+typedef CDbDocIteratorBaseT<uint32, kAC_SelectorCodeV1>						CDbDocIteratorSC1;
+typedef CDbDocIteratorBaseT<std::pair<uint32,uint8>, kAC_SelectorCodeV1>	CDbDocWeightIteratorSC1;
+
+typedef CDbDocIteratorBaseT<uint32, kAC_SelectorCodeV2>						CDbDocIteratorSC2;
+typedef CDbDocIteratorBaseT<std::pair<uint32,uint8>, kAC_SelectorCodeV2>	CDbDocWeightIteratorSC2;
 
 class CDocNrIterator : public CDocIterator
 {
@@ -411,10 +414,12 @@ class CDbIDLDocIteratorBaseT : public CDbDocIteratorBaseT<uint32, K>
 	virtual bool	Next(uint32& ioDoc, bool inSkip);
 	virtual bool	Next(uint32& ioDoc, uint8& ioRank, bool inSkip);
 	virtual bool	Next(uint32& ioDoc, std::vector<uint32>& outLoc, bool inSkip);
+	virtual bool	Next(uint32& ioDoc, COBitStream& outIDLCopy, bool inSkip);
 };
 
 typedef CDbIDLDocIteratorBaseT<kAC_GolombCode>						CDbIDLDocIteratorGC;
-typedef CDbIDLDocIteratorBaseT<kAC_SelectorCode>					CDbIDLDocIteratorSC;
+typedef CDbIDLDocIteratorBaseT<kAC_SelectorCodeV1>					CDbIDLDocIteratorSC1;
+typedef CDbIDLDocIteratorBaseT<kAC_SelectorCodeV2>					CDbIDLDocIteratorSC2;
 
 template<uint32 K>
 class CDbPhraseDocIterator : public CDocIterator

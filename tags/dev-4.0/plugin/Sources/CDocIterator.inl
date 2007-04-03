@@ -147,6 +147,27 @@ bool CDbIDLDocIteratorBaseT<K>::Next(uint32& ioDoc, std::vector<uint32>& outLoc,
 	return result;
 }
 
+template<uint32 K>
+bool CDbIDLDocIteratorBaseT<K>::Next(uint32& ioDoc, COBitStream& outIDLCopy, bool inSkip)
+{
+	bool result = false;
+	uint32 next = ioDoc;
+	
+	while (result == false and CDbDocIteratorBaseT<uint32,K>::Next(next, false))
+	{
+		CopyArray<uint32,K>(
+			CDbDocIteratorBaseT<uint32,K>::fBits, outIDLCopy, kMaxInDocumentLocation);
+
+		if (next >= ioDoc or inSkip == false)
+		{
+			result = true;
+			ioDoc = next;
+		}
+	}
+
+	return result;
+}
+
 ///////////////////////////////////////////////////////////////////////
 //
 //	CDbPhraseDocIterator, very similar to CDocIntersectionIterator
@@ -312,11 +333,17 @@ CreateDbDocIterator(uint32 inKind, HStreamBase& inData, int64 inOffset,
 			else
 				return new CDbDocIteratorGC(inData, inOffset, inMax, inDelta);
 
-		case kAC_SelectorCode:
+		case kAC_SelectorCodeV1:
 			if (inContainsIDL)
-				return new CDbIDLDocIteratorSC(inData, inOffset, inMax, inDelta);
+				return new CDbIDLDocIteratorSC1(inData, inOffset, inMax, inDelta);
 			else
-				return new CDbDocIteratorSC(inData, inOffset, inMax, inDelta);
+				return new CDbDocIteratorSC1(inData, inOffset, inMax, inDelta);
+		
+		case kAC_SelectorCodeV2:
+			if (inContainsIDL)
+				return new CDbIDLDocIteratorSC2(inData, inOffset, inMax, inDelta);
+			else
+				return new CDbDocIteratorSC2(inData, inOffset, inMax, inDelta);
 		
 		default:
 			THROW(("Unsupported array compression kind: %4.4s", &inKind));
@@ -332,8 +359,11 @@ CreateDbDocWeightIterator(uint32 inKind, HStreamBase& inData, int64 inOffset, in
 		case kAC_GolombCode:
 			return new CDbDocWeightIteratorGC(inData, inOffset, inMax, inDelta);
 
-		case kAC_SelectorCode:
-			return new CDbDocWeightIteratorSC(inData, inOffset, inMax, inDelta);
+		case kAC_SelectorCodeV1:
+			return new CDbDocWeightIteratorSC1(inData, inOffset, inMax, inDelta);
+		
+		case kAC_SelectorCodeV2:
+			return new CDbDocWeightIteratorSC2(inData, inOffset, inMax, inDelta);
 		
 		default:
 			THROW(("Unsupported array compression kind: %4.4s", &inKind));
