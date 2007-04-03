@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+
+<!--
+	Style sheet for the Gene databank from the NCBI
+	
+	created: 25 augustus 2006
+	
+	An xml style sheet to format a Gene entry into a digested HTML form
+-->
+
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="1.0">
+	
+	<xsl:template match="Gene-ref_syn">
+		<xsl:for-each select="Gene-ref_syn_E">
+			<xsl:if test="position() != 1">, </xsl:if>
+			<xsl:value-of select="."/>
+		</xsl:for-each>
+	</xsl:template>
+
+	<xsl:template match="Prot-ref_name">
+		<xsl:for-each select="Prot-ref_name_E[position()!=1]">
+			<xsl:if test="position() != 1">, </xsl:if>
+			<xsl:value-of select="."/>
+		</xsl:for-each>
+	</xsl:template>
+	
+	<xsl:template match="Entrezgene">
+		<div>
+			<xsl:choose>
+				<xsl:when test="Entrezgene_properties/Gene-commentary[Gene-commentary_label='Nomenclature']">
+					<xsl:for-each select="Entrezgene_properties/Gene-commentary[Gene-commentary_label='Nomenclature']/Gene-commentary_properties/Gene-commentary">
+						<xsl:if test="position()!=1">; </xsl:if>
+						<b><xsl:value-of select="Gene-commentary_label"/>: </b>
+						<xsl:value-of select="Gene-commentary_text"/>
+					</xsl:for-each>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:choose>
+						<xsl:when test="Entrezgene_gene/Gene-ref/Gene-ref_locus"><b><xsl:value-of select="Entrezgene_gene/Gene-ref/Gene-ref_locus"/></b> - </xsl:when>
+						<xsl:when test="Entrezgene_gene/Gene-ref/Gene-ref_locus-tag"><b><xsl:value-of select="Entrezgene_gene/Gene-ref/Gene-ref_locus-tag"/></b> - </xsl:when>
+					</xsl:choose>
+					<xsl:value-of select="Entrezgene_prot/Prot-ref/Prot-ref_name/Prot-ref_name_E[position() = 1]"/>
+				</xsl:otherwise>
+			</xsl:choose>
+			 [<i><xsl:value-of select="Entrezgene_source/BioSource/BioSource_org/Org-ref/Org-ref_taxname"/></i>]
+			<br/>
+	
+			<xsl:if test="Entrezgene_gene/Gene-ref/Gene-ref_syn">
+				<b>Other aliases: </b><xsl:apply-templates select="Entrezgene_gene/Gene-ref/Gene-ref_syn"/><br/>
+			</xsl:if>
+
+			<xsl:if test="Entrezgene_prot/Prot-ref/Prot-ref_name/Prot-ref_name_E[position()!=1]">
+				<b>Other designations: </b><xsl:apply-templates select="Entrezgene_prot/Prot-ref/Prot-ref_name"/><br/>
+			</xsl:if>
+
+			<xsl:if test="Entrezgene_source/BioSource/BioSource_subtype/SubSource/SubSource_name">
+				<b>Chromosome: </b><xsl:value-of select="Entrezgene_source/BioSource/BioSource_subtype/SubSource/SubSource_name"/>
+				<xsl:choose>
+					<xsl:when test="Entrezgene_location/Maps/Maps_display-str">
+						; <b>location: </b><xsl:value-of select="Entrezgene_location/Maps/Maps_display-str"/>
+					</xsl:when>
+					<xsl:when test="Entrezgene_gene/Gene-ref/Gene-ref_maploc">
+						; <b>location: </b><xsl:value-of select="Entrezgene_gene/Gene-ref/Gene-ref_maploc"/>
+					</xsl:when>
+				</xsl:choose>
+			</xsl:if>
+
+		</div>
+	</xsl:template>	
+	
+	<xsl:template match="/">
+		<xsl:apply-templates select="Entrezgene-Set/Entrezgene"/>
+	</xsl:template>
+
+</xsl:stylesheet>
