@@ -860,7 +860,7 @@ class CIndexBase
 	// data for the second pass
 	uint32			fLastDoc;
 	COBitStream*	fBits;
-	COBitStream*	fIDFBits;
+	COBitStream*	fIDLBits;
 	uint32			fDocCount;
 	
 	HUrl			fBitUrl;
@@ -904,7 +904,7 @@ CIndexBase::CIndexBase(CFullTextIndex& inFullTextIndex, const string& inName,
 	, fWeightBitCount(0)
 	, fLastDoc(0)
 	, fBits(nil)
-	, fIDFBits(nil)
+	, fIDLBits(nil)
 	, fDocCount(0)
 	, fBitUrl(inScratch)
 	, fRawIndex(nil)
@@ -965,10 +965,10 @@ void CIndexBase::AddDocTerm(uint32 inDoc, uint8 inFrequency, DocLoc& inDocLoc)
 	
 	if (fUsesIDL)
 	{
-		if (fIDFBits == nil)
-			fIDFBits = new COBitStream(fIDLScratch);
+		if (fIDLBits == nil)
+			fIDLBits = new COBitStream(fIDLScratch);
 
-		CompressArray(*fIDFBits, inDocLoc, kMaxInDocumentLocation, kAC_SelectorCode);
+		CompressArray(*fIDLBits, inDocLoc, kMaxInDocumentLocation, kAC_SelectorCode);
 	}
 	
 	fLastDoc = inDoc;
@@ -983,8 +983,7 @@ class CIDLInterleaver : public CValuePairCompression::CInterleavedDataWriter
 	virtual void	WriteData(COBitStream& inBits);
 
   private:
-	CIBitStream			fIDLBits;
-	vector<uint32>		fIDL;		// cache to avoid reallocation for each vector
+	CIBitStream		fIDLBits;
 };
 
 CIDLInterleaver::CIDLInterleaver(HStreamBase& inData)
@@ -994,9 +993,7 @@ CIDLInterleaver::CIDLInterleaver(HStreamBase& inData)
 
 void CIDLInterleaver::WriteData(COBitStream& inBits)
 {
-	fIDL.clear();
-	DecompressArray<std::vector<uint32>,kAC_SelectorCode>(fIDLBits, fIDL, kMaxInDocumentLocation);
-	CompressArray(inBits, fIDL, kMaxInDocumentLocation, kAC_SelectorCode);
+	CopyArray<uint32>(fIDLBits, inBits, kMaxInDocumentLocation);
 }
 
 void CIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
@@ -1070,7 +1067,7 @@ void CIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 			
 			if (fUsesIDL)
 			{
-				fIDFBits->sync();
+				fIDLBits->sync();
 				interleaver.reset(new CIDLInterleaver(fIDLScratch));
 			}
 			
@@ -1100,10 +1097,10 @@ void CIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 	fLastDoc = 0;
 	fScratch.Truncate(0);
 	
-	if (fIDFBits != nil)
+	if (fIDLBits != nil)
 	{
-		delete fIDFBits;
-		fIDFBits = nil;
+		delete fIDLBits;
+		fIDLBits = nil;
 		fIDLScratch.Truncate(0);
 	}
 	
@@ -2131,6 +2128,30 @@ CMergeIndexBuffer::iterator::reference CMergeIndexBuffer::iterator::dereference(
 	return fCurrent;
 }
 
+//class CIDLInterleaverForMerge : public CValuePairCompression::CInterleavedDataWriter
+//{
+//  public:
+//					CIDLInterleaverForMerge(HStreamBase& inData);
+//	virtual void	WriteData(COBitStream& inBits);
+//
+//  private:
+//	CIBitStream			fIDLBits;
+//	vector<uint32>		fIDL;		// cache to avoid reallocation for each vector
+//};
+//
+//CIDLInterleaverForMerge::CIDLInterleaverForMerge(HStreamBase& inData)
+//	: fIDLBits(inData, 0)
+//{
+//}
+//
+//void CIDLInterleaverForMerge::WriteData(COBitStream& inBits)
+//{
+//	fIDL.clear();
+//	DecompressArray<std::vector<uint32>,kAC_SelectorCode>(fIDLBits, fIDL, kMaxInDocumentLocation);
+//	CompressArray(inBits, fIDL, kMaxInDocumentLocation, kAC_SelectorCode);
+//}
+
+
 // dang... the next function is nasty....
 // First find out what indices we're going to create.
 // Each part may contain a different set of indices
@@ -2332,72 +2353,71 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 				}
 				
 				case kTextIndex:
-					if ((fParts[ix].flags & kContainsIDL) != 0)
-					{
-						uint32 first = 0;
-						
-						boost::ptr_vector<CDbDocIteratorBase>	docIters;
-						uint32 count = 0;
-	
-						for (i = 0; i < md.size(); ++i)
-						{
-							for (uint32 j = 0; j < v.size(); ++j)
-							{
-								if (v[j].first == i)
-								{
-									CDbDocIteratorBase* iter =
-										CreateDbDocIterator(md[i].array_compression_kind, *md[i].mappedBits,
-											v[j].second, md[i].count, first, true);
-									
-									if (dynamic_cast<CDbIDLDocIteratorSC*>(iter) == nil)
-										THROW(("Inconsistent use of IDL containing iterators"));
-									
-									docIters.push_back(iter);
-
-									count += docIters.back().Count();
-									break;
-								}
-							}
-							first += md[i].count;
-						}
-						
-						HMemoryStream idlBuffer;
-						COBitStream idlBits(idlBuffer);
-						
-						vector<uint32> docs;
-						docs.reserve(count);
-						DocLoc inDocLoc;
-	
-						for (i = 0; i < docIters.size(); ++i)
-						{
-							CDbIDLDocIteratorSC& iter = static_cast<CDbIDLDocIteratorSC&>(docIters[i]);
-							
-							uint32 doc;
-	
-							while (iter.Next(doc, inDocLoc, false))
-							{
-								docs.push_back(doc);
-								CompressArray(idlBits, inDocLoc, kMaxInDocumentLocation, kAC_SelectorCode);
-							}
-						}
-	
-						int64 offset = bitFile->Seek(0, SEEK_END);
-						if (offset > numeric_limits<uint32>::max())
-						{
-							fParts[ix].sig = kIndexPartSigV2;
-							fParts[ix].index_version = kCIndexVersionV2;
-						}
-						
-						idlBits.sync();
-						
-						CIDLInterleaver interleaver(idlBuffer);
-	
-						COBitStream bits(*bitFile.get());
-						CompressArray(bits, docs, fHeader->entries, kAC_SelectorCode, &interleaver);
-						
-						indx.push_back(make_pair(s, offset));
-						break;
-					} // else fall through...
+//					if ((fParts[ix].flags & kContainsIDL) != 0)
+//					{
+//						uint32 first = 0;
+//						
+//						boost::ptr_vector<CDbDocIteratorBase>	docIters;
+//						uint32 count = 0;
+//	
+//						for (i = 0; i < md.size(); ++i)
+//						{
+//							for (uint32 j = 0; j < v.size(); ++j)
+//							{
+//								if (v[j].first == i)
+//								{
+//									CDbDocIteratorBase* iter =
+//										CreateDbDocIterator(md[i].array_compression_kind, *md[i].mappedBits,
+//											v[j].second, md[i].count, first, true);
+//									
+//									if (dynamic_cast<CDbIDLDocIteratorSC*>(iter) == nil)
+//										THROW(("Inconsistent use of IDL containing iterators"));
+//									
+//									docIters.push_back(iter);
+//
+//									count += docIters.back().Count();
+//									break;
+//								}
+//							}
+//							first += md[i].count;
+//						}
+//						
+//						HMemoryStream idlBuffer;
+//						COBitStream idlBits(idlBuffer);
+//						
+//						vector<uint32> docs;
+//						docs.reserve(count);
+//						CIDLInterleaverForMerge interleaver;
+//
+//						for (i = 0; i < docIters.size(); ++i)
+//						{
+//							CDbIDLDocIteratorSC& iter = static_cast<CDbIDLDocIteratorSC&>(docIters[i]);
+//							
+//							uint32 doc;
+//	
+//							while (iter.Next(doc, inDocLoc, false))
+//							{
+//								docs.push_back(doc);
+//								CompressArray(idlBits, inDocLoc, kMaxInDocumentLocation, kAC_SelectorCode);
+//							}
+//						}
+//	
+//						int64 offset = bitFile->Seek(0, SEEK_END);
+//						if (offset > numeric_limits<uint32>::max())
+//						{
+//							fParts[ix].sig = kIndexPartSigV2;
+//							fParts[ix].index_version = kCIndexVersionV2;
+//						}
+//						
+//						idlBits.sync();
+//						
+//	
+//						COBitStream bits(*bitFile.get());
+//						CompressArray(bits, docs, fHeader->entries, kAC_SelectorCode, &interleaver);
+//						
+//						indx.push_back(make_pair(s, offset));
+//						break;
+//					} // else fall through...
 					
 				case kDateIndex:
 				case kNumberIndex:
