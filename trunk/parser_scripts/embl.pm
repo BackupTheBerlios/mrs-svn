@@ -47,8 +47,10 @@ our @ISA = "MRS::Script";
 my %INDICES = (
 	'id' => 'Identification',
 	'ac' => 'Accession number',
+	'co' => 'Contigs',
 	'cc' => 'Comments and Notes',
 	'dt' => 'Date',
+	'pr' => 'Project',
 	'de' => 'Description',
 	'gn' => 'Gene name',
 	'os' => 'Organism species',
@@ -160,6 +162,29 @@ sub parse
 	my $self = shift;
 	local *IN = shift;
 	
+	my %ignore = (
+		'SQ'	=> 1,
+		'FH'	=> 1,
+		'XX'	=> 1,
+		'SV'	=> 1,
+		'AH'	=> 1,
+	);
+	
+	my %months = (
+		'JAN'	=> 1,
+		'FEB'	=> 2,
+		'MAR'	=> 3,
+		'APR'	=> 4,
+		'MAY'	=> 5,
+		'JUN'	=> 6,
+		'JUL'	=> 7,
+		'AUG'	=> 8,
+		'SEP'	=> 9,
+		'OCT'	=> 10,
+		'NOV'	=> 11,
+		'DEC'	=> 12
+	);
+	
 	my ($id, $doc, $m, $title);
 	
 	$m = $self->{mrs};
@@ -197,7 +222,7 @@ sub parse
 				$m->IndexValue('id', $flds[0]);
 				$flds[1] =~ m/SV (\d+)/ && $m->IndexNumber('sv', $1);
 				$m->IndexWord('topology', lc($flds[2]));
-				$m->IndexWord('mt', lc($flds[3]));
+#				$m->IndexWord('mt', lc($flds[3]));
 				$m->IndexWord('dc', lc($flds[4]));
 				$m->IndexWord('td', lc($flds[5]));
 				$flds[6] =~ m/(\d+)/ && $m->IndexNumber('length', $1);
@@ -209,9 +234,25 @@ sub parse
 				$title .= ' ' if defined $title;
 				$title .= $text;
 			}
+			elsif ($fld eq 'DT')
+			{
+				if ($text =~ m/(\d{2})-([A-Z]{3})-(\d{4})/) {
+					my $date = sprintf('%4.4d-%2.2d-%2.2d', $3, $months{$2}, $1);
+					
+					eval { $m->IndexDate($fld, $date); };
+					
+					warn $@ if $@;
+				}
+			}
 			elsif (substr($fld, 0, 1) eq 'R')
 			{
 				$m->IndexText('ref', substr($line, 5));
+			}
+			elsif ($fld eq 'PR')
+			{
+				if ($text =~ m/Project:(\s+?);/) {
+					$m->IndexWord('pr', $1);
+				}
 			}
 			elsif ($fld eq 'FT')
 			{
@@ -236,8 +277,8 @@ sub parse
 						$lookahead = <IN>;
 					}
 				}
-			}			
-			elsif ($fld ne 'SQ' and $fld ne 'XX' and $fld ne 'SV')
+			}
+			elsif ($ignore{$fld} != 1)
 			{
 				$m->IndexText(lc($fld), $text);
 			}
@@ -636,7 +677,38 @@ sub pp
 			push @rows, $q->Tr($q->td({-colspan=>2}, $cc));
 		}
 	
-		# AH/AS ... not implemented yet
+		# AH/AS	assembly information
+		
+		elsif ($line =~ m/^AH/)
+		{
+			#      0    5               41                   62             77
+			#      AH   TPA_SPAN        PRIMARY_IDENTIFIER   PRIMARY_SPAN   COMP
+			
+			my @as;
+			push @as, $q->Tr(
+				$q->th({-width=>'10%'}, 'Primary seq.'),
+				$q->th({-width=>'10%'}, 'Span in assembly'),
+				$q->th({-width=>'80%'}, 'Span in primary sequence')
+			);
+			
+			while ($lookahead =~ /AS\s+(.+?)/)
+			{
+				my $comp = '';
+				$comp = '(Complement)' if length($lookahead) > 77 and substr($lookahead, 77, 1) eq 'c';
+				
+				push @as, $q->Tr(
+					$q->td(substr($lookahead, 5, 35)),
+					$q->td(substr($lookahead, 41, 20)),
+					$q->td(substr($lookahead, 62, 14) . $comp)
+				);
+				
+				$lookahead = shift @lines;
+			}
+			
+			push @rows, $q->Tr($q->th({-colspan=>2}, 'Assembly information'));
+			push @rows, $q->Tr($q->td({-colspan=>2}, $q->div({-class=>'sub_entry'},
+					$q->table({-cellspacing=>'0', -cellpadding=>'0', -width=>'100%'}, @as))));
+		}
 		
 		# CO
 		
