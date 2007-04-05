@@ -145,6 +145,20 @@ struct CLexPage
 				}
 
 	inline
+	int			Compare(const CLexPage* inPage, uint32 inPEntry, uint32 inEntry, CLexCompare& inCompare) const
+				{
+					assert(inPEntry < inPage->N);
+					int32 ix1 = static_cast<int32>(inPEntry);
+					uint32 l1 = inPage->e[-ix1 - 1] - inPage->e[-ix1];
+					
+					assert(inEntry < N);
+					int32 ix2 = static_cast<int32>(inEntry);
+					uint32 l2 = e[-ix2 - 1] - e[-ix2];
+					
+					return inCompare.Compare(inPage->s + inPage->e[-ix1], l1, s + e[-ix2], l2);
+				}
+
+	inline
 	bool		TestKeyBit(uint32 inEntry, uint32 inBit) const
 				{
 					assert(inEntry < N);
@@ -204,6 +218,7 @@ struct CLexiconImp
 	int				Compare(const string& inKey, uint32 inNr) const;
 	int				Compare(const CNode* inA, const CNode* inB) const;
 	int				Compare(uint32 inA, uint32 inB) const;
+	int				Compare(uint32 inA, uint32 inB, CLexCompare& inCompare) const;
 
 	inline
 	bool			TestKeyBit(
@@ -491,6 +506,30 @@ int CLexiconImp::Compare(uint32 inA, uint32 inB) const
 	return result;
 }
 
+int CLexiconImp::Compare(uint32 inA, uint32 inB, CLexCompare& inCompare) const
+{
+	int result = 0;
+	
+	if (inA != inB)
+	{
+		LexPageArray::const_iterator a = GetPage(inA);
+		LexPageArray::const_iterator b = GetPage(inB);
+		
+		assert(a != fPages.end());
+		assert(b != fPages.end());
+	
+		if (a != fPages.end() and inA < (*a)->N and
+			b != fPages.end() and inB < (*b)->N)
+		{
+			result = (*b)->Compare(*a, inA, inB, inCompare);
+		}
+		else
+			assert(false);
+	}
+	
+	return result;
+}
+
 bool CLexiconImp::CompareKeyBits(
 	const char*		inKey,
 	uint32			inKeyLength,
@@ -533,6 +572,11 @@ string CLexicon::GetString(uint32 inNr) const
 int CLexicon::Compare(uint32 inA, uint32 inB) const
 {
 	return fImpl->Compare(inA, inB);
+}
+
+int CLexicon::Compare(uint32 inA, uint32 inB, CLexCompare& inCompare) const
+{
+	return fImpl->Compare(inA, inB, inCompare);
 }
 
 uint32 CLexicon::Count() const

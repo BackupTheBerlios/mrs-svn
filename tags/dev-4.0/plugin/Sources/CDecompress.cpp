@@ -141,45 +141,16 @@ void CDecompressorImp::CopyData(HStreamBase& outData, uint32& outKind,
 	int64& outDataOffset, int64& outDataSize,
 	int64& outTableOffset, int64& outTableSize)
 {
-	const int kBufferSize = 1024 * 1024 * 4;	// 4 Mb
-	HAutoBuf<char> buf(new char[kBufferSize]);
-	
 	outKind = fKind;
 	outDataOffset = outData.Seek(0, SEEK_END);
 	outDataSize = fDataSize;
 	
-	int64 k = fDataSize;
-	int64 o = fDataOffset;
-	while (k > 0)
-	{
-		int64 n = k;
-		if (n > kBufferSize)
-			n = kBufferSize;
-		
-		fFile_->PRead(buf.get(), static_cast<uint32>(n), o);
-		outData.Write(buf.get(), static_cast<uint32>(n));
-		
-		k -= n;
-		o += n;
-	}
+	fFile_->CopyTo(outData, fDataSize, fDataOffset);
 
 	outTableOffset = outData.Tell();
 	outTableSize = fTableSize;
 	
-	k = fTableSize;
-	o = fTableOffset;
-	while (k > 0)
-	{
-		int64 n = k;
-		if (n > kBufferSize)
-			n = kBufferSize;
-		
-		fFile_->PRead(buf.get(), static_cast<uint32>(n), o);
-		outData.Write(buf.get(), static_cast<uint32>(n));
-		
-		k -= n;
-		o += n;
-	}
+	fFile_->CopyTo(outData, fTableSize, fTableOffset);
 }
 
 struct CBasicDecompressorImp : public CDecompressorImp

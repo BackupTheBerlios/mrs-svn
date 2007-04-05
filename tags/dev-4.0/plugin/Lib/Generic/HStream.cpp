@@ -53,6 +53,7 @@
 #include "HError.h"
 #include "HByteSwap.h"
 #include "HMutex.h"
+#include "HUtils.h"
 
 #ifdef P_DEBUG
 #include <iostream>
@@ -87,6 +88,29 @@ int32 HStreamBase::PRead(void* inBuffer, uint32 inSize, int64 inOffset)
 	int32 result = Read(inBuffer, inSize);
 	Seek(cur_offset, SEEK_SET);
 	return result;
+}
+
+void HStreamBase::CopyTo(HStreamBase& inDest, uint32 inSize, int64 inOffset)
+{
+	Seek(inOffset, SEEK_SET);
+	
+	const int kBufSize = 64 * 4096;
+	HAutoBuf<char> b(new char[kBufSize]);
+
+	while (inSize > 0)
+	{
+		uint32 n = kBufSize;
+		if (n > inSize)
+			n = inSize;
+
+		if (Read(b.get(), n) != n)
+			THROW(("I/O error in copy"));
+
+		if (inDest.Write(b.get(), n) != n)
+			THROW(("I/O error in copy"));
+
+		inSize -= n;
+	}
 }
 
 int64 HStreamBase::Tell() const

@@ -969,8 +969,12 @@ void MDatabank::AddXPathForIndex(const string& inIndex, const string& inXPath,
 	unsigned long inFlags)
 {
 	fImpl->GetDB()->AddXPathForIndex(
-		inIndex, inFlags & IS_VALUE_INDEX, inFlags & INDEX_NUMBERS,
-		inFlags & STORE_AS_META, inFlags & STORE_IDL, inXPath);
+						inIndex,
+						inFlags & IS_VALUE_INDEX,
+						inFlags & INDEX_NUMBERS,
+						inFlags & STORE_AS_META,
+						inFlags & STORE_IDL,
+						inXPath);
 }
 
 void MDatabank::AddXMLDocument(const std::string& inDoc)
