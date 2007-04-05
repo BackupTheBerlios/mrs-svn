@@ -290,7 +290,8 @@ HStreamBase& HStreamBase::operator<< (string s)
 
 #pragma mark memFullErr
 
-#define kMemBlockSize 512
+#define kMemBlockSize			512
+#define kMemBlockExtendSize		10240
 
 HMemoryStream::HMemoryStream()
 {
@@ -351,7 +352,7 @@ int32 HMemoryStream::Write(const void* inBuffer, uint32 inCount)
 	if (static_cast<unsigned int> (fPointer + inCount) > fPhysicalSize)
 	{
 		uint32 newSize = static_cast<uint32>(
-			kMemBlockSize * ((fPointer + inCount) / kMemBlockSize + 1));
+			kMemBlockExtendSize * ((fPointer + inCount) / kMemBlockExtendSize + 2));
 		
 		char* t = new char[newSize];
 		memcpy (t, fData, fPhysicalSize);

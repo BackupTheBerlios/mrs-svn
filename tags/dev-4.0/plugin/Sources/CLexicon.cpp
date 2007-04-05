@@ -71,7 +71,7 @@ struct CNode
 	CNode*			left;
 	CNode*			right;
 	uint32			value;
-	uint16			bit;
+	uint32			bit;
 };
 
 // CLexPage stores strings without null terminator packed in s. 
@@ -145,7 +145,7 @@ struct CLexPage
 				}
 
 	inline
-	bool		TestKeyBit(uint32 inEntry, uint16 inBit) const
+	bool		TestKeyBit(uint32 inEntry, uint32 inBit) const
 				{
 					assert(inEntry < N);
 					int32 ix = static_cast<int32>(inEntry);
@@ -155,10 +155,10 @@ struct CLexPage
 
 					bool result = false;
 					
-					uint16 byte = inBit >> 3;
+					uint32 byte = inBit >> 3;
 					if (byte < e[-ix - 1] - e[-ix])
 					{
-						uint16 bit = 7 - (inBit & 0x0007);
+						uint32 bit = 7 - (inBit & 0x0007);
 						result = (s[e[-ix] + byte] & (1 << bit)) != 0;
 					}
 					
@@ -209,14 +209,14 @@ struct CLexiconImp
 	bool			TestKeyBit(
 						const char*		inKey,
 						uint32			inKeyLength,
-						uint16			inBit) const
+						uint32			inBit) const
 					{
 						bool result = false;
 						
-						uint16 byte = inBit >> 3;
+						uint32 byte = inBit >> 3;
 						if (byte < inKeyLength)
 						{
-							uint16 bit = 7 - (inBit & 0x0007);
+							uint32 bit = 7 - (inBit & 0x0007);
 							result = (inKey[byte] & (1 << bit)) != 0;
 						}
 						
@@ -229,7 +229,7 @@ struct CLexiconImp
 						uint32			inKeyALength,
 						const char*		inKeyB,
 						uint32			inKeyBLength,
-						uint16			inBit) const
+						uint32			inBit) const
 					{
 						return
 							TestKeyBit(inKeyA, inKeyALength, inBit) ==
@@ -240,7 +240,7 @@ struct CLexiconImp
 						const char*		inKey,
 						uint32			inKeyLength,
 						uint32			inNr,
-						uint16			inBit) const;
+						uint32			inBit) const;
 
 					CLexiconImp();
 					~CLexiconImp();
@@ -369,7 +369,7 @@ uint32 CLexiconImp::Store(const string& inKey)
 	if (t != fRoot and Compare(inKey, t->value) == 0)
 		return t->value;
 
-	uint16 i = 0;
+	uint32 i = 0;
 	
 	while (CompareKeyBits(inKey.c_str(), inKey.length(), t->value, i))
 		++i;
@@ -495,7 +495,7 @@ bool CLexiconImp::CompareKeyBits(
 	const char*		inKey,
 	uint32			inKeyLength,
 	uint32			inNr,
-	uint16			inBit) const
+	uint32			inBit) const
 {
 	bool b = false;
 	

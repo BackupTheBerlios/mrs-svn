@@ -1548,10 +1548,10 @@ CIndex* CIndex::CreateFromIterator(uint32 inIndexKind, CIndexVersion inVersion, 
 	
 	inFile.Seek(0, SEEK_END);
 	
-#if P_DEBUG
-	result->fImpl->Test(*result);
-//	result->Dump();
-#endif
+//#if P_DEBUG
+//	result->fImpl->Test(*result);
+////	result->Dump();
+//#endif
 	
 	return result.release();
 }
