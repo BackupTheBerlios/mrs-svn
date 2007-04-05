@@ -543,9 +543,12 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	 *	Note that this version does not index numbers.
 	 *	\param	inIndex	The index to use (and create if needed).
 	 *	\param	inText	The text to tokenize and index.
+	 *	\param	inStoreIDL
+	 * 					Flag to indicate whether 'in document locations' should be stored. These locations
+	 *					are needed to perform phrase searches.
 	 */
 
-	void				IndexText(const std::string& inIndex, const std::string& inText);
+	void				IndexText(const std::string& inIndex, const std::string& inText, bool inStoreIDL = true);
 
 	/** \brief	Store the words and numbers in inText into index inIndex
 	 *
@@ -554,9 +557,12 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	 *	Note that this version does index numbers, use it instead of IndexText if you need to index numbers.
 	 *	\param	inIndex	The index to use (and create if needed).
 	 *	\param	inText	The text to tokenize and index.
+	 *	\param	inStoreIDL
+	 * 					Flag to indicate whether 'in document locations' should be stored. These locations
+	 *					are needed to perform phrase searches.
 	 */
 
-	void				IndexTextAndNumbers(const std::string& inIndex, const std::string& inText);
+	void				IndexTextAndNumbers(const std::string& inIndex, const std::string& inText, bool inStoreIDL = true);
 
 	/** \brief	Store a single word into full text index inIndex
 	 *
@@ -634,8 +640,15 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 
 	void				FlushDocument();
 
-	void				AddXPathForIndex(const std::string& inIndex, bool inIsValueIndex,
-							bool inIndexNumbers, bool inStoreAsMetaData, const std::string& inXPath);
+	enum {
+		IS_VALUE_INDEX	= (1 << 0),
+		INDEX_NUMBERS	= (1 << 1),
+		STORE_AS_META	= (1 << 2),
+		STORE_IDL		= (1 << 3),
+	};
+
+	void				AddXPathForIndex(const std::string& inIndex, const std::string& inXPath,
+							unsigned long inFlags);
 	void				AddXMLDocument(const std::string& inDoc);
 
 	/** \brief	Create the final MRS file.

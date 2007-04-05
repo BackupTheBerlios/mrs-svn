@@ -182,6 +182,10 @@ sub SuggestCorrection {
 *IndexNumber = *MRSc::MDatabank_IndexNumber;
 *AddSequence = *MRSc::MDatabank_AddSequence;
 *FlushDocument = *MRSc::MDatabank_FlushDocument;
+*IS_VALUE_INDEX = *MRSc::MDatabank_IS_VALUE_INDEX;
+*INDEX_NUMBERS = *MRSc::MDatabank_INDEX_NUMBERS;
+*STORE_AS_META = *MRSc::MDatabank_STORE_AS_META;
+*STORE_IDL = *MRSc::MDatabank_STORE_IDL;
 *AddXPathForIndex = *MRSc::MDatabank_AddXPathForIndex;
 *AddXMLDocument = *MRSc::MDatabank_AddXMLDocument;
 *Finish = *MRSc::MDatabank_Finish;

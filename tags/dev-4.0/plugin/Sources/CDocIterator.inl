@@ -107,22 +107,30 @@ CDbIDLDocIteratorBaseT<K>::CDbIDLDocIteratorBaseT(
 template<uint32 K>
 bool CDbIDLDocIteratorBaseT<K>::Next(uint32& ioDoc, bool inSkip)
 {
-	std::vector<uint32> t;
-	return Next(ioDoc, t, inSkip);
+	uint8 rank;
+	return Next(ioDoc, rank, inSkip);
 }
 
 template<uint32 K>
 bool CDbIDLDocIteratorBaseT<K>::Next(uint32& ioDoc, uint8& ioRank, bool inSkip)
 {
 	bool result = false;
-	std::vector<uint32> t;
-
-	if (Next(ioDoc, t, inSkip))
-	{
-		ioRank = CDbDocIteratorBaseT<uint32,K>::Weight();
-		result = true;
-	}
+	uint32 next = ioDoc;
+	uint8 rank;
 	
+	while (result == false and CDbDocIteratorBaseT<uint32,K>::Next(next, rank, false))
+	{
+		SkipArray<uint32,K>(
+			CDbDocIteratorBaseT<uint32,K>::fBits, kMaxInDocumentLocation);
+
+		if (next >= ioDoc or inSkip == false)
+		{
+			result = true;
+			ioDoc = next;
+			ioRank = rank;
+		}
+	}
+
 	return result;
 }
 

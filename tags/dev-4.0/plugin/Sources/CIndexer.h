@@ -105,8 +105,8 @@ class CIndexer
 
 	void			SetStopWords(const std::vector<std::string>& inStopWords);
 	
-	void			IndexText(const std::string& inIndex, const std::string& inText);
-	void			IndexTextAndNumbers(const std::string& inIndex, const std::string& inText);
+	void			IndexText(const std::string& inIndex, const std::string& inText, bool inStoreIDL);
+	void			IndexTextAndNumbers(const std::string& inIndex, const std::string& inText, bool inStoreIDL);
 	void			IndexWord(const std::string& inIndex, const std::string& inText);
 	void			IndexDate(const std::string& inIndex, const std::string& inText);
 	void			IndexNumber(const std::string& inIndex, const std::string& inText);
@@ -123,7 +123,7 @@ class CIndexer
 
   private:
 
-	void			IndexText(const std::string& inIndex, const std::string& inText, bool inIndexNrs);
+	void			IndexText(const std::string& inIndex, const std::string& inText, bool inIndexNrs, bool inStoreIDL);
 
 	template<class INDEX_KIND>
 	CIndexBase*		GetIndexBase(const std::string& inIndex);

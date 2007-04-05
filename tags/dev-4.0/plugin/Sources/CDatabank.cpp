@@ -187,6 +187,7 @@ struct CXMLIndex
 	bool						isValue;
 	bool						indexNumbers;
 	bool						storeAsMetaData;
+	bool						storeIDL;
 	vector<xmlXPathCompExprPtr>	expr;
 
 								~CXMLIndex();
@@ -1493,9 +1494,9 @@ void CDatabank::StoreMetaData(const std::string& inFieldName, const std::string&
 		THROW(("Meta data field %s not defined in the MDatabank::Create call", inFieldName.c_str()));
 }
 
-void CDatabank::IndexText(const string& inIndex, const string& inText)
+void CDatabank::IndexText(const string& inIndex, const string& inText, bool inStoreIDL)
 {
-	fIndexer->IndexText(inIndex, inText);
+	fIndexer->IndexText(inIndex, inText, inStoreIDL);
 }
 
 void CDatabank::IndexDate(const string& inIndex, const string& inText)
@@ -1503,9 +1504,9 @@ void CDatabank::IndexDate(const string& inIndex, const string& inText)
 	fIndexer->IndexDate(inIndex, inText);
 }
 
-void CDatabank::IndexTextAndNumbers(const string& inIndex, const string& inText)
+void CDatabank::IndexTextAndNumbers(const string& inIndex, const string& inText, bool inStoreIDL)
 {
-	fIndexer->IndexTextAndNumbers(inIndex, inText);
+	fIndexer->IndexTextAndNumbers(inIndex, inText, inStoreIDL);
 }
 
 void CDatabank::IndexNumber(const string& inIndex, const string& inText)
@@ -1563,7 +1564,7 @@ void CDatabank::FlushDocument()
 }
 
 void CDatabank::AddXPathForIndex(const std::string& inIndex, bool inIsValueIndex,
-	bool inIndexNumbers, bool inStoreAsMetaData, const std::string& inXPath)
+	bool inIndexNumbers, bool inStoreAsMetaData, bool inStoreIDL, const std::string& inXPath)
 {
 	string index = tolower(inIndex);
 	
@@ -1584,6 +1585,7 @@ void CDatabank::AddXPathForIndex(const std::string& inIndex, bool inIsValueIndex
 		xmlIndex->isValue = inIsValueIndex;
 		xmlIndex->indexNumbers = inIndexNumbers;
 		xmlIndex->storeAsMetaData = inStoreAsMetaData;
+		xmlIndex->storeIDL = inStoreIDL;
 		fXMLIndexList.push_back(xmlIndex);
 	}
 	
@@ -1615,9 +1617,9 @@ void CDatabank::AddXMLDocument(const std::string& inDoc)
 			if (ix->isValue)
 				IndexValue(ix->index, text);
 			else if (ix->indexNumbers)
-				IndexTextAndNumbers(ix->index, text);
+				IndexTextAndNumbers(ix->index, text, ix->storeIDL);
 			else
-				IndexText(ix->index, text);
+				IndexText(ix->index, text, ix->storeIDL);
 		}
 	}
 	

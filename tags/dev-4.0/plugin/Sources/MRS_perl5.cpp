@@ -3919,7 +3919,71 @@ XS(_wrap_MDatabank_Store) {
 }
 
 
-XS(_wrap_MDatabank_IndexText) {
+XS(_wrap_MDatabank_IndexText__SWIG_0) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        std::string *arg2 = 0 ;
+        std::string *arg3 = 0 ;
+        bool arg4 ;
+        std::string temp2 ;
+        std::string temp3 ;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 4) || (items > 4)) {
+            SWIG_croak("Usage: MDatabank_IndexText(self,inIndex,inText,inStoreIDL);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_IndexText. Expected _p_MDatabank");
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(1), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 2 of MDatabank_IndexText.");
+            } else {
+                temp2.assign(ptr, len);
+                arg2 = &temp2;
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(2), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 3 of MDatabank_IndexText.");
+            } else {
+                temp3.assign(ptr, len);
+                arg3 = &temp3;
+            }
+        }
+        arg4 = SvIV(ST(3)) ? true : false;
+        {
+            try {
+                (arg1)->IndexText((std::string const &)*arg2,(std::string const &)*arg3,arg4);
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MDatabank_IndexText__SWIG_1) {
     {
         MDatabank *arg1 = (MDatabank *) 0 ;
         std::string *arg2 = 0 ;
@@ -3981,7 +4045,133 @@ XS(_wrap_MDatabank_IndexText) {
 }
 
 
-XS(_wrap_MDatabank_IndexTextAndNumbers) {
+XS(_wrap_MDatabank_IndexText) {
+    dXSARGS;
+    
+    if (items == 3) {
+        int _v;
+        {
+            void *tmp;
+            if (SWIG_ConvertPtr(ST(0), (void **) &tmp, SWIGTYPE_p_MDatabank, 0) == -1) {
+                _v = 0;
+            } else {
+                _v = 1;
+            }
+        }
+        if (_v) {
+            {
+                _v = SvPOK(ST(1)) ? 1 : 0;
+            }
+            if (_v) {
+                {
+                    _v = SvPOK(ST(2)) ? 1 : 0;
+                }
+                if (_v) {
+                    (*PL_markstack_ptr++);SWIG_CALLXS(_wrap_MDatabank_IndexText__SWIG_1); return;
+                }
+            }
+        }
+    }
+    if (items == 4) {
+        int _v;
+        {
+            void *tmp;
+            if (SWIG_ConvertPtr(ST(0), (void **) &tmp, SWIGTYPE_p_MDatabank, 0) == -1) {
+                _v = 0;
+            } else {
+                _v = 1;
+            }
+        }
+        if (_v) {
+            {
+                _v = SvPOK(ST(1)) ? 1 : 0;
+            }
+            if (_v) {
+                {
+                    _v = SvPOK(ST(2)) ? 1 : 0;
+                }
+                if (_v) {
+                    {
+                        _v = SvIOK(ST(3)) ? 1 : 0;
+                    }
+                    if (_v) {
+                        (*PL_markstack_ptr++);SWIG_CALLXS(_wrap_MDatabank_IndexText__SWIG_0); return;
+                    }
+                }
+            }
+        }
+    }
+    
+    croak("No matching function for overloaded 'MDatabank_IndexText'");
+    XSRETURN(0);
+}
+
+
+XS(_wrap_MDatabank_IndexTextAndNumbers__SWIG_0) {
+    {
+        MDatabank *arg1 = (MDatabank *) 0 ;
+        std::string *arg2 = 0 ;
+        std::string *arg3 = 0 ;
+        bool arg4 ;
+        std::string temp2 ;
+        std::string temp3 ;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 4) || (items > 4)) {
+            SWIG_croak("Usage: MDatabank_IndexTextAndNumbers(self,inIndex,inText,inStoreIDL);");
+        }
+        {
+            if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
+                SWIG_croak("Type error in argument 1 of MDatabank_IndexTextAndNumbers. Expected _p_MDatabank");
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(1), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 2 of MDatabank_IndexTextAndNumbers.");
+            } else {
+                temp2.assign(ptr, len);
+                arg2 = &temp2;
+            }
+        }
+        {
+            STRLEN len;
+            const char *ptr = SvPV(ST(2), len);
+            if (!ptr) {
+                SWIG_croak("Undefined variable in argument 3 of MDatabank_IndexTextAndNumbers.");
+            } else {
+                temp3.assign(ptr, len);
+                arg3 = &temp3;
+            }
+        }
+        arg4 = SvIV(ST(3)) ? true : false;
+        {
+            try {
+                (arg1)->IndexTextAndNumbers((std::string const &)*arg2,(std::string const &)*arg3,arg4);
+                
+            }
+            
+            catch (const std::exception& e) {
+                gErrStr = e.what();
+                SWIG_croak(e.what());
+            }
+            catch (...) {
+                gErrStr = "Unknown exception";
+                SWIG_croak("unknown exception");
+            }
+        }
+        
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
+XS(_wrap_MDatabank_IndexTextAndNumbers__SWIG_1) {
     {
         MDatabank *arg1 = (MDatabank *) 0 ;
         std::string *arg2 = 0 ;
@@ -4040,6 +4230,68 @@ XS(_wrap_MDatabank_IndexTextAndNumbers) {
         ;
     }
     croak(Nullch);
+}
+
+
+XS(_wrap_MDatabank_IndexTextAndNumbers) {
+    dXSARGS;
+    
+    if (items == 3) {
+        int _v;
+        {
+            void *tmp;
+            if (SWIG_ConvertPtr(ST(0), (void **) &tmp, SWIGTYPE_p_MDatabank, 0) == -1) {
+                _v = 0;
+            } else {
+                _v = 1;
+            }
+        }
+        if (_v) {
+            {
+                _v = SvPOK(ST(1)) ? 1 : 0;
+            }
+            if (_v) {
+                {
+                    _v = SvPOK(ST(2)) ? 1 : 0;
+                }
+                if (_v) {
+                    (*PL_markstack_ptr++);SWIG_CALLXS(_wrap_MDatabank_IndexTextAndNumbers__SWIG_1); return;
+                }
+            }
+        }
+    }
+    if (items == 4) {
+        int _v;
+        {
+            void *tmp;
+            if (SWIG_ConvertPtr(ST(0), (void **) &tmp, SWIGTYPE_p_MDatabank, 0) == -1) {
+                _v = 0;
+            } else {
+                _v = 1;
+            }
+        }
+        if (_v) {
+            {
+                _v = SvPOK(ST(1)) ? 1 : 0;
+            }
+            if (_v) {
+                {
+                    _v = SvPOK(ST(2)) ? 1 : 0;
+                }
+                if (_v) {
+                    {
+                        _v = SvIOK(ST(3)) ? 1 : 0;
+                    }
+                    if (_v) {
+                        (*PL_markstack_ptr++);SWIG_CALLXS(_wrap_MDatabank_IndexTextAndNumbers__SWIG_0); return;
+                    }
+                }
+            }
+        }
+    }
+    
+    croak("No matching function for overloaded 'MDatabank_IndexTextAndNumbers'");
+    XSRETURN(0);
 }
 
 
@@ -4447,17 +4699,15 @@ XS(_wrap_MDatabank_AddXPathForIndex) {
     {
         MDatabank *arg1 = (MDatabank *) 0 ;
         std::string *arg2 = 0 ;
-        bool arg3 ;
-        bool arg4 ;
-        bool arg5 ;
-        std::string *arg6 = 0 ;
+        std::string *arg3 = 0 ;
+        unsigned long arg4 ;
         std::string temp2 ;
-        std::string temp6 ;
+        std::string temp3 ;
         int argvi = 0;
         dXSARGS;
         
-        if ((items < 6) || (items > 6)) {
-            SWIG_croak("Usage: MDatabank_AddXPathForIndex(self,inIndex,inIsValueIndex,inIndexNumbers,inStoreAsMetaData,inXPath);");
+        if ((items < 4) || (items > 4)) {
+            SWIG_croak("Usage: MDatabank_AddXPathForIndex(self,inIndex,inXPath,inFlags);");
         }
         {
             if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
@@ -4474,22 +4724,20 @@ XS(_wrap_MDatabank_AddXPathForIndex) {
                 arg2 = &temp2;
             }
         }
-        arg3 = SvIV(ST(2)) ? true : false;
-        arg4 = SvIV(ST(3)) ? true : false;
-        arg5 = SvIV(ST(4)) ? true : false;
         {
             STRLEN len;
-            const char *ptr = SvPV(ST(5), len);
+            const char *ptr = SvPV(ST(2), len);
             if (!ptr) {
-                SWIG_croak("Undefined variable in argument 6 of MDatabank_AddXPathForIndex.");
+                SWIG_croak("Undefined variable in argument 3 of MDatabank_AddXPathForIndex.");
             } else {
-                temp6.assign(ptr, len);
-                arg6 = &temp6;
+                temp3.assign(ptr, len);
+                arg3 = &temp3;
             }
         }
+        arg4 = (unsigned long) SvUV(ST(3));
         {
             try {
-                (arg1)->AddXPathForIndex((std::string const &)*arg2,arg3,arg4,arg5,(std::string const &)*arg6);
+                (arg1)->AddXPathForIndex((std::string const &)*arg2,(std::string const &)*arg3,arg4);
                 
             }
             
@@ -7786,6 +8034,10 @@ static swig_cast_info *swig_cast_initial[] = {
 /* -------- TYPE CONVERSION AND EQUIVALENCE RULES (END) -------- */
 
 static swig_constant_info swig_constants[] = {
+{ SWIG_INT,     (char *) SWIG_prefix "MDatabank_IS_VALUE_INDEX", (long) MDatabank::IS_VALUE_INDEX, 0, 0, 0},
+{ SWIG_INT,     (char *) SWIG_prefix "MDatabank_INDEX_NUMBERS", (long) MDatabank::INDEX_NUMBERS, 0, 0, 0},
+{ SWIG_INT,     (char *) SWIG_prefix "MDatabank_STORE_AS_META", (long) MDatabank::STORE_AS_META, 0, 0, 0},
+{ SWIG_INT,     (char *) SWIG_prefix "MDatabank_STORE_IDL", (long) MDatabank::STORE_IDL, 0, 0, 0},
 {0,0,0,0,0,0}
 };
 #ifdef __cplusplus

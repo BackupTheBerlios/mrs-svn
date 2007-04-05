@@ -305,8 +305,8 @@ CIBitStream::CIBitStream(const char* inData, uint32 inSize)
 
 CIBitStream::CIBitStream(const CIBitStream& inOther)
 	: impl(inOther.impl->clone())
-	, byte(inOther.byte)
 	, bit_offset(inOther.bit_offset)
+	, byte(inOther.byte)
 {
 }
 
@@ -350,9 +350,9 @@ uint32 ReadGamma(CIBitStream& ioBits)
 		v1 <<= 1;
 		++e;
 	}
-	
-	if (v1 == 0)
-		THROW(("incorrect gamma encoding detected"));
+//	
+//	if (v1 == 0)
+//		THROW(("incorrect gamma encoding detected"));
 	
 	int32 v2 = 0;
 	while (e-- > 0)

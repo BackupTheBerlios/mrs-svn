@@ -370,12 +370,16 @@ class CFullTextIndex
 						CRunEntryIterator(CFullTextIndex& inIndex);
 						~CRunEntryIterator();
 		
-		bool			Next(uint32& outDoc, uint32& outTerm, uint32& outIx, uint8& outWeight, DocLoc& outInDocLocations);
+		bool			Next(uint32& outDoc, uint32& outTerm, uint32& outIx, uint8& outWeight);
+		
+		CIBitStream&	Bits()				{ return fLastInfo->bits; }
+		
 		int64			Count() const		{ return fEntryCount; }
 	
 	  private:
 		CFullTextIndex&	fIndex;
 		MergeInfo**		fMergeInfo;
+		MergeInfo*		fLastInfo;
 		uint32			fRunCount;
 		int64			fEntryCount;
 	};
@@ -463,19 +467,6 @@ class CFullTextIndex
 						doc += ReadGamma(bits) - 1;
 						ix = ReadGamma(bits) - 1;
 						weight = ReadBinary<uint8>(bits, weight_bit_count);
-						
-						loc.clear();
-						if (ftix.UsesInDocLocation(ix))
-						{
-							uint32 cnt = ReadGamma(bits) - 2;
-							uint32 l = ReadGamma(bits) - 1;
-							loc.push_back(l);
-							while (cnt-- > 0)
-							{
-								l += ReadGamma(bits);
-								loc.push_back(l);
-							}
-						}
 
 						--cnt;
 					}
@@ -490,7 +481,6 @@ class CFullTextIndex
 		uint32		ix;
 		uint8		weight;
 		uint32		weight_bit_count;
-		DocLoc		loc;
 	};
 	
 	struct CompareMergeInfo
@@ -576,7 +566,7 @@ void CFullTextIndex::AddWord(uint8 inIndex, uint32 inWord, uint8 inFrequency)
 		else
 			i = fDocWords.insert(w).first;
 		
-		if (UsesInDocLocation(inIndex))
+		if (UsesInDocLocation(inIndex) and fDocWordLocation < kMaxInDocumentLocation)
 			const_cast<DocWord&>(*i).loc.push_back(fDocWordLocation);
 	}
 }
@@ -664,16 +654,7 @@ void CFullTextIndex::FlushRun()
 		
 		if (UsesInDocLocation(buffer[i].ix))
 		{
-			WriteGamma(bits, buffer[i].loc.size() + 1);
-			
-			DocLoc::iterator l = buffer[i].loc.begin();
-			uint32 cl = *l++;
-			WriteGamma(bits, cl + 1);
-			for (; l != buffer[i].loc.end(); ++l)
-			{
-				WriteGamma(bits, *l - cl);
-				cl = *l;
-			}
+			CompressArray(bits, buffer[i].loc, kMaxInDocumentLocation);
 			buffer[i].loc.clear();
 		}
 		
@@ -701,6 +682,7 @@ void CFullTextIndex::ReleaseBuffer()
 
 CFullTextIndex::CRunEntryIterator::CRunEntryIterator(CFullTextIndex& inIndex)
 	: fIndex(inIndex)
+	, fLastInfo(nil)
 {
 	fRunCount = fIndex.fRunInfo.size();
 	fMergeInfo = new MergeInfo*[fRunCount];
@@ -728,37 +710,38 @@ CFullTextIndex::CRunEntryIterator::~CRunEntryIterator()
 }
 
 bool CFullTextIndex::CRunEntryIterator::Next(uint32& outDoc, uint32& outTerm,
-	uint32& outIx, uint8& outWeight, DocLoc& outInDocLocations)
+	uint32& outIx, uint8& outWeight)
 {
 	bool result = false;
-	
+
+	if (fLastInfo != nil)
+	{
+		if (fLastInfo->cnt != 0)
+		{
+			fLastInfo->Next();
+			push_heap(fMergeInfo, fMergeInfo + fRunCount, CompareMergeInfo());
+		}
+		else
+		{
+			delete fLastInfo;
+			--fRunCount;
+			fMergeInfo[fRunCount] = nil;
+		}
+
+		fLastInfo = nil;
+	}
+
 	if (fRunCount > 0)
 	{
 		if (fRunCount > 1)
 			pop_heap(fMergeInfo, fMergeInfo + fRunCount, CompareMergeInfo());
 		
-		MergeInfo* cur = fMergeInfo[fRunCount - 1];
+		fLastInfo = fMergeInfo[fRunCount - 1];
 		
-		outDoc = cur->doc;
-		outTerm = cur->term;
-		outIx = cur->ix;
-		outWeight = cur->weight;
-
-		outInDocLocations.clear();
-		if (fIndex.UsesInDocLocation(outIx))
-			copy(cur->loc.begin(), cur->loc.end(), back_inserter(outInDocLocations));
-		
-		if (cur->cnt != 0)
-		{
-			cur->Next();
-			push_heap(fMergeInfo, fMergeInfo + fRunCount, CompareMergeInfo());
-		}
-		else
-		{
-			delete cur;
-			--fRunCount;
-			fMergeInfo[fRunCount] = nil;
-		}
+		outDoc = fLastInfo->doc;
+		outTerm = fLastInfo->term;
+		outIx = fLastInfo->ix;
+		outWeight = fLastInfo->weight;
 
 		result = true;
 		--fEntryCount;
@@ -766,6 +749,14 @@ bool CFullTextIndex::CRunEntryIterator::Next(uint32& outDoc, uint32& outTerm,
 	
 	return result;
 }
+
+//void CFullTextIndex::CRunEntryIterator::CopyIDL(COBitStream& inBits)
+//{
+//	if (fLastInfo == nil)
+//		THROW(("Run time error"));
+//
+//	CopyArray<uint32,kAC_SelectorCodeV2>(fLastInfo->bits, inBits, kMaxInDocumentLocation);
+//}
 
 inline string CFullTextIndex::Lookup(uint32 inTerm)
 {
@@ -831,17 +822,20 @@ class CIndexBase
 	void			SetIsUpdate(bool isUpdate)
 											{ fIsUpdate = isUpdate; }
 	
+	bool			UsesInDocLocation() const	{ return fUsesIDL; }
+	void			SetUsesInDocLocation(bool inUseIDL);
+
 	void			AddWord(const string& inWord, uint32 inFrequency = 1);
 	
-	virtual void	AddDocTerm(uint32 inDoc, uint8 inFrequency, DocLoc& inDocLoc);
+	virtual void	AddDocTerm(uint32 inDoc, uint8 inFrequency, CIBitStream& inDocLoc);
 	virtual void	FlushTerm(uint32 inTerm, uint32 inDocCount);
 	
 	virtual bool	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
 
 					// NOTE: empty is overloaded (i.e. used for two purposes)
-	bool			Empty() const			{ return fEmpty; }
-	void			SetEmpty(bool inEmpty)	{ fEmpty = inEmpty; }
-	uint16			GetIxNr() const			{ return fIndexNr; }
+	bool			Empty() const				{ return fEmpty; }
+	void			SetEmpty(bool inEmpty)		{ fEmpty = inEmpty; }
+	uint16			GetIxNr() const				{ return fIndexNr; }
 
 	virtual int		Compare(const char* inA, uint32 inLengthA, const char* inB, uint32 inLengthB) const;
 
@@ -920,6 +914,16 @@ CIndexBase::~CIndexBase()
 	delete fBits;
 	delete fRawIndex;
 	delete fBitFile;
+	delete fIDLBits;
+}
+
+void CIndexBase::SetUsesInDocLocation(bool inUseIDL)
+{
+	if (inUseIDL)
+	{
+		fFullTextIndex.SetUsesInDocLocation(fIndexNr);
+		fUsesIDL = true;
+	}
 }
 
 int CIndexBase::Compare(const char* inA, uint32 inLengthA, const char* inB, uint32 inLengthB) const
@@ -934,7 +938,7 @@ void CIndexBase::AddWord(const string& inWord, uint32 inFrequency)
 	fEmpty = false;
 }
 
-void CIndexBase::AddDocTerm(uint32 inDoc, uint8 inFrequency, DocLoc& inDocLoc)
+void CIndexBase::AddDocTerm(uint32 inDoc, uint8 inFrequency, CIBitStream& inDocLoc)
 {
 	uint32 d;
 
@@ -968,7 +972,7 @@ void CIndexBase::AddDocTerm(uint32 inDoc, uint8 inFrequency, DocLoc& inDocLoc)
 		if (fIDLBits == nil)
 			fIDLBits = new COBitStream(fIDLScratch);
 
-		CompressArray(*fIDLBits, inDocLoc, kMaxInDocumentLocation);
+		CopyArray<uint32,kAC_SelectorCodeV2>(inDocLoc, *fIDLBits, kMaxInDocumentLocation);
 	}
 	
 	fLastDoc = inDoc;
@@ -1260,7 +1264,7 @@ class CValueIndex : public CIndexBase
 					CValueIndex(CFullTextIndex& inFullTextIndex, const string& inName,
 						uint16 inIndexNr, const HUrl& inScratch);
 	
-	virtual void	AddDocTerm(uint32 inDoc, uint8 inFrequency, DocLoc& inDocLoc);
+	virtual void	AddDocTerm(uint32 inDoc, uint8 inFrequency, CIBitStream& inDocLoc);
 	virtual void	FlushTerm(uint32 inTerm, uint32 inDocCount);
 
 	virtual bool	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
@@ -1277,7 +1281,7 @@ CValueIndex::CValueIndex(CFullTextIndex& inFullTextIndex, const string& inName,
 {
 }
 	
-void CValueIndex::AddDocTerm(uint32 inDoc, uint8 inFrequency, DocLoc& inDocLoc)
+void CValueIndex::AddDocTerm(uint32 inDoc, uint8 inFrequency, CIBitStream& inDocLoc)
 {
 	fDocs.push_back(inDoc);
 	fEmpty = false;
@@ -1351,8 +1355,6 @@ CTextIndex::CTextIndex(CFullTextIndex& inFullTextIndex,
 		const string& inName, uint16 inIndexNr, const HUrl& inScratch)
 	: CIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kTextIndex)
 {
-	inFullTextIndex.SetUsesInDocLocation(inIndexNr);
-	fUsesIDL = true;
 }
 
 class CWeightedWordIndex : public CIndexBase
@@ -1549,12 +1551,19 @@ CIndexBase* CIndexer::GetIndexBase(const string& inIndex)
 	return index;
 }
 
-void CIndexer::IndexText(const string& inIndex, const string& inText, bool inIndexNrs)
+void CIndexer::IndexText(const string& inIndex, const string& inText, bool inIndexNrs, bool inStoreIDL)
 {
 	if (inText.length() == 0)
 		return;
 	
 	CIndexBase* index = GetIndexBase<CTextIndex>(inIndex);
+	if (index->Empty())
+	{
+		if (inStoreIDL)
+			index->SetUsesInDocLocation(inStoreIDL);
+	}
+	else if (index->UsesInDocLocation() != inStoreIDL)
+		THROW(("Inconsistent use of the store IDL flag for index %s", inIndex.c_str()));
 
 	CTokenizer tok(inText.c_str(), inText.length());
 	bool isWord, isNumber, isPunct;
@@ -1579,14 +1588,14 @@ void CIndexer::IndexText(const string& inIndex, const string& inText, bool inInd
 	}
 }
 
-void CIndexer::IndexText(const string& inIndex, const string& inText)
+void CIndexer::IndexText(const string& inIndex, const string& inText, bool inStoreIDL)
 {
-	IndexText(inIndex, inText, false);
+	IndexText(inIndex, inText, false, inStoreIDL);
 }
 
-void CIndexer::IndexTextAndNumbers(const string& inIndex, const string& inText)
+void CIndexer::IndexTextAndNumbers(const string& inIndex, const string& inText, bool inStoreIDL)
 {
-	IndexText(inIndex, inText, true);
+	IndexText(inIndex, inText, true, inStoreIDL);
 }
 
 void CIndexer::IndexWord(const string& inIndex, const string& inText)
@@ -1786,13 +1795,13 @@ void CIndexer::CreateIndex(
 
 	uint32 iDoc, lDoc, iTerm, iIx, lTerm = 0, i, tFreq;
 	uint8 iFreq;
-	DocLoc inDocLoc;
+
 	CFullTextIndex::CRunEntryIterator iter(*fFullTextIndex);
 
 	int64 vStep = iter.Count() / 10;
 	
 	// the next loop is very *hot*, make sure it is optimized as much as possible
-	if (iter.Next(iDoc, iTerm, iIx, iFreq, inDocLoc))
+	if (iter.Next(iDoc, iTerm, iIx, iFreq))
 	{
 		lTerm = iTerm;
 		lDoc = iDoc;
@@ -1810,7 +1819,7 @@ void CIndexer::CreateIndex(
 			if (allIndex and (lDoc != iDoc or lTerm != iTerm))
 			{
 				if (not isStopWord)
-					allIndex->AddDocTerm(lDoc, tFreq, inDocLoc);
+					allIndex->AddDocTerm(lDoc, tFreq, iter.Bits());
 
 				lDoc = iDoc;
 				tFreq = 0;
@@ -1832,11 +1841,11 @@ void CIndexer::CreateIndex(
 				isStopWord = fFullTextIndex->IsStopWord(iTerm);
 			}
 			
-			indices[iIx]->AddDocTerm(iDoc, iFreq, inDocLoc);
+			indices[iIx]->AddDocTerm(iDoc, iFreq, iter.Bits());
 
 			tFreq += iFreq;
 		}
-		while (iter.Next(iDoc, iTerm, iIx, iFreq, inDocLoc));
+		while (iter.Next(iDoc, iTerm, iIx, iFreq));
 	}
 
 	for (i = 0; i < indexCount; ++i)

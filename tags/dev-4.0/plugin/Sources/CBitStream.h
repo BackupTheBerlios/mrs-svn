@@ -79,7 +79,7 @@ class COBitStream
 	char*			data;
 	uint32			byte_offset;
 	uint32			physical_size;
-	int8			bit_offset;
+	int32			bit_offset;
 	HStreamBase*	file;
 };
 
@@ -154,8 +154,8 @@ class CIBitStream
 
 	struct CIBitStreamImp*	impl;
 
+	int32			bit_offset;
 	int8			byte;
-	int8			bit_offset;
 };
 
 // make sure the inlines are visible before being used!

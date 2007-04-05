@@ -222,7 +222,7 @@ struct MQueryResultsImp
 
 	virtual uint32				Count(bool inExact)
 								{
-									uint32 result;
+									uint32 result = 0;
 
 									if (fCount == numeric_limits<uint32>::max())
 									{
@@ -908,16 +908,16 @@ void MDatabank::StoreMetaData(const string& inFieldName, const string& inValue)
 	fImpl->GetDB()->StoreMetaData(inFieldName, inValue);
 }
 
-void MDatabank::IndexText(const string& inIndex, const string& inText)
+void MDatabank::IndexText(const string& inIndex, const string& inText, bool inStoreIDL)
 {
 	CStopwatch sw(fImpl->fIndexTime);
-	fImpl->GetDB()->IndexText(inIndex, inText);
+	fImpl->GetDB()->IndexText(inIndex, inText, inStoreIDL);
 }
 
-void MDatabank::IndexTextAndNumbers(const string& inIndex, const string& inText)
+void MDatabank::IndexTextAndNumbers(const string& inIndex, const string& inText, bool inStoreIDL)
 {
 	CStopwatch sw(fImpl->fIndexTime);
-	fImpl->GetDB()->IndexTextAndNumbers(inIndex, inText);
+	fImpl->GetDB()->IndexTextAndNumbers(inIndex, inText, inStoreIDL);
 }
 
 void MDatabank::IndexWord(const string& inIndex, const string& inText)
@@ -965,10 +965,12 @@ void MDatabank::FlushDocument()
 	fImpl->GetDB()->FlushDocument();
 }
 
-void MDatabank::AddXPathForIndex(const string& inIndex,
-	bool inIsValueIndex, bool inIndexNumbers, bool inStoreAsMetaData, const string& inXPath)
+void MDatabank::AddXPathForIndex(const string& inIndex, const string& inXPath,
+	unsigned long inFlags)
 {
-	fImpl->GetDB()->AddXPathForIndex(inIndex, inIsValueIndex, inIndexNumbers, inStoreAsMetaData, inXPath);
+	fImpl->GetDB()->AddXPathForIndex(
+		inIndex, inFlags & IS_VALUE_INDEX, inFlags & INDEX_NUMBERS,
+		inFlags & STORE_AS_META, inFlags & STORE_IDL, inXPath);
 }
 
 void MDatabank::AddXMLDocument(const std::string& inDoc)

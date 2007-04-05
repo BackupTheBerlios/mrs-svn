@@ -230,8 +230,8 @@ class CDatabank : public CDatabankBase
 	
 	void				Store(const std::string& inDocument);
 	void				StoreMetaData(const std::string& inFieldName, const std::string& inValue);
-	void				IndexText(const std::string& inIndex, const std::string& inText);
-	void				IndexTextAndNumbers(const std::string& inIndex, const std::string& inText);
+	void				IndexText(const std::string& inIndex, const std::string& inText, bool inStoreIDL);
+	void				IndexTextAndNumbers(const std::string& inIndex, const std::string& inText, bool inStoreIDL);
 	void				IndexWord(const std::string& inIndex, const std::string& inText);
 	void				IndexValue(const std::string& inIndex, const std::string& inText);
 	void				IndexDate(const std::string& inIndex, const std::string& inText);
@@ -249,7 +249,7 @@ class CDatabank : public CDatabankBase
 	// XML Import interface
 	void				AddXPathForIndex(const std::string& inIndex, bool inIsValueIndex,
 							bool inIndexNumbers, bool inStoreAsMetaData,
-							const std::string& inXPath);
+							bool inStoreIDL, const std::string& inXPath);
 	void				AddXMLDocument(const std::string& inDoc);
 
 	void				Finish(bool inCreateAllTextIndex, bool inCreateUpdateDatabank);

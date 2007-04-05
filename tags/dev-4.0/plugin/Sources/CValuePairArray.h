@@ -50,7 +50,9 @@ class CIBitStream;
 enum CArrayCompressionKind {
 	kAC_GolombCode		= FOUR_CHAR_INLINE('golo'),
 	kAC_SelectorCodeV1	= FOUR_CHAR_INLINE('sel1'),
-	kAC_SelectorCodeV2	= FOUR_CHAR_INLINE('sel2')
+	
+		// found an error in the implementation and a potential performance improvement
+	kAC_SelectorCodeV2	= FOUR_CHAR_INLINE('sel2'),
 };
 
 namespace CValuePairCompression
@@ -275,6 +277,46 @@ void CopySimpleArraySelector(CIBitStream& inInBits, COBitStream& inOutBits, int6
 }
 
 template<typename T>
+void SkipSimpleArraySelector(CIBitStream& inInBits, int64 inMax)
+{
+	int64 v = inMax;
+	uint32 maxWidth = 0;
+
+	while (v > 0)
+	{
+		v >>= 1;
+		++maxWidth;
+	}
+
+	uint32 cnt = ReadGamma(inInBits);
+	
+	int32 width = maxWidth / 4;
+
+	v = -1;
+	uint32 span = 0;
+
+	while (cnt-- > 0)
+	{
+		if (span == 0)
+		{
+			uint32 selector = ReadBinary<uint32>(inInBits, 4);
+			
+			span = kSelectors[selector].span;
+			
+			if (selector == 0)
+				width = maxWidth;
+			else
+				width += kSelectors[selector].databits;
+		}
+		
+		if (width > 0)
+			(void)ReadBinary<int64>(inInBits, width);
+
+		--span;
+	}
+}
+
+template<typename T>
 struct ValuePairTraitsPOD
 {
 	typedef				std::vector<T>					vector_type;
@@ -290,6 +332,8 @@ struct ValuePairTraitsPOD
 
 	static void			CopyArray(CIBitStream& inSrcBits, COBitStream& inDstBits,
 							int64 inMax);
+
+	static void			SkipArray(CIBitStream& inSrcBits, int64 inMax);
 };
 
 template<typename T>
@@ -304,6 +348,12 @@ void ValuePairTraitsPOD<T>::CopyArray(
 	CIBitStream& inSrcBits, COBitStream& inDstBits, int64 inMax)
 {
 	CopySimpleArraySelector<T>(inSrcBits, inDstBits, inMax);
+}
+
+template<typename T>
+void ValuePairTraitsPOD<T>::SkipArray(CIBitStream& inSrcBits, int64 inMax)
+{
+	SkipSimpleArraySelector<T>(inSrcBits, inMax);
 }
 
 template<typename T>
@@ -699,6 +749,16 @@ void CopyArray(CIBitStream& inSrcBits, COBitStream& inDstBits, int64 inMax)
 	typedef typename	ValuePairTraitsTypeFactory<T,K>::type	traits;
 
 	traits::CopyArray(inSrcBits, inDstBits, inMax);
+}
+
+template<typename T, uint32 K>
+void SkipArray(CIBitStream& inSrcBits, int64 inMax)
+{
+	using namespace		CValuePairCompression;
+
+	typedef typename	ValuePairTraitsTypeFactory<T,K>::type	traits;
+
+	traits::SkipArray(inSrcBits, inMax);
 }
 
 #endif // CVALUEPAIRARRAY_H
