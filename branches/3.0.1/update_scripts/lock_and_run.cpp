@@ -23,6 +23,8 @@
 #include <fstream>
 #include <string>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <signal.h>
 
 using namespace std;
 
