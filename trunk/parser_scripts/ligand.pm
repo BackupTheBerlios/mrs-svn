@@ -66,7 +66,7 @@ sub new
 	$self->{raw_files} = qr/$db/;
 	
 	$self->{name} = $NAMES{$self->{db}} if defined $self->{db};
-	$self->{raw_dir} =~ s|ligand-\w+/?$|ligand|;
+	$self->{raw_dir} =~ s|ligand-(\w+)/?$|ligand/$1|;
 	
 	return bless $self, "MRS::Script::ligand";
 }

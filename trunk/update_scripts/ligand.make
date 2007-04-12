@@ -11,6 +11,7 @@ include make.pre
 
 DB_URL = ftp://ftp.genome.ad.jp//pub/kegg/ligand
 MIRROR_INCLUDE = .*(compound|enzyme|glycan|reaction)$$
+MIRROR_OPTIONS += -r
 
 ZIPFILES = $(SRCDIR)compound $(SRCDIR)enzyme $(SRCDIR)glycan $(SRCDIR)reaction
 
