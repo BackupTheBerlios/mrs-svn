@@ -3,9 +3,12 @@
 	Created 25-01-2007
 */
 
+#include <iostream>
 #include <algorithm>
 
 #include "CJob.h"
+
+using namespace std;
 
 struct ComparePriority
 {
@@ -22,6 +25,7 @@ CJob::~CJob()
 }
 
 CJobQueue::CJobQueue()
+	: mStop(false)
 {
 	Start();
 }
@@ -32,21 +36,21 @@ CJobQueue::~CJobQueue()
 
 void CJobQueue::Submit(CJob* inJob)
 {
-	if (mLock.Wait())
-	{
-		mJobs.push_back(inJob);
-		push_heap(mJobs.begin(), mJobs.end(), ComparePriority());
-		mLock.Signal();
-	}
+	StMutex lock(mLock);
+
+	mJobs.push_back(inJob);
+	push_heap(mJobs.begin(), mJobs.end(), ComparePriority());
 }
 
 void CJobQueue::Run()
 {
-	for (;;)
+	while (not mStop)
 	{
-		if (mLock.Wait())
+		CJob* job = NULL;
+
 		{
-			CJob* job = NULL;
+			StMutex lock(mLock);
+
 			if (mJobs.size() > 0)
 			{
 				job = mJobs.front();
@@ -54,14 +58,30 @@ void CJobQueue::Run()
 				pop_heap(mJobs.begin(), mJobs.end(), ComparePriority());
 				mJobs.erase(mJobs.end() - 1);
 			}
-			
-			mLock.Signal();
-			
-			if (job != NULL)
-				job->Execute();
-			else
-				sleep(1);
 		}
+		
+		if (job != NULL)
+		{
+			try
+			{
+				job->Execute();
+			}
+			catch (exception& e)
+			{
+				cerr << "Exception caught in CJobQueue::Run: " << e.what() << endl;
+			}
+			catch (...)
+			{
+				cerr << "Exception caught in CJobQueue::Run" << endl;
+			}
+		}
+		else
+			sleep(1);
 	}
 }
 
+void CJobQueue::Stop()
+{
+	mStop = true;
+	Join();
+}

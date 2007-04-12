@@ -160,6 +160,10 @@ void WSDatabankTable::ReloadDbs()
 			
 			cout << " done" << endl;
 		}
+
+		string s;
+		if (gConfig->GetSetting("/mrs-config/blast-ws/threads", s))
+			THREADS = atoi(s.c_str());
 	}
 	else
 	{
@@ -342,6 +346,8 @@ class CBlastJob : public CJob
 	static void			CheckCache(bool inPurge);
 	
 	virtual float		Priority() const						{ return 1.0 / mParams.mQuery.length(); }
+	
+	static void			Stop();
 
   private:
 
@@ -460,6 +466,12 @@ CBlastJob* CBlastJob::Find(
 		job->mAccess = system_time();
 	
 	return job;
+}
+
+void CBlastJob::Stop()
+{
+	sShortQueue.Stop();
+	sLongQueue.Stop();
 }
 
 void CBlastJob::CheckCache(bool inPurge)
@@ -1077,6 +1089,8 @@ int main(int argc, const char* argv[])
 		
 		cout << "Quit" << endl;
 	}
+	
+	CBlastJob::Stop();
 	
 	return 0;
 }

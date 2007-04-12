@@ -35,6 +35,8 @@ class CJobQueue : public CThread
 	void				Submit(CJob* inJob);
 	
 	bool				Empty();
+	
+	void				Stop();
 
   private:
 
@@ -45,6 +47,7 @@ class CJobQueue : public CThread
 
 	std::vector<CJob*>	mJobs;
 	HMutex				mLock;
+	bool				mStop;
 };
 
 #endif
