@@ -215,7 +215,7 @@ string CBasicDecompressorImp::GetField(uint32 inDocNr, uint32 inFieldNr)
 
 	assert(offset + size <= fDataSize);
 
-	HSwapStream<net_swapper> data(*fFile);
+	HSwapStream<net_swapper> data(fData);
 	data.Seek(fPrefixLength + offset, SEEK_SET);
 	
 	uint32 offsetTableLength = sizeof(uint16) * fMetaDataCount;
