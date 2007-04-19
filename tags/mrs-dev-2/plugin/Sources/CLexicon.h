@@ -48,6 +48,14 @@
 #include <string>
 #include <vector>
 
+class CLexCompare
+{
+  public:
+	virtual		~CLexCompare() {}
+	virtual int	Compare(const char* inA, uint32 inALength,
+						const char* inB, uint32 inBLength) const = 0;
+};
+
 class CLexicon
 {
 	friend struct CLexPage;
@@ -59,6 +67,8 @@ class CLexicon
 	uint32			Store(const std::string& inWord);
 	std::string		GetString(uint32 inNr) const;
 	int				Compare(uint32 inA, uint32 inB) const;
+	
+	int				Compare(uint32 inA, uint32 inB, CLexCompare& inCompare) const;
 
 	uint32			Count() const;
 	

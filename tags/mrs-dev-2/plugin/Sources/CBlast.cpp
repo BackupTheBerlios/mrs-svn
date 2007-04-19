@@ -1205,37 +1205,34 @@ void CBlastQueryBase::SortHits(const CDatabankBase& inDb)
 
 void CBlastQueryBase::Cleanup()
 {
-	if (mLock.Wait())
-	{
-		mGapCount = 0;
+	StMutex lock(mLock);
 
-		for (vector<Hit>::iterator hit = mHits.begin(); hit != mHits.end(); ++hit)
+	mGapCount = 0;
+
+	for (vector<Hit>::iterator hit = mHits.begin(); hit != mHits.end(); ++hit)
+	{
+		for (vector<Hsp>::iterator hsp = hit->mHsps.begin(); hsp != hit->mHsps.end(); ++hsp)
 		{
-			for (vector<Hsp>::iterator hsp = hit->mHsps.begin(); hsp != hit->mHsps.end(); ++hsp)
+			if (mGapped)
 			{
-				if (mGapped)
-				{
-					uint32 newScore = AlignGappedWithTraceBack(mXgFinal, *hsp);
-					
-					assert(hsp->mAlignedQuery.length() == hsp->mAlignedTarget.length());
-					
-					if (newScore >= hsp->mScore)
-						hsp->mScore = newScore;
-		
-					if (hsp->mGapped)
-						++mGapCount;
-				}
-				else
-				{
-					hsp->mAlignedQuery = mQuery.substr(hsp->mQueryStart, hsp->mQueryEnd - hsp->mQueryStart);
-					hsp->mAlignedTarget = hsp->mTarget.substr(hsp->mTargetStart, hsp->mTargetEnd - hsp->mTargetStart);
-				}
+				uint32 newScore = AlignGappedWithTraceBack(mXgFinal, *hsp);
+				
+				assert(hsp->mAlignedQuery.length() == hsp->mAlignedTarget.length());
+				
+				if (newScore >= hsp->mScore)
+					hsp->mScore = newScore;
+	
+				if (hsp->mGapped)
+					++mGapCount;
 			}
-			
-			hit->Cleanup();
+			else
+			{
+				hsp->mAlignedQuery = mQuery.substr(hsp->mQueryStart, hsp->mQueryEnd - hsp->mQueryStart);
+				hsp->mAlignedTarget = hsp->mTarget.substr(hsp->mTargetStart, hsp->mTargetEnd - hsp->mTargetStart);
+			}
 		}
 		
-		mLock.Signal();
+		hit->Cleanup();
 	}
 }
 
@@ -1336,26 +1333,23 @@ bool CBlastQuery<WordSize>::Test(uint32 inDocNr, const CSequence& inTarget)
 		hit.mTargetLength = inTarget.length();
 		hit.Cleanup();
 		
-		if (mLock.Wait())
-		{
-			mHits.push_back(hit);
-			
-			// store at most mReportLimit hits. 
-			CompareHitsOnFirstHspScore cmp;
-			
-			push_heap(mHits.begin(), mHits.end(), cmp);
-			
-			if (mHits.size() > mReportLimit)
-			{
-				pop_heap(mHits.begin(), mHits.end(), cmp);
-	
-				// we can now update mS2 to speed up things up a bit
-				mS2 = mHits.front().mHsps.front().mScore;
-	
-				mHits.erase(mHits.end() - 1);
-			}
+		StMutex lock(mLock);
 
-			mLock.Signal();
+		mHits.push_back(hit);
+		
+		// store at most mReportLimit hits. 
+		CompareHitsOnFirstHspScore cmp;
+		
+		push_heap(mHits.begin(), mHits.end(), cmp);
+		
+		if (mHits.size() > mReportLimit)
+		{
+			pop_heap(mHits.begin(), mHits.end(), cmp);
+
+			// we can now update mS2 to speed up things up a bit
+			mS2 = mHits.front().mHsps.front().mScore;
+
+			mHits.erase(mHits.end() - 1);
 		}
 	}
 	
@@ -1429,31 +1423,28 @@ bool CBlastThread::Next(uint32& outDocNr, vector<CSequence>& outTargets)
 {
 	bool result = false;
 
-	if (mLock.Wait())
-	{
-		while (mIter.Next(outDocNr, false))
-		{
-			uint32 seqCount = mDb.CountSequencesForDocument(outDocNr);
-			
-			if (seqCount == 0)
-				continue;
-			
-			for (uint32 s = 0; s < seqCount; ++s)
-			{
-				CSequence seq;
-				mDb.GetSequence(outDocNr, s, seq);
-				
-				mDbCount += 1;
-				mDbLength += seq.length();
-				
-				outTargets.push_back(seq);
-			}
-			
-			result = true;
-			break;
-		}
+	StMutex lock(mLock);
 
-		mLock.Signal();
+	while (mIter.Next(outDocNr, false))
+	{
+		uint32 seqCount = mDb.CountSequencesForDocument(outDocNr);
+		
+		if (seqCount == 0)
+			continue;
+		
+		for (uint32 s = 0; s < seqCount; ++s)
+		{
+			CSequence seq;
+			mDb.GetSequence(outDocNr, s, seq);
+			
+			mDbCount += 1;
+			mDbLength += seq.length();
+			
+			outTargets.push_back(seq);
+		}
+		
+		result = true;
+		break;
 	}
 
 	return result;

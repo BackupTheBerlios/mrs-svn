@@ -66,7 +66,7 @@ struct CSelector
 const CSelector kSelectors[16] = {
 	{  0, 1 },
 	{ -3, 1 },
-	{ -2, 1 }, { -2, 1 },
+	{ -2, 1 }, { -2, 2 },
 	{ -1, 1 }, { -1, 2 }, { -1, 4 },
 	{  0, 1 }, {  0, 2 }, {  0, 4 },
 	{  1, 1 }, {  1, 2 }, {  1, 4 },
@@ -502,14 +502,11 @@ class IteratorBase<T, kAC_SelectorCode>
 									fWidth = fMaxWidth;
 								else
 									fWidth += kSelectors[selector].databits;
-					//std::cout << "Read selector " << selector << ", width now " << fWidth << " and span " << fSpan << std::endl;
 							}
 					
 							if (fWidth > 0)
 								fValue += ReadBinary<int64>(*fBits, fWidth);
 							fValue += 1;
-					
-					//std::cout << "Value " << fValue << std::endl;
 					
 							--fSpan;
 							++fRead;
