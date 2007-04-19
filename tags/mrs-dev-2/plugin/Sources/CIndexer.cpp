@@ -176,7 +176,7 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexHeader& inStruct)
 		// stupid me...
 		
 		if (inStruct.array_compression_kind == FOUR_CHAR_INLINE('1les'))
-			inStruct.array_compression_kind = kAC_SelectorCode;
+			inStruct.array_compression_kind = kAC_SelectorCodeV1;
 		else if (inStruct.array_compression_kind == FOUR_CHAR_INLINE('olog'))
 			inStruct.array_compression_kind = kAC_GolombCode;
 	}
@@ -953,7 +953,7 @@ void CIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 				docs.push_back(make_pair(docNr, weight));
 			}
 
-			CompressArray(docBits, docs, inDocCount, kAC_SelectorCode);
+			CompressArray(docBits, docs, inDocCount, kAC_SelectorCodeV2);
 		}
 		else
 		{
@@ -971,7 +971,7 @@ void CIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 				docs.push_back(docNr);
 			}
 
-			CompressArray(docBits, docs, inDocCount, kAC_SelectorCode);
+			CompressArray(docBits, docs, inDocCount, kAC_SelectorCodeV2);
 		}
 
 		docBits.sync();
@@ -1319,7 +1319,7 @@ CIndexer::CIndexer(const HUrl& inDb)
 	fHeader->count = 0;
 	fHeader->entries = 0;
 	fHeader->weight_bit_count = WEIGHT_BIT_COUNT;
-	fHeader->array_compression_kind = kAC_SelectorCode;
+	fHeader->array_compression_kind = kAC_SelectorCodeV2;
 
 	HUrl url(fDb + ".fulltext_indx");
 	fFullTextIndex = new CFullTextIndex(url, fHeader->weight_bit_count);
@@ -2237,7 +2237,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					}
 
 					COBitStream bits(*bitFile.get());
-					CompressArray(bits, docs, fHeader->entries, kAC_SelectorCode);
+					CompressArray(bits, docs, fHeader->entries, kAC_SelectorCodeV2);
 					
 					indx.push_back(make_pair(s, offset));
 					break;
@@ -2295,7 +2295,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					}
 
 					COBitStream bits(*bitFile.get());
-					CompressArray(bits, docs, fHeader->entries, kAC_SelectorCode);
+					CompressArray(bits, docs, fHeader->entries, kAC_SelectorCodeV2);
 					
 					indx.push_back(make_pair(s, offset));
 					break;

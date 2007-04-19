@@ -126,8 +126,11 @@ class CDbDocIteratorBaseT : public CDbDocIteratorBase
 typedef CDbDocIteratorBaseT<uint32, kAC_GolombCode>						CDbDocIteratorGC;
 typedef CDbDocIteratorBaseT<std::pair<uint32,uint8>, kAC_GolombCode>	CDbDocWeightIteratorGC;
 
-typedef CDbDocIteratorBaseT<uint32, kAC_SelectorCode>					CDbDocIteratorSC;
-typedef CDbDocIteratorBaseT<std::pair<uint32,uint8>, kAC_SelectorCode>	CDbDocWeightIteratorSC;
+typedef CDbDocIteratorBaseT<uint32, kAC_SelectorCodeV1>						CDbDocIteratorSC1;
+typedef CDbDocIteratorBaseT<std::pair<uint32,uint8>, kAC_SelectorCodeV1>	CDbDocWeightIteratorSC1;
+
+typedef CDbDocIteratorBaseT<uint32, kAC_SelectorCodeV2>						CDbDocIteratorSC2;
+typedef CDbDocIteratorBaseT<std::pair<uint32,uint8>, kAC_SelectorCodeV2>	CDbDocWeightIteratorSC2;
 
 class CDocNrIterator : public CDocIterator
 {
