@@ -277,7 +277,7 @@ void CZLibDecompressorImp::Init()
 {
 	CBasicDecompressorImp::Init();
 
-	HSwapStream<net_swapper> data(*fFile);
+	HSwapStream<net_swapper> data(fData);
 	
 	// read fDictionary
 	uint16 n;
