@@ -65,7 +65,7 @@ LIBPATHS	=  ./Lib/ /usr/local/lib/
 INCPATHS	= ./Lib/Includes/ ./Lib/X/ ./Lib/
 SYSINCPATHS	= /usr/include $(BOOST)
 WARNINGS	=  -Wall -Wno-multichar -Wno-unknown-pragmas -Wno-long-long -Wno-sign-compare
-CFLAGS		= -fsigned-char -g -ffor-scope
+CFLAGS		= -fsigned-char -g -ffor-scope -fmessage-length=80 -fdiagnostics-show-location=every-line
 LDFLAGS		= -fdata-sections -g # -ffunction-sections 
 OPT			+= -fstrict-aliasing
 
@@ -365,13 +365,15 @@ $(OBJDIR)/%_$(TARGET).o: Sources/%_$(TARGET).cpp
 
 $(OBJDIR)/%.o: %.cpp
 	@ echo "=> "$(@F)
-	@ $(CC) -c $< -o $@ $(INCLUDES) $(CFLAGS)
+	@ $(CC) -c $< -o $@ $(INCLUDES) -MD $(CFLAGS)
 
 $(OBJDIR)/%.o: %.c
 	@ echo "=> "$(@F)
-	@ $(CC) -c $< -o $@ $(INCLUDES) $(CFLAGS)
+	@ $(CC) -c $< -o $@ $(INCLUDES) -MD $(CFLAGS)
 
 include $(OBJS:%.o=%.d)
+
+${OBJS:.o=.d}:
 
 ifeq ($(SWIG_VERSION),1.3.27)
 
@@ -391,16 +393,6 @@ Sources/MRS_java.cpp: Sources/MRSInterface.h Sources/MRS_java.i
 	@ echo !!! WARNING !!! Not rebuilding required $@ since swig version is not 1.3.27
 
 endif
-
-$(OBJDIR)/%.d:%.cpp
-	@ test -d $(OBJDIR) || mkdir $(OBJDIR)
-	@ echo "-> "$(@F)
-	@ $(CC) -M -MF $@ $(DEFS) -MT '$(OBJDIR)/$(@F:.d=.o) $(OBJDIR)/$(@F)' $(INCLUDES) $<
-
-$(OBJDIR)/%.d:%.c
-	@ test -d $(OBJDIR) || mkdir $(OBJDIR)
-	@ echo "-> "$(@F)
-	@ $(CC) -M -MF $@ $(DEFS) -MT '$(OBJDIR)/$(@F:.d=.o) $(OBJDIR)/$(@F)' $(INCLUDES) $<
 
 FORCE:
 
