@@ -395,12 +395,12 @@ endif
 $(OBJDIR)/%.d:%.cpp
 	@ test -d $(OBJDIR) || mkdir $(OBJDIR)
 	@ echo "-> "$(@F)
-	@ $(SHELL) -ec '$(CC) $(DEFS) -M $(INCLUDES) $< | sed '\''s/\(.*\.o\)[ :]*/$(OBJDIR)\/\1 $(@F): /g'\'' > $@'
+	@ $(CC) -M -MF $@ $(DEFS) -MT '$(OBJDIR)/$(@F:.d=.o) $(OBJDIR)/$(@F)' $(INCLUDES) $<
 
 $(OBJDIR)/%.d:%.c
 	@ test -d $(OBJDIR) || mkdir $(OBJDIR)
 	@ echo "-> "$(@F)
-	@ $(SHELL) -ec '$(CC) $(DEFS) -M $(INCLUDES) $< | sed '\''s/\(.*\.o\)[ :]*/$(OBJDIR)\/\1 $(@F): /g'\'' > $@'
+	@ $(CC) -M -MF $@ $(DEFS) -MT '$(OBJDIR)/$(@F:.d=.o) $(OBJDIR)/$(@F)' $(INCLUDES) $<
 
 FORCE:
 
