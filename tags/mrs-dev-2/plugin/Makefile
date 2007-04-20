@@ -65,7 +65,8 @@ LIBPATHS	=  ./Lib/ /usr/local/lib/
 INCPATHS	= ./Lib/Includes/ ./Lib/X/ ./Lib/
 SYSINCPATHS	= /usr/include $(BOOST)
 WARNINGS	=  -Wall -Wno-multichar -Wno-unknown-pragmas -Wno-long-long -Wno-sign-compare
-CFLAGS		= -fsigned-char -g -ffor-scope -fmessage-length=80 -fdiagnostics-show-location=every-line
+CFLAGS		= -fsigned-char -g -ffor-scope
+CFLAGS		+= -fmessage-length=80 -fdiagnostics-show-location=every-line
 LDFLAGS		= -fdata-sections -g # -ffunction-sections 
 OPT			+= -fstrict-aliasing
 
@@ -361,7 +362,7 @@ $(OBJDIR):
 
 $(OBJDIR)/%_$(TARGET).o: Sources/%_$(TARGET).cpp
 	@ echo "=> "$(@F)
-	$(CC) -c $< -o $@ $(INCLUDES) $(CFLAGS) -O0
+	$(CC) -c $< -o $@ $(INCLUDES) -MD $(CFLAGS) -O0
 
 $(OBJDIR)/%.o: %.cpp
 	@ echo "=> "$(@F)
