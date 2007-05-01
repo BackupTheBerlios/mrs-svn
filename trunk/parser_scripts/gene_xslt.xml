@@ -75,25 +75,25 @@
 			
 			<xsl:when test="Other-source_src/Dbtag/Dbtag_db = 'Protein'">
 				<xsl:variable name="id" select="Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_id"/>
-				<a href="mrs.cgi?db=all&amp;query=gi:{$id}"><xsl:value-of select="$anchor"/></a>
+				<a href="query.do?db=all&amp;query=gi:{$id}"><xsl:value-of select="$anchor"/></a>
 			</xsl:when>
 			
 			<xsl:when test="Other-source_src/Dbtag/Dbtag_db = 'Nucleotide'">
 				<xsl:choose>
 					<xsl:when test="Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_str">
 						<xsl:variable name="ss-ids" select="Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_str"/>
-						<a href="mrs.cgi?db=genbank_release&amp;ids={$ss-ids}"><xsl:value-of select="$anchor"/></a>
+						<a href="query.do?db=genbank_release&amp;ids={$ss-ids}"><xsl:value-of select="$anchor"/></a>
 					</xsl:when>
 					<xsl:otherwise>
 						<xsl:variable name="id" select="Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_id"/>
-						<a href="mrs.cgi?db=all&amp;query=gi:{$id}"><xsl:value-of select="$anchor"/></a>
+						<a href="query.do?db=all&amp;query=gi:{$id}"><xsl:value-of select="$anchor"/></a>
 					</xsl:otherwise>
 				</xsl:choose>
 			</xsl:when>
 			
 			<xsl:when test="Other-source_src/Dbtag/Dbtag_db = 'GeneID'">
 				<xsl:variable name="id" select="Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_id"/>
-				<a href="mrs.cgi?db=gene&amp;id={$id}"><xsl:value-of select="$anchor"/></a>
+				<a href="query.do?db=gene&amp;id={$id}"><xsl:value-of select="$anchor"/></a>
 			</xsl:when>
 
 			<xsl:when test="Other-source_src/Dbtag/Dbtag_db = 'PROT_CDD'">
@@ -113,7 +113,7 @@
 
 			<xsl:when test="Other-source_src/Dbtag/Dbtag_db = 'UniProt'">
 				<xsl:variable name="id" select="Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_str"/>
-				<a href="mrs.cgi?db=uniprot&amp;query=ac:{$id}"><xsl:value-of select="$anchor"/></a>
+				<a href="query.do?db=uniprot&amp;query=ac:{$id}"><xsl:value-of select="$anchor"/></a>
 			</xsl:when>
 			
 			<xsl:otherwise>
@@ -133,7 +133,7 @@
 				<xsl:choose>
 					<xsl:when test="Gene-commentary_comment/Gene-commentary[position() = 2]/Gene-commentary_source/Other-source[position() = 2]/Other-source_src/Dbtag[Dbtag_db='Protein']">
 						<xsl:variable name="gi" select="Gene-commentary_comment/Gene-commentary[position() = 2]/Gene-commentary_source/Other-source[position() = 2]/Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_id"/>
-						<a href="mrs.cgi?db=refseq&amp;query=gi:{$gi}"><xsl:value-of select="$other-prot"/></a>
+						<a href="query.do?db=refseq&amp;query=gi:{$gi}"><xsl:value-of select="$other-prot"/></a>
 					</xsl:when>
 					
 					<xsl:otherwise>
@@ -149,7 +149,7 @@
 				<xsl:choose>
 					<xsl:when test="Gene-commentary_comment/Gene-commentary[position() = 2]/Gene-commentary_source/Other-source[position() = 1]/Other-source_src/Dbtag[Dbtag_db='GeneID']">
 						<xsl:variable name="other-id" select="Gene-commentary_comment/Gene-commentary[position() = 2]/Gene-commentary_source/Other-source[position() = 1]/Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_id"/>
-						<a href="mrs.cgi?db=gene&amp;id={$other-id}"><xsl:value-of select="$other-gene"/></a>
+						<a href="query.do?db=gene&amp;id={$other-id}"><xsl:value-of select="$other-gene"/></a>
 					</xsl:when>
 					
 					<xsl:otherwise>
@@ -263,7 +263,7 @@
 				<td>Organism</td>
 				<td>
 					<xsl:variable name="tax_id" select="Entrezgene_source/BioSource/BioSource_org/Org-ref/Org-ref_db/Dbtag[Dbtag_db='taxon']/Dbtag_tag/Object-id/Object-id_id"/>
-					<a href="mrs.cgi?db=taxonomy&amp;id={$tax_id}">
+					<a href="query.do?db=taxonomy&amp;id={$tax_id}">
 						<xsl:value-of select="Entrezgene_source/BioSource/BioSource_org/Org-ref/Org-ref_taxname"/>
 					</a>
 					
@@ -435,7 +435,7 @@
 
 									<xsl:variable name="go" select="format-number(Gene-commentary_source/Other-source/Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_id, '0000000')"/>
 
-									<td><a href="mrs.cgi?db=go&amp;id={$go}"><xsl:value-of select="Gene-commentary_source/Other-source/Other-source_anchor"/></a></td>
+									<td><a href="query.do?db=go&amp;id={$go}"><xsl:value-of select="Gene-commentary_source/Other-source/Other-source_anchor"/></a></td>
 									<td><xsl:value-of select="Gene-commentary_source/Other-source/Other-source_post-text"/></td>
 									<td><xsl:apply-templates select="Gene-commentary_refs/Pub/Pub_pmid/PubMedId"/></td>
 
@@ -468,7 +468,7 @@
 						<xsl:for-each select="Entrezgene_comments/Gene-commentary[Gene-commentary_heading='Phenotypes']/Gene-commentary_comment/Gene-commentary" xml:space="preserve">
 							<xsl:value-of select="Gene-commentary_text"/>
 							<xsl:variable name="mim" select="Gene-commentary_source/Other-source/Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_id"/>
-							<a href="mrs.cgi?db=omim&amp;id={$mim}"><xsl:value-of select="Gene-commentary_source/Other-source/Other-source_anchor"/></a>
+							<a href="query.do?db=omim&amp;id={$mim}"><xsl:value-of select="Gene-commentary_source/Other-source/Other-source_anchor"/></a>
 							<br/>
 						</xsl:for-each>
 					</td>
