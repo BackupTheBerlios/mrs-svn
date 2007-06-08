@@ -111,7 +111,7 @@ sub parse
 				
 				$m->IndexDate("date", sprintf("%4.4d-%2.2d-%2.2d", $year, $mon, $day));
 			}
-			elsif ($line =~ /^(.+?)\s*:(.*)/)
+			elsif ($line =~ /^(.+?)\s*:(.*)/ and lc($1) ne 'date')
 			{
 				$m->IndexText(lc($1), $2);
 			}

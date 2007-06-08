@@ -58,7 +58,7 @@
 	</xsl:template>
 
 	<!-- create a url for a Gene-commentary_source -->	
-	<xsl:template match="Other-source" xml:space="preserve" name="make-url">
+	<xsl:template match="Other-source" name="make-url">
 		
 		<xsl:param name="anchor"><xsl:value-of select="Other-source_anchor"/></xsl:param>
 		
@@ -75,7 +75,7 @@
 			
 			<xsl:when test="Other-source_src/Dbtag/Dbtag_db = 'Protein'">
 				<xsl:variable name="id" select="Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_id"/>
-				<a href="query.do?db=all&amp;query=gi:{$id}"><xsl:value-of select="$anchor"/></a>
+				<a href="query.do?db=all&amp;query={$anchor}"><xsl:value-of select="$anchor"/></a>
 			</xsl:when>
 			
 			<xsl:when test="Other-source_src/Dbtag/Dbtag_db = 'Nucleotide'">
@@ -86,7 +86,7 @@
 					</xsl:when>
 					<xsl:otherwise>
 						<xsl:variable name="id" select="Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_id"/>
-						<a href="query.do?db=all&amp;query=gi:{$id}"><xsl:value-of select="$anchor"/></a>
+						<a href="query.do?db=all&amp;query={$anchor}"><xsl:value-of select="$anchor"/></a>
 					</xsl:otherwise>
 				</xsl:choose>
 			</xsl:when>

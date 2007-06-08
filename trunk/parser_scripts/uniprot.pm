@@ -353,7 +353,7 @@ my %links = (
 
 	'PRINTS'	=> {
 		match	=> qr|^(\S+)(?=;)|i,
-		result	=> '$q->a({-href=>"query.do?db=prints&query=ac:$1"}, $1)'
+		result	=> '$q->a({-href=>"query.do?db=prints&query=id:$1"}, $1)'
 	},
 	
 );
