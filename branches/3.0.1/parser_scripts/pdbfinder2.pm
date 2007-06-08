@@ -49,7 +49,7 @@ sub new
 		url			=> 'http://bioinformatics.oxfordjournals.org/cgi/content/abstract/12/6/525',
 		section		=> 'structure',
 		meta		=> [ 'title' ],
-		raw_files	=> qr/PDBFIND2\.TXT\.gz/,
+		raw_files	=> qr/^PDBFIND2\.TXT\.gz$/,
 		@_
 	};
 	return bless $self, "MRS::Script::pdbfinder2";
@@ -131,7 +131,12 @@ sub parse
 					$value =~ s/(\w)\.(?=\w)/$1. /og
 						if ($key eq 'author');
 
-					$m->IndexText($key, $value);
+					if ($key =~ m/^[-a-z0-9]+$/io) {
+						$m->IndexText($key, $value);
+					}
+					else {
+						print "WARNING: invalid key '$key'\n";
+					}
 				}
 			}
 		}
