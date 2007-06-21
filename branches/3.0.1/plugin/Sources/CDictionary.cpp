@@ -252,6 +252,7 @@ CDictionary::~CDictionary()
 {
 	fMemMapper.reset(nil);
 	fDictionaryFile.reset(nil);
+	delete fScores;
 }
 
 void CDictionary::Create(CDatabankBase& inDatabank,
