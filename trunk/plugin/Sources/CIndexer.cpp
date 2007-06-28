@@ -176,7 +176,7 @@ HStreamBase& operator>>(HStreamBase& inData, SIndexHeader& inStruct)
 		// stupid me...
 		
 		if (inStruct.array_compression_kind == FOUR_CHAR_INLINE('1les'))
-			inStruct.array_compression_kind = kAC_SelectorCode;
+			inStruct.array_compression_kind = kAC_SelectorCodeV1;
 		else if (inStruct.array_compression_kind == FOUR_CHAR_INLINE('olog'))
 			inStruct.array_compression_kind = kAC_GolombCode;
 	}
@@ -373,6 +373,11 @@ class CFullTextIndex
 	int				Compare(uint32 inTermA, uint32 inTermB) const
 					{
 						return lexicon.Compare(inTermA, inTermB);
+					}
+
+	int				Compare(uint32 inTermA, uint32 inTermB, CLexCompare& inCompare) const
+					{
+						return lexicon.Compare(inTermA, inTermB, inCompare);
 					}
 
 	bool			IsStopWord(uint32 inTerm) const
@@ -744,7 +749,7 @@ bool CFullTextIterator::Next(string& outKey, int64& outValue)
 // CIndexBase is the base class for the various index types, these
 // classes are only used for building indices.
 
-class CIndexBase
+class CIndexBase : public CLexCompare
 {
   public:
 					CIndexBase(CFullTextIndex& inFullTextIndex,
@@ -804,16 +809,12 @@ struct SortLex
 	inline
 	bool	operator()(const pair<uint32,uint64>& inA, const pair<uint32,uint64>& inB) const
 			{
-				string a = fFT.Lookup(inA.first);
-				string b = fFT.Lookup(inB.first);
-				return fBase->Compare(a.c_str(), a.length(), b.c_str(), b.length()) < 0;
+				return fFT.Compare(inA.first, inB.first, *fBase) < 0;
 			}
 	
 	CFullTextIndex&	fFT;
 	CIndexBase*		fBase;
 };
-
-
 
 CIndexBase::CIndexBase(CFullTextIndex& inFullTextIndex, const string& inName,
 		uint16 inIndexNr, const HUrl& inScratch, CIndexKind inKind)
@@ -952,7 +953,7 @@ void CIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 				docs.push_back(make_pair(docNr, weight));
 			}
 
-			CompressArray(docBits, docs, inDocCount, kAC_SelectorCode);
+			CompressArray(docBits, docs, inDocCount, kAC_SelectorCodeV2);
 		}
 		else
 		{
@@ -970,7 +971,7 @@ void CIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 				docs.push_back(docNr);
 			}
 
-			CompressArray(docBits, docs, inDocCount, kAC_SelectorCode);
+			CompressArray(docBits, docs, inDocCount, kAC_SelectorCodeV2);
 		}
 
 		docBits.sync();
@@ -1000,11 +1001,6 @@ bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPar
 	outInfo.kind = fKind;
 
 	outInfo.index_version = kCIndexVersionV1;
-#if P_DEBUG
-	outInfo.sig = kIndexPartSigV2;
-	outInfo.index_version = kCIndexVersionV2;
-#endif
-	
 	if (fBitFile->Size() >= numeric_limits<uint32>::max())
 	{
 		outInfo.sig = kIndexPartSigV2;
@@ -1014,7 +1010,7 @@ bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPar
 	vector<pair<uint32,int64> > lexicon;
 	lexicon.reserve(fRawIndexCnt);
 
-	// in the idea case we store the bits in the same order as their
+	// in the ideal case we store the bits in the same order as their
 	// corresponding key in the BTree. That speeds up merging later on
 	// considerably.
 	// This smelss a bit like hacking...
@@ -1023,14 +1019,19 @@ bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPar
 	// field of the pair in lexicon. 
 	
 	HAutoBuf<char> sortedBitBuffer(nil);
+	vector<int64> offsets;
 	
 	try
 	{
 		if (fBitFile->Size() < numeric_limits<uint32>::max())
+		{
 			sortedBitBuffer.reset(new char[fBitFile->Size()]);
+			offsets.reserve(fRawIndexCnt);
+		}
 	}
 	catch (...)
 	{
+		sortedBitBuffer.reset(nil);
 	}
 	
 	fRawIndex->sync();
@@ -1043,6 +1044,9 @@ bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPar
 	
 	lexicon.push_back(make_pair(term, offset));
 	--fRawIndexCnt;
+	
+	SortLex sortLex(fFullTextIndex, this);
+	
 	while (fRawIndexCnt-- > 0)
 	{
 		term += ReadGamma(bits);
@@ -1052,15 +1056,20 @@ bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPar
 		if (sortedBitBuffer.get() != nil)
 			lexicon.back().second |= (length << 32);
 		
-		offset += length;
+		// strange location, I agree
+		push_heap(lexicon.begin(), lexicon.end(), sortLex);
 
+		offset += length;
 		lexicon.push_back(make_pair(term, offset));
 	}
 	
 	if (sortedBitBuffer.get() != nil)
 		lexicon.back().second |= ((fBitFile->Size() - offset) << 32);
+
+	push_heap(lexicon.begin(), lexicon.end(), sortLex);
 	
-	sort(lexicon.begin(), lexicon.end(), SortLex(fFullTextIndex, this));
+//	sort(lexicon.begin(), lexicon.end(), sortLex);
+	sort_heap(lexicon.begin(), lexicon.end(), sortLex);
 
 	// copy the bits to the data file
 	outInfo.bits_offset = inDataFile.Seek(0, SEEK_END);
@@ -1068,29 +1077,23 @@ bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPar
 	
 	if (sortedBitBuffer.get() != nil)
 	{
+		fBitFile->PRead(sortedBitBuffer.get(), outInfo.bits_size, 0);
+		
 		int64 newOffset = 0;
 		
-		// this should be improved using readv...
 		for (vector<pair<uint32,int64> >::iterator l = lexicon.begin(); l != lexicon.end(); ++l)
 		{
 			uint32 length = static_cast<uint32>(l->second >> 32);
 			uint32 offset = static_cast<uint32>(l->second);
-			
-			assert(newOffset + length <= outInfo.bits_size);
-			assert(offset + length <= outInfo.bits_size);
-			assert(length > 0);
-			
-			int32 r = fBitFile->PRead(sortedBitBuffer.get() + newOffset, length, offset);
-			assert(r == length); (void)r; // avoid compiler warnings
+
+			(void)inDataFile.Write(sortedBitBuffer.get() + offset, length);
 
 			l->second = newOffset;
-			
 			newOffset += length;
 		}
 		
-		assert(newOffset == fBitFile->Size());
+		assert(newOffset == outInfo.bits_size);
 		
-		inDataFile.Write(sortedBitBuffer.get(), outInfo.bits_size);
 		sortedBitBuffer.release();
 	}
 	else
@@ -1098,19 +1101,7 @@ bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPar
 		if (VERBOSE)
 			cout << "Writing unsorted bits ";
 		
-		const int kBufSize = 4096;
-		HAutoBuf<char> b(new char[kBufSize]);
-		int64 k = fBitFile->Size();
-		fBitFile->Seek(0, SEEK_SET);
-		while (k > 0)
-		{
-			uint32 n = kBufSize;
-			if (n > k)
-				n = k;
-			fBitFile->Read(b.get(), n);
-			inDataFile.Write(b.get(), n);
-			k -= n;
-		}
+		fBitFile->CopyTo(inDataFile, fBitFile->Size(), 0);
 	}
 
 	// construct the optimized b-tree
@@ -1328,7 +1319,7 @@ CIndexer::CIndexer(const HUrl& inDb)
 	fHeader->count = 0;
 	fHeader->entries = 0;
 	fHeader->weight_bit_count = WEIGHT_BIT_COUNT;
-	fHeader->array_compression_kind = kAC_SelectorCode;
+	fHeader->array_compression_kind = kAC_SelectorCodeV2;
 
 	HUrl url(fDb + ".fulltext_indx");
 	fFullTextIndex = new CFullTextIndex(url, fHeader->weight_bit_count);
@@ -1657,6 +1648,7 @@ void CIndexer::CreateIndex(
 
 	uint32 iDoc, lDoc, iTerm, iIx, lTerm = 0, i, tFreq;
 	uint8 iFreq;
+
 	CFullTextIndex::CRunEntryIterator iter(*fFullTextIndex);
 
 	int64 vStep = iter.Count() / 10;
@@ -2245,7 +2237,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					}
 
 					COBitStream bits(*bitFile.get());
-					CompressArray(bits, docs, fHeader->entries, kAC_SelectorCode);
+					CompressArray(bits, docs, fHeader->entries, kAC_SelectorCodeV2);
 					
 					indx.push_back(make_pair(s, offset));
 					break;
@@ -2288,16 +2280,6 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 
 						while (iter.Next(doc, freq, false))
 						{
-//							if (doc >= fHeader->entries)
-//							{
-//								cerr << "Error in index " << fParts[ix].name
-//									 << " key " << s
-//									 << ", docnr out of range: " << doc
-//									 << endl;
-//
-//								break;
-//							}							
-//							
 							docs.push_back(make_pair(doc, freq));
 
 							float wdt = freq * idf;
@@ -2313,7 +2295,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 					}
 
 					COBitStream bits(*bitFile.get());
-					CompressArray(bits, docs, fHeader->entries, kAC_SelectorCode);
+					CompressArray(bits, docs, fHeader->entries, kAC_SelectorCodeV2);
 					
 					indx.push_back(make_pair(s, offset));
 					break;
@@ -2333,7 +2315,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 			fParts[ix].index_version, mapIter, outData));
 		
 		fParts[ix].tree_offset = indxOnDisk->GetOffset();
-		fParts[ix].tree_size = outData.Seek(0, SEEK_END);
+		fParts[ix].tree_size = outData.Seek(0, SEEK_END) - fParts[ix].tree_offset;
 		fParts[ix].root = indxOnDisk->GetRoot();
 		
 		if (fParts[ix].kind != kValueIndex)
@@ -2491,7 +2473,6 @@ CDocIterator* CIndexer::CreateDocIterator(const string& inIndex, const string& i
 					for (vector<uint32>::iterator i = values.begin(); i != values.end(); ++i)
 						iters.push_back(new CDocNrIterator(*i));
 				}
-//				else// if (or fParts[ix].kind == kDateIndex or fParts[ix].kind == kNumberIndex)
 				else if (values.size() > 100)
 				{
 					auto_ptr<CDocBitVectorIterator> bitIter(new CDocBitVectorIterator(fHeader->entries));
@@ -2518,8 +2499,6 @@ CDocIterator* CIndexer::CreateDocIterator(const string& inIndex, const string& i
 						else
 							iters.push_back(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
 								fParts[ix].bits_offset + *i, fHeader->entries));
-//						iters.push_back(CreateDbDocIterator(fHeader->array_compression_kind, *fFile,
-//							fParts[ix].bits_offset + *i, fHeader->entries));
 					}
 				}
 			}

@@ -47,6 +47,9 @@
 #include <limits>
 #include <sstream>
 #include <algorithm>
+#include <iterator>
+
+#include <boost/bind.hpp>
 
 #include "HUtils.h"
 #include "HError.h"
@@ -485,6 +488,17 @@ struct Hit
 					assert(mHsps.size());
 					return mDocNr < inHit.mDocNr or (mDocNr == inHit.mDocNr and mHsps[0].mScore < inHit.mHsps[0].mScore);
 				}
+
+	double		Expect(int64 inSearchSpace, double inLambda, double inKappa) const
+				{
+					double result = numeric_limits<double>::max();
+					if (mHsps.size() > 0)
+					{
+						double bitScore = trunc((inLambda * mHsps.front().mScore - inKappa) / kLn2);
+						result = inSearchSpace / pow(2., bitScore);
+					}
+					return result;
+				}
 	
 	vector<Hsp>	mHsps;
 };
@@ -601,7 +615,7 @@ class CBlastQueryBase
 	Hit&			GetHit(uint32 inHitNr)				{ assert(inHitNr >= 0 and inHitNr < mHits.size()); return mHits[inHitNr]; }
 	
 	void			JoinHits(CBlastQueryBase& inOther);
-	void			SortHits(const CDatabankBase& inDb);
+	void			SortHits(const CDatabankBase& inDb, int64 inSearchSpace);
 
 	double			Kappa()								{ return mMatrix.gapped.K; }
 	double			Lambda()							{ return mMatrix.gapped.lambda; }
@@ -1195,47 +1209,47 @@ void CBlastQueryBase::JoinHits(CBlastQueryBase& inOther)
 //	mHits.insert(mHits.end(), inOther.mHits.begin(), inOther.mHits.end());
 }
 
-void CBlastQueryBase::SortHits(const CDatabankBase& inDb)
+void CBlastQueryBase::SortHits(const CDatabankBase& inDb, int64 inSearchSpace)
 {
 	for (vector<Hit>::iterator hit = mHits.begin(); hit != mHits.end(); ++hit)
 		hit->mDocID = inDb.GetDocumentID(hit->mDocNr);
 
 	sort(mHits.begin(), mHits.end(), CompareHitsOnFirstHspScore());
+
+	mHits.erase(remove_if(mHits.begin(), mHits.end(),
+		boost::bind(&Hit::Expect, _1, inSearchSpace, mMatrix.gapped.lambda, mMatrix.gapped.logK) > mExpect), mHits.end());
 }
 
 void CBlastQueryBase::Cleanup()
 {
-	if (mLock.Wait())
-	{
-		mGapCount = 0;
+	StMutex lock(mLock);
 
-		for (vector<Hit>::iterator hit = mHits.begin(); hit != mHits.end(); ++hit)
+	mGapCount = 0;
+
+	for (vector<Hit>::iterator hit = mHits.begin(); hit != mHits.end(); ++hit)
+	{
+		for (vector<Hsp>::iterator hsp = hit->mHsps.begin(); hsp != hit->mHsps.end(); ++hsp)
 		{
-			for (vector<Hsp>::iterator hsp = hit->mHsps.begin(); hsp != hit->mHsps.end(); ++hsp)
+			if (mGapped)
 			{
-				if (mGapped)
-				{
-					uint32 newScore = AlignGappedWithTraceBack(mXgFinal, *hsp);
-					
-					assert(hsp->mAlignedQuery.length() == hsp->mAlignedTarget.length());
-					
-					if (newScore >= hsp->mScore)
-						hsp->mScore = newScore;
-		
-					if (hsp->mGapped)
-						++mGapCount;
-				}
-				else
-				{
-					hsp->mAlignedQuery = mQuery.substr(hsp->mQueryStart, hsp->mQueryEnd - hsp->mQueryStart);
-					hsp->mAlignedTarget = hsp->mTarget.substr(hsp->mTargetStart, hsp->mTargetEnd - hsp->mTargetStart);
-				}
+				uint32 newScore = AlignGappedWithTraceBack(mXgFinal, *hsp);
+				
+				assert(hsp->mAlignedQuery.length() == hsp->mAlignedTarget.length());
+				
+				if (newScore >= hsp->mScore)
+					hsp->mScore = newScore;
+	
+				if (hsp->mGapped)
+					++mGapCount;
 			}
-			
-			hit->Cleanup();
+			else
+			{
+				hsp->mAlignedQuery = mQuery.substr(hsp->mQueryStart, hsp->mQueryEnd - hsp->mQueryStart);
+				hsp->mAlignedTarget = hsp->mTarget.substr(hsp->mTargetStart, hsp->mTargetEnd - hsp->mTargetStart);
+			}
 		}
 		
-		mLock.Signal();
+		hit->Cleanup();
 	}
 }
 
@@ -1336,26 +1350,23 @@ bool CBlastQuery<WordSize>::Test(uint32 inDocNr, const CSequence& inTarget)
 		hit.mTargetLength = inTarget.length();
 		hit.Cleanup();
 		
-		if (mLock.Wait())
-		{
-			mHits.push_back(hit);
-			
-			// store at most mReportLimit hits. 
-			CompareHitsOnFirstHspScore cmp;
-			
-			push_heap(mHits.begin(), mHits.end(), cmp);
-			
-			if (mHits.size() > mReportLimit)
-			{
-				pop_heap(mHits.begin(), mHits.end(), cmp);
-	
-				// we can now update mS2 to speed up things up a bit
-				mS2 = mHits.front().mHsps.front().mScore;
-	
-				mHits.erase(mHits.end() - 1);
-			}
+		StMutex lock(mLock);
 
-			mLock.Signal();
+		mHits.push_back(hit);
+		
+		// store at most mReportLimit hits. 
+		CompareHitsOnFirstHspScore cmp;
+		
+		push_heap(mHits.begin(), mHits.end(), cmp);
+		
+		if (mHits.size() > mReportLimit)
+		{
+			pop_heap(mHits.begin(), mHits.end(), cmp);
+
+			// we can now update mS2 to speed up things up a bit
+			mS2 = mHits.front().mHsps.front().mScore;
+
+			mHits.erase(mHits.end() - 1);
 		}
 	}
 	
@@ -1429,31 +1440,28 @@ bool CBlastThread::Next(uint32& outDocNr, vector<CSequence>& outTargets)
 {
 	bool result = false;
 
-	if (mLock.Wait())
-	{
-		while (mIter.Next(outDocNr, false))
-		{
-			uint32 seqCount = mDb.CountSequencesForDocument(outDocNr);
-			
-			if (seqCount == 0)
-				continue;
-			
-			for (uint32 s = 0; s < seqCount; ++s)
-			{
-				CSequence seq;
-				mDb.GetSequence(outDocNr, s, seq);
-				
-				mDbCount += 1;
-				mDbLength += seq.length();
-				
-				outTargets.push_back(seq);
-			}
-			
-			result = true;
-			break;
-		}
+	StMutex lock(mLock);
 
-		mLock.Signal();
+	while (mIter.Next(outDocNr, false))
+	{
+		uint32 seqCount = mDb.CountSequencesForDocument(outDocNr);
+		
+		if (seqCount == 0)
+			continue;
+		
+		for (uint32 s = 0; s < seqCount; ++s)
+		{
+			CSequence seq;
+			mDb.GetSequence(outDocNr, s, seq);
+			
+			mDbCount += 1;
+			mDbLength += seq.length();
+			
+			outTargets.push_back(seq);
+		}
+		
+		result = true;
+		break;
 	}
 
 	return result;
@@ -1637,7 +1645,7 @@ bool CBlastImp::Find(CDatabankBase& inDb, CDocIterator& inIter)
 	mSearchSpace = effectiveDbLength * effectiveQueryLength;
 
 	mBlastQuery->Cleanup();
-	mBlastQuery->SortHits(inDb);
+	mBlastQuery->SortHits(inDb, mSearchSpace);
 
 	if (VERBOSE)
 		cerr << endl;

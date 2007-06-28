@@ -62,11 +62,14 @@ class HStreamBase
 	virtual int32	Read(void* inBuffer, uint32 inSize) = 0;
 	virtual int32	PRead(void* inBuffer, uint32 inSize, int64 inOffset);
 	
+	void			CopyTo(HStreamBase& inDest, uint32 inSize, int64 inOffset);
+	
 	virtual int64	Seek(int64 inOffset, int inMode) = 0;
 	virtual int64	Tell() const;
 	virtual int64	Size() const;
 	
 	void			SetSwapBytes(bool inSwap);
+	bool			SwapsBytes() const					{ return fSwap; }
 
 	HStreamBase&	operator>> (int8& d);
 	HStreamBase&	operator>> (int16& d);
@@ -248,7 +251,6 @@ class HMMappedFileStream : public HMemoryStream
 
   private:
 	struct HMMappedFileStreamImp*	fImpl;
-//	void*			fBasePtr;
 };
 
 template<class T>
@@ -349,20 +351,5 @@ void HSwapStream<T>::Truncate(int64 inOffset)
 //  private:
 //	struct HCompressedStreamImp*	fImpl;
 //};
-
-class HStringStream : public HStreamBase
-{
-  public:
-					HStringStream(std::string inData);
-	virtual			~HStringStream();
-	
-	virtual int32	Write(const void* inBuffer, uint32 inSize);
-	virtual int32	Read(void* inBuffer, uint32 inSize);
-	virtual int64	Seek(int64 inOffset, int inMode);
-
-  private:
-	std::string		fData;
-	uint32			fOffset;
-};
 
 #endif

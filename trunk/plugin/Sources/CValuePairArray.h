@@ -44,7 +44,10 @@ class CIBitStream;
 
 enum CArrayCompressionKind {
 	kAC_GolombCode		= FOUR_CHAR_INLINE('golo'),
-	kAC_SelectorCode	= FOUR_CHAR_INLINE('sel1')
+	kAC_SelectorCodeV1	= FOUR_CHAR_INLINE('sel1'),
+	
+		// found an error in the implementation and a potential performance improvement
+	kAC_SelectorCodeV2	= FOUR_CHAR_INLINE('sel2'),
 };
 
 namespace CValuePairCompression
@@ -66,7 +69,7 @@ struct CSelector
 const CSelector kSelectors[16] = {
 	{  0, 1 },
 	{ -3, 1 },
-	{ -2, 1 }, { -2, 1 },
+	{ -2, 1 }, { -2, 2 },
 	{ -1, 1 }, { -1, 2 }, { -1, 4 },
 	{  0, 1 }, {  0, 2 }, {  0, 4 },
 	{  1, 1 }, {  1, 2 }, {  1, 4 },
@@ -281,7 +284,7 @@ void ValuePairTraitsPOD<T>::CompressArray(COBitStream& inBits,
 			CompressSimpleArrayGolomb(inBits, inArray, inMax);
 			break;
 		
-		case kAC_SelectorCode:
+		case kAC_SelectorCodeV2:
 			CompressSimpleArraySelector(inBits, inArray, inMax);
 			break;
 		
@@ -342,7 +345,7 @@ void ValuePairTraitsPair<T>::CompressArray(COBitStream& inBits, std::vector<T>& 
 					CompressSimpleArrayGolomb(inBits, values, inMax);
 					break;
 				
-				case kAC_SelectorCode:
+				case kAC_SelectorCodeV2:
 					CompressSimpleArraySelector(inBits, values, inMax);
 					break;
 				
@@ -361,6 +364,99 @@ void ValuePairTraitsPair<T>::CompressArray(COBitStream& inBits, std::vector<T>& 
 template<typename T, uint32 K>
 class IteratorBase
 {
+  public:
+					IteratorBase(CIBitStream& inData, int64 inMax)
+						: fBits(&inData)
+						, fRead(0)
+						, fValue(-1)
+						, fMax(inMax)
+					{
+						int64 v = fMax;
+						fMaxWidth = 0;
+						while (v > 0)
+						{
+							v >>= 1;
+							++fMaxWidth;
+						}
+
+						Reset();
+					}
+
+	virtual			~IteratorBase() {}
+
+	virtual bool	Next()
+					{
+						bool done = false;
+					
+						if (fRead < fCount)
+						{
+							if (fSpan == 0)
+							{
+								uint32 selector = ReadBinary<uint32>(*fBits, 4);
+								fSpan = kSelectors[selector].span;
+								
+								if (selector == 0)
+									fWidth = fMaxWidth;
+								else
+									fWidth += kSelectors[selector].databits;
+							}
+					
+							if (fWidth > 0)
+								fValue += ReadBinary<int64>(*fBits, fWidth);
+							fValue += 1;
+					
+							--fSpan;
+							++fRead;
+							
+							done = true;
+						}
+					
+						return done;
+					}
+	
+	T				Value() const					{ return static_cast<T>(fValue); }
+	virtual uint32	Weight() const					{ return 1; }
+	
+	virtual uint32	Count() const					{ return fCount; }
+	virtual uint32	Read() const					{ return fRead; }
+
+  protected:
+					IteratorBase(CIBitStream& inData, int64 inMax, bool)
+						: fBits(&inData)
+						, fRead(0)
+						, fValue(-1)
+						, fMax(inMax)
+					{
+						int64 v = fMax;
+						fMaxWidth = 0;
+						while (v > 0)
+						{
+							v >>= 1;
+							++fMaxWidth;
+						}
+					}
+
+					IteratorBase(const IteratorBase& inOther);
+	IteratorBase&		operator=(const IteratorBase& inOther);
+
+	void			Reset()
+					{
+						fValue = -1;
+						fCount = ReadGamma(*fBits);
+						fRead = 0;
+						fSpan = 0;
+						fWidth = fMaxWidth;			// backwards compatible
+					}
+
+	CIBitStream*	fBits;
+	uint32			fCount;
+	uint32			fRead;
+	int32			fWidth;
+	uint32			fMaxWidth;
+	uint32			fSpan;
+
+	int64			fValue;
+	int64			fMax;
 };
 
 template<typename T>
@@ -459,107 +555,6 @@ class IteratorBase<T, kAC_GolombCode>
 	uint32			fCount;
 	uint32			fRead;
 	int32			b, n, g;
-
-	int64			fValue;
-	int64			fMax;
-};
-
-template<typename T>
-class IteratorBase<T, kAC_SelectorCode>
-{
-  public:
-					IteratorBase(CIBitStream& inData, int64 inMax)
-						: fBits(&inData)
-						, fRead(0)
-						, fValue(-1)
-						, fMax(inMax)
-					{
-						int64 v = fMax;
-						fMaxWidth = 0;
-						while (v > 0)
-						{
-							v >>= 1;
-							++fMaxWidth;
-						}
-
-						Reset();
-					}
-
-	virtual			~IteratorBase() {}
-
-	virtual bool	Next()
-					{
-						bool done = false;
-					
-						if (fRead < fCount)
-						{
-							if (fSpan == 0)
-							{
-								uint32 selector = ReadBinary<uint32>(*fBits, 4);
-								fSpan = kSelectors[selector].span;
-								
-								if (selector == 0)
-									fWidth = fMaxWidth;
-								else
-									fWidth += kSelectors[selector].databits;
-					//std::cout << "Read selector " << selector << ", width now " << fWidth << " and span " << fSpan << std::endl;
-							}
-					
-							if (fWidth > 0)
-								fValue += ReadBinary<int64>(*fBits, fWidth);
-							fValue += 1;
-					
-					//std::cout << "Value " << fValue << std::endl;
-					
-							--fSpan;
-							++fRead;
-							
-							done = true;
-						}
-					
-						return done;
-					}
-	
-	T				Value() const					{ return static_cast<T>(fValue); }
-	virtual uint32	Weight() const					{ return 1; }
-	
-	virtual uint32	Count() const					{ return fCount; }
-	virtual uint32	Read() const					{ return fRead; }
-
-  protected:
-					IteratorBase(CIBitStream& inData, int64 inMax, bool)
-						: fBits(&inData)
-						, fRead(0)
-						, fValue(-1)
-						, fMax(inMax)
-					{
-						int64 v = fMax;
-						fMaxWidth = 0;
-						while (v > 0)
-						{
-							v >>= 1;
-							++fMaxWidth;
-						}
-					}
-
-					IteratorBase(const IteratorBase& inOther);
-	IteratorBase&		operator=(const IteratorBase& inOther);
-
-	void			Reset()
-					{
-						fValue = -1;
-						fCount = ReadGamma(*fBits);
-						fRead = 0;
-						fSpan = 0;
-						fWidth = fMaxWidth;
-					}
-
-	CIBitStream*	fBits;
-	uint32			fCount;
-	uint32			fRead;
-	int32			fWidth;
-	int32			fMaxWidth;
-	int64			fSpan;
 
 	int64			fValue;
 	int64			fMax;
@@ -675,12 +670,15 @@ void CompressArray(COBitStream& inBits, T& inArray, int64 inMax, uint32 inKind)
 			break;
 		}
 
-		case kAC_SelectorCode:
+		case kAC_SelectorCodeV2:
 		{
-			typedef typename	ValuePairTraitsTypeFactory<vector_value_type,kAC_SelectorCode>::type traits;
+			typedef typename	ValuePairTraitsTypeFactory<vector_value_type,kAC_SelectorCodeV2>::type traits;
 			traits::CompressArray(inBits, inArray, inMax, inKind);
 			break;
 		}
+		
+		default:
+			THROW(("Unsupported array compression"));
 	}
 }
 

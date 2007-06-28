@@ -48,7 +48,6 @@
 #include <vector>
 #include <cctype>
 #include <iostream>
-//#include "HStlFStream.h"
 #include <map>
 
 #include "CFilter.h"

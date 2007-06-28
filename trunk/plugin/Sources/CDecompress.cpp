@@ -89,6 +89,7 @@ struct CDecompressorImp
 	virtual void	Init();
 	
 	HStreamBase*	fFile;
+	HStreamView		fData;
 	uint32			fKind;
 	int64			fDataOffset, fDataSize;
 	int64			fTableOffset, fTableSize;
@@ -99,6 +100,7 @@ CDecompressorImp::CDecompressorImp(HStreamBase& inFile, uint32 inKind,
 		int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize,
 		uint32 inMetaDataCount)
 	: fFile(&inFile)
+	, fData(inFile, inDataOffset, inDataSize)
 	, fKind(inKind)
 	, fDataOffset(inDataOffset)
 	, fDataSize(inDataSize)
@@ -115,7 +117,6 @@ CDecompressorImp::~CDecompressorImp()
 
 void CDecompressorImp::Init()
 {
-	fFile->Seek(fDataOffset, SEEK_SET);
 }
 
 void CDecompressorImp::LinkData(const std::string& inDataFileName,
@@ -142,45 +143,16 @@ void CDecompressorImp::CopyData(HStreamBase& outData, uint32& outKind,
 	int64& outDataOffset, int64& outDataSize,
 	int64& outTableOffset, int64& outTableSize)
 {
-	const int kBufferSize = 1024 * 1024 * 4;	// 4 Mb
-	HAutoBuf<char> buf(new char[kBufferSize]);
-	
 	outKind = fKind;
 	outDataOffset = outData.Seek(0, SEEK_END);
 	outDataSize = fDataSize;
 	
-	int64 k = fDataSize;
-	int64 o = fDataOffset;
-	while (k > 0)
-	{
-		int64 n = k;
-		if (n > kBufferSize)
-			n = kBufferSize;
-		
-		fFile->PRead(buf.get(), static_cast<uint32>(n), o);
-		outData.Write(buf.get(), static_cast<uint32>(n));
-		
-		k -= n;
-		o += n;
-	}
+	fFile->CopyTo(outData, fDataSize, fDataOffset);
 
 	outTableOffset = outData.Tell();
 	outTableSize = fTableSize;
 	
-	k = fTableSize;
-	o = fTableOffset;
-	while (k > 0)
-	{
-		int64 n = k;
-		if (n > kBufferSize)
-			n = kBufferSize;
-		
-		fFile->PRead(buf.get(), static_cast<uint32>(n), o);
-		outData.Write(buf.get(), static_cast<uint32>(n));
-		
-		k -= n;
-		o += n;
-	}
+	fFile->CopyTo(outData, fTableSize, fTableOffset);
 }
 
 struct CBasicDecompressorImp : public CDecompressorImp
@@ -230,7 +202,7 @@ string CBasicDecompressorImp::GetDocument(uint32 inDocNr)
 
 	assert(offset + size <= fDataSize);
 
-	return GetDocument(fDataOffset + fPrefixLength + offset, size);
+	return GetDocument(fPrefixLength + offset, size);
 }
 
 string CBasicDecompressorImp::GetField(uint32 inDocNr, uint32 inFieldNr)
@@ -243,8 +215,8 @@ string CBasicDecompressorImp::GetField(uint32 inDocNr, uint32 inFieldNr)
 
 	assert(offset + size <= fDataSize);
 
-	HSwapStream<net_swapper> data(*fFile);
-	data.Seek(fDataOffset + fPrefixLength + offset, SEEK_SET);
+	HSwapStream<net_swapper> data(fData);
+	data.Seek(fPrefixLength + offset, SEEK_SET);
 	
 	uint32 offsetTableLength = sizeof(uint16) * fMetaDataCount;
 	
@@ -258,7 +230,7 @@ string CBasicDecompressorImp::GetField(uint32 inDocNr, uint32 inFieldNr)
 		offsets[ix] = offsets[ix - 1] + n;
 	}
 	
-	string result = GetDocument(fDataOffset + fPrefixLength + offset + offsetTableLength, size - offsetTableLength);
+	string result = GetDocument(fPrefixLength + offset + offsetTableLength, size - offsetTableLength);
 	
 	if (inFieldNr < fMetaDataCount)
 		result = result.substr(offsets[inFieldNr], offsets[inFieldNr + 1] - offsets[inFieldNr]);
@@ -305,7 +277,7 @@ void CZLibDecompressorImp::Init()
 {
 	CBasicDecompressorImp::Init();
 
-	HSwapStream<net_swapper> data(*fFile);
+	HSwapStream<net_swapper> data(fData);
 	
 	// read fDictionary
 	uint16 n;
@@ -316,7 +288,7 @@ void CZLibDecompressorImp::Init()
 		fDictLength = n;
 		fDictionary = new unsigned char[fDictLength];
 	
-		fFile->Read(fDictionary, fDictLength);
+		fData.Read(fDictionary, fDictLength);
 	}
 	
 	fPrefixLength = sizeof(n) + n;
@@ -365,7 +337,7 @@ string CZLibDecompressorImp::GetDocument(int64 inOffset, uint32 inLength)
 				size = static_cast<uint32>(inLength);
 			inLength -= size;
 
-			inOffset += fFile->PRead(src_buf.get() + fZStream.avail_in, size, inOffset);
+			inOffset += fData.PRead(src_buf.get() + fZStream.avail_in, size, inOffset);
 			fZStream.avail_in += size;
 		}
 		else
@@ -453,7 +425,7 @@ string CbzLibDecompressorImp::GetDocument(int64 inOffset, uint32 inLength)
 				size = static_cast<uint32>(inLength);
 			inLength -= size;
 
-			inOffset += fFile->PRead(src_buf.get() + stream.avail_in, size, inOffset);
+			inOffset += fData.PRead(src_buf.get() + stream.avail_in, size, inOffset);
 			stream.avail_in += size;
 		}
 
@@ -474,229 +446,6 @@ string CbzLibDecompressorImp::GetDocument(int64 inOffset, uint32 inLength)
 	
 	if (err < BZ_OK)
 		THROW(("Decompression error: %d", err));
-	
-	return result;
-}
-
-// compression using huffword
-
-struct CHuffWordDecompressorImp : public CBasicDecompressorImp
-{
-					CHuffWordDecompressorImp(HStreamBase& inFile,
-						int64 inDataOffset, int64 inDataSize,
-						int64 inTableOffset, int64 inTableSize,
-						uint32 inMetaDataCount);
-	virtual			~CHuffWordDecompressorImp();
-
-	virtual void	Init();
-	
-	virtual string	GetDocument(int64 inOffset, uint32 inSize);
-
-	char*			buffer;
-	uint32			buffer_size, buffer_offset, data_offset;
-	int32			bit_offset;
-	int64			bit_cnt;
-	bool			eof;
-	
-	char*			word_table;
-	uint32			word_six[32];
-	uint32			word_firstcode[32];
-	uint32*			word_symbol_table;
-	char*			word_char_table;
-	uint32			word_char_six[32];
-	uint32			word_char_firstcode[32];
-
-	char*			nonword_table;
-	uint32			nonword_six[32];
-	uint32			nonword_firstcode[32];
-	uint32*			nonword_symbol_table;
-	char*			nonword_char_table;
-	uint32			nonword_char_six[32];
-	uint32			nonword_char_firstcode[32];
-	
-	uint32			offset;
-};
-
-CHuffWordDecompressorImp::CHuffWordDecompressorImp(HStreamBase& inFile,
-		int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize, uint32 inMetaDataCount)
-	: CBasicDecompressorImp(inFile, kHuffWordCompressed, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount)
-	, offset(0)
-{
-}
-
-void CHuffWordDecompressorImp::Init()
-{
-	int64 startOffset = fFile->Tell();
-	
-	HSwapStream<net_swapper> data(*fFile);
-
-	// setup decompression tables
-	uint32 n, i, s, l;
-
-	data >> n;
-	for (i = 0; i < 32; ++i)	data >> word_firstcode[i];
-	for (i = 0; i < 32; ++i)	data >> word_six[i];
-
-	word_symbol_table = new uint32[n];
-	data >> s;
-	word_table = new char[s];
-	fFile->Read(word_table, s);
-	
-	char* p = word_table;
-	char* m = p + s;
-	
-	word_symbol_table[0] = 0;
-	for (i = 1; i < n; ++i)
-	{
-		l = strlen(p) + 1;
-		word_symbol_table[i] = word_symbol_table[i - 1] + l;
-		p += l;
-		if (p > m)
-			break;
-	}
-	
-	data >> n;
-	for (i = 0; i < 32; ++i)	data >> word_char_firstcode[i];
-	for (i = 0; i < 32; ++i)	data >> word_char_six[i];
-	word_char_table = new char[n];
-	if (n > 0) fFile->Read(word_char_table, n);
-
-//	fFile->Seek(header.nonword_lexicon, eSeekBeg);
-	data >> n;
-	for (i = 0; i < 32; ++i)	data >> nonword_firstcode[i];
-	for (i = 0; i < 32; ++i)	data >> nonword_six[i];
-	nonword_symbol_table = new uint32[n];
-	data >> s;
-	nonword_table = new char[s];
-	fFile->Read(nonword_table, s);
-
-	p = nonword_table;
-	m = p + s;
-	
-	nonword_symbol_table[0] = 0;
-	for (i = 1; i < n; ++i)
-	{
-		l = strlen(p) + 1;
-		nonword_symbol_table[i] = nonword_symbol_table[i - 1] + l;
-		p += l;
-		if (p > m)
-			break;
-	}
-
-	data >> n;
-	for (i = 0; i < 32; ++i)	data >> nonword_char_firstcode[i];
-	for (i = 0; i < 32; ++i)	data >> nonword_char_six[i];
-	nonword_char_table = new char[n];
-	if (n > 0) fFile->Read(nonword_char_table, n);
-	
-	buffer = NULL;
-	offset = fFile->Tell() - startOffset;
-}
-
-CHuffWordDecompressorImp::~CHuffWordDecompressorImp()
-{
-	delete[] word_table;
-	delete[] word_char_table;
-	delete[] nonword_table;
-	delete[] nonword_char_table;
-}
-
-string CHuffWordDecompressorImp::GetDocument(int64 inOffset, uint32 inSize)
-{
-	inOffset += offset;
-	
-	string result;
-
-	CIBitStream bits(*fFile, inOffset, inSize);
-	
-	bool word = true;
-	uint32 v;
-	uint32 l;
-	uint32 ix;
-	const char* s;
-	
-	while (not bits.eof())
-	{
-		v = bits.next_bit() != 0;
-		l = 1;
-		
-		if (word)
-		{
-			while (v < word_firstcode[l])
-			{
-				v = (v << 1) + bits.next_bit();
-				++l;
-			}
-			
-			ix = word_symbol_table[word_six[l] + v - word_firstcode[l]];
-			s = word_table + ix;
-			
-			if (strcmp(s, "\x1b"))
-			{
-				result += s;
-			}
-			else
-			{
-				while (not bits.eof())
-				{
-					v = bits.next_bit() != 0;
-					l = 1;
-					
-					while (v < word_char_firstcode[l])
-					{
-						v = (v << 1) + bits.next_bit();
-						++l;
-					}
-					
-					char c = word_char_table[word_char_six[l] + v - word_char_firstcode[l]];
-					
-					if (c == 0)
-						break;
-					
-					result += c;
-				}
-			}
-		}
-		else
-		{
-			while (v < nonword_firstcode[l])
-			{
-				v = (v << 1) + bits.next_bit();
-				++l;
-			}
-
-			ix = nonword_symbol_table[nonword_six[l] + v - nonword_firstcode[l]];
-			s = nonword_table + ix;
-			
-			if (strcmp(s, "\x1b"))
-			{
-				result += s;
-			}
-			else
-			{
-				while (not bits.eof())
-				{
-					v = bits.next_bit() != 0;
-					l = 1;
-					
-					while (v < nonword_char_firstcode[l])
-					{
-						v = (v << 1) + bits.next_bit();
-						++l;
-					}
-					
-					char c = nonword_char_table[nonword_char_six[l] + v - nonword_char_firstcode[l]];
-					
-					if (c == 0)
-						break;
-					
-					result += c;
-				}
-			}
-		}
-
-		word = not word;
-	}
 	
 	return result;
 }
@@ -779,9 +528,9 @@ CDecompressorImp* CDecompressorImp::Create(const HUrl& inDb, HStreamBase& inFile
 	
 	switch (inKind)
 	{
-		case kHuffWordCompressed:
-			result = new CHuffWordDecompressorImp(inFile, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount);
-			break;
+//		case kHuffWordCompressed:
+//			result = new CHuffWordDecompressorImp(inFile, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount);
+//			break;
 		
 		case kZLibCompressed:
 			result = new CZLibDecompressorImp(inFile, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount);

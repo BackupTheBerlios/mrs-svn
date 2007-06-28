@@ -53,6 +53,7 @@
 #include "HError.h"
 #include "HByteSwap.h"
 #include "HMutex.h"
+#include "HUtils.h"
 
 #ifdef P_DEBUG
 #include <iostream>
@@ -87,6 +88,29 @@ int32 HStreamBase::PRead(void* inBuffer, uint32 inSize, int64 inOffset)
 	int32 result = Read(inBuffer, inSize);
 	Seek(cur_offset, SEEK_SET);
 	return result;
+}
+
+void HStreamBase::CopyTo(HStreamBase& inDest, uint32 inSize, int64 inOffset)
+{
+	Seek(inOffset, SEEK_SET);
+	
+	const int kBufSize = 64 * 4096;
+	HAutoBuf<char> b(new char[kBufSize]);
+
+	while (inSize > 0)
+	{
+		uint32 n = kBufSize;
+		if (n > inSize)
+			n = inSize;
+
+		if (Read(b.get(), n) != n)
+			THROW(("I/O error in copy"));
+
+		if (inDest.Write(b.get(), n) != n)
+			THROW(("I/O error in copy"));
+
+		inSize -= n;
+	}
 }
 
 int64 HStreamBase::Tell() const
@@ -290,7 +314,8 @@ HStreamBase& HStreamBase::operator<< (string s)
 
 #pragma mark memFullErr
 
-#define kMemBlockSize 512
+#define kMemBlockSize			512
+#define kMemBlockExtendSize		10240
 
 HMemoryStream::HMemoryStream()
 {
@@ -351,7 +376,7 @@ int32 HMemoryStream::Write(const void* inBuffer, uint32 inCount)
 	if (static_cast<unsigned int> (fPointer + inCount) > fPhysicalSize)
 	{
 		uint32 newSize = static_cast<uint32>(
-			kMemBlockSize * ((fPointer + inCount) / kMemBlockSize + 1));
+			kMemBlockExtendSize * ((fPointer + inCount) / kMemBlockExtendSize + 2));
 		
 		char* t = new char[newSize];
 		memcpy (t, fData, fPhysicalSize);
@@ -806,6 +831,7 @@ HStreamView::HStreamView(HStreamBase& inMain, int64 inOffset,
 	, fSize(inSize)
 	, fPointer(0)
 {
+	SetSwapBytes(inMain.SwapsBytes());
 }
 
 int32 HStreamView::Write(const void* inBuffer, uint32 inSize)
@@ -850,61 +876,3 @@ int64 HStreamView::Seek(int64 inOffset, int inMode)
 	return fPointer;
 }
 
-HStringStream::HStringStream(std::string inData)
-	: fData(inData)
-	, fOffset(0)
-{
-}
-
-HStringStream::~HStringStream()
-{
-}
-
-int32 HStringStream::Write(const void* /*inBuffer*/, uint32 /*inSize*/)
-{
-	assert(false);
-	return -1;
-}
-
-int32 HStringStream::Read(void* inBuffer, uint32 inSize)
-{
-	int result = -1;
-	
-	if (fOffset < fData.length())
-	{
-		uint32 n = fData.length() - fOffset;
-		if (n > inSize)
-			n = inSize;
-		
-		if (n > 0)
-			fData.copy(reinterpret_cast<char*>(inBuffer), n, fOffset);
-		
-		result = n;
-		fOffset += n;
-	}
-	
-	return result;
-}
-
-int64 HStringStream::Seek(int64 inOffset, int inMode)
-{
-	switch (inMode)
-	{
-		case SEEK_SET:
-			fOffset = inOffset;
-			break;
-		case SEEK_END:
-			fOffset = fData.length() + inOffset;
-			break;
-		case SEEK_CUR:
-			fOffset += inOffset;
-			break;
-		default:
-			assert(false);
-	}
-	
-	if (fOffset > fData.length())
-		fOffset = fData.length();
-	
-	return fOffset;
-}

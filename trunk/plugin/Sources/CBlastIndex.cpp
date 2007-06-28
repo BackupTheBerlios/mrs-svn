@@ -251,30 +251,13 @@ void CBlastIndex::Finish(HStreamBase& inFile, int64& outDataOffset, int64& outDa
 	int64& outTableOffset, int64& outTableSize, uint32& outKind, uint32& outCount,
 	int64& outSequenceLength, uint32& outSequenceCount)
 {
-	const uint32 kCopyBufferSize = 4 * 1024 * 1024;
-	
 	outKind = kBlastIndexProtein;
 	outCount = fCount;
 	
 	outDataOffset = inFile.Tell();
 	outDataSize = fBlastData->Tell();
 
-	HAutoBuf<char> b(new char[kCopyBufferSize]);
-
-	int64 size = outDataSize;
-	fBlastData->Seek(0, SEEK_SET);
-	
-	while (size > 0)
-	{
-		int64 n = size;
-		if (n > kCopyBufferSize)
-			n = kCopyBufferSize;
-		
-		fBlastData->Read(b.get(), n);
-		inFile.Write(b.get(), n);
-		
-		size -= n;
-	}
+	fBlastData->CopyTo(inFile, outDataSize, 0);
 	
 	outTableOffset = inFile.Tell();
 	CCArray<int64> arr(*fBlastOffsets, outDataSize);

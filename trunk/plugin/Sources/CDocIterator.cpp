@@ -383,7 +383,7 @@ bool CDocIntersectionIterator::Next(uint32& ioValue, bool inSkip)
 				next = (*i).fValue - 1;
 		}
 		
-		if (result /*and inSkip*/ and next < ioValue)
+		if (result and inSkip and next < ioValue)
 			result = false;
 		else
 			ioValue = next;

@@ -239,7 +239,7 @@ sub parse
 				if ($text =~ m/(\d{2})-([A-Z]{3})-(\d{4})/) {
 					my $date = sprintf('%4.4d-%2.2d-%2.2d', $3, $months{$2}, $1);
 					
-					eval { $m->IndexDate($fld, $date); };
+					eval { $m->IndexDate('date', $date); };
 					
 					warn $@ if $@;
 				}

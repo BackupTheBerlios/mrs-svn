@@ -1,7 +1,7 @@
 #!perl
 
 use warnings;
-use SOAP::Lite;
+use SOAP::Lite;# +trace => [qw(debug)];
 use Data::Dumper;
 
 my $ns_url = 'http://mrs.cmbi.ru.nl/mrsws-blast';
@@ -61,10 +61,18 @@ while (1)
 	sleep 1;
 }
 
-$result = &soapCall(SOAP::Data->name("$ns:BlastJobResult")->attr({"xmlns:$ns" => $ns_url})
+#$result = &soapCall(SOAP::Data->name("$ns:BlastJobResult")->attr({"xmlns:$ns" => $ns_url})
+#    => (
+#        SOAP::Data->name("$ns:job-id")    ->type('xsd:string' => $job_id)
+#    ));
+
+my @r = &soapCall(SOAP::Data->name("$ns:BlastJobResult")->attr({"xmlns:$ns" => $ns_url})
     => (
         SOAP::Data->name("$ns:job-id")    ->type('xsd:string' => $job_id)
     ));
+
+
+print Dumper(\@r);
 
 die "no hits found" unless defined $result->{id};
 print $result->{id}, "\n";

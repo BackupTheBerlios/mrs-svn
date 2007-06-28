@@ -56,7 +56,7 @@ endif
 
 SO_EXT		= .so
 LIBNAME		= libmrs
-VERSION		= 3.0.1
+VERSION		= 4.0.0
 # DEBUG should be either 1 or 0
 DEBUG		= 0
 DEFINES		= CPU_$(CPU) MINI_H_LIB
@@ -66,6 +66,7 @@ INCPATHS	= ./Lib/Includes/ ./Lib/X/ ./Lib/
 SYSINCPATHS	= /usr/include $(BOOST)
 WARNINGS	=  -Wall -Wno-multichar -Wno-unknown-pragmas -Wno-long-long -Wno-sign-compare
 CFLAGS		= -fsigned-char -g -ffor-scope
+CFLAGS		+= -fmessage-length=80 -fdiagnostics-show-location=every-line
 LDFLAGS		= -fdata-sections -g # -ffunction-sections 
 OPT			+= -fstrict-aliasing
 
@@ -361,17 +362,19 @@ $(OBJDIR):
 
 $(OBJDIR)/%_$(TARGET).o: Sources/%_$(TARGET).cpp
 	@ echo "=> "$(@F)
-	$(CC) -c $< -o $@ $(INCLUDES) $(CFLAGS) -O0
+	$(CC) -c $< -o $@ $(INCLUDES) -MD $(CFLAGS) -O0
 
 $(OBJDIR)/%.o: %.cpp
 	@ echo "=> "$(@F)
-	@ $(CC) -c $< -o $@ $(INCLUDES) $(CFLAGS)
+	@ $(CC) -c $< -o $@ $(INCLUDES) -MD $(CFLAGS)
 
 $(OBJDIR)/%.o: %.c
 	@ echo "=> "$(@F)
-	@ $(CC) -c $< -o $@ $(INCLUDES) $(CFLAGS)
+	@ $(CC) -c $< -o $@ $(INCLUDES) -MD $(CFLAGS)
 
 include $(OBJS:%.o=%.d)
+
+${OBJS:.o=.d}:
 
 ifeq ($(SWIG_VERSION),1.3.27)
 
@@ -391,16 +394,6 @@ Sources/MRS_java.cpp: Sources/MRSInterface.h Sources/MRS_java.i
 	@ echo !!! WARNING !!! Not rebuilding required $@ since swig version is not 1.3.27
 
 endif
-
-$(OBJDIR)/%.d:%.cpp
-	@ test -d $(OBJDIR) || mkdir $(OBJDIR)
-	@ echo "-> "$(@F)
-	@ $(SHELL) -ec '$(CC) $(DEFS) -M $(INCLUDES) $< | sed '\''s/\(.*\.o\)[ :]*/$(OBJDIR)\/\1 $(@F): /g'\'' > $@'
-
-$(OBJDIR)/%.d:%.c
-	@ test -d $(OBJDIR) || mkdir $(OBJDIR)
-	@ echo "-> "$(@F)
-	@ $(SHELL) -ec '$(CC) $(DEFS) -M $(INCLUDES) $< | sed '\''s/\(.*\.o\)[ :]*/$(OBJDIR)\/\1 $(@F): /g'\'' > $@'
 
 FORCE:
 

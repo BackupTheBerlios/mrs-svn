@@ -47,7 +47,6 @@
 #include "HFile.h"
 #include "HDefines.h"
 #include "HUtils.h"
-//#include "HStrings.h"
 #include "HError.h"
 
 using namespace std;

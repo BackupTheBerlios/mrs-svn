@@ -54,6 +54,7 @@ INCPATHS	= ../../plugin/Lib/Includes/ ../../plugin/Lib/X/ ../../plugin/Lib/ ../.
 SYSINCPATHS	= /usr/include
 WARNINGS	=  -Wall -Wno-multichar -Wno-unknown-pragmas -Wno-long-long -Wno-sign-compare
 CFLAGS		= -fsigned-char -g -ffor-scope
+CFLAGS		+= -fmessage-length=80 -fdiagnostics-show-location=every-line
 LDFLAGS		= -fdata-sections -g # -ffunction-sections
 CC			= c++
 OPT			+= -fstrict-aliasing
@@ -174,7 +175,7 @@ INCLUDES += -iquote
 else
 INCLUDES += -I-
 endif
-INCLUDES += $(foreach path, $(SYSINCPATHS), $(addprefix -I, $(path)))
+INCLUDES += $(foreach path, $(SYSINCPATHS) $(BOOST), $(addprefix -I, $(path)))
 
 # add the -L prefix to all library paths to search
 LINK_PATHS = $(foreach path, $(LIBPATHS), $(addprefix -L, $(path)))
@@ -201,7 +202,7 @@ echo_flags:
 	 @ echo Compiler flags used: $(CFLAGS)
 	 @ echo Include paths: $(INCLUDES)
 
-$(TARGET): echo_flags $(OBJS)
+$(TARGET): echo_flags $(OBJDIR) $(OBJS)
 	$(MAKE) DEBUG=$(DEBUG) -C ../../plugin $(LIBNAME)
 	@ echo "Linking "$(@F)
 	$(CC) -o $(TARGET) ../../plugin/$(LIBNAME) $(OBJS) $(LDFLAGS)
@@ -227,20 +228,17 @@ $(OBJDIR):
 
 $(OBJDIR)/%.o: %.cpp
 	@ echo "=> "$(@F)
-	@ $(CC) -c $< -o $@ $(INCLUDES) $(CFLAGS)
+	@ $(CC) -c $< -o $@ $(INCLUDES) -MD $(CFLAGS)
 
 $(OBJDIR)/%.o: %.c
 	@ echo "=> "$(@F)
-	@ $(CC) -c $< -o $@ $(INCLUDES) $(CFLAGS)
+	@ $(CC) -c $< -o $@ $(INCLUDES) -MD $(CFLAGS)
 
 include $(OBJS:%.o=%.d)
 
-soapC.cpp soapServer.cpp: Sources/mrsws-clustal.h
-	$(SOAPCPP2) -d Sources/ Sources/mrsws-clustal.h
+${OBJS:.o=.d}:
 
-$(OBJDIR)/%.d:%.cpp
-	@ test -d $(OBJDIR) || mkdir $(OBJDIR)
-	@ echo "-> "$(@F)
-	@ $(SHELL) -ec '$(CC) $(DEFS) -M $(INCLUDES) $< | sed '\''s/\(.*\.o\)[ :]*/$(OBJDIR)\/\1 $(@F): /g'\'' > $@'
+soapC.cpp soapServer.cpp soapH.h: Sources/mrsws-clustal.h
+	$(SOAPCPP2) -d Sources/ Sources/mrsws-clustal.h
 
 FORCE:

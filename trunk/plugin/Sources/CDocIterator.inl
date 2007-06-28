@@ -100,8 +100,11 @@ CreateDbDocIterator(uint32 inKind, HStreamBase& inData, int64 inOffset, int64 in
 		case kAC_GolombCode:
 			return new CDbDocIteratorGC(inData, inOffset, inMax, inDelta);
 
-		case kAC_SelectorCode:
-			return new CDbDocIteratorSC(inData, inOffset, inMax, inDelta);
+		case kAC_SelectorCodeV1:
+			return new CDbDocIteratorSC1(inData, inOffset, inMax, inDelta);
+		
+		case kAC_SelectorCodeV2:
+			return new CDbDocIteratorSC2(inData, inOffset, inMax, inDelta);
 		
 		default:
 			THROW(("Unsupported array compression kind: %4.4s", &inKind));
@@ -117,8 +120,11 @@ CreateDbDocWeightIterator(uint32 inKind, HStreamBase& inData, int64 inOffset, in
 		case kAC_GolombCode:
 			return new CDbDocWeightIteratorGC(inData, inOffset, inMax, inDelta);
 
-		case kAC_SelectorCode:
-			return new CDbDocWeightIteratorSC(inData, inOffset, inMax, inDelta);
+		case kAC_SelectorCodeV1:
+			return new CDbDocWeightIteratorSC1(inData, inOffset, inMax, inDelta);
+		
+		case kAC_SelectorCodeV2:
+			return new CDbDocWeightIteratorSC2(inData, inOffset, inMax, inDelta);
 		
 		default:
 			THROW(("Unsupported array compression kind: %4.4s", &inKind));

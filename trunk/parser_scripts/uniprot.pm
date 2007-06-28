@@ -182,6 +182,21 @@ sub parse
 	my ($id, $doc, $title, $species, $m);
 	
 	$m = $self->{mrs};
+
+	my %months = (
+		'JAN'	=> 1,
+		'FEB'	=> 2,
+		'MAR'	=> 3,
+		'APR'	=> 4,
+		'MAY'	=> 5,
+		'JUN'	=> 6,
+		'JUL'	=> 7,
+		'AUG'	=> 8,
+		'SEP'	=> 9,
+		'OCT'	=> 10,
+		'NOV'	=> 11,
+		'DEC'	=> 12
+	);
 	
 	while (my $line = <IN>)
 	{
@@ -271,6 +286,21 @@ sub parse
 				$species .= $value;
 				
 				$m->IndexTextAndNumbers('os', $value);
+			}
+			elsif ($fld eq 'DT')
+			{
+				if ($value =~ m/(\d{2})-([A-Z]{3})-(\d{4})/) {
+					my $date = sprintf('%4.4d-%2.2d-%2.2d', $3, $months{$2}, $1);
+					
+					eval { $m->IndexDate('dt', $date); };
+					
+					warn $@ if $@;
+				}
+			}
+			elsif ($fld eq 'AC' or $fld eq 'OH' or $fld eq 'OX' or $fld eq 'OC' or $fld eq 'DR')
+			{
+#				$m->IndexTextAndNumbers(lc($fld), $value, 0);
+				$m->IndexTextAndNumbers(lc($fld), $value);
 			}
 			elsif ($fld ne 'XX')
 			{

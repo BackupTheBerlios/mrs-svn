@@ -728,10 +728,6 @@ void CIndexPage<DD>::Copy(CIndexPage& inFromPage, int32 inFromIndex, int32 inToI
 template<typename DD>
 void CIndexPage<DD>::Read()
 {
-//#if P_DEBUG
-//int64 offset = fBaseOffset + DD::PageNrToAddr(fOffset);
-//cerr << "reading page from offset: " << offset << " (base offset = " << fBaseOffset << ", hex: " << hex << offset << dec << ')' << endl;
-//#endif
 	uint32 read = fFile->PRead(&fData, kPageSize, fBaseOffset + DD::PageNrToAddr(fOffset));
 	assert(read == kPageSize);
 	if (read != kPageSize)
@@ -742,24 +738,6 @@ void CIndexPage<DD>::Read()
 #if P_LITTLEENDIAN
 	fData.SwapBytesNToH();
 #endif
-
-//#if P_DEBUG
-//	cout << "dumping page " << fOffset
-//		 << ", parent=" << GetParent()
-//		 << ", p0=" << GetP0()
-//		 << ", n=" << fData.n << endl;
-//
-//	for (uint32 i = 0; i < fData.n; ++i)
-//	{
-//		string k;
-//		int64 v;
-//		uint32 c;
-//		
-//		GetData(i, k, v, c);
-//		
-//		cout << "ix: " << i << ", p: " << c << ", key: " << k << endl;
-//	}
-//#endif
 }
 
 template<typename DD>
@@ -769,9 +747,6 @@ void CIndexPage<DD>::Write()
 		fData.SwapBytesHToN();
 #endif
 
-//int64 offset = fBaseOffset + DD::PageNrToAddr(fOffset);
-//cerr << "writing page to offset: " << offset << " base offset = " << fBaseOffset << endl;
-//	
 	uint32 written = fFile->PWrite(&fData, kPageSize, fBaseOffset + DD::PageNrToAddr(fOffset));
 	assert(written == kPageSize);
 	if (written != kPageSize)
@@ -1579,10 +1554,10 @@ CIndex* CIndex::CreateFromIterator(uint32 inIndexKind, CIndexVersion inVersion, 
 	
 	inFile.Seek(0, SEEK_END);
 	
-#if P_DEBUG
-	result->fImpl->Test(*result);
-//	result->Dump();
-#endif
+//#if P_DEBUG
+//	result->fImpl->Test(*result);
+////	result->Dump();
+//#endif
 	
 	return result.release();
 }
