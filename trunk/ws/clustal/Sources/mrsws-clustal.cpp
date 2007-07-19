@@ -13,6 +13,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <getopt.h>
+#include <pwd.h>
 
 #include "uuid/uuid.h"
 
@@ -376,7 +377,7 @@ void usage()
 	cout << "    -a   address to bind to (default localhost)" << endl;
 	cout << "    -p   port number to bind to (default 8082)" << endl;
 	cout << "    -i   process command from input file and exit" << endl;
-	cout << "    -b   detach (daemon)" << endl;
+	cout << "    -f   stay in foreground, do not daemonize" << endl;
 	cout << "    -v   be verbose" << endl;
 	cout << endl;
 	exit(1);
@@ -385,11 +386,11 @@ void usage()
 int main(int argc, const char* argv[])
 {
 	int c;
-	string input_file, address = "localhost", config_file;
+	string input_file, address = "localhost", config_file, user;
 	short port = 8083;
-	bool daemon = false;
+	bool daemon = true;
 	
-	while ((c = getopt(argc, const_cast<char**>(argv), "d:s:a:p:i:c:vbt:")) != -1)
+	while ((c = getopt(argc, const_cast<char**>(argv), "d:s:a:p:i:c:vft:")) != -1)
 	{
 		switch (c)
 		{
@@ -413,8 +414,8 @@ int main(int argc, const char* argv[])
 				++gVerbose;
 				break;
 			
-			case 'b':
-				daemon = true;
+			case 'f':
+				daemon = false;
 				break;
 			
 			default:
@@ -430,6 +431,9 @@ int main(int argc, const char* argv[])
 		gConfig = new WConfigFile(gConfigFile.string().c_str());
 		
 		string s;
+
+		// user ID to use
+		gConfig->GetSetting("/mrs-config/user", user);
 		
 		if (gConfig->GetSetting("/mrs-config/clustal-ws/logfile", s))
 			gLogFile = fs::system_complete(fs::path(s, fs::native));
@@ -486,6 +490,31 @@ int main(int argc, const char* argv[])
 				cout << "Started daemon with process id: " << pid << endl;
 				_exit(0);
 			}
+			
+			if (chdir("/") != 0)
+			{
+				cerr << "Cannot chdir to /: " << strerror(errno) << endl;
+				exit(1);
+			}
+
+			if (setsid() < 0)
+			{
+				cerr << "Failed to create process group: " << strerror(errno) << endl;
+				exit(1);
+			}
+
+			if (user.length() > 0)
+			{
+				struct passwd* pw = getpwnam(user.c_str());
+				if (pw == NULL or setuid(pw->pw_uid) < 0)
+				{
+					cerr << "Failed to set uid to " << user << ": " << strerror(errno) << endl;
+					exit(1);
+				}
+			}
+			
+			close(0);
+			open("/dev/null", O_RDONLY);
 		}
 		
 		struct sigaction sa;

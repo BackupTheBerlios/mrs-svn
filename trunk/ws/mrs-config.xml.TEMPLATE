@@ -3,6 +3,10 @@
 	<!-- generic, paths and stuff -->
 	<datadir>__DATA_DIR__/mrs</datadir>
 	<scriptdir>__PARSER_DIR__</scriptdir>
+
+	<!-- user name to run as when run as daemon
+	<user>dba</user>
+	-->
 	
 	<!-- service specific settings -->
 	<search-ws>

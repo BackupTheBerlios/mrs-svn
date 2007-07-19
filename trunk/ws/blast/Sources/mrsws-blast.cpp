@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include <getopt.h>
+#include <pwd.h>
 
 #include "uuid/uuid.h"
 
@@ -41,10 +42,8 @@ using namespace std;
 namespace fs = boost::filesystem;
 
 const double TIME_OUT_DATA = 3600;	// after an hour the data is purged from the cache
-const unsigned long LONG_QUERY = 1850;
-
 			// 95% of the sequences in SwissProt have a sequence length less than 1850
-const unsigned long kShortLongQueueCutOff = 1850;
+const unsigned long LONG_QUERY = 1850;
 
 // default values for the directories used by mrsws, these can also be set from the Makefile
 
@@ -349,9 +348,7 @@ class CBlastJob : public CJob
 
 	static CBlastJob*	sHead;
 	static HMutex		sLock;
-//	static CJobQueue	sQueue;
-	static CJobQueue	sShortQueue;
-	static CJobQueue	sLongQueue;
+	static CJobQueue*	sQueue;
 
 						CBlastJob(
 							const CBlastJobParameters& inParams);
@@ -378,9 +375,7 @@ class CBlastJob : public CJob
 
 HMutex		CBlastJob::sLock;
 CBlastJob*	CBlastJob::sHead = NULL;
-//CJobQueue	CBlastJob::sQueue;
-CJobQueue	CBlastJob::sShortQueue;
-CJobQueue	CBlastJob::sLongQueue;
+CJobQueue*	CBlastJob::sQueue = NULL;
 
 CBlastJob::CBlastJob(const CBlastJobParameters& inParams)
 	: mStatus(unknown)
@@ -428,11 +423,14 @@ string CBlastJob::Create(
 
 		job->mStatus = queued;
 
-//		sQueue.Submit(job);
-		if (inParams.mQuery.length() >= LONG_QUERY)
-			sLongQueue.Submit(job);
-		else
-			sShortQueue.Submit(job);
+		if (sQueue == NULL)
+			sQueue = new CJobQueue;
+
+		sQueue->Submit(job);
+//		if (inParams.mQuery.length() >= LONG_QUERY)
+//			sLongQueue->Submit(job);
+//		else
+//			sShortQueue->Submit(job);
 	}
 	
 	return job->ID();
@@ -851,7 +849,7 @@ void usage()
 	cout << "    -a   address to bind to (default localhost)" << endl;
 	cout << "    -p   port number to bind to (default 8082)" << endl;
 	cout << "    -i   process command from input file and exit" << endl;
-	cout << "    -b   detach (daemon)" << endl;
+	cout << "    -f   stay in foreground, do not daemonize" << endl;
 	cout << "    -t   nr of threads" << endl;
 	cout << "    -v   be verbose" << endl;
 	cout << endl;
@@ -861,11 +859,11 @@ void usage()
 int main(int argc, const char* argv[])
 {
 	int c;
-	string input_file, address = "localhost", config_file;
+	string input_file, address = "localhost", config_file, user;
 	short port = 8082;
-	bool daemon = false;
+	bool daemon = true;
 	
-	while ((c = getopt(argc, const_cast<char**>(argv), "d:s:a:p:i:c:vbt:")) != -1)
+	while ((c = getopt(argc, const_cast<char**>(argv), "d:s:a:p:i:c:vft:")) != -1)
 	{
 		switch (c)
 		{
@@ -897,8 +895,8 @@ int main(int argc, const char* argv[])
 				++VERBOSE;
 				break;
 			
-			case 'b':
-				daemon = true;
+			case 'f':
+				daemon = false;
 				break;
 			
 			case 't':
@@ -918,6 +916,9 @@ int main(int argc, const char* argv[])
 		gConfig = new WConfigFile(gConfigFile.string().c_str());
 		
 		string s;
+
+		// user ID to use
+		gConfig->GetSetting("/mrs-config/user", user);
 		
 		if (gConfig->GetSetting("/mrs-config/datadir", s))
 			gDataDir = fs::system_complete(fs::path(s, fs::native));
@@ -996,6 +997,31 @@ int main(int argc, const char* argv[])
 				cout << "Started daemon with process id: " << pid << endl;
 				_exit(0);
 			}
+			
+			if (chdir("/") != 0)
+			{
+				cerr << "Cannot chdir to /: " << strerror(errno) << endl;
+				exit(1);
+			}
+
+			if (setsid() < 0)
+			{
+				cerr << "Failed to create process group: " << strerror(errno) << endl;
+				exit(1);
+			}
+			
+			if (user.length() > 0)
+			{
+				struct passwd* pw = getpwnam(user.c_str());
+				if (pw == NULL or setuid(pw->pw_uid) < 0)
+				{
+					cerr << "Failed to set uid to " << user << ": " << strerror(errno) << endl;
+					exit(1);
+				}
+			}
+			
+			close(0);
+			open("/dev/null", O_RDONLY);
 		}
 		
 		struct sigaction sa;

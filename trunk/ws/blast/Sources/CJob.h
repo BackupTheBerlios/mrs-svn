@@ -7,7 +7,7 @@
 #define CJOB_H
 
 #include <vector>
-#include <HMutex.h>
+#include "HMutex.h"
 #include "CThread.h"
 
 class CJob
