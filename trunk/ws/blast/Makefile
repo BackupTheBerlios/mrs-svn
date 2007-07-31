@@ -204,7 +204,7 @@ echo_flags:
 	 @ echo Compiler flags used: $(CFLAGS)
 	 @ echo Include paths: $(INCLUDES)
 
-$(TARGET): echo_flags $(OBJDIR) $(OBJS)
+$(TARGET): echo_flags $(OBJDIR) Sources/soapH.h $(OBJS)
 	$(MAKE) DEBUG=$(DEBUG) -C ../../plugin $(LIBNAME)
 	@ echo "Linking "$(@F)
 	$(CC) -o $(TARGET) ../../plugin/$(LIBNAME) $(OBJS) $(LDFLAGS)

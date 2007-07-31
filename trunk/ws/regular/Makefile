@@ -239,7 +239,7 @@ include $(OBJS:%.o=%.d)
 
 ${OBJS:.o=.d}:
 
-soapC.cpp soapServer.cpp soapH.h: Sources/mrsws.h
+Sources/soapC.cpp Sources/soapServer.cpp Sources/soapH.h: Sources/mrsws.h
 	$(SOAPCPP2) -d Sources/ Sources/mrsws.h
 
 FORCE:

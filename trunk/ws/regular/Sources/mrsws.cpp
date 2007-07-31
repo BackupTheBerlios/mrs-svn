@@ -99,7 +99,6 @@ class WSDatabankTable
 	
   private:
 	DBTable				mDBs;
-	set<string>			mIgnore;
 };
 
 WSDatabankTable& WSDatabankTable::Instance()
@@ -128,7 +127,6 @@ bool WSDatabankTable::Ignore(const string& inCode)
 void WSDatabankTable::ReloadDbs()
 {
 	mDBs.clear();
-	mIgnore.clear();
 	
 	cout << endl;
 	
@@ -149,15 +147,13 @@ void WSDatabankTable::ReloadDbs()
 				mDBs[dbi->name].mDB = db;
 				mDBs[dbi->name].fasta = dbi->fasta;
 				mDBs[dbi->name].blast = db->ContainsBlastIndex() or dbi->blast;
+				mDBs[dbi->name].ignore = dbi->ignore_in_all;
 			}
 			catch (exception& e)
 			{
 				cout << " failed" << endl;
 				continue;
 			}
-			
-			if (dbi->ignore_in_all)
-				mIgnore.insert(dbi->name);
 			
 			cout << " done" << endl;
 		}
