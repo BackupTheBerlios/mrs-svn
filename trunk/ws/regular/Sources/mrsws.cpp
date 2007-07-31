@@ -73,7 +73,15 @@ typedef boost::shared_ptr<MDatabank>	MDatabankPtr;
 class WSDatabankTable
 {
   public:
-	typedef map<string,MDatabankPtr>	DBTable;
+	struct WSDB
+	{
+		MDatabankPtr	mDB;
+		bool			ignore;
+		bool			fasta;
+		bool			blast;
+	};
+
+	typedef map<string,WSDB>			DBTable;
 	typedef DBTable::const_iterator		iterator;
 
 	static WSDatabankTable&	Instance();
@@ -81,7 +89,10 @@ class WSDatabankTable
 	MDatabankPtr		operator[](const string& inCode);
 	
 	void				ReloadDbs();
-	bool				Ignore(const string& inDb)		{ return mIgnore.count(inDb) > 0; }
+
+	bool				Ignore(const string& inDb);
+	bool				Fasta(const string& inDb);
+	bool				Blast(const string& inDb);
 	
 	iterator			begin() const					{ return mDBs.begin(); }
 	iterator			end() const						{ return mDBs.end(); }
@@ -99,14 +110,19 @@ WSDatabankTable& WSDatabankTable::Instance()
 
 MDatabankPtr WSDatabankTable::operator[](const string& inCode)
 {
-	if (mDBs.find(inCode) == mDBs.end() or not mDBs[inCode]->IsUpToDate())
+	if (mDBs.find(inCode) == mDBs.end() or not mDBs[inCode].mDB->IsUpToDate())
 	{
 		MDatabankPtr db(new MDatabank(inCode));
 		db->PrefetchDocWeights("__ALL_TEXT__");
-		mDBs[inCode] = db;
+		mDBs[inCode].mDB = db;
 	}
 	
-	return mDBs[inCode];
+	return mDBs[inCode].mDB;
+}
+
+bool WSDatabankTable::Ignore(const string& inCode)
+{
+	return mDBs.find(inCode) == mDBs.end() or mDBs[inCode].ignore;
 }
 
 void WSDatabankTable::ReloadDbs()
@@ -130,7 +146,9 @@ void WSDatabankTable::ReloadDbs()
 			{
 				MDatabankPtr db(new MDatabank(f.string()));
 				db->PrefetchDocWeights("__ALL_TEXT__");
-				mDBs[dbi->name] = db;
+				mDBs[dbi->name].mDB = db;
+				mDBs[dbi->name].fasta = dbi->fasta;
+				mDBs[dbi->name].blast = db->ContainsBlastIndex() or dbi->blast;
 			}
 			catch (exception& e)
 			{
@@ -165,7 +183,11 @@ void WSDatabankTable::ReloadDbs()
 			{
 				MDatabankPtr db(new MDatabank(fi->string()));
 				db->PrefetchDocWeights("__ALL_TEXT__");
-				mDBs[name] = db;
+				mDBs[name].mDB = db;
+				mDBs[name].blast = db->ContainsBlastIndex();
+				mDBs[name].fasta = false;
+//				mDBs[dbi->name].fasta = dbi->fasta;
+//				mDBs[dbi->name].blast = dbi->blast;
 			}
 			catch (exception& e)
 			{
@@ -258,7 +280,7 @@ ns__GetDatabankInfo(
 				try
 				{
 					ns__DatabankInfo inf;
-					GetDatabankInfo(dbi->second, inf);
+					GetDatabankInfo(dbi->second.mDB, inf);
 					info.push_back(inf);
 				}
 				catch (...)
@@ -384,8 +406,22 @@ ns__GetEntry(
 			case fasta:
 			{
 				string sequence;
-				if (not mrsDb->Sequence(id, 0, sequence))
-					THROW(("Sequence for entry %s not found in databank %s", id.c_str(), db.c_str()));
+				
+				if (mrsDb->ContainsBlastIndex())
+				{
+					if (not mrsDb->Sequence(id, 0, sequence))
+						THROW(("Sequence for entry %s not found in databank %s", id.c_str(), db.c_str()));
+				}
+				else
+				{
+					if (not mrsDb->Get(id, sequence))
+						THROW(("Entry %s not found in databank %s", id.c_str(), db.c_str()));
+						
+					sequence = Format(mrsDb, "sequence", sequence, id);
+				}
+				
+				if (sequence == "__not_implemented__")
+					THROW(("Retrieving a sequence from databank %s is not supported yet", db.c_str()));
 				
 				string::size_type n = 0;
 				while (n + 72 < sequence.length())
@@ -658,7 +694,9 @@ ns__FindAll(
 
 			try
 			{
-				threads.push_back(new CSearchThread(dbi->first, dbi->second, queryterms, algorithm, alltermsrequired, booleanfilter));
+				threads.push_back(
+					new CSearchThread(
+						dbi->first, dbi->second.mDB, queryterms, algorithm, alltermsrequired, booleanfilter));
 				threads.back().Start();
 			}
 			catch (...)
@@ -937,7 +975,7 @@ ns__FindAllSimilar(
 			
 			try
 			{
-				threads.push_back(new CSearchSimilarThread(dbi->first, dbi->second, entry, algorithm));
+				threads.push_back(new CSearchSimilarThread(dbi->first, dbi->second.mDB, entry, algorithm));
 				threads.back().Start();
 			}
 			catch (...)
@@ -1375,7 +1413,7 @@ int main(int argc, const char* argv[])
 		struct soap soap;
 		int m, s; // master and slave sockets
 		soap_init2(&soap, SOAP_IO_KEEPALIVE, SOAP_IO_KEEPALIVE|SOAP_C_UTFSTRING);
-		
+
 //	soap_set_recv_logfile(&soap, "recv.log"); // append all messages received in /logs/recv/service12.log
 //	soap_set_sent_logfile(&soap, "sent.log"); // append all messages sent in /logs/sent/service12.log
 //	soap_set_test_logfile(&soap, "test.log"); // no file name: do not save debug messages

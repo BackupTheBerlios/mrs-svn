@@ -874,4 +874,30 @@ sub pp
 
 }
 
+sub sequence
+{
+	my ($self, $text) = @_;
+	
+	my $sequence;
+
+	open TEXT, "<", \$text;
+	while (my $line = <TEXT>) {
+		if ($line =~ /^SQ\s*Sequence\s*(\d+)\s*BP;\s*(.+)/) {
+
+			while (my $line = <TEXT>)
+			{
+				last if ($line eq '//');
+				
+				chomp($line);
+				$sequence .= $line;
+			}
+
+			$sequence =~ s/[0-9]|\s//g;
+		}
+	}
+	close TEXT;
+	
+	return $sequence;	
+}
+
 1;

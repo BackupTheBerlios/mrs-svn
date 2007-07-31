@@ -149,4 +149,22 @@ sub parse
 	}
 }
 
+sub sequence
+{
+	my ($self, $text) = @_;
+
+	my $sequence;
+	
+	open TEXT, "<", \$text;
+	while (my $line = <TEXT>) {
+		if ($line =~ m/Sequence\s+:\s+(.+)/) {
+			$sequence = $1;
+			last;
+		}
+	}
+	close TEXT;
+	
+	return $sequence;
+}
+
 1;

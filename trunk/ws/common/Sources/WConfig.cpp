@@ -133,6 +133,9 @@ bool WConfigFileImp::GetValue(
 		const char* blast = (const char*)xmlGetProp(db, (const xmlChar*)"blast");
 		dbi.blast = blast != nil and strcmp(blast, "0");
 		
+		const char* fasta = (const char*)xmlGetProp(db, (const xmlChar*)"fasta");
+		dbi.fasta = fasta != nil and strcmp(fasta, "0");
+		
 		outValue.push_back(dbi);
 	}
 	

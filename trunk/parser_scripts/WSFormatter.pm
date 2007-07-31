@@ -51,6 +51,13 @@ sub pp
 	return $q->pre($text);
 }
 
+sub sequence
+{
+	my ($this, $text) = @_;
+	
+	return '__not_implemented__';
+}
+
 sub describe
 {
 	my ($this, $q, $text) = @_;
@@ -274,6 +281,26 @@ sub title
 	if ($@)
 	{
 		$result = "Error in formatting title: $@";
+	}
+	
+	return $result;
+}
+
+sub sequence
+{
+	my ($mrs_format_dir, $name, $text, $db, $id) = @_;
+	
+	my $result;
+	
+	eval
+	{
+		my $fmt = &getScript($mrs_format_dir, $name);
+		$result = $fmt->sequence($text);
+	};
+	
+	if ($@)
+	{
+		$result = "Error in extracting sequence: $@";
 	}
 	
 	return $result;

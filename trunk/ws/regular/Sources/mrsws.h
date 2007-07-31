@@ -31,6 +31,7 @@ struct ns__DatabankInfo
 	xsd__string					url;
 	xsd__string					script;
 	bool						blastable;
+	bool						has_fasta;
 	std::vector<struct ns__FileInfo>
 								files;
 };

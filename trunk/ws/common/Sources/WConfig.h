@@ -14,6 +14,7 @@ struct DBInfo
 {
 	std::string		name;
 	bool			blast;
+	bool			fasta;
 	bool			ignore_in_all;
 };
 
