@@ -69,7 +69,7 @@ sub new
 	my $invocant = shift;
 	my $self = {
 		name		=> 'PDB',
-		url			=> 'http://www/rcsb.org/pdb/',
+		url			=> 'http://www.rcsb.org/pdb/',
 		section		=> 'structure',
 		meta		=> [ 'title' ],
 		compression	=> 'bzip',

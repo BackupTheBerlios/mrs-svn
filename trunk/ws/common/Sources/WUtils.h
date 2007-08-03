@@ -26,4 +26,9 @@ class WLogger
 	std::string	mMsg;
 };
 
+void Daemonize(
+		const std::string&		inUser,
+		const std::string&		inLogFile,
+		std::ofstream&			outLogFileStream);
+
 #endif // WUTILS_H

@@ -7,6 +7,7 @@
 
 #include <map>
 #include <set>
+#include <deque>
 #include <sstream>
 #include <fstream>
 #include <cstdarg>
@@ -14,13 +15,15 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include <getopt.h>
-#include <pwd.h>
 
 #include <boost/shared_ptr.hpp>
 #include <boost/ptr_container/ptr_vector.hpp>
 #include <boost/filesystem/operations.hpp>
 #include <boost/filesystem/path.hpp>
 #include <boost/regex.hpp>
+#include <boost/thread.hpp>
+#include <boost/bind.hpp>
+#include <boost/array.hpp>
 
 #include <libxml/tree.h>
 #include <libxml/parser.h>
@@ -68,7 +71,7 @@ WConfigFile*	gConfig = nil;
 
 extern double system_time();
 
-typedef boost::shared_ptr<MDatabank>	MDatabankPtr;
+typedef boost::shared_ptr<MDatabank>				MDatabankPtr;
 
 class WSDatabankTable
 {
@@ -99,6 +102,7 @@ class WSDatabankTable
 	
   private:
 	DBTable				mDBs;
+	boost::mutex		mLock;
 };
 
 WSDatabankTable& WSDatabankTable::Instance()
@@ -109,6 +113,8 @@ WSDatabankTable& WSDatabankTable::Instance()
 
 MDatabankPtr WSDatabankTable::operator[](const string& inCode)
 {
+	boost::mutex::scoped_lock lock(mLock);
+	
 	if (mDBs.find(inCode) == mDBs.end() or not mDBs[inCode].mDB->IsUpToDate())
 	{
 		MDatabankPtr db(new MDatabank(inCode));
@@ -121,11 +127,15 @@ MDatabankPtr WSDatabankTable::operator[](const string& inCode)
 
 bool WSDatabankTable::Ignore(const string& inCode)
 {
+	boost::mutex::scoped_lock lock(mLock);
+
 	return mDBs.find(inCode) == mDBs.end() or mDBs[inCode].ignore;
 }
 
 void WSDatabankTable::ReloadDbs()
 {
+	boost::mutex::scoped_lock lock(mLock);
+
 	mDBs.clear();
 	
 	cout << endl;
@@ -207,7 +217,7 @@ inline string Format(
 	const string&		inData,
 	const string&		inID)
 {
-	return WFormatTable::Instance().Format(inDb->GetScriptName(), inFormat, inData, inDb->GetCode(), inID);
+	return WFormatTable::Format(inDb->GetScriptName(), inFormat, inData, inDb->GetCode(), inID);
 }
 
 void GetDatabankInfo(
@@ -321,7 +331,6 @@ ns__GetIndices(
 		if (not mrsIndices.get())
 			THROW(("Databank %s has no indices", db.c_str()));
 		
-		WFormatTable& ft = WFormatTable::Instance();
 		string script = mrsDb->GetScriptName();
 		
 		for (auto_ptr<MIndex> index(mrsIndices->Next()); index.get() != NULL; index.reset(mrsIndices->Next()))
@@ -329,7 +338,7 @@ ns__GetIndices(
 			ns__Index ix;
 			
 			ix.id = index->Code();
-			ix.description = ft.IndexName(script, ix.id);
+			ix.description = WFormatTable::IndexName(script, ix.id);
 			ix.count = index->Count();
 			
 			string t = index->Type();
@@ -1190,6 +1199,81 @@ ns__Cooccurrence(
 
 // --------------------------------------------------------------------
 // 
+//   multi threaded support
+// 
+
+class Buffer
+{
+	static const uint32	N = 10;
+	
+  public:
+	void				Put(
+							struct soap*	inSoap);
+
+	struct soap*		Get();
+
+  private:
+	deque<struct soap*>	mQueue;
+	boost::mutex		mMutex;
+	boost::condition	mEmptyCondition, mFullCondition;
+};
+
+void Buffer::Put(
+	struct soap*	inSoap)
+{
+	boost::mutex::scoped_lock lock(mMutex);
+
+	while (mQueue.size() >= N)
+		mFullCondition.wait(lock);
+	
+	mQueue.push_back(inSoap);
+
+	mEmptyCondition.notify_one();
+}
+
+struct soap* Buffer::Get()
+{
+	boost::mutex::scoped_lock lock(mMutex);
+
+	while (mQueue.empty())
+		mEmptyCondition.wait(lock);
+	
+	struct soap* result = mQueue.front();
+	mQueue.pop_front();
+
+	mFullCondition.notify_one();
+	
+	return result;
+}
+
+void Process(
+	Buffer*		inBuffer)
+{
+	struct soap* soap;
+	while ((soap = inBuffer->Get()) != nil)
+	{
+		try
+		{
+			if (soap_serve(soap) != SOAP_OK) // process RPC request
+				soap_print_fault(soap, stderr); // print error
+			soap_destroy(soap); // clean up class instances
+			soap_end(soap); // clean up everything and close socket
+			soap_done(soap); // close master socket and detach environment
+			free(soap);
+		}
+		catch (exception& e)
+		{
+			cout << endl << "Exception: " << e.what() << endl;
+		}
+		catch (...)
+		{
+			cout << endl << "Unknown exception" << endl;
+		}
+	}
+}
+
+// --------------------------------------------------------------------
+// 
 //   main body
 // 
 
@@ -1299,10 +1383,7 @@ int main(int argc, const char* argv[])
 			gDataDir = fs::system_complete(fs::path(s, fs::native));
 		
 		if (gConfig->GetSetting("/mrs-config/scriptdir", s))
-		{
 			gParserDir = fs::system_complete(fs::path(s, fs::native));
-			WFormatTable::SetParserDir(gParserDir.string());
-		}
 		
 		if (gConfig->GetSetting("/mrs-config/search-ws/logfile", s))
 			gLogFile = fs::system_complete(fs::path(s, fs::native));
@@ -1347,54 +1428,7 @@ int main(int argc, const char* argv[])
 		ofstream logFile;
 		
 		if (daemon)
-		{
-			logFile.open(gLogFile.string().c_str(), ios::out | ios::app);
-			
-			if (not logFile.is_open())
-				cerr << "Opening log file " << gLogFile.string() << " failed" << endl;
-			
-			(void)cout.rdbuf(logFile.rdbuf());
-			(void)cerr.rdbuf(logFile.rdbuf());
-
-			int pid = fork();
-			
-			if (pid == -1)
-			{
-				cerr << "Fork failed" << endl;
-				exit(1);
-			}
-			
-			if (pid != 0)
-			{
-				cout << "Started daemon with process id: " << pid << endl;
-				_exit(0);
-			}
-			
-			if (chdir("/") != 0)
-			{
-				cerr << "Cannot chdir to /: " << strerror(errno) << endl;
-				exit(1);
-			}
-
-			if (setsid() < 0)
-			{
-				cerr << "Failed to create process group: " << strerror(errno) << endl;
-				exit(1);
-			}
-
-			if (user.length() > 0)
-			{
-				struct passwd* pw = getpwnam(user.c_str());
-				if (pw == NULL or setuid(pw->pw_uid) < 0)
-				{
-					cerr << "Failed to set uid to " << user << ": " << strerror(errno) << endl;
-					exit(1);
-				}
-			}
-			
-			close(0);
-			open("/dev/null", O_RDONLY);
-		}
+			Daemonize(user, gLogFile.string(), logFile);
 		
 		struct sigaction sa;
 		
@@ -1430,39 +1464,51 @@ int main(int argc, const char* argv[])
 			soap.send_timeout = 10;
 			soap.max_keep_alive = 10;
 			
+			boost::thread_group threads;
+			Buffer buffer;
+
 			for (;;)
 			{
 				if (gQuit)
 					break;
 				
 				if (gNeedReload or gConfig->ReloadIfModified())
+				{
+					for (int i = 0; i < threads.size(); ++i)
+						buffer.Put(nil);
+					
+					threads.join_all();
+					
 					WSDatabankTable::Instance().ReloadDbs();
 
+					for (int i = 0; i < 4; ++i)
+						threads.create_thread(boost::bind(Process, &buffer));
+				}
+
 				gNeedReload = false;
-				
+
 				s = soap_accept(&soap);
 				
-				if (s == SOAP_EOF)
-					continue;
-				
-				if (s < 0)
+				if (s != SOAP_EOF)
 				{
-					soap_print_fault(&soap, stderr);
-					continue;
-				}
-				
-				try
-				{
-					if (soap_serve(&soap) != SOAP_OK) // process RPC request
-						soap_print_fault(&soap, stderr); // print error
-				}
-				catch (const exception& e)
-				{
-					cout << endl << "Exception: " << e.what() << endl;
-				}
-				catch (...)
-				{
-					cout << endl << "Unknown exception" << endl;
+					if (s < 0)
+						soap_print_fault(&soap, stderr);
+					else
+					{
+						try
+						{
+							struct soap* copy = soap_copy(&soap);
+							buffer.Put(copy);
+						}
+						catch (const exception& e)
+						{
+							cout << endl << "Exception: " << e.what() << endl;
+						}
+						catch (...)
+						{
+							cout << endl << "Unknown exception" << endl;
+						}
+					}
 				}
 				
 				soap_destroy(&soap); // clean up class instances

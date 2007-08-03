@@ -9,18 +9,16 @@
 class WFormatTable
 {
   public:
-	std::string				Format(
+	static std::string		Format(
 								const std::string&	inFormatter,
 								const std::string&	inFormat,
 								const std::string&	inText,
 								const std::string&	inDb,
 								const std::string&	inId);
 
-	std::string				IndexName(
+	static std::string		IndexName(
 								const std::string&	inFormatter,
 								const std::string&	inIndex);
-
-	static WFormatTable&	Instance();
 	
 	static void				SetParserDir(
 								const std::string&	inParserDir);
@@ -29,7 +27,8 @@ class WFormatTable
 							WFormatTable();
 							~WFormatTable();
 
-	struct WFormatTableImp*	mImpl;
+	static struct WFormatTableImp*
+							Impl();
 	static std::string		sParserDir;
 };
 

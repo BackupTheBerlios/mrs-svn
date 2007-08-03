@@ -62,23 +62,25 @@
 		
 		<xsl:param name="anchor"><xsl:value-of select="Other-source_anchor"/></xsl:param>
 		
+		<xsl:variable name='dbtag' select="Other-source_src/Dbtag/Dbtag_db"/>
+		
 		<xsl:choose>
-			<xsl:when test="Other-source_src/Dbtag/Dbtag_db = 'HPRD'">
+			<xsl:when test="@dbtag='HPRD'">
 				<xsl:variable name="id" select="Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_str"/>
 				<a href="http://www.hprd.org/protein/{$id}">HPRD</a>
 			</xsl:when>
 			
-			<xsl:when test="Other-source_src/Dbtag/Dbtag_db = 'BIND'">
+			<xsl:when test="@dbtag = 'BIND'">
 				<xsl:variable name="id" select="Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_id"/>
 				<a href="http://bind.ca/Action?idsearch={$id}">BIND</a>
 			</xsl:when>
 			
-			<xsl:when test="Other-source_src/Dbtag/Dbtag_db = 'Protein'">
+			<xsl:when test="@dbtag = 'Protein'">
 				<xsl:variable name="id" select="Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_id"/>
 				<a href="query.do?db=all&amp;query={$anchor}"><xsl:value-of select="$anchor"/></a>
 			</xsl:when>
 			
-			<xsl:when test="Other-source_src/Dbtag/Dbtag_db = 'Nucleotide'">
+			<xsl:when test="@dbtag = 'Nucleotide'">
 				<xsl:choose>
 					<xsl:when test="Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_str">
 						<xsl:variable name="ss-ids" select="Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_str"/>
@@ -91,27 +93,27 @@
 				</xsl:choose>
 			</xsl:when>
 			
-			<xsl:when test="Other-source_src/Dbtag/Dbtag_db = 'GeneID'">
+			<xsl:when test="@dbtag = 'GeneID'">
 				<xsl:variable name="id" select="Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_id"/>
 				<a href="query.do?db=gene&amp;id={$id}"><xsl:value-of select="$anchor"/></a>
 			</xsl:when>
 
-			<xsl:when test="Other-source_src/Dbtag/Dbtag_db = 'PROT_CDD'">
+			<xsl:when test="@dbtag = 'PROT_CDD'">
 				<xsl:variable name="id" select="Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_id"/>
 				<a href="http://www.ncbi.nlm.nih.gov/Structure/cdd/wrpsb.cgi?INPUT_TYPE=precalc&amp;SEQUENCE={$id}"><xsl:value-of select="$anchor"/></a>
 			</xsl:when>
 			
-			<xsl:when test="Other-source_src/Dbtag/Dbtag_db = 'CDD'">
+			<xsl:when test="@dbtag = 'CDD'">
 				<xsl:variable name="id" select="Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_id"/>
 				<a href="http://www.ncbi.nlm.nih.gov/Structure/cdd/cddsrv.cgi?uid={$id}"><xsl:value-of select="$anchor"/></a>
 			</xsl:when>
 			
-			<xsl:when test="Other-source_src/Dbtag/Dbtag_db = 'CCDS'">
+			<xsl:when test="@dbtag = 'CCDS'">
 				<xsl:variable name="id" select="Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_str"/>
 				<a href="http://www.ncbi.nlm.nih.gov/CCDS/CcdsBrowse.cgi?REQUEST=CCDS&amp;GO=MainBrowse&amp;DATA={$id}"><xsl:value-of select="$anchor"/></a>
 			</xsl:when>
 
-			<xsl:when test="Other-source_src/Dbtag/Dbtag_db = 'UniProt'">
+			<xsl:when test="@dbtag = 'UniProt'">
 				<xsl:variable name="id" select="Other-source_src/Dbtag/Dbtag_tag/Object-id/Object-id_str"/>
 				<a href="query.do?db=uniprot&amp;query=ac:{$id}"><xsl:value-of select="$anchor"/></a>
 			</xsl:when>

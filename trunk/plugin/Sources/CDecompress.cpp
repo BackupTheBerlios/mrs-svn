@@ -46,6 +46,8 @@
 #include "HStream.h"
 #include "HFile.h"
 
+#include <boost/thread.hpp>
+
 #include "CDecompress.h"
 #include "CCompress.h"
 #include "CIndex.h"
@@ -87,6 +89,8 @@ struct CDecompressorImp
 						uint32 inMetaDataCount);
 
 	virtual void	Init();
+
+	boost::mutex	fMutex;	// access should be strictly serialized
 	
 	HStreamBase*	fFile;
 	HStreamView		fData;
@@ -553,6 +557,11 @@ CDecompressorImp* CDecompressorImp::Create(const HUrl& inDb, HStreamBase& inFile
 	return result;
 }
 
+// --------------------------------------------------------------------
+//
+//	interface class
+// 
+
 CDecompressor::CDecompressor(const HUrl& inDb,
 		HStreamBase& inFile, uint32 inKind,
 		int64 inDataOffset, int64 inDataSize,
@@ -566,16 +575,22 @@ CDecompressor::CDecompressor(const HUrl& inDb,
 
 CDecompressor::~CDecompressor()
 {
+	boost::mutex::scoped_lock lock(fImpl->fMutex);
+
 	delete fImpl;
 }
 
 string CDecompressor::GetDocument(uint32 inDocNr)
 {
+	boost::mutex::scoped_lock lock(fImpl->fMutex);
+
 	return fImpl->GetDocument(inDocNr);
 }
 
 string CDecompressor::GetField(uint32 inEntry, uint32 inIndex)
 {
+	boost::mutex::scoped_lock lock(fImpl->fMutex);
+
 	return fImpl->GetField(inEntry, inIndex);
 }
 
@@ -583,6 +598,8 @@ void CDecompressor::CopyData(HStreamBase& outData, uint32& outKind,
 	int64& outDataOffset, int64& outDataSize,
 	int64& outTableOffset, int64& outTableSize)
 {
+	boost::mutex::scoped_lock lock(fImpl->fMutex);
+
 	fImpl->CopyData(outData, outKind, outDataOffset, outDataSize, outTableOffset, outTableSize);
 }
 
@@ -590,6 +607,8 @@ void CDecompressor::LinkData(const std::string& inDataFileName, const std::strin
 	HStreamBase& outData, uint32& outKind, int64& outDataOffset, int64& outDataSize,
 	int64& outTableOffset, int64& outTableSize)
 {
+	boost::mutex::scoped_lock lock(fImpl->fMutex);
+
 	fImpl->LinkData(inDataFileName, inDataFileUUID, outData, outKind,
 		outDataOffset, outDataSize, outTableOffset, outTableSize);
 }

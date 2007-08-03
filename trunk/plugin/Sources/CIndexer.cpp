@@ -2323,20 +2323,7 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 			fParts[ix].bits_offset = outData.Seek(0, SEEK_END);
 			fParts[ix].bits_size = bitFile->Size();
 			
-			char b[10240];
-			int64 k = bitFile->Size();
-			bitFile->Seek(0, SEEK_SET);
-			
-			while (k > 0)
-			{
-				int64 n = k;
-				if (n > sizeof(b))
-					n = sizeof(b);
-				
-				bitFile->Read(b, n);
-				outData.Write(b, n);
-				k -= n;
-			}
+			bitFile->CopyTo(outData, bitFile->Size(), 0);
 		}
 		
 		// allocate disk space for the doc weight vector, if needed

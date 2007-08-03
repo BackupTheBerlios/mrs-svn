@@ -5,13 +5,25 @@
 
 #include <sstream>
 #include <iostream>
+#include <fstream>
 #include <iomanip>
+#include <cerrno>
+#include <pwd.h>
+#include <fcntl.h>
+#include <boost/thread.hpp>
 
 #include "WUtils.h"
 
 using namespace std;
 
 extern double system_time();
+
+namespace {
+	
+static boost::mutex sStdOutLock;
+	
+}
+
 
 // --------------------------------------------------------------------
 //
@@ -47,6 +59,8 @@ WLogger::WLogger(
 
 WLogger::~WLogger()
 {
+	boost::mutex::scoped_lock lock(sStdOutLock);
+	
 	cout.setf(ios::fixed);
 	cout << mMsg << setprecision(3) << system_time() - mStart << endl;
 }
@@ -68,3 +82,60 @@ WLogger& WLogger::operator<<(
 	return *this;
 }
 
+// --------------------------------------------------------------------
+//
+//	Daemonize
+// 
+
+void Daemonize(
+	const string&		inUser,
+	const string&		inLogFile,
+	ofstream&			outLogFileStream)
+{
+	int pid = fork();
+	
+	if (pid == -1)
+	{
+		cerr << "Fork failed" << endl;
+		exit(1);
+	}
+	
+	if (pid != 0)
+	{
+		cout << "Started daemon with process id: " << pid << endl;
+		_exit(0);
+	}
+	
+	if (chdir("/") != 0)
+	{
+		cerr << "Cannot chdir to /: " << strerror(errno) << endl;
+		exit(1);
+	}
+
+	if (setsid() < 0)
+	{
+		cerr << "Failed to create process group: " << strerror(errno) << endl;
+		exit(1);
+	}
+
+	if (inUser.length() > 0)
+	{
+		struct passwd* pw = getpwnam(inUser.c_str());
+		if (pw == NULL or setuid(pw->pw_uid) < 0)
+		{
+			cerr << "Failed to set uid to " << inUser << ": " << strerror(errno) << endl;
+			exit(1);
+		}
+	}
+
+	outLogFileStream.open(inLogFile.c_str(), ios::out | ios::app);
+	
+	if (not outLogFileStream.is_open())
+		cerr << "Opening log file " << inLogFile << " failed" << endl;
+	
+	(void)cout.rdbuf(outLogFileStream.rdbuf());
+	(void)cerr.rdbuf(outLogFileStream.rdbuf());
+
+	close(0);
+	open("/dev/null", O_RDONLY);
+}
