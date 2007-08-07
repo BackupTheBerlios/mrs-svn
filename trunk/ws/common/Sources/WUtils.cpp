@@ -112,9 +112,9 @@ void Daemonize(
 		_exit(0);
 	}
 
-	outLogFileStream.open(inLogFile.c_str(), ios::out | ios::app);
-	
-	if (not outLogFileStream.is_open())
+	// open the log file
+	int fd = open(inLogFile.c_str(), O_CREAT|O_APPEND|O_RDWR, 0644);
+	if (fd < 0)
 		cerr << "Opening log file " << inLogFile << " failed" << endl;
 	
 	if (chdir("/") != 0)
@@ -139,9 +139,11 @@ void Daemonize(
 		}
 	}
 
-	(void)cout.rdbuf(outLogFileStream.rdbuf());
-	(void)cerr.rdbuf(outLogFileStream.rdbuf());
+	// redirect stdout and stderr to the log file
+	dup2(fd, STDOUT_FILENO);
+	dup2(fd, STDERR_FILENO);
 
-	close(0);
+	// close stdin
+	close(STDIN_FILENO);
 	open("/dev/null", O_RDONLY);
 }

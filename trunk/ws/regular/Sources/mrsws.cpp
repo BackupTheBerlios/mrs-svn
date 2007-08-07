@@ -1240,7 +1240,7 @@ ns__Cooccurrence(
 //   multi threaded support
 // 
 
-typedef WBuffer<int,10>	Buffer;
+typedef WBuffer<pair<int,int>,10>	Buffer;
 
 void Process(
 	Buffer*			inBuffer,
@@ -1252,7 +1252,10 @@ void Process(
 	{
 		try
 		{
-			soap->socket = inBuffer->Get();
+			pair<int,int> sip = inBuffer->Get();
+			
+			soap->socket = sip.first;
+			soap->ip = sip.second;
 			
 			if (not soap_valid_socket(soap->socket))
 				break;
@@ -1408,6 +1411,8 @@ int main(int argc, const char* argv[])
 		exit(1);
 	}
 	
+	setenv("MRS_DATA_DIR", gDataDir.string().c_str(), 1);
+
 	if (not fs::exists(gParserDir) or not fs::is_directory(gParserDir))
 	{
 		cerr << "Parser directory " << gParserDir.string() << " is not a valid directory" << endl;
@@ -1492,9 +1497,14 @@ int main(int argc, const char* argv[])
 					if (soap.errnum != 0)
 						soap_print_fault(&soap, stderr);
 					else
-						buffer.Put(s);
+						buffer.Put(make_pair(s, soap.ip));
 				}
 			}
+			
+			for (int i = 0; i < 4; ++i)
+				buffer.Put(make_pair(SOAP_EOF, 0));
+			
+			threads.join_all();
 		}
 
 		soap_done(&soap); // close master socket and detach environment
