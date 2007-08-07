@@ -38,6 +38,7 @@
 #include "WFormat.h"
 #include "WUtils.h"
 #include "WConfig.h"
+#include "WBuffer.h"
 
 #define nil NULL
 
@@ -60,6 +61,10 @@ namespace fs = boost::filesystem;
 
 #ifndef MRS_LOG_FILE
 #define MRS_LOG_FILE "/var/log/mrsws-search.log"
+#endif
+
+#ifndef MRS_PID_FILE
+#define MRS_PID_FILE "/var/run/mrsws-search.pid"
 #endif
 
 fs::path gDataDir(MRS_DATA_DIR, fs::native);
@@ -1202,64 +1207,28 @@ ns__Cooccurrence(
 //   multi threaded support
 // 
 
-class Buffer
-{
-	static const uint32	N = 10;
-	
-  public:
-	void				Put(
-							struct soap*	inSoap);
-
-	struct soap*		Get();
-
-  private:
-	deque<struct soap*>	mQueue;
-	boost::mutex		mMutex;
-	boost::condition	mEmptyCondition, mFullCondition;
-};
-
-void Buffer::Put(
-	struct soap*	inSoap)
-{
-	boost::mutex::scoped_lock lock(mMutex);
-
-	while (mQueue.size() >= N)
-		mFullCondition.wait(lock);
-	
-	mQueue.push_back(inSoap);
-
-	mEmptyCondition.notify_one();
-}
-
-struct soap* Buffer::Get()
-{
-	boost::mutex::scoped_lock lock(mMutex);
-
-	while (mQueue.empty())
-		mEmptyCondition.wait(lock);
-	
-	struct soap* result = mQueue.front();
-	mQueue.pop_front();
-
-	mFullCondition.notify_one();
-	
-	return result;
-}
+typedef WBuffer<int,10>	Buffer;
 
 void Process(
-	Buffer*		inBuffer)
+	Buffer*			inBuffer,
+	struct soap*	inSoap)
 {
-	struct soap* soap;
-	while ((soap = inBuffer->Get()) != nil)
+	struct soap* soap = soap_copy(inSoap);
+
+	for (;;)
 	{
 		try
 		{
+			soap->socket = inBuffer->Get();
+			
+			if (not soap_valid_socket(soap->socket))
+				break;
+
 			if (soap_serve(soap) != SOAP_OK) // process RPC request
 				soap_print_fault(soap, stderr); // print error
+
 			soap_destroy(soap); // clean up class instances
 			soap_end(soap); // clean up everything and close socket
-			soap_done(soap); // close master socket and detach environment
-			free(soap);
 		}
 		catch (exception& e)
 		{
@@ -1270,6 +1239,9 @@ void Process(
 			cout << endl << "Unknown exception" << endl;
 		}
 	}
+
+	soap_done(soap); // close master socket and detach environment
+	free(soap);
 }
 
 // --------------------------------------------------------------------
@@ -1428,7 +1400,7 @@ int main(int argc, const char* argv[])
 		ofstream logFile;
 		
 		if (daemon)
-			Daemonize(user, gLogFile.string(), logFile);
+			Daemonize(user, gLogFile.string(), MRS_PID_FILE, logFile);
 		
 		struct sigaction sa;
 		
@@ -1459,31 +1431,24 @@ int main(int argc, const char* argv[])
 			gQuit = false;
 			gNeedReload = true;
 			
-			soap.accept_timeout = 1;	// timeout
-			soap.recv_timeout = 10;
-			soap.send_timeout = 10;
+			soap.accept_timeout = 5;	// timeout
+			soap.recv_timeout = 30;
+			soap.send_timeout = 30;
 			soap.max_keep_alive = 10;
 			
-			boost::thread_group threads;
 			Buffer buffer;
+
+			boost::thread_group threads;
+			for (int i = 0; i < 4; ++i)
+				threads.create_thread(boost::bind(Process, &buffer, &soap));
 
 			for (;;)
 			{
 				if (gQuit)
 					break;
-				
-				if (gNeedReload or gConfig->ReloadIfModified())
-				{
-					for (int i = 0; i < threads.size(); ++i)
-						buffer.Put(nil);
-					
-					threads.join_all();
-					
-					WSDatabankTable::Instance().ReloadDbs();
 
-					for (int i = 0; i < 4; ++i)
-						threads.create_thread(boost::bind(Process, &buffer));
-				}
+				if (gNeedReload or gConfig->ReloadIfModified())
+					WSDatabankTable::Instance().ReloadDbs();
 
 				gNeedReload = false;
 
@@ -1491,30 +1456,14 @@ int main(int argc, const char* argv[])
 				
 				if (s != SOAP_EOF)
 				{
-					if (s < 0)
+					if (soap.errnum != 0)
 						soap_print_fault(&soap, stderr);
 					else
-					{
-						try
-						{
-							struct soap* copy = soap_copy(&soap);
-							buffer.Put(copy);
-						}
-						catch (const exception& e)
-						{
-							cout << endl << "Exception: " << e.what() << endl;
-						}
-						catch (...)
-						{
-							cout << endl << "Unknown exception" << endl;
-						}
-					}
+						buffer.Put(s);
 				}
-				
-				soap_destroy(&soap); // clean up class instances
-				soap_end(&soap); // clean up everything and close socket
 			}
 		}
+
 		soap_done(&soap); // close master socket and detach environment
 		
 		cout << "Quit" << endl;

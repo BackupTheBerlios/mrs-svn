@@ -29,6 +29,7 @@ class WLogger
 void Daemonize(
 		const std::string&		inUser,
 		const std::string&		inLogFile,
+		const char*				inPIDFile,
 		std::ofstream&			outLogFileStream);
 
 #endif // WUTILS_H

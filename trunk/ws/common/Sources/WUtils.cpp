@@ -90,6 +90,7 @@ WLogger& WLogger::operator<<(
 void Daemonize(
 	const string&		inUser,
 	const string&		inLogFile,
+	const char*			inPIDFile,
 	ofstream&			outLogFileStream)
 {
 	int pid = fork();
@@ -103,6 +104,11 @@ void Daemonize(
 	if (pid != 0)
 	{
 		cout << "Started daemon with process id: " << pid << endl;
+		
+		ofstream pidFile(inPIDFile);
+		pidFile << pid << endl;
+		pidFile.close();
+		
 		_exit(0);
 	}
 	
