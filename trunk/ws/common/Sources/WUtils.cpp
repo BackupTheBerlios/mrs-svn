@@ -111,6 +111,11 @@ void Daemonize(
 		
 		_exit(0);
 	}
+
+	outLogFileStream.open(inLogFile.c_str(), ios::out | ios::app);
+	
+	if (not outLogFileStream.is_open())
+		cerr << "Opening log file " << inLogFile << " failed" << endl;
 	
 	if (chdir("/") != 0)
 	{
@@ -134,11 +139,6 @@ void Daemonize(
 		}
 	}
 
-	outLogFileStream.open(inLogFile.c_str(), ios::out | ios::app);
-	
-	if (not outLogFileStream.is_open())
-		cerr << "Opening log file " << inLogFile << " failed" << endl;
-	
 	(void)cout.rdbuf(outLogFileStream.rdbuf());
 	(void)cerr.rdbuf(outLogFileStream.rdbuf());
 

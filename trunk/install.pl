@@ -220,15 +220,15 @@ int main() { boost::regex re("."); std::cout << BOOST_LIB_VERSION << std::endl; 
 END
 
 my $boost_lib_ok = 0;
-$boost_lib_suffix = "";
+$boost_lib_suffix = "-mt";
 
 foreach my $d ( undef, '/usr/lib', '/usr/local/lib', '/opt/local/lib',
 	'/usr/pkg/lib', '/usr/lib64' )
 {
 	if (defined $d) {
-		next unless -e "$d/libboost_regex.a" or -e "$d/libboost_regex-gcc.a";
+		next unless -e "$d/libboost_regex-mt.a" or -e "$d/libboost_regex-gcc-mt.a";
 	}
-	$boost_lib_suffix = "-gcc" if -e "$d/libboost_regex-gcc.a" and not -e "$d/libboost_regex.a";
+	$boost_lib_suffix = "-gcc-mt" if -e "$d/libboost_regex-gcc.a" and not -e "$d/libboost_regex.a";
 
 	eval {
 		my $b_cc = $cc;
