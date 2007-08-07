@@ -49,6 +49,10 @@ namespace fs = boost::filesystem;
 #define MRS_LOG_FILE "/var/log/mrsws-clustal.log"
 #endif
 
+#ifndef MRS_PID_FILE
+#define MRS_PID_FILE "/var/run/mrsws-clustal.pid"
+#endif
+
 // globals
 
 fs::path gConfigFile(MRS_CONFIG_FILE, fs::native);
@@ -468,54 +472,7 @@ int main(int argc, const char* argv[])
 		ofstream logFile;
 		
 		if (daemon)
-		{
-			logFile.open(gLogFile.string().c_str(), ios::out | ios::app);
-			
-			if (not logFile.is_open())
-				cerr << "Opening log file " << gLogFile.string() << " failed" << endl;
-			
-			(void)cout.rdbuf(logFile.rdbuf());
-			(void)cerr.rdbuf(logFile.rdbuf());
-
-			int pid = fork();
-			
-			if (pid == -1)
-			{
-				cerr << "Fork failed" << endl;
-				exit(1);
-			}
-			
-			if (pid != 0)
-			{
-				cout << "Started daemon with process id: " << pid << endl;
-				_exit(0);
-			}
-			
-			if (chdir("/") != 0)
-			{
-				cerr << "Cannot chdir to /: " << strerror(errno) << endl;
-				exit(1);
-			}
-
-			if (setsid() < 0)
-			{
-				cerr << "Failed to create process group: " << strerror(errno) << endl;
-				exit(1);
-			}
-
-			if (user.length() > 0)
-			{
-				struct passwd* pw = getpwnam(user.c_str());
-				if (pw == NULL or setuid(pw->pw_uid) < 0)
-				{
-					cerr << "Failed to set uid to " << user << ": " << strerror(errno) << endl;
-					exit(1);
-				}
-			}
-			
-			close(0);
-			open("/dev/null", O_RDONLY);
-		}
+			Daemonize(user, gLogFile.string(), MRS_PID_FILE, logFile);
 		
 		struct sigaction sa;
 		
