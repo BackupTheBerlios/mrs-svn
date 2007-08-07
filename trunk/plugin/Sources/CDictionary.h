@@ -29,27 +29,12 @@ class CDictionary
 
   private:
 
-	void			Test(uint32 inState, int32 inScore, uint32 inEdits,
-						std::string inMatch, const char* inWoord);
-	bool			Match(uint32 inState, int32 inScore, uint32 inEdits,
-						std::string inMatch, const char* inWoord);
-	void			Delete(uint32 inState, int32 inScore, uint32 inEdits,
-						std::string inMatch, const char* inWoord);
-	void			Insert(uint32 inState, int32 inScore, uint32 inEdits,
-						std::string inMatch, const char* inWoord);
-	void			Transpose(uint32 inState, int32 inScore, uint32 inEdits,
-						std::string inMatch, const char* inWoord);
-	void			Substitute(uint32 inState, int32 inScore, uint32 inEdits,
-						std::string inMatch, const char* inWoord);
 
 	CDatabankBase&						fDatabank;
 	std::auto_ptr<HFileStream>			fDictionaryFile;
 	std::auto_ptr<HMMappedFileStream>	fMemMapper;
 	const union CTransition*			fAutomaton;
 	uint32								fAutomatonLength;
-
-	struct CScoreTable*					fScores;
-	std::string							fWord;
 };
 
 

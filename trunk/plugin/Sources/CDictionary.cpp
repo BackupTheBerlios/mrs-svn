@@ -175,14 +175,156 @@ struct CScoreTableImp
 						{ return score > inOther.score; }
 	};
 
+					CScoreTableImp(
+						const union CTransition*	inAutomaton,
+						uint32						inAutomatonLength,
+						const string&				inWord);
+
+	void			Test(uint32 inState, int32 inScore, uint32 inEdits,
+						string inMatch, const char* inWoord);
+	bool			Match(uint32 inState, int32 inScore, uint32 inEdits,
+						string inMatch, const char* inWoord);
+	void			Delete(uint32 inState, int32 inScore, uint32 inEdits,
+						string inMatch, const char* inWoord);
+	void			Insert(uint32 inState, int32 inScore, uint32 inEdits,
+						string inMatch, const char* inWoord);
+	void			Transpose(uint32 inState, int32 inScore, uint32 inEdits,
+						string inMatch, const char* inWoord);
+	void			Substitute(uint32 inState, int32 inScore, uint32 inEdits,
+						string inMatch, const char* inWoord);
+
 	void			Add(string inTerm, int32 inScore);
 	void			Finish();
-	void			Reset();
 	int32			MinScore();
 
+	const union CTransition*
+					fAutomaton;
+	uint32			fAutomatonLength;
 	CScore			scores[kMaxScoreTableSize];
 	uint32			n;
 };
+
+CScoreTableImp::CScoreTableImp(
+	const union CTransition*	inAutomaton,
+	uint32						inAutomatonLength,
+	const string&				inWord)
+	: fAutomaton(inAutomaton)
+	, fAutomatonLength(inAutomatonLength)
+	, n(0)
+{
+	string match;
+	Test(fAutomaton[fAutomatonLength - 1].b.dest, 0, 0, match, inWord.c_str());
+
+	Finish();
+}
+
+void CScoreTableImp::Test(uint32 inState, int32 inScore, uint32 inEdits, string inMatch, const char* inWord)
+{
+	Match(inState, inScore, inEdits, inMatch, inWord);
+
+	if (inScore >= max(MinScore() - 3, 0) and inEdits < 3)
+	{
+		Delete(inState, inScore, inEdits, inMatch, inWord);
+		Insert(inState, inScore, inEdits, inMatch, inWord);
+		Transpose(inState, inScore, inEdits, inMatch, inWord);
+		Substitute(inState, inScore, inEdits, inMatch, inWord);
+	}
+}
+
+bool CScoreTableImp::Match(uint32 inState, int32 inScore, uint32 inEdits, string inMatch, const char* inWord)
+{
+	bool match = false;
+	
+	if (*inWord != 0)
+	{
+		match = true;
+		
+		while (fAutomaton[inState].b.attr != inWord[0])
+		{
+			if (fAutomaton[inState].b.last)
+			{
+				match = false;
+				break;
+			}
+			
+			++inState;
+		}
+		
+		if (match)
+		{
+			inScore += kMatchReward;
+			inMatch += inWord[0];
+			
+			if (fAutomaton[inState].b.term and inEdits < kMaxEdits)
+				Add(inMatch, inScore);
+			
+			Test(fAutomaton[inState].b.dest, inScore, inEdits, inMatch, inWord + 1);
+		}
+	}
+	
+	return match;
+}
+
+void CScoreTableImp::Delete(uint32 inState, int32 inScore, uint32 inEdits, string inMatch, const char* inWord)
+{
+	uint32 state = inState;
+
+	for (;;)
+	{
+		int8 ch = fAutomaton[state].b.attr;
+
+		if (fAutomaton[state].b.term and inEdits < kMaxEdits)
+			Add(inMatch + ch, inScore + kDeletePenalty);
+
+		Test(fAutomaton[state].b.dest, inScore + kDeletePenalty, inEdits + 1, inMatch + ch, inWord);
+
+		if (fAutomaton[state].b.last)
+			break;
+
+		++state;
+	}
+}
+
+void CScoreTableImp::Insert(uint32 inState, int32 inScore, uint32 inEdits, string inMatch, const char* inWord)
+{
+	if (*inWord != 0)
+		Test(inState, inScore + kInsertPenalty, inEdits + 1, inMatch, inWord + 1);
+}
+
+void CScoreTableImp::Transpose(uint32 inState, int32 inScore, uint32 inEdits, string inMatch, const char* inWord)
+{
+	if (inWord[0] != 0 and inWord[1] != 0)
+	{
+		string woord;
+		woord = inWord[1];
+		woord += inWord[0];
+		woord += inWord + 2;
+		Test(inState, inScore + kTransposePenalty, inEdits + 1, inMatch, woord.c_str());
+	}
+}
+
+void CScoreTableImp::Substitute(uint32 inState, int32 inScore, uint32 inEdits, string inMatch, const char* inWord)
+{
+	if (inWord[0] != 0)
+	{
+		uint32 state = inState;
+	
+		for (;;)
+		{
+			int8 ch = fAutomaton[state].b.attr;
+
+			if (fAutomaton[state].b.term and inEdits < kMaxEdits)
+				Add(inMatch + ch, inScore + kSubstitutePenalty);
+
+			Test(fAutomaton[state].b.dest, inScore + kSubstitutePenalty, inEdits + 1, inMatch + ch, inWord + 1);
+			
+			if (fAutomaton[state].b.last)
+				break;
+
+			++state;
+		}
+	}
+}
 
 void CScoreTableImp::Add(string inTerm, int32 inScore)
 {
@@ -208,11 +350,6 @@ void CScoreTableImp::Finish()
 	sort_heap(scores, scores + n, greater<CScore>());
 }
 
-void CScoreTableImp::Reset()
-{
-	n = 0;
-}
-
 int32 CScoreTableImp::MinScore()
 {
 	int32 result = 0;
@@ -229,7 +366,6 @@ CDictionary::CDictionary(CDatabankBase& inDatabank)
 	: fDatabank(inDatabank)
 	, fDictionaryFile(nil)
 	, fAutomaton(nil)
-	, fScores(new CScoreTable)
 {
 	HUrl url = inDatabank.GetDictionaryFileURL();
 
@@ -252,7 +388,6 @@ CDictionary::~CDictionary()
 {
 	fMemMapper.reset(nil);
 	fDictionaryFile.reset(nil);
-	delete fScores;
 }
 
 void CDictionary::Create(CDatabankBase& inDatabank,
@@ -371,19 +506,14 @@ void CDictionary::Create(CDatabankBase& inDatabank,
 
 vector<string> CDictionary::SuggestCorrection(const string& inWord)
 {
-	fScores->Reset();
-
-	string match;
-	Test(fAutomaton[fAutomatonLength - 1].b.dest, 0, 0, match, inWord.c_str());
+	CScoreTableImp scores(fAutomaton, fAutomatonLength, inWord);
 
 	set<string> unique;
 	vector<string> words;
 	
-	fScores->Finish();
-
-	for (uint32 i = 0; i < fScores->n; ++i)
+	for (uint32 i = 0; i < scores.n; ++i)
 	{
-		string term = fScores->scores[i].term;
+		string term = scores.scores[i].term;
 
 		if (term != inWord and unique.find(term) == unique.end())
 		{
@@ -394,113 +524,4 @@ vector<string> CDictionary::SuggestCorrection(const string& inWord)
 	
 	return words;
 }
-
-void CDictionary::Test(uint32 inState, int32 inScore, uint32 inEdits, string inMatch, const char* inWord)
-{
-	Match(inState, inScore, inEdits, inMatch, inWord);
-
-	if (inScore >= max(fScores->MinScore() - 3, 0) and inEdits < 3)
-	{
-		Delete(inState, inScore, inEdits, inMatch, inWord);
-		Insert(inState, inScore, inEdits, inMatch, inWord);
-		Transpose(inState, inScore, inEdits, inMatch, inWord);
-		Substitute(inState, inScore, inEdits, inMatch, inWord);
-	}
-}
-
-bool CDictionary::Match(uint32 inState, int32 inScore, uint32 inEdits, string inMatch, const char* inWord)
-{
-	bool match = false;
-	
-	if (*inWord != 0)
-	{
-		match = true;
-		
-		while (fAutomaton[inState].b.attr != inWord[0])
-		{
-			if (fAutomaton[inState].b.last)
-			{
-				match = false;
-				break;
-			}
-			
-			++inState;
-		}
-		
-		if (match)
-		{
-			inScore += kMatchReward;
-			inMatch += inWord[0];
-			
-			if (fAutomaton[inState].b.term and inEdits < kMaxEdits)
-				fScores->Add(inMatch, inScore);
-			
-			Test(fAutomaton[inState].b.dest, inScore, inEdits, inMatch, inWord + 1);
-		}
-	}
-	
-	return match;
-}
-
-void CDictionary::Delete(uint32 inState, int32 inScore, uint32 inEdits, string inMatch, const char* inWord)
-{
-	uint32 state = inState;
-
-	for (;;)
-	{
-		int8 ch = fAutomaton[state].b.attr;
-
-		if (fAutomaton[state].b.term and inEdits < kMaxEdits)
-			fScores->Add(inMatch + ch, inScore + kDeletePenalty);
-
-		Test(fAutomaton[state].b.dest, inScore + kDeletePenalty, inEdits + 1, inMatch + ch, inWord);
-
-		if (fAutomaton[state].b.last)
-			break;
-
-		++state;
-	}
-}
-
-void CDictionary::Insert(uint32 inState, int32 inScore, uint32 inEdits, string inMatch, const char* inWord)
-{
-	if (*inWord != 0)
-		Test(inState, inScore + kInsertPenalty, inEdits + 1, inMatch, inWord + 1);
-}
-
-void CDictionary::Transpose(uint32 inState, int32 inScore, uint32 inEdits, string inMatch, const char* inWord)
-{
-	if (inWord[0] != 0 and inWord[1] != 0)
-	{
-		string woord;
-		woord = inWord[1];
-		woord += inWord[0];
-		woord += inWord + 2;
-		Test(inState, inScore + kTransposePenalty, inEdits + 1, inMatch, woord.c_str());
-	}
-}
-
-void CDictionary::Substitute(uint32 inState, int32 inScore, uint32 inEdits, string inMatch, const char* inWord)
-{
-	if (inWord[0] != 0)
-	{
-		uint32 state = inState;
-	
-		for (;;)
-		{
-			int8 ch = fAutomaton[state].b.attr;
-
-			if (fAutomaton[state].b.term and inEdits < kMaxEdits)
-				fScores->Add(inMatch + ch, inScore + kSubstitutePenalty);
-
-			Test(fAutomaton[state].b.dest, inScore + kSubstitutePenalty, inEdits + 1, inMatch + ch, inWord + 1);
-			
-			if (fAutomaton[state].b.last)
-				break;
-
-			++state;
-		}
-	}
-}
-
 
