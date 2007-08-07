@@ -277,6 +277,7 @@ ns__GetDatabankInfo(
 	vector<struct ns__DatabankInfo>&	info)
 {
 	WLogger log(soap->ip, __func__);
+	log << db;
 
 	int result = SOAP_OK;
 	
@@ -324,6 +325,7 @@ ns__GetIndices(
 	vector<struct ns__Index >&	indices)
 {
 	WLogger log(soap->ip, __func__);
+	log << db;
 
 	int result = SOAP_OK;
 	
@@ -395,6 +397,7 @@ ns__GetEntry(
 	string&			entry)
 {
 	WLogger log(soap->ip, __func__);
+	log << db << ':' << id;
 
 	int result = SOAP_OK;
 	
@@ -405,16 +408,20 @@ ns__GetEntry(
 		switch (format)
 		{
 			case plain:
+				log << ':' << "plain";
 				if (not mrsDb->Get(id, entry))
 					THROW(("Entry %s not found in databank %s", id.c_str(), db.c_str()));
 				break;
 			
 			case title:
+				log << ':' << "title";
 				entry = GetTitle(db, id);
 				break;
 			
 			case fasta:
 			{
+				log << ':' << "fasta";
+
 				string sequence;
 				
 				if (mrsDb->ContainsBlastIndex())
@@ -452,6 +459,8 @@ ns__GetEntry(
 			
 			case html:
 			{
+				log << ':' << "html";
+
 				if (not mrsDb->Get(id, entry))
 					THROW(("Entry %s not found in databank %s", id.c_str(), db.c_str()));
 					
@@ -562,7 +571,15 @@ ns__Find(
 	struct ns__FindResponse&	response)
 {
 	WLogger log(soap->ip, __func__);
-	log << ':' << db;
+
+	log << db;
+
+	stringstream s;
+	copy(queryterms.begin(), queryterms.end(), ostream_iterator<string>(s, ","));
+	log << s.str();
+	
+	if (booleanfilter.length())
+		log << ':' << '[' << booleanfilter << ']';
 
 	int result = SOAP_OK;
 	
@@ -689,6 +706,13 @@ ns__FindAll(
 {
 	WLogger log(soap->ip, __func__);
 
+	stringstream s;
+	copy(queryterms.begin(), queryterms.end(), ostream_iterator<string>(s, ","));
+	log << s.str();
+	
+	if (booleanfilter.length())
+		log << ':' << '[' << booleanfilter << ']';
+
 	int result = SOAP_OK;
 	
 	WSDatabankTable& dbt = WSDatabankTable::Instance();
@@ -767,6 +791,7 @@ ns__SpellCheck(
 	vector<string>&	suggestions)
 {
 	WLogger log(soap->ip, __func__);
+	log << db << ':' << queryterm;
 
 	int result = SOAP_OK;
 	
@@ -803,6 +828,7 @@ ns__FindSimilar(
 	struct ns__FindResponse&	response)
 {
 	WLogger log(soap->ip, __func__);
+	log << db << ':' << id;
 
 	int result = SOAP_OK;
 	
@@ -961,6 +987,7 @@ ns__FindAllSimilar(
 						response)
 {
 	WLogger log(soap->ip, __func__);
+	log << db << ':' << id;
 	
 	int result = SOAP_OK;
 	
@@ -1046,6 +1073,7 @@ ns__Count(
 	unsigned long&		response)
 {
 	WLogger log(soap->ip, __func__);
+	log << db << ':' << booleanquery;
 	
 	int result = SOAP_OK;
 	response = 0;
@@ -1098,6 +1126,11 @@ ns__Cooccurrence(
 	vector<string>&		response)
 {
 	WLogger log(soap->ip, __func__);
+
+	stringstream s;
+	copy(ids.begin(), ids.end(), ostream_iterator<string>(s, ","));
+
+	log << db << ':' << s.str();
 	
 	int result = SOAP_OK;
 	

@@ -62,14 +62,14 @@ WLogger::~WLogger()
 	boost::mutex::scoped_lock lock(sStdOutLock);
 	
 	cout.setf(ios::fixed);
-	cout << mMsg << setprecision(3) << system_time() - mStart << endl;
+	cout << mMsg << ' ' << setprecision(3) << system_time() - mStart << endl;
 }
 
 WLogger& WLogger::operator<<(
 	const string&	inParam)
 {
 	mMsg += inParam;
-	mMsg += ' ';
+//	mMsg += ' ';
 
 	return *this;
 }
