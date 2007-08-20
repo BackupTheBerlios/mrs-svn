@@ -112,7 +112,7 @@ END
 			ipi_human		=> qr/^ipi\.HUMAN\.dat\.gz$/,
 			ipi_mouse		=> qr/^ipi\.MOUSE\.dat\.gz$/,
 			ipi_rat			=> qr/^ipi\.RAT\.dat\.gz$/,
-			ipi_zebrafish	=> qr/^ipi\.BRARE\.dat\.gz$/,
+			ipi_zebrafish	=> qr/^ipi\.DANRE\.dat\.gz$/,
 			ipi_arabidopsis	=> qr/^ipi\.ARATH\.dat\.gz$/,
 			ipi_chicken		=> qr/^ipi\.CHICK\.dat\.gz$/,
 			ipi_cow			=> qr/^ipi\.BOVIN\.dat\.gz$/,
@@ -705,7 +705,7 @@ END
 		{
 			my $osl = $1;
 
-			while (not ($line =~ /OS\s+(.+)(,( and)?|\.)/) and $lookahead =~ /^OS\s+(.+)/)
+			while (not ($line =~ /OS\s+(.+)(,( and)?|\.$)/) and $lookahead =~ /^OS\s+(.+)/)
 			{
 				$osl .= " $1";
 				$line = $lookahead;
