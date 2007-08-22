@@ -33,7 +33,6 @@
 #include "soapH.h"
 #include "mrsws.nsmap"
 #include "MRSInterface.h"
-#include "CThread.h"
 #include "WError.h"
 #include "WFormat.h"
 #include "WUtils.h"
@@ -632,68 +631,6 @@ struct SortOnFirstHitScore
 		{ return a.hits.front().score > b.hits.front().score; }
 };
 
-class CSearchThread : public CThread
-{
-  public:
-					CSearchThread(
-						string				dbName,
-						MDatabankPtr		db,
-						vector<string>		queryterms,
-						enum ns__Algorithm	algorithm,
-						bool				alltermsrequired,
-						string				booleanfilter);
-
-	auto_ptr<MQueryResults>
-					Results()				{ return fResults; }
-	string			Db()					{ return fDbName; }
-	
-  protected:
-	
-	virtual void	Run();
-
-  private:
-	auto_ptr<MQueryResults>
-						fResults;
-	string				fDbName;
-	MDatabankPtr		fDB;
-	vector<string>		fQueryterms;
-	enum ns__Algorithm	fAlgorithm;
-	bool				fAlltermsrequired;
-	string				fBooleanfilter;
-};
-
-CSearchThread::CSearchThread(
-	string				dbName,
-	MDatabankPtr		db,
-	vector<string>		queryterms,
-	enum ns__Algorithm	algorithm,
-	bool				alltermsrequired,
-	string				booleanfilter)
-	: fDbName(dbName)
-	, fDB(db)
-	, fQueryterms(queryterms)
-	, fAlgorithm(algorithm)
-	, fAlltermsrequired(alltermsrequired)
-	, fBooleanfilter(booleanfilter)
-{
-}
-
-void CSearchThread::Run()
-{
-	try
-	{
-		fResults = PerformSearch(fDB, fQueryterms, fAlgorithm, fAlltermsrequired, fBooleanfilter);
-	}
-	catch (exception& e)
-	{
-		cout << "exception in CSearchThread::Run: " << e.what() << endl;
-	}
-	catch (...)
-	{
-		cout << "unknown exception in CSearchThread::Run" << endl;
-	}
-}
-
 SOAP_FMAC5 int SOAP_FMAC6
 ns__FindAll(
 	struct soap*		soap,
@@ -719,37 +656,19 @@ ns__FindAll(
 	
 	try
 	{
-		boost::ptr_vector<CSearchThread> threads;
-		
 		for (WSDatabankTable::iterator dbi = dbt.begin(); dbi != dbt.end(); ++dbi)
 		{
 			if (dbt.Ignore(dbi->first))
 				continue;
 
-			try
-			{
-				threads.push_back(
-					new CSearchThread(
-						dbi->first, dbi->second.mDB, queryterms, algorithm, alltermsrequired, booleanfilter));
-				threads.back().Start();
-			}
-			catch (...)
-			{
-				cerr << endl << "Skipping db " << dbi->first << endl;
-			}
-		}
-		
-		for (boost::ptr_vector<CSearchThread>::iterator t = threads.begin(); t != threads.end(); ++t)
-		{
-			t->Join();
-			
-			auto_ptr<MQueryResults> r = t->Results();
-			
+			auto_ptr<MQueryResults> r = PerformSearch(
+				dbi->second.mDB, queryterms, algorithm, alltermsrequired, booleanfilter);
+
 			if (r.get() != NULL)
 			{
 				ns__FindAllResult fa;
 
-				fa.db = t->Db();
+				fa.db = dbi->first;
 				
 				const char* id;
 				int n = 5;
@@ -899,83 +818,83 @@ ns__FindSimilar(
 	return result;
 }
 
-class CSearchSimilarThread : public CThread
-{
-  public:
-					CSearchSimilarThread(
-						string				dbName,
-						MDatabankPtr		db,
-						const string&		entry,
-						enum ns__Algorithm	algorithm);
-
-	auto_ptr<MQueryResults>
-					Results()				{ return fResults; }
-	string			Db()					{ return fDbName; }
-	
-  protected:
-	
-	virtual void	Run();
-
-  private:
-	auto_ptr<MQueryResults>
-						fResults;
-	string				fDbName;
-	MDatabankPtr		fDB;
-	const string&		fEntry;
-	enum ns__Algorithm	fAlgorithm;
-};
-
-CSearchSimilarThread::CSearchSimilarThread(
-	string				dbName,
-	MDatabankPtr		db,
-	const string&		entry,
-	enum ns__Algorithm	algorithm)
-	: fDbName(dbName)
-	, fDB(db)
-	, fEntry(entry)
-	, fAlgorithm(algorithm)
-{
-}
-
-void CSearchSimilarThread::Run()
-{
-	try
-	{
-		auto_ptr<MRankedQuery> q(fDB->RankedQuery("__ALL_TEXT__"));
-	
-		switch (fAlgorithm)
-		{
-			case Vector:
-				q->SetAlgorithm("vector");
-				break;
-			
-			case Dice:
-				q->SetAlgorithm("dice");
-				break;
-			
-			case Jaccard:
-				q->SetAlgorithm("jaccard");
-				break;
-			
-			default:
-				THROW(("Unsupported search algorithm"));
-				break;
-		}
-			
-		q->SetAllTermsRequired(false);
-		q->AddTermsFromText(fEntry);
-
-		fResults.reset(q->Perform(NULL));
-	}
-	catch (exception& e)
-	{
-		cout << "exception in CSearchSimilarThread::Run: " << e.what() << endl;
-	}
-	catch (...)
-	{
-		cout << "unknown exception in CSearchSimilarThread::Run" << endl;
-	}
-}
+//class CSearchSimilarThread : public CThread
+//{
+//  public:
+//					CSearchSimilarThread(
+//						string				dbName,
+//						MDatabankPtr		db,
+//						const string&		entry,
+//						enum ns__Algorithm	algorithm);
+//
+//	auto_ptr<MQueryResults>
+//					Results()				{ return fResults; }
+//	string			Db()					{ return fDbName; }
+//	
+//  protected:
+//	
+//	virtual void	Run();
+//
+//  private:
+//	auto_ptr<MQueryResults>
+//						fResults;
+//	string				fDbName;
+//	MDatabankPtr		fDB;
+//	const string&		fEntry;
+//	enum ns__Algorithm	fAlgorithm;
+//};
+//
+//CSearchSimilarThread::CSearchSimilarThread(
+//	string				dbName,
+//	MDatabankPtr		db,
+//	const string&		entry,
+//	enum ns__Algorithm	algorithm)
+//	: fDbName(dbName)
+//	, fDB(db)
+//	, fEntry(entry)
+//	, fAlgorithm(algorithm)
+//{
+//}
+//
+//void CSearchSimilarThread::Run()
+//{
+//	try
+//	{
+//		auto_ptr<MRankedQuery> q(fDB->RankedQuery("__ALL_TEXT__"));
+//	
+//		switch (fAlgorithm)
+//		{
+//			case Vector:
+//				q->SetAlgorithm("vector");
+//				break;
+//			
+//			case Dice:
+//				q->SetAlgorithm("dice");
+//				break;
+//			
+//			case Jaccard:
+//				q->SetAlgorithm("jaccard");
+//				break;
+//			
+//			default:
+//				THROW(("Unsupported search algorithm"));
+//				break;
+//		}
+//			
+//		q->SetAllTermsRequired(false);
+//		q->AddTermsFromText(fEntry);
+//
+//		fResults.reset(q->Perform(NULL));
+//	}
+//	catch (exception& e)
+//	{
+//		cout << "exception in CSearchSimilarThread::Run: " << e.what() << endl;
+//	}
+//	catch (...)
+//	{
+//		cout << "unknown exception in CSearchSimilarThread::Run" << endl;
+//	}
+//}
 
 SOAP_FMAC5 int SOAP_FMAC6
 ns__FindAllSimilar(
@@ -1003,53 +922,67 @@ ns__FindAllSimilar(
 
 		string entry = Format(mrsDb, "indexed", data, id);
 
-		boost::ptr_vector<CSearchSimilarThread> threads;
-		
 		for (WSDatabankTable::iterator dbi = dbt.begin(); dbi != dbt.end(); ++dbi)
 		{
 			if (dbt.Ignore(dbi->first))
 				continue;
-			
+
 			try
 			{
-				threads.push_back(new CSearchSimilarThread(dbi->first, dbi->second.mDB, entry, algorithm));
-				threads.back().Start();
+				auto_ptr<MRankedQuery> q(dbi->second.mDB->RankedQuery("__ALL_TEXT__"));
+			
+				switch (algorithm)
+				{
+					case Vector:
+						q->SetAlgorithm("vector");
+						break;
+					
+					case Dice:
+						q->SetAlgorithm("dice");
+						break;
+					
+					case Jaccard:
+						q->SetAlgorithm("jaccard");
+						break;
+					
+					default:
+						THROW(("Unsupported search algorithm"));
+						break;
+				}
+					
+				q->SetAllTermsRequired(false);
+				q->AddTermsFromText(entry);
+		
+				auto_ptr<MQueryResults> r(q->Perform(NULL));
+
+				if (r.get() != NULL)
+				{
+					ns__FindAllResult fa;
+	
+					fa.db = dbi->first;
+					
+					const char* id;
+					int n = 5;
+					
+					while (n-- > 0 and (id = r->Next()) != NULL)
+					{
+						ns__Hit h;
+			
+						h.id = id;
+						h.score = r->Score();
+						h.db = fa.db;
+						h.title = GetTitle(h.db, h.id);
+						
+						fa.hits.push_back(h);
+					}
+	
+					fa.count = r->Count(true);
+					response.push_back(fa);
+				}
 			}
 			catch (...)
 			{
 				cerr << endl << "Skipping db " << dbi->first << endl;
-			}
-		}
-		
-		for (boost::ptr_vector<CSearchSimilarThread>::iterator t = threads.begin(); t != threads.end(); ++t)
-		{
-			t->Join();
-			
-			auto_ptr<MQueryResults> r = t->Results();
-			
-			if (r.get() != NULL)
-			{
-				ns__FindAllResult fa;
-
-				fa.db = t->Db();
-				
-				const char* id;
-				int n = 5;
-				
-				while (n-- > 0 and (id = r->Next()) != NULL)
-				{
-					ns__Hit h;
-		
-					h.id = id;
-					h.score = r->Score();
-					h.db = fa.db;
-					h.title = GetTitle(h.db, h.id);
-					
-					fa.hits.push_back(h);
-				}
-
-				fa.count = r->Count(true);
-				response.push_back(fa);
 			}
 		}
 		
@@ -1331,7 +1264,7 @@ int main(int argc, const char* argv[])
 {
 	int c;
 	string input_file, address = "localhost", config_file, user;
-	short port = 8081;
+	short port = 8081, nrOfThreads = 2;
 	bool daemon = true;
 	
 	while ((c = getopt(argc, const_cast<char**>(argv), "d:s:a:p:i:c:vf")) != -1)
@@ -1401,6 +1334,9 @@ int main(int argc, const char* argv[])
 	
 		if (gConfig->GetSetting("/mrs-config/search-ws/port", s))
 			port = atoi(s.c_str());
+
+		if (gConfig->GetSetting("/mrs-config/search-ws/threads", s))
+			nrOfThreads = atoi(s.c_str());
 	}
 	else if (VERBOSE)
 		cerr << "Configuration file " << gConfigFile.string() << " does not exist, ignoring" << endl;
@@ -1477,7 +1413,7 @@ int main(int argc, const char* argv[])
 			Buffer buffer;
 
 			boost::thread_group threads;
-			for (int i = 0; i < 4; ++i)
+			for (int i = 0; i < nrOfThreads; ++i)
 				threads.create_thread(boost::bind(Process, &buffer, &soap));
 
 			for (;;)
@@ -1501,7 +1437,7 @@ int main(int argc, const char* argv[])
 				}
 			}
 			
-			for (int i = 0; i < 4; ++i)
+			for (int i = 0; i < nrOfThreads; ++i)
 				buffer.Put(make_pair(SOAP_EOF, 0));
 			
 			threads.join_all();
