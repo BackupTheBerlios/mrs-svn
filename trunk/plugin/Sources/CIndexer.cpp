@@ -2109,22 +2109,27 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 			
 			iter->Append(new CIteratorWrapper<CIndex>(*md[i].indx, delta), i);
 			
-			try	// see if we can memory map the bits section
+			if (md[i].info[ix].bits_size > 0)
 			{
-				HFileStream* df = dynamic_cast<HFileStream*>(md[i].data);
-				if (df != nil)
+				try	// see if we can memory map the bits section
 				{
-					md[i].mappedBits = new HMMappedFileStream(*df,
+					HFileStream* df = dynamic_cast<HFileStream*>(md[i].data);
+					if (df != nil)
+					{
+						md[i].mappedBits = new HMMappedFileStream(*df,
+							md[i].info[ix].bits_offset, md[i].info[ix].bits_size);
+					}
+				}
+				catch (...) {}
+				
+				if (md[i].mappedBits == nil)
+				{
+					md[i].mappedBits = new HStreamView(*md[i].data,
 						md[i].info[ix].bits_offset, md[i].info[ix].bits_size);
 				}
 			}
-			catch (...) {}
-			
-			if (md[i].mappedBits == nil)
-			{
-				md[i].mappedBits = new HStreamView(*md[i].data,
-					md[i].info[ix].bits_offset, md[i].info[ix].bits_size);
-			}
+			else
+				md[i].mappedBits = nil;
 			
 			count += md[i].count;
 		}
