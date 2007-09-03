@@ -83,6 +83,14 @@ void handler(int inSignal)
 			gTimeOut = true;
 			break;
 		
+		case SIGCHLD:
+		{
+			int s;
+			while (waitpid((pid_t) -1, &s, WNOHANG) > 0)
+				;
+			break;
+		}
+		
 		default:	// now what?
 			break;
 	}
@@ -484,6 +492,7 @@ int main(int argc, const char* argv[])
 //		sigaction(SIGHUP, &sa, NULL);
 		sigaction(SIGALRM, &sa, NULL);
 		sigaction(SIGPIPE, &sa, NULL);
+		sigaction(SIGCHLD, &sa, NULL);
 			
 		struct soap soap;
 		int m, s; // master and slave sockets
@@ -495,6 +504,9 @@ int main(int argc, const char* argv[])
 
 		if (gVerbose)
 			cout << "Binding address " << address << " port " << port << endl;
+
+		// enable reuse of our address
+		soap.bind_flags = SO_REUSEADDR;
 
 		m = soap_bind(&soap, address.c_str(), port, 100);
 		if (m < 0)
@@ -526,8 +538,15 @@ int main(int argc, const char* argv[])
 				
 				try
 				{
-					if (soap_serve(&soap) != SOAP_OK) // process RPC request
-;//						soap_print_fault(&soap, stderr); // print error
+					if (fork() == 0)
+					{
+						close(soap.master);
+						
+						if (soap_serve(&soap) != SOAP_OK) // process RPC request
+							soap_print_fault(&soap, stderr); // print error
+						
+						exit(0);
+					}
 				}
 				catch (const exception& e)
 				{

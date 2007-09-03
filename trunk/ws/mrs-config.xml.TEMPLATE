@@ -27,7 +27,7 @@
 		<port>8083</port>
 		<logfile>/var/log/mrsws-clustal.log</logfile>
 		<clustalw-exe>__CLUSTALW__</clustalw-exe>
-		<max-run-time>15</max-run-time>
+		<max-run-time>120</max-run-time>
 	</clustal-ws>
 
 	<!-- list of databases to present -->
