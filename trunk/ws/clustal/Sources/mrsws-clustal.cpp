@@ -95,8 +95,6 @@ void handler(int inSignal)
 			break;
 	}
 	
-	cout << "signal caught: " << inSignal << endl;
-	
 	errno = old_errno;
 }
 
