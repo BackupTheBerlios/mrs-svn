@@ -103,7 +103,7 @@ void Daemonize(
 	
 	if (pid != 0)
 	{
-		cout << "Started daemon with process id: " << pid << endl;
+//		cout << "Started daemon with process id: " << pid << endl;
 		
 		ofstream pidFile(inPIDFile);
 		pidFile << pid << endl;

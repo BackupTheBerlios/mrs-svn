@@ -1002,6 +1002,9 @@ int main(int argc, const char* argv[])
 		if (VERBOSE)
 			cout << "Binding address " << address << " port " << port << endl;
 
+		// enable reuse of our address
+		soap.bind_flags = SO_REUSEADDR;
+
 		m = soap_bind(&soap, address.c_str(), port, 100);
 		if (m < 0)
 			soap_print_fault(&soap, stderr);
