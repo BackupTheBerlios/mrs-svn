@@ -1028,7 +1028,9 @@ bool CDatabank::IsValidDocumentNr(uint32 inDocNr) const
 {
 	bool result = true;
 	
-	if (fHeader->omit_vector_offset > 0)
+	if (inDocNr >= fHeader->entries)
+		result = false;
+	else if (fHeader->omit_vector_offset > 0)
 	{
 		StMutex lock(*fLock);
 

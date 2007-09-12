@@ -1193,7 +1193,8 @@ void Process(
 			if (not soap_valid_socket(soap->socket))
 				break;
 
-			if (soap_serve(soap) != SOAP_OK) // process RPC request
+			int err = soap_serve(soap);	 // process RPC request
+			if (err != SOAP_OK and err != SOAP_EOF)
 				soap_print_fault(soap, stderr); // print error
 
 			soap_destroy(soap); // clean up class instances
@@ -1397,50 +1398,52 @@ int main(int argc, const char* argv[])
 		if (VERBOSE)
 			cout << "Binding address " << address << " port " << port << endl;
 
+		// enable reuse of our address
+		soap.bind_flags = SO_REUSEADDR;
+
 		m = soap_bind(&soap, address.c_str(), port, 100);
 		if (m < 0)
 			soap_print_fault(&soap, stderr);
 		else
 		{
 			gQuit = false;
-			gNeedReload = true;
 			
-			soap.accept_timeout = 5;	// timeout
-			soap.recv_timeout = 30;
-			soap.send_timeout = 30;
-			soap.max_keep_alive = 10;
-			
-			Buffer buffer;
-
-			boost::thread_group threads;
-			for (int i = 0; i < nrOfThreads; ++i)
-				threads.create_thread(boost::bind(Process, &buffer, &soap));
-
-			for (;;)
+			while (not gQuit)
 			{
-				if (gQuit)
-					break;
-
-				if (gNeedReload or gConfig->ReloadIfModified())
-					WSDatabankTable::Instance().ReloadDbs();
-
+				WSDatabankTable::Instance().ReloadDbs();
 				gNeedReload = false;
 
-				s = soap_accept(&soap);
-				
-				if (s != SOAP_EOF)
+				Buffer buffer;
+				boost::thread_group threads;
+				for (int i = 0; i < nrOfThreads; ++i)
+					threads.create_thread(boost::bind(Process, &buffer, &soap));
+	
+				for (;;)
 				{
-					if (soap.errnum != 0)
-						soap_print_fault(&soap, stderr);
-					else
-						buffer.Put(make_pair(s, soap.ip));
+					if (gQuit or gNeedReload)
+						break;
+	
+					soap.accept_timeout = 5;	// timeout
+					soap.recv_timeout = 30;
+					soap.send_timeout = 30;
+					soap.max_keep_alive = 10;
+					
+					s = soap_accept(&soap);
+					
+					if (s != SOAP_EOF)
+					{
+						if (soap.errnum != 0)
+							soap_print_fault(&soap, stderr);
+						else
+							buffer.Put(make_pair(s, soap.ip));
+					}
 				}
+				
+				for (int i = 0; i < nrOfThreads; ++i)
+					buffer.Put(make_pair(SOAP_EOF, 0));
+				
+				threads.join_all();
 			}
-			
-			for (int i = 0; i < nrOfThreads; ++i)
-				buffer.Put(make_pair(SOAP_EOF, 0));
-			
-			threads.join_all();
 		}
 
 		soap_done(&soap); // close master socket and detach environment

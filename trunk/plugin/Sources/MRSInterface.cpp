@@ -317,10 +317,11 @@ struct MBlastHitsImp
 										const string& inQuery, const string& inMatrix,
 										uint32 inWordSize, double inExpect,
 										bool inFilter, bool inGapped,
-										uint32 inGapOpen, uint32 inGapExtend)
+										uint32 inGapOpen, uint32 inGapExtend,
+										uint32 inReportLimit)
 									: fDb(inDb)
 									, fBlast(inQuery, inMatrix, inWordSize, inExpect,
-										inFilter, inGapped, inGapOpen, inGapExtend) {}
+										inFilter, inGapped, inGapOpen, inGapExtend, inReportLimit) {}
 
 	CDatabankBase&				fDb;
 	CBlast						fBlast;
@@ -823,14 +824,15 @@ bool MDatabank::Sequence(const string& inEntryID, unsigned long inIndex, string&
 
 MBlastHits* MDatabank::Blast(const string& inQuery, const string& inMatrix,
 	unsigned long inWordSize, double inExpect, bool inFilter,
-	bool inGapped, unsigned long inGapOpen, unsigned long inGapExtend)
+	bool inGapped, unsigned long inGapOpen, unsigned long inGapExtend,
+	unsigned long inReportLimit)
 {
 	MBlastHits* result = nil;
 	
 	auto_ptr<CDocIterator> iter(new CDbAllDocIterator(fImpl->fDatabank->Count()));
 	
 	auto_ptr<MBlastHitsImp> impl(new MBlastHitsImp(*fImpl->fDatabank, inQuery, inMatrix,
-		inWordSize, inExpect, inFilter, inGapped, inGapOpen, inGapExtend));
+		inWordSize, inExpect, inFilter, inGapped, inGapOpen, inGapExtend, inReportLimit));
 	
 	if (impl->fBlast.Find(*fImpl->fDatabank, *iter))
 	{
@@ -1089,12 +1091,13 @@ unsigned long MQueryResults::Count(bool inExact) const
 #ifndef NO_BLAST
 MBlastHits* MQueryResults::Blast(const string& inQuery, const string& inMatrix,
 	unsigned long inWordSize, double inExpect, bool inFilter,
-	bool inGapped, unsigned long inGapOpen, unsigned long inGapExtend)
+	bool inGapped, unsigned long inGapOpen, unsigned long inGapExtend,
+	unsigned long inReportLimit)
 {
 	MBlastHits* result = nil;
 	
 	auto_ptr<MBlastHitsImp> impl(new MBlastHitsImp(*fImpl->fDatabank, inQuery,
-		inMatrix, inWordSize, inExpect, inFilter, inGapped, inGapOpen, inGapExtend));
+		inMatrix, inWordSize, inExpect, inFilter, inGapped, inGapOpen, inGapExtend, inReportLimit));
 	
 	if (impl->fBlast.Find(*fImpl->fDatabank, *fImpl->fIter))
 	{

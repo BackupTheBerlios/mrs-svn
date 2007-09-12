@@ -601,7 +601,8 @@ class CBlastQueryBase
   public:
 					CBlastQueryBase(vector<Hit>& inHits, HMutex& inLock,
 						const CSequence& inQuery, const CMatrix& inMatrix,
-						double inExpect, bool inGapped);
+						double inExpect, bool inGapped,
+						uint32 inReportLimit);
 	virtual			~CBlastQueryBase();
 	
 	virtual bool	Test(uint32 inDocNr, const CSequence& inTarget) = 0;
@@ -752,7 +753,8 @@ class CBlastQuery : public CBlastQueryBase
 
 					CBlastQuery(vector<Hit>& inHits, HMutex& inLock,
 						const CSequence& inQuery, const CMatrix& inMatrix,
-						WordHitIteratorStaticData& inWHISD, double inExpect, bool inGapped);
+						WordHitIteratorStaticData& inWHISD, double inExpect, bool inGapped,
+						uint32 inReportLimit);
 
 	virtual bool	Test(uint32 inDocNr, const CSequence& inTarget);
 	
@@ -825,7 +827,8 @@ void CBlastQueryBase::Data::Print()
 CBlastQueryBase::CBlastQueryBase(
 		vector<Hit>& inHits, HMutex& inLock,
 		const CSequence& inQuery, const CMatrix& inMatrix,
-		double inExpect, bool inGapped)
+		double inExpect, bool inGapped,
+		uint32 inReportLimit)
 	: mQuery(inQuery)
 	, mMatrix(inMatrix)
 //	, mDb(inDb)
@@ -838,7 +841,7 @@ CBlastQueryBase::CBlastQueryBase(
 	, mS1(0)
 	, mS2(0)
 	, mHitWindow(40)
-	, mReportLimit(250)
+	, mReportLimit(inReportLimit)
 	, mHitsToDb(0)
 	, mExtensions(0)
 	, mSuccessfulExtensions(0)
@@ -1256,8 +1259,8 @@ void CBlastQueryBase::Cleanup()
 template<int WordSize>
 CBlastQuery<WordSize>::CBlastQuery(
 		vector<Hit>& inHits, HMutex& inLock, const CSequence& inQuery, const CMatrix& inMatrix,
-		WordHitIteratorStaticData& inWHISD, double inExpect, bool inGapped)
-	: CBlastQueryBase(inHits, inLock, inQuery, inMatrix, inExpect, inGapped)
+		WordHitIteratorStaticData& inWHISD, double inExpect, bool inGapped, uint32 inReportLimit)
+	: CBlastQueryBase(inHits, inLock, inQuery, inMatrix, inExpect, inGapped, inReportLimit)
 	, mWordHitIterator(inWHISD)
 {
 }
@@ -1471,13 +1474,15 @@ struct CBlastImp
 {
 								CBlastImp(const string& inQuery, const string& inMatrix,
 									uint32 inWordSize, double inExpect, bool inFilter,
-									bool inGapped, uint32 inGapOpen, uint32 inGapExtend);
+									bool inGapped, uint32 inGapOpen, uint32 inGapExtend,
+									uint32 inReportLimit);
 	
 	bool						Find(CDatabankBase& inDb, CDocIterator& inIter);
 	
 	CSequence					mQuery;
 	CSequence					mUnfilteredQuery;
 	CMatrix						mMatrix;
+	uint32						mReportLimit;
 	CDatabankBase*				mDb;
 	uint32						mDbCount;
 	int64						mDbLength;
@@ -1494,12 +1499,13 @@ struct CBlastImp
 HMutex CBlastImp::sLock;
 
 CBlastImp::CBlastImp(const string& inQuery, const string& inMatrix, uint32 inWordSize,
-		double inExpect, bool inFilter, bool inGapped, uint32 inGapOpen, uint32 inGapExtend)
+		double inExpect, bool inFilter, bool inGapped, uint32 inGapOpen, uint32 inGapExtend, uint32 inReportLimit)
 	: mMatrix(inMatrix, inGapOpen, inGapExtend)
 	, mWordSize(inWordSize)
 	, mFilter(inFilter)
 	, mGapped(inGapped)
 	, mExpect(inExpect)
+	, mReportLimit(inReportLimit)
 {
 	mUnfilteredQuery = Encode(inQuery);
 	
@@ -1522,7 +1528,7 @@ bool CBlastImp::Find(CDatabankBase& inDb, CDocIterator& inIter)
 			
 			mBlastQuery.reset(
 				new CBlastQuery<2>(mHits, sLock, mQuery, mMatrix, whiStaticData2,
-					mExpect, mGapped));
+					mExpect, mGapped, mReportLimit));
 			break;
 		
 		case 3:
@@ -1530,7 +1536,7 @@ bool CBlastImp::Find(CDatabankBase& inDb, CDocIterator& inIter)
 			
 			mBlastQuery.reset(
 				new CBlastQuery<3>(mHits, sLock, mQuery, mMatrix, whiStaticData3,
-					mExpect, mGapped));
+					mExpect, mGapped, mReportLimit));
 			break;
 		
 		case 4:
@@ -1538,7 +1544,7 @@ bool CBlastImp::Find(CDatabankBase& inDb, CDocIterator& inIter)
 			
 			mBlastQuery.reset(
 				new CBlastQuery<4>(mHits, sLock, mQuery, mMatrix, whiStaticData4,
-					mExpect, mGapped));
+					mExpect, mGapped, mReportLimit));
 			break;
 		
 		default:
@@ -1562,19 +1568,19 @@ bool CBlastImp::Find(CDatabankBase& inDb, CDocIterator& inIter)
 				case 2:
 					queries.push_back(
 						new CBlastQuery<2>(mHits, sLock, mQuery, mMatrix, whiStaticData2,
-							mExpect, mGapped));
+							mExpect, mGapped, mReportLimit));
 					break;
 				
 				case 3:
 					queries.push_back(
 						new CBlastQuery<3>(mHits, sLock, mQuery, mMatrix, whiStaticData3,
-							mExpect, mGapped));
+							mExpect, mGapped, mReportLimit));
 					break;
 				
 				case 4:
 					queries.push_back(
 						new CBlastQuery<4>(mHits, sLock, mQuery, mMatrix, whiStaticData4,
-							mExpect, mGapped));
+							mExpect, mGapped, mReportLimit));
 					break;
 			}
 
@@ -1654,9 +1660,9 @@ bool CBlastImp::Find(CDatabankBase& inDb, CDocIterator& inIter)
 }
 
 CBlast::CBlast(const string& inQuery, const string& inMatrix, uint32 inWordSize,
-		double inExpect, bool inFilter, bool inGapped, uint32 inGapOpen, uint32 inGapExtend)
+		double inExpect, bool inFilter, bool inGapped, uint32 inGapOpen, uint32 inGapExtend, uint32 inReportLimit)
 	: mImpl(new CBlastImp(inQuery, inMatrix, inWordSize, inExpect, inFilter, inGapped, 
-		inGapOpen, inGapExtend))
+		inGapOpen, inGapExtend, inReportLimit))
 {
 }
 

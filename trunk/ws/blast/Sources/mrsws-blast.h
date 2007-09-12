@@ -57,6 +57,7 @@ int ns__BlastSync(
 	bool						gapped = true,
 	unsigned long				gap_open = 11,
 	unsigned long				gap_extend = 1,
+	unsigned long				report_limit = 250,
 	struct ns__BlastResult&		response);
 
 int ns__BlastAsync(
@@ -71,6 +72,7 @@ int ns__BlastAsync(
 	bool						gapped = true,
 	unsigned long				gap_open = 11,
 	unsigned long				gap_extend = 1,
+	unsigned long				report_limit = 250,
 	xsd__string&				response);
 
 enum ns__JobStatus

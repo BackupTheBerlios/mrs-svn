@@ -485,7 +485,8 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 
 	MBlastHits*			Blast(const std::string& inQuery, const std::string& inMatrix,
 							unsigned long inWordSize, double inExpect, bool inFilter,
-							bool inGapped, unsigned long inGapOpen, unsigned long inGapExtend);
+							bool inGapped, unsigned long inGapOpen, unsigned long inGapExtend,
+							unsigned long inReportLimit);
 #endif
 
 	MIndex*				Index(const std::string& inIndex);	/**< \brief Return an MIndex object for index \a inIndex */
@@ -875,7 +876,8 @@ class MQueryResults : public MRSObject<MQueryResults, struct MQueryResultsImp>
 
 	MBlastHits*			Blast(const std::string& inQuery, const std::string& inMatrix,
 							unsigned long inWordSize, double inExpect, bool inFilter,
-							bool inGapped, unsigned long inGapOpen, unsigned long inGapExtend);
+							bool inGapped, unsigned long inGapOpen, unsigned long inGapExtend,
+							unsigned long inReportLimit);
 #endif
 };
 

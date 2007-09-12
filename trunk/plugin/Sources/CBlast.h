@@ -113,7 +113,8 @@ class CBlast
 							const std::string& inMatrix, uint32 inWordSize,
 							double inExpect,
 							bool inFilter, bool inGapped,
-							uint32 inGapOpen, uint32 inGapExtend);
+							uint32 inGapOpen, uint32 inGapExtend,
+							uint32 inReportLimit);
 	virtual				~CBlast();
 	
 

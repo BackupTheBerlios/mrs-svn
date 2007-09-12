@@ -216,7 +216,8 @@ struct CBlastJobParameters
 							bool			inLowComplexityFilter,
 							bool			inGapped,
 							unsigned long	inGapOpen,
-							unsigned long	inGapExtend);
+							unsigned long	inGapExtend,
+							unsigned long	inReportLimit);
 
 						CBlastJobParameters(
 							const CBlastJobParameters& inOther);
@@ -232,6 +233,7 @@ struct CBlastJobParameters
 	bool				mGapped;
 	unsigned long		mGapOpen;
 	unsigned long		mGapExtend;
+	unsigned long		mReportLimit;
 	
 	bool				operator==(const CBlastJobParameters& inOther) const;
 };
@@ -247,7 +249,8 @@ CBlastJobParameters::CBlastJobParameters(
 	bool			inLowComplexityFilter,
 	bool			inGapped,
 	unsigned long	inGapOpen,
-	unsigned long	inGapExtend)
+	unsigned long	inGapExtend,
+	unsigned long	inReportLimit)
 	: mDB(inDB)
 	, mMrsBooleanQuery(inMrsBooleanQuery)
 	, mQuery(inQuery)
@@ -259,6 +262,7 @@ CBlastJobParameters::CBlastJobParameters(
 	, mGapped(inGapped)
 	, mGapOpen(inGapOpen)
 	, mGapExtend(inGapExtend)
+	, mReportLimit(inReportLimit)
 {
 }
 
@@ -275,6 +279,7 @@ CBlastJobParameters::CBlastJobParameters(
 	, mGapped(inOther.mGapped)
 	, mGapOpen(inOther.mGapOpen)
 	, mGapExtend(inOther.mGapExtend)
+	, mReportLimit(inOther.mReportLimit)
 {
 }
 
@@ -291,7 +296,8 @@ bool CBlastJobParameters::operator==(const CBlastJobParameters& inOther) const
 		mLowComplexityFilter == inOther.mLowComplexityFilter and
 		mGapped == inOther.mGapped and
 		mGapOpen == inOther.mGapOpen and
-		mGapExtend == inOther.mGapExtend;
+		mGapExtend == inOther.mGapExtend and
+		mReportLimit == inOther.mReportLimit;
 }
 
 ostream& operator<<(ostream& inStream, const CBlastJobParameters& inParams)
@@ -314,7 +320,8 @@ ostream& operator<<(ostream& inStream, const CBlastJobParameters& inParams)
 			 << "low_complexity_filter: " << inParams.mLowComplexityFilter << endl
 			 << "gapped:                " << inParams.mGapped << endl
 			 << "gap_open:              " << inParams.mGapOpen << endl
-			 << "gap_extend:            " << inParams.mGapExtend << endl;
+			 << "gap_extend:            " << inParams.mGapExtend << endl
+			 << "report_limit:          " << inParams.mReportLimit << endl;
 
 	return inStream;
 }
@@ -567,13 +574,13 @@ void DoBlast(
 		{
 			hits.reset(qr->Blast(inParams.mQuery, inParams.mMatrix,
 				inParams.mWordSize, inParams.mExpect, inParams.mLowComplexityFilter,
-				inParams.mGapped, inParams.mGapOpen, inParams.mGapExtend));
+				inParams.mGapped, inParams.mGapOpen, inParams.mGapExtend, inParams.mReportLimit));
 		}
 	}
 	else
 		hits.reset(mrsDb->Blast(inParams.mQuery, inParams.mMatrix,
 			inParams.mWordSize, inParams.mExpect, inParams.mLowComplexityFilter,
-			inParams.mGapped, inParams.mGapOpen, inParams.mGapExtend));
+			inParams.mGapped, inParams.mGapOpen, inParams.mGapExtend, inParams.mReportLimit));
 
 	if (hits.get() != NULL)
 	{
@@ -637,6 +644,7 @@ ns__BlastSync(
 	bool								gapped,
 	unsigned long						gap_open,
 	unsigned long						gap_extend,
+	unsigned long						report_limit,
 	struct ns__BlastResult&				response)
 {
 	WLogger log(soap->ip, __func__);
@@ -649,7 +657,7 @@ ns__BlastSync(
 			THROW(("Query sequence too short"));
 		
 		CBlastJobParameters params(db, mrsBooleanQuery, query, program, matrix,
-			word_size, expect, low_complexity_filter, gapped, gap_open, gap_extend);
+			word_size, expect, low_complexity_filter, gapped, gap_open, gap_extend, report_limit);
 		
 		log << params;
 		
@@ -681,6 +689,7 @@ ns__BlastAsync(
 	bool								gapped,
 	unsigned long						gap_open,
 	unsigned long						gap_extend,
+	unsigned long						report_limit,
 	xsd__string&						response)
 {
 	WLogger log(soap->ip, __func__);
@@ -693,7 +702,7 @@ ns__BlastAsync(
 			THROW(("Query sequence too short"));
 		
 		CBlastJobParameters params(db, mrsBooleanQuery, query, program, matrix,
-			word_size, expect, low_complexity_filter, gapped, gap_open, gap_extend);
+			word_size, expect, low_complexity_filter, gapped, gap_open, gap_extend, report_limit);
 
 		log << params;
 		
@@ -954,6 +963,8 @@ int main(int argc, const char* argv[])
 		exit(1);
 	}
 	
+	setenv("MRS_DATA_DIR", gDataDir.string().c_str(), 1);
+
 	if (not fs::exists(gParserDir) or not fs::is_directory(gParserDir))
 	{
 		cerr << "Parser directory " << gParserDir.string() << " is not a valid directory" << endl;
@@ -1043,8 +1054,10 @@ int main(int argc, const char* argv[])
 				
 				try
 				{
-					if (soap_serve(&soap) != SOAP_OK) // process RPC request
-;//						soap_print_fault(&soap, stderr); // print error
+					int err = soap_serve(&soap); // process RPC request
+					
+					if (err != SOAP_OK and err != SOAP_EOF)
+						soap_print_fault(&soap, stderr); // print error
 				}
 				catch (const exception& e)
 				{
@@ -1059,6 +1072,7 @@ int main(int argc, const char* argv[])
 				soap_end(&soap); // clean up everything and close socket
 			}
 		}
+
 		soap_done(&soap); // close master socket and detach environment
 		
 		cout << "Quit" << endl;

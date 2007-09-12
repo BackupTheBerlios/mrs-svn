@@ -103,14 +103,30 @@ void Daemonize(
 	
 	if (pid != 0)
 	{
-//		cout << "Started daemon with process id: " << pid << endl;
-		
 		ofstream pidFile(inPIDFile);
 		pidFile << pid << endl;
 		pidFile.close();
 		
 		_exit(0);
 	}
+
+	if (setsid() < 0)
+	{
+		cerr << "Failed to create process group: " << strerror(errno) << endl;
+		exit(1);
+	}
+
+	// it is dubious if this is needed:
+	signal(SIGHUP, SIG_IGN);
+
+	// fork again, to avoid being able to attach to a terminal device
+	pid = fork();
+
+	if (pid == -1)
+		cerr << "Fork failed" << endl;
+
+	if (pid != 0)
+		_exit(0);
 
 	// open the log file
 	int fd = open(inLogFile.c_str(), O_CREAT|O_APPEND|O_RDWR, 0644);
@@ -120,12 +136,6 @@ void Daemonize(
 	if (chdir("/") != 0)
 	{
 		cerr << "Cannot chdir to /: " << strerror(errno) << endl;
-		exit(1);
-	}
-
-	if (setsid() < 0)
-	{
-		cerr << "Failed to create process group: " << strerror(errno) << endl;
 		exit(1);
 	}
 
