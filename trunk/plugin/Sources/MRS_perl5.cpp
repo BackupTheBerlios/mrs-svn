@@ -3529,14 +3529,15 @@ XS(_wrap_MDatabank_Blast) {
         bool arg7 ;
         unsigned long arg8 ;
         unsigned long arg9 ;
+        unsigned long arg10 ;
         MBlastHits *result;
         std::string temp2 ;
         std::string temp3 ;
         int argvi = 0;
         dXSARGS;
         
-        if ((items < 9) || (items > 9)) {
-            SWIG_croak("Usage: MDatabank_Blast(self,inQuery,inMatrix,inWordSize,inExpect,inFilter,inGapped,inGapOpen,inGapExtend);");
+        if ((items < 10) || (items > 10)) {
+            SWIG_croak("Usage: MDatabank_Blast(self,inQuery,inMatrix,inWordSize,inExpect,inFilter,inGapped,inGapOpen,inGapExtend,inReportLimit);");
         }
         {
             if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MDatabank,0) < 0) {
@@ -3570,9 +3571,10 @@ XS(_wrap_MDatabank_Blast) {
         arg7 = SvIV(ST(6)) ? true : false;
         arg8 = (unsigned long) SvUV(ST(7));
         arg9 = (unsigned long) SvUV(ST(8));
+        arg10 = (unsigned long) SvUV(ST(9));
         {
             try {
-                result = (MBlastHits *)(arg1)->Blast((std::string const &)*arg2,(std::string const &)*arg3,arg4,arg5,arg6,arg7,arg8,arg9);
+                result = (MBlastHits *)(arg1)->Blast((std::string const &)*arg2,(std::string const &)*arg3,arg4,arg5,arg6,arg7,arg8,arg9,arg10);
                 
             }
             
@@ -5615,14 +5617,15 @@ XS(_wrap_MQueryResults_Blast) {
         bool arg7 ;
         unsigned long arg8 ;
         unsigned long arg9 ;
+        unsigned long arg10 ;
         MBlastHits *result;
         std::string temp2 ;
         std::string temp3 ;
         int argvi = 0;
         dXSARGS;
         
-        if ((items < 9) || (items > 9)) {
-            SWIG_croak("Usage: MQueryResults_Blast(self,inQuery,inMatrix,inWordSize,inExpect,inFilter,inGapped,inGapOpen,inGapExtend);");
+        if ((items < 10) || (items > 10)) {
+            SWIG_croak("Usage: MQueryResults_Blast(self,inQuery,inMatrix,inWordSize,inExpect,inFilter,inGapped,inGapOpen,inGapExtend,inReportLimit);");
         }
         {
             if (SWIG_ConvertPtr(ST(0), (void **) &arg1, SWIGTYPE_p_MQueryResults,0) < 0) {
@@ -5656,9 +5659,10 @@ XS(_wrap_MQueryResults_Blast) {
         arg7 = SvIV(ST(6)) ? true : false;
         arg8 = (unsigned long) SvUV(ST(7));
         arg9 = (unsigned long) SvUV(ST(8));
+        arg10 = (unsigned long) SvUV(ST(9));
         {
             try {
-                result = (MBlastHits *)(arg1)->Blast((std::string const &)*arg2,(std::string const &)*arg3,arg4,arg5,arg6,arg7,arg8,arg9);
+                result = (MBlastHits *)(arg1)->Blast((std::string const &)*arg2,(std::string const &)*arg3,arg4,arg5,arg6,arg7,arg8,arg9,arg10);
                 
             }
             

@@ -360,8 +360,6 @@ int32 CScoreTableImp::MinScore()
 
 }
 
-struct CScoreTable : public CScoreTableImp {};
-
 CDictionary::CDictionary(CDatabankBase& inDatabank)
 	: fDatabank(inDatabank)
 	, fDictionaryFile(nil)
