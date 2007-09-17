@@ -117,7 +117,6 @@ endif
 	CTAGS		= /sw/bin/ctags
 	STRIP		= strip -S
 	JAVA_INC	= -I/System/Library/Frameworks/JavaVM.framework/Versions/1.4.2/Headers/
-	SOAPCPP2	:= /opt/local/bin/soapcpp2
 endif
 
 ifeq ($(DEBUG),0)
