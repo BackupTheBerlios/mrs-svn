@@ -62,7 +62,7 @@ class HStreamBase
 	virtual int32	Read(void* inBuffer, uint32 inSize) = 0;
 	virtual int32	PRead(void* inBuffer, uint32 inSize, int64 inOffset);
 	
-	void			CopyTo(HStreamBase& inDest, uint32 inSize, int64 inOffset);
+	void			CopyTo(HStreamBase& inDest, int64 inSize, int64 inOffset);
 	
 	virtual int64	Seek(int64 inOffset, int inMode) = 0;
 	virtual int64	Tell() const;

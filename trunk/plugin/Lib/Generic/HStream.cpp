@@ -90,7 +90,7 @@ int32 HStreamBase::PRead(void* inBuffer, uint32 inSize, int64 inOffset)
 	return result;
 }
 
-void HStreamBase::CopyTo(HStreamBase& inDest, uint32 inSize, int64 inOffset)
+void HStreamBase::CopyTo(HStreamBase& inDest, int64 inSize, int64 inOffset)
 {
 	Seek(inOffset, SEEK_SET);
 	
