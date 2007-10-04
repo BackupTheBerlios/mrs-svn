@@ -349,6 +349,10 @@ mrs_blast: $(LIBNAME) Sources/mrs_blast.cpp
 	$(CC) $(CFLAGS) -o $@ -ILib/Includes Sources/mrs_blast.cpp $(LIBNAME) $(LDFLAGS)
 	@ echo "Done"
 
+mrs_merge: $(LIBNAME) Sources/mrs_merge.cpp
+	$(CC) $(CFLAGS) -o $@ -ILib/Includes Sources/mrs_merge.cpp $(LIBNAME) $(LDFLAGS)
+	@ echo "Done"
+
 mrs_query: $(LIBNAME) Sources/mrs_query.cpp
 	@ echo "=> "$@
 	@ $(CC) $(CFLAGS) -o $@ -ILib/Includes Sources/mrs_query.cpp $(LIBNAME) $(LDFLAGS)
