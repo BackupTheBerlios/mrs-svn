@@ -272,7 +272,7 @@ CZLibDecompressorImp::CZLibDecompressorImp(HStreamBase& inFile,
 
 CZLibDecompressorImp::~CZLibDecompressorImp()
 {
-	delete fDictionary;
+	delete[] fDictionary;
 }
 
 void CZLibDecompressorImp::Init()
@@ -574,7 +574,9 @@ CDecompressor::CDecompressor(const HUrl& inDb,
 
 CDecompressor::~CDecompressor()
 {
-	boost::mutex::scoped_lock lock(fImpl->fMutex);
+#pragma message("FIX ME")
+//	this is not going to work of course... don't know what to do here actually.
+//	boost::mutex::scoped_lock lock(fImpl->fMutex);
 
 	delete fImpl;
 }
