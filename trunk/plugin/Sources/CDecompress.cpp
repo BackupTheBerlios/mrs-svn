@@ -258,7 +258,6 @@ struct CZLibDecompressorImp : public CBasicDecompressorImp
 	
 	virtual string	GetDocument(int64 inOffset, uint32 inSize);
 
-	z_stream_s		fZStream;
 	unsigned char*	fDictionary;
 	uint32			fDictLength;
 };
@@ -266,7 +265,7 @@ struct CZLibDecompressorImp : public CBasicDecompressorImp
 CZLibDecompressorImp::CZLibDecompressorImp(HStreamBase& inFile,
 		int64 inDataOffset, int64 inDataSize, int64 inTableOffset, int64 inTableSize, uint32 inMetaDataCount)
 	: CBasicDecompressorImp(inFile, kZLibCompressed, inDataOffset, inDataSize, inTableOffset, inTableSize, inMetaDataCount)
-	, fDictionary(NULL)
+	, fDictionary(nil)
 	, fDictLength(0)
 {
 }
@@ -274,7 +273,6 @@ CZLibDecompressorImp::CZLibDecompressorImp(HStreamBase& inFile,
 CZLibDecompressorImp::~CZLibDecompressorImp()
 {
 	delete fDictionary;
-	inflateEnd(&fZStream);
 }
 
 void CZLibDecompressorImp::Init()
@@ -296,12 +294,6 @@ void CZLibDecompressorImp::Init()
 	}
 	
 	fPrefixLength = sizeof(n) + n;
-	
-	memset(&fZStream, 0, sizeof(fZStream));
-
-	int err = inflateInit(&fZStream);
-	if (err != Z_OK)
-		THROW(("Decompression error: %s", fZStream.msg));
 }
 	
 string CZLibDecompressorImp::GetDocument(int64 inOffset, uint32 inLength)
@@ -313,58 +305,65 @@ string CZLibDecompressorImp::GetDocument(int64 inOffset, uint32 inLength)
 	HAutoBuf<unsigned char> src_buf(new unsigned char[kBufferSize]);
 	HAutoBuf<unsigned char> dst_buf(new unsigned char[kBufferSize]);
 
-	fZStream.next_in = src_buf.get();
-	fZStream.avail_in = 0;
-	fZStream.total_in = 0;
+	z_stream_s zs;
+
+	int err = inflateInit(&zs);
+	if (err != Z_OK)
+		THROW(("Decompression error: %s", zs.msg));
+
+	zs.next_in = src_buf.get();
+	zs.avail_in = 0;
+	zs.total_in = 0;
 	
-	fZStream.next_out = dst_buf.get();
-	fZStream.avail_out = kBufferSize;
-	fZStream.total_out = 0;
+	zs.next_out = dst_buf.get();
+	zs.avail_out = kBufferSize;
+	zs.total_out = 0;
 
 	bool done = false;
-	int err = inflateReset(&fZStream);
 
 	while (not done and err >= Z_OK)
 	{
 			// shift remaining unread bytes to the beginning of our buffer
-		if (fZStream.next_in > src_buf.get() and fZStream.avail_in > 0)
-			memmove(src_buf.get(), fZStream.next_in, fZStream.avail_in);
+		if (zs.next_in > src_buf.get() and zs.avail_in > 0)
+			memmove(src_buf.get(), zs.next_in, zs.avail_in);
 
-		fZStream.next_in = src_buf.get();
+		zs.next_in = src_buf.get();
 
 			// flush parameter, if we still have data set it to 0
 		int flush = 0;
 		if (inLength > 0)
 		{
-			uint32 size = kBufferSize - fZStream.avail_in;
+			uint32 size = kBufferSize - zs.avail_in;
 			if (size > inLength)
 				size = static_cast<uint32>(inLength);
 			inLength -= size;
 
-			inOffset += fData.PRead(src_buf.get() + fZStream.avail_in, size, inOffset);
-			fZStream.avail_in += size;
+			inOffset += fData.PRead(src_buf.get() + zs.avail_in, size, inOffset);
+			zs.avail_in += size;
 		}
 		else
 			flush = Z_SYNC_FLUSH;
 
-		err = inflate(&fZStream, flush);
+		err = inflate(&zs, flush);
 		if (err == Z_NEED_DICT)
-			err = inflateSetDictionary(&fZStream, fDictionary, fDictLength);
+			err = inflateSetDictionary(&zs, fDictionary, fDictLength);
 
 		if (err == Z_STREAM_END)
 			done = true;
 		
-		if (kBufferSize - fZStream.avail_out > 0)
+		if (kBufferSize - zs.avail_out > 0)
 		{
 			result.append(reinterpret_cast<char*>(dst_buf.get()),
-				kBufferSize - fZStream.avail_out);
-			fZStream.avail_out = kBufferSize;
-			fZStream.next_out = dst_buf.get();
+				kBufferSize - zs.avail_out);
+			zs.avail_out = kBufferSize;
+			zs.next_out = dst_buf.get();
 		}
 	}
 	
 	if (err < Z_OK)
-		THROW(("Decompression error: %s (%d)", fZStream.msg, err));
+		THROW(("Decompression error: %s (%d)", zs.msg, err));
+	
+	inflateEnd(&zs);
 	
 	return result;
 }
