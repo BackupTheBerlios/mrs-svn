@@ -60,7 +60,7 @@ VERSION		= 4.0.0
 # DEBUG should be either 1 or 0
 DEBUG		= 0
 DEFINES		= CPU_$(CPU) MINI_H_LIB
-LIBS		= z m bz2 $(addsuffix $(BOOST_LIB_SUFFIX), boost_regex boost_thread)
+LIBS		= duma z m bz2 $(addsuffix $(BOOST_LIB_SUFFIX), boost_regex boost_thread)
 LIBPATHS	=  ./Lib/ /usr/local/lib/
 INCPATHS	= ./Lib/Includes/ ./Lib/X/ ./Lib/
 SYSINCPATHS	= /usr/include $(BOOST)
@@ -340,10 +340,10 @@ dist: FORCE
 	rm -rf dist/MRS-$(VERSION).tar.gz
 	cd dist; $(PERL) Makefile.PL INSTALLSCRIPT=$(INSTALL_DIR); $(MAKE) dist
 
-install: $(OUTPUT) mrs_blast mrs_query dist
+install: $(OUTPUT) dist # mrs_blast mrs_query 
 	cd dist; $(SUDO) $(MAKE) install
-	$(SUDO) install -m 755 mrs_blast /usr/local/bin/mrs_blast
-	$(SUDO) install -m 755 mrs_query /usr/local/bin/mrs_query
+#	$(SUDO) install -m 755 mrs_blast /usr/local/bin/mrs_blast
+#	$(SUDO) install -m 755 mrs_query /usr/local/bin/mrs_query
 
 mrs_blast: $(LIBNAME) Sources/mrs_blast.cpp
 	$(CC) $(CFLAGS) -o $@ -ILib/Includes Sources/mrs_blast.cpp $(LIBNAME) $(LDFLAGS)
