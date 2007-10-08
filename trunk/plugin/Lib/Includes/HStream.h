@@ -159,7 +159,7 @@ class HMemoryStream : public HStreamBase
 	char*			fData;
 	uint32			fLogicalSize;
 	uint32			fPhysicalSize;
-	long			fPointer;
+	uint32			fPointer;
 	bool			fReadOnly;
 };
 
@@ -218,7 +218,7 @@ class HBufferedFileStream : public HFileStream
 		char*			fText;
 		BufferBlock*	fNext;
 		BufferBlock*	fPrev;
-		int32			fPageSize;
+		uint32			fPageSize;
 		bool			fDirty;
 	};
 

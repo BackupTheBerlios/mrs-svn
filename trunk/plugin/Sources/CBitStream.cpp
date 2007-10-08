@@ -58,6 +58,9 @@ const uint32
 	kBitBufferSize = 64,
 	kBitBufferExtend = 1024;
 
+const int64
+	kUnboundedBufferSize = numeric_limits<int64>::max();
+
 COBitStream::COBitStream()
 	: data(new char[kBitBufferSize])
 	, byte_offset(0)
@@ -132,23 +135,16 @@ const char* COBitStream::peek() const
 	return data;
 }
 
-uint32 COBitStream::size() const
+int64 COBitStream::size() const
 {
-//	assert(bit_offset == 7);
 	return byte_offset;
-}
-
-uint32 COBitStream::bit_size() const
-{
-//	assert(bit_offset == 7);
-	return (byte_offset + 1) * 8 - bit_offset - 1;
 }
 
 // ibit
 
 struct CIBitStreamConstImp : public CIBitStream::CIBitStreamImp
 {
-					CIBitStreamConstImp(const char* inData, int32 inSize);
+					CIBitStreamConstImp(const char* inData, int64 inSize = -1);
 	
 	virtual void	get(int8& outByte)
 					{
@@ -167,10 +163,10 @@ struct CIBitStreamConstImp : public CIBitStream::CIBitStreamImp
 					}
 
 	const char*		data;
-	uint32			offset;
+	int64			offset;
 };
 
-CIBitStreamConstImp::CIBitStreamConstImp(const char* inData, int32 inSize)
+CIBitStreamConstImp::CIBitStreamConstImp(const char* inData, int64 inSize)
 	: CIBitStreamImp(inSize)
 	, data(inData)
 	, offset(0)
@@ -189,13 +185,12 @@ CIBitStreamConstImp::CIBitStreamConstImp(const char* inData, int32 inSize)
 		--size;
 	}
 	else
-		size = numeric_limits<int32>::max();
+		size = kUnboundedBufferSize;
 }
 
 struct CIBitStreamFileImp : public CIBitStream::CIBitStreamImp
 {
-					CIBitStreamFileImp(HStreamBase& inData,
-						int64 inOffset, int32 inSize);
+					CIBitStreamFileImp(HStreamBase& inData, int64 inOffset, int64 inSize = -1);
 	
 	virtual void	get(int8& outByte)
 					{
@@ -229,14 +224,14 @@ struct CIBitStreamFileImp : public CIBitStream::CIBitStreamImp
 };
 
 CIBitStreamFileImp::CIBitStreamFileImp(HStreamBase& inData,
-			int64 inOffset, int32 inSize)
+			int64 inOffset, int64 inSize)
 	: CIBitStreamImp(inSize)
 	, data(inData)
 	, offset(inOffset)
 	, buffer_size(0)
 	, buffer_ptr(buffer)
 {
-	if (inSize > 0 && inSize < numeric_limits<int32>::max())
+	if (inSize > 0)
 	{
 		int8 byte;
 		
@@ -250,6 +245,8 @@ CIBitStreamFileImp::CIBitStreamFileImp(HStreamBase& inData,
 		assert(size > 0);
 		--size;
 	}
+	else
+		size = kUnboundedBufferSize;
 }
 
 void CIBitStreamFileImp::read()
@@ -278,12 +275,12 @@ CIBitStream::CIBitStream(HStreamBase& inData, int64 inOffset)
 		impl = new CIBitStreamConstImp(
 			reinterpret_cast<const char*>(ms->Buffer()) + inOffset, 0);
 	else
-		impl = new CIBitStreamFileImp(inData, inOffset, numeric_limits<int32>::max());
+		impl = new CIBitStreamFileImp(inData, inOffset);
 	
 	impl->get(byte);
 }
 
-CIBitStream::CIBitStream(HStreamBase& inData, int64 inOffset, uint32 inSize)
+CIBitStream::CIBitStream(HStreamBase& inData, int64 inOffset, int64 inSize)
 	: bit_offset(7)
 {
 	HMemoryStream* ms = dynamic_cast<HMemoryStream*>(&inData);
@@ -291,13 +288,13 @@ CIBitStream::CIBitStream(HStreamBase& inData, int64 inOffset, uint32 inSize)
 		impl = new CIBitStreamConstImp(
 			reinterpret_cast<const char*>(ms->Buffer()) + inOffset, inSize);
 	else
-		impl = new CIBitStreamFileImp(inData, inOffset, static_cast<int32>(inSize));
+		impl = new CIBitStreamFileImp(inData, inOffset, inSize);
 	
 	impl->get(byte);
 }
 
-CIBitStream::CIBitStream(const char* inData, uint32 inSize)
-	: impl(new CIBitStreamConstImp(inData, static_cast<int32>(inSize)))
+CIBitStream::CIBitStream(const char* inData, int64 inSize)
+	: impl(new CIBitStreamConstImp(inData, inSize))
 	, bit_offset(7)
 {
 	impl->get(byte);

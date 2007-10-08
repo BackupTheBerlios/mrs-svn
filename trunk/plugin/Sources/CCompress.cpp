@@ -193,7 +193,7 @@ void CZLibCompressorImp::CompressData(vector<pair<const char*,uint32> >& inDataV
 	for (uint32 ix = 1; ix < inDataVector.size(); ++ix)
 		data << static_cast<uint16>(inDataVector[ix - 1].second);
 	
-	const int kBufferSize = 4096;
+	const uint32 kBufferSize = 4096;
 	static HAutoBuf<unsigned char> sBuffer(new unsigned char[kBufferSize]);
 
 	z_stream.avail_in = 0;

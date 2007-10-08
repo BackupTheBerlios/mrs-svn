@@ -66,10 +66,8 @@ class COBitStream
 	void			sync();
 	
 	const char*		peek() const;
-	uint32			size() const;
+	int64			size() const;
 	
-	uint32			bit_size() const;
-
   private:
 					COBitStream(const COBitStream&);
 	COBitStream&	operator=(const COBitStream&);
@@ -77,8 +75,8 @@ class COBitStream
 	void			overflow();
 
 	char*			data;
-	uint32			byte_offset;
-	uint32			physical_size;
+	int64			byte_offset;
+	int64			physical_size;
 	int32			bit_offset;
 	HStreamBase*	file;
 };
@@ -116,7 +114,7 @@ class CIBitStream
 
 	struct CIBitStreamImp
 	{
-						CIBitStreamImp(int32 inSize)
+						CIBitStreamImp(int64 inSize)
 							: size(inSize), byte_offset(0) {}
 		
 		virtual			~CIBitStreamImp() {}
@@ -125,13 +123,13 @@ class CIBitStream
 		virtual CIBitStreamImp*
 						clone() const = 0;
 	
-		int32			size;
-		uint32			byte_offset;
+		int64			size;
+		int64			byte_offset;
 	};
 
 					CIBitStream(HStreamBase& inData, int64 inOffset);
-					CIBitStream(HStreamBase& inData, int64 inOffset, uint32 inSize);
-					CIBitStream(const char* inData, uint32 inSize);
+					CIBitStream(HStreamBase& inData, int64 inOffset, int64 inSize);
+					CIBitStream(const char* inData, int64 inSize = -1);
 					CIBitStream(const CIBitStream& inOther);
 					~CIBitStream();
 
@@ -143,12 +141,10 @@ class CIBitStream
 	CIBitStream&	operator>>(int& outBit);
 	int				next_bit();
 	
-//	void			skip(uint32 inBits);
-	
 	bool			eof() const;
 	void			underflow();
 	
-	uint32			bytes_read() const;
+	int64			bytes_read() const;
 
   private:
 
@@ -177,7 +173,7 @@ void CIBitStream::underflow()
 }
 
 inline
-uint32 CIBitStream::bytes_read() const
+int64 CIBitStream::bytes_read() const
 {
 	return impl->byte_offset;
 }
@@ -217,7 +213,7 @@ template<class T>
 inline
 T ReadBinary(CIBitStream& inBits, int inBitCount)
 {
-	assert(inBitCount < sizeof(T) * 8);
+	assert(inBitCount < int32(sizeof(T) * 8));
 	assert(inBitCount > 0);
 	T result = 0;
 
@@ -234,7 +230,7 @@ template<class T>
 inline
 void WriteBinary(COBitStream& inBits, T inValue, int inBitCount)
 {
-	assert(inBitCount <= sizeof(T) * 8);
+	assert(inBitCount <= int32(sizeof(T) * 8));
 	assert(inBitCount > 0);
 	for (int32 i = inBitCount - 1; i >= 0; --i)
 		inBits << ((inValue & (1 << i)) != 0);

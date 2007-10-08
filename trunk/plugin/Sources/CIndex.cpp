@@ -138,7 +138,7 @@ static MatchResult Match(const char* inPattern, const char* inName)
 int CompareKeyString(const char* inA, uint32 inLengthA, const char* inB, uint32 inLengthB)
 {
 	int l = inLengthA;
-	if (l > inLengthB)
+	if (uint32(l) > inLengthB)
 		l = inLengthB;
 	
 	int d = strncasecmp(inA, inB, l);
@@ -198,7 +198,7 @@ struct COnDiskDataV0
 		uint32		p_;
 	} e[1];
 	uint32			p0;
-	int32			n;
+	uint32			n;
 	
 	uint32			GetValue(int32 inIndex) const
 					{
@@ -249,7 +249,7 @@ struct COnDiskDataV1
 	} e[1];
 	uint32			p0;
 	uint32			pp;
-	int32			n;
+	uint32			n;
 	
 	uint32			GetValue(int32 inIndex) const
 					{
@@ -296,7 +296,7 @@ struct COnDiskDataV2
 {
 	uint32			p0;
 	uint32			pp;
-	int32			n;
+	uint32			n;
 	unsigned char	keys[kKeySpace];
 	union
 	{
@@ -400,7 +400,6 @@ class CIndexPage
 	const unsigned char*	GetKey(uint32 inIndex) const;
 
 	void					Insert(int32 inIndex, const string& inKey, int64 inValue, uint32 inP);
-	void					Delete(int32 inIndex);
 	void					Copy(CIndexPage& inFromPage, int32 inFromIndex, int32 inToIndex, int32 inCount);
 
 	void					Read();
@@ -587,7 +586,7 @@ void CIndexPage<DD>::SetParent(uint32 inParent)
 		p0.SetParent(fOffset);
 	}
 	
-	for (int32 i = 0; i < fData.n; ++i)
+	for (uint32 i = 0; i < fData.n; ++i)
 	{
 		if (fData.GetP(i) != 0)
 		{
@@ -627,7 +626,7 @@ void CIndexPage<DD>::Insert(int32 inIndex, const string& inKey, int64 inValue, u
 	fDirty = true;
 
 	assert(inIndex >= 0);
-	assert(inIndex <= fData.n);
+	assert(uint32(inIndex) <= fData.n);
 
 #if P_DEBUG
 	uint32 free = FreeSpace();
@@ -636,7 +635,7 @@ void CIndexPage<DD>::Insert(int32 inIndex, const string& inKey, int64 inValue, u
 	
 	unsigned char* k = GetKey(inIndex);
 	
-	if (inIndex < fData.n)
+	if (inIndex >= 0 and uint32(inIndex) < fData.n)
 	{
 		unsigned char* lk = GetKey(fData.n - 1);
 		
@@ -656,50 +655,6 @@ void CIndexPage<DD>::Insert(int32 inIndex, const string& inKey, int64 inValue, u
 	fData.SetValue(inIndex, inValue);
 	fData.SetP(inIndex, inP);
 	++fData.n;
-
-//#if P_DEBUG
-//	cerr << "dumping page " << fOffset << ", parent=" << GetParent() << ", n=" << fData.n << endl;
-//
-//	for (uint32 i = 0; i < fData.n; ++i)
-//	{
-//		string k;
-//		int64 v;
-//		uint32 c;
-//		
-//		GetData(i, k, v, c);
-//		
-//		cerr << "ix: " << i << ", p: " << c << ", key: " << k << endl;
-//	}
-//#endif
-}
-
-template<typename DD>
-void CIndexPage<DD>::Delete(int32 inIndex)
-{
-	fDirty = true;
-	
-	assert(inIndex >= 0);
-	assert(inIndex < fData.n);
-	
-	unsigned char* k = GetKey(inIndex);
-	
-	if (inIndex < fData.n)
-	{
-		unsigned char* fk = GetKey(inIndex + 1);
-		unsigned char* lk = GetKey(fData.n - 1);
-		
-		lk += *lk + 1;
-
-		int32 m = lk - fk;
-		assert(m >= 0);
-//		assert(m + inKey.length() + 1 <= free);
-		
-		if (m > 0)
-			memmove(k, fk, static_cast<uint32>(m));
-	
-		for (int32 i = static_cast<int32>(inIndex); i < static_cast<int32>(fData.n) - 1; ++i)
-			fData.e[-i] = fData.e[-(i + 1)];
-	}
 }
 
 template<typename DD>

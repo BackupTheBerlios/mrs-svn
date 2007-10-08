@@ -103,10 +103,10 @@ void HStreamBase::CopyTo(HStreamBase& inDest, int64 inSize, int64 inOffset)
 		if (n > inSize)
 			n = inSize;
 
-		if (Read(b.get(), n) != n)
+		if (Read(b.get(), n) != int32(n))
 			THROW(("I/O error in copy"));
 
-		if (inDest.Write(b.get(), n) != n)
+		if (inDest.Write(b.get(), n) != int32(n))
 			THROW(("I/O error in copy"));
 
 		inSize -= n;

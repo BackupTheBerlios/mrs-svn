@@ -34,7 +34,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
  
-%module MRS
+%module MRSd
 %include "std_string.i"
 
 %{

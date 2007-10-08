@@ -527,7 +527,7 @@ void CFullTextIndex::AddWord(uint8 inIndex, uint32 inWord, uint8 inFrequency)
 	if (inIndex > kMaxIndexNr)
 		THROW(("Too many full text indices"));
 	
-	if (fFTIndexCnt < inIndex + 1)
+	if (fFTIndexCnt < uint32(inIndex + 1))
 		fFTIndexCnt = inIndex + 1;
 
 	if (inFrequency > 0)
@@ -1505,7 +1505,7 @@ void CIndexer::IndexDate(const string& inIndex, const string& inText)
 	
 	if (VERBOSE > 0)
 	{
-		if (tm.tm_mday != day or tm.tm_mon != month - 1 or tm.tm_year != year - 1900)
+		if (uint32(tm.tm_mday) != day or uint32(tm.tm_mon) != month - 1 or uint32(tm.tm_year + 1900) != year)
 			cerr << "Warning: Invalid formatted date specified(6): " << inText << endl;
 		//THROW(("Invalid formatted date specified(6): '%s'", inText.c_str()));
 	}

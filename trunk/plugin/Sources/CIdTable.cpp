@@ -108,7 +108,7 @@ bool CIdTablePage::Store(string inID)
 	bool result = false;
 	
 	uint32 free = offset[count];
-	assert(free <= kMaxDataOffset);
+	assert(int32(free) <= kMaxDataOffset);
 	free -= count * sizeof(uint32);
 	
 	if (free >= inID.length() + sizeof(uint32))

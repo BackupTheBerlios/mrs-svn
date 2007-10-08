@@ -22,7 +22,7 @@ CDbDocIteratorBaseT<T,K>::CDbDocIteratorBaseT(HStreamBase& inData,
 
 template<typename T, uint32 K>
 CDbDocIteratorBaseT<T,K>::CDbDocIteratorBaseT(const char* inData, int64 inMax, uint32 inDelta)
-	: fBits(inData, std::numeric_limits<uint32>::max())
+	: fBits(inData)
 	, fIter(fBits, inMax)
 	, fDelta(inDelta)
 {

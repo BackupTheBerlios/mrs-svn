@@ -132,7 +132,7 @@ struct WordBase
 		WordBase&		mWord;
 		const CMatrix&	mMatrix;
 		int32			mTreshhold;
-		int32			mIndex;
+		uint32			mIndex;
 	};
 	
 	unsigned char	data[WordSize];
@@ -161,7 +161,7 @@ bool WordBase<WordSize>::PermutationIterator::Next(WordBase& outWord, uint32& ou
 
 	while (result == false and mIndex < kMaxIndex)
 	{
-		int32 ix = mIndex;
+		uint32 ix = mIndex;
 		int32 score = 0;
 		
 		for (int i = WordSize - 1; i >= 0; --i)
@@ -205,7 +205,7 @@ class WordHitIteratorBase
 {
 	struct Entry
 	{
-		int16					mCount;
+		uint16					mCount;
 		uint16					mDataOffset;
 		uint16					mInline[kInlineCount];
 	};
@@ -943,11 +943,11 @@ int32 CBlastQueryBase::AlignGapped(
 	Data& Iy = mIy;	Iy.Resize(dimX, dimY);
 	
 	int32 bestScore = 0;
-	int32 bestX;
-	int32 bestY;
-	int32 colStart = 1;
-	int32 lastColStart = 1;
-	int32 colEnd = dimY;
+	uint32 bestX;
+	uint32 bestY;
+	uint32 colStart = 1;
+	uint32 lastColStart = 1;
+	uint32 colEnd = dimY;
 	
 	// first column
 	uint32 i = 1, j = 1;
@@ -1002,7 +1002,7 @@ int32 CBlastQueryBase::AlignGapped(
 	for (i = 2; x != inQueryEnd and colEnd >= colStart; ++i, ++x)
 	{
 		y = inTargetBegin + colStart - 1;
-		int32 newColStart = colStart;
+		uint32 newColStart = colStart;
 		bool beforeFirstRow = true;
 		
 		for (j = colStart; y != inTargetEnd; ++j, ++y)
@@ -1289,7 +1289,7 @@ bool CBlastQuery<WordSize>::Test(uint32 inDocNr, const CSequence& inTarget)
 
 		int32 distance = queryOffset - m;
 		
-		if (m == kUnusedDiagonal or distance >= mHitWindow)
+		if (m == int32(kUnusedDiagonal) or distance >= mHitWindow)
 			mDiagonalTable[d] = queryOffset;
 		else if (distance >= WordSize)
 		{
@@ -1316,7 +1316,7 @@ bool CBlastQuery<WordSize>::Test(uint32 inDocNr, const CSequence& inTarget)
 				{
 					++mGappedAlignmentAttempts;
 
-					uint32 gappedScore = AlignGapped(querySeed, inTarget, targetSeed, mXg);
+					int32 gappedScore = AlignGapped(querySeed, inTarget, targetSeed, mXg);
 
 					if (gappedScore > score)
 					{
@@ -1501,11 +1501,11 @@ HMutex CBlastImp::sLock;
 CBlastImp::CBlastImp(const string& inQuery, const string& inMatrix, uint32 inWordSize,
 		double inExpect, bool inFilter, bool inGapped, uint32 inGapOpen, uint32 inGapExtend, uint32 inReportLimit)
 	: mMatrix(inMatrix, inGapOpen, inGapExtend)
+	, mReportLimit(inReportLimit)
 	, mWordSize(inWordSize)
 	, mFilter(inFilter)
 	, mGapped(inGapped)
 	, mExpect(inExpect)
-	, mReportLimit(inReportLimit)
 {
 	mUnfilteredQuery = Encode(inQuery);
 	
@@ -1745,7 +1745,7 @@ bool CBlastHspIterator::Next()
 {
 	bool result = false;
 	
-	if (++mHspNr < mHit->mHsps.size())
+	if (uint32(++mHspNr) < mHit->mHsps.size())
 	{
 		result = true;
 		
@@ -1758,13 +1758,13 @@ bool CBlastHspIterator::Next()
 
 uint32 CBlastHspIterator::QueryStart()
 {
-	assert(mHspNr >= 0 and mHspNr < mHit->mHsps.size());
+	assert(mHspNr >= 0 and uint32(mHspNr) < mHit->mHsps.size());
 	return mHit->mHsps[mHspNr].mQueryStart;
 }
 
 uint32 CBlastHspIterator::SubjectStart()
 {
-	assert(mHspNr >= 0 and mHspNr < mHit->mHsps.size());
+	assert(mHspNr >= 0 and uint32(mHspNr) < mHit->mHsps.size());
 	return mHit->mHsps[mHspNr].mTargetStart;
 }
 
@@ -1775,25 +1775,25 @@ uint32 CBlastHspIterator::SubjectLength()
 
 string CBlastHspIterator::QueryAlignment()
 {
-	assert(mHspNr >= 0 and mHspNr < mHit->mHsps.size());
+	assert(mHspNr >= 0 and uint32(mHspNr) < mHit->mHsps.size());
 	return mHit->mHsps[mHspNr].mAlignedQueryString;
 }
 
 string CBlastHspIterator::SubjectAlignment()
 {
-	assert(mHspNr >= 0 and mHspNr < mHit->mHsps.size());
+	assert(mHspNr >= 0 and uint32(mHspNr) < mHit->mHsps.size());
 	return Decode(mHit->mHsps[mHspNr].mAlignedTarget);
 }
 
 string CBlastHspIterator::Midline()
 {
-	assert(mHspNr >= 0 and mHspNr < mHit->mHsps.size());
+	assert(mHspNr >= 0 and uint32(mHspNr) < mHit->mHsps.size());
 	return mHit->mHsps[mHspNr].mMidline;
 }
 
 uint32 CBlastHspIterator::Score()
 {
-	assert(mHspNr >= 0 and mHspNr < mHit->mHsps.size());
+	assert(mHspNr >= 0 and uint32(mHspNr) < mHit->mHsps.size());
 	return mHit->mHsps[mHspNr].mScore;
 }
 
@@ -1810,19 +1810,19 @@ double CBlastHspIterator::Expect()
 
 uint32 CBlastHspIterator::Identity()
 {
-	assert(mHspNr >= 0 and mHspNr < mHit->mHsps.size());
+	assert(mHspNr >= 0 and uint32(mHspNr) < mHit->mHsps.size());
 	return mHit->mHsps[mHspNr].mIdentity;
 }
 
 uint32 CBlastHspIterator::Positive()
 {
-	assert(mHspNr >= 0 and mHspNr < mHit->mHsps.size());
+	assert(mHspNr >= 0 and uint32(mHspNr) < mHit->mHsps.size());
 	return mHit->mHsps[mHspNr].mPositive;
 }
 
 uint32 CBlastHspIterator::Gaps()
 {
-	assert(mHspNr >= 0 and mHspNr < mHit->mHsps.size());
+	assert(mHspNr >= 0 and uint32(mHspNr) < mHit->mHsps.size());
 	return mHit->mHsps[mHspNr].mGaps;
 }
 
@@ -1852,7 +1852,7 @@ CBlastHitIterator& CBlastHitIterator::operator=(const CBlastHitIterator& inOther
 bool CBlastHitIterator::Next()
 {
 	++mHitNr;
-	return mHitNr < mBlastQuery->mHits.size();
+	return uint32(mHitNr) < mBlastQuery->mHits.size();
 }
 
 CBlastHspIterator CBlastHitIterator::Hsps()

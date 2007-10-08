@@ -64,7 +64,7 @@ CDocIterator::~CDocIterator()
 
 void CDocIterator::PrintHierarchy(int inLevel) const
 {
-	for (uint32 i = 0; i < inLevel; ++i)
+	for (int i = 0; i < inLevel; ++i)
 		cout << "  ";
 	cout << typeid(*this).name() << endl;
 }
@@ -87,7 +87,7 @@ bool CDocDeltaIterator::Next(uint32& ioDoc, bool inSkip)
 	if (fOriginal != nil)
 	{
 		assert(fOffset > 0);
-		assert(inSkip == false or fOffset <= ioDoc);
+		assert(inSkip == false or int64(ioDoc) + fOffset >= 0);
 
 		ioDoc -= fOffset;
 		result = fOriginal->Next(ioDoc, inSkip);

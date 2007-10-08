@@ -80,7 +80,7 @@ struct CNode
 // This asserts that space is used optimally.
 struct CLexPage
 {
-	int32		N;
+	uint32		N;
 	uint32		first;
 	char		s[kLexDataSize];
 	uint32		e[1];
@@ -331,7 +331,7 @@ CLexiconImp::GetPage(uint32& ioNr) const
 	LexPageArray::const_iterator p = fPages.begin() + L - 1;
 
 	assert(L > 0);
-	assert(L - 1 < fPages.size());
+	assert(uint32(L - 1) < fPages.size());
 	assert((*p)->first <= ioNr);
 	assert(ioNr < (*p)->first + (*p)->N);
 	

@@ -1223,7 +1223,7 @@ string CDatabank::GetDocumentID(uint32 inDocNr) const
 	return result;
 }
 
-long CDatabank::GetIndexCount()
+uint32 CDatabank::GetIndexCount()
 {
 	return GetIndexer()->GetIndexCount();
 }
@@ -1962,7 +1962,7 @@ void CJoinedDatabank::PrintInfo()
 		fParts[p].fDb->PrintInfo();
 }
 
-long CJoinedDatabank::GetIndexCount()
+uint32 CJoinedDatabank::GetIndexCount()
 {
 	return fIndexCount;
 }

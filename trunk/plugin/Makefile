@@ -227,6 +227,7 @@ Sources = \
 	./Lib/Generic/HGlobals.cpp \
 	./Lib/Generic/HUrl.cpp \
 	./Lib/Generic/HUtils.cpp \
+	./Lib/Generic/memtools.cpp \
 	./Lib/Posix/HUnixFile.cpp \
 	./Lib/Posix/HUnixUtils.cpp \
 	./Lib/Posix/HMutex.cpp \
@@ -366,15 +367,15 @@ $(OBJDIR):
 
 $(OBJDIR)/%_$(TARGET).o: Sources/%_$(TARGET).cpp
 	@ echo "=> "$(@F)
-	$(CC) -c $< -o $@ $(INCLUDES) -MD $(CFLAGS) -O0
+	$(CC) -MD -c $< -o $@ $(INCLUDES) $(CFLAGS) -O0
 
 $(OBJDIR)/%.o: %.cpp
 	@ echo "=> "$(@F)
-	@ $(CC) -c $< -o $@ $(INCLUDES) -MD $(CFLAGS)
+	@ $(CC) -MD -c $< -o $@ $(INCLUDES) $(CFLAGS)
 
 $(OBJDIR)/%.o: %.c
 	@ echo "=> "$(@F)
-	@ $(CC) -c $< -o $@ $(INCLUDES) -MD $(CFLAGS)
+	@ $(CC) -MD -c $< -o $@ $(INCLUDES) $(CFLAGS)
 
 include $(OBJS:%.o=%.d)
 

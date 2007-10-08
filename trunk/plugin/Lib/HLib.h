@@ -420,6 +420,11 @@
 #if P_DEBUG
 	extern int gGlobalFalse;
 	#define P_NULL_VAR	gGlobalFalse
+
+#	define _MEMDEBUG
+#	include <cstdlib>
+#	include "memtoolscpp.h"
+
 #else
 	#define P_NULL_VAR	0
 #endif

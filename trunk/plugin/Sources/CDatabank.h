@@ -133,7 +133,7 @@ class CDatabankBase
 						GetDocWeights(const std::string& inIndex);
 	virtual uint32		GetMaxWeight() const;
 
-	virtual long		GetIndexCount() = 0;
+	virtual uint32		GetIndexCount() = 0;
 	virtual	void		GetIndexInfo(uint32 inIndexNr, std::string& outCode,
 							std::string& outType, uint32& outCount) = 0;
 							
@@ -256,7 +256,7 @@ class CDatabank : public CDatabankBase
 	virtual std::string	GetScriptName() const;
 	virtual std::string	GetSection() const;
 	
-	virtual long		GetIndexCount();
+	virtual uint32		GetIndexCount();
 	virtual	void		GetIndexInfo(uint32 inIndexNr, std::string& outCode,
 							std::string& outType, uint32& outCount);
 
@@ -375,7 +375,7 @@ class CJoinedDatabank : public CDatabankBase
 	virtual std::string	GetSection() const;
 
 	virtual void		PrintInfo();
-	virtual long		GetIndexCount();
+	virtual uint32		GetIndexCount();
 	virtual	void		GetIndexInfo(uint32 inIndexNr, std::string& outCode,
 							std::string& outType, uint32& outCount);
 

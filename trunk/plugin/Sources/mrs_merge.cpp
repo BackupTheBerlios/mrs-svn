@@ -81,7 +81,7 @@ int main(int argc, const char* argv[])
 	bool copy = true;
 
 	int c;
-	while ((c = getopt(argc, const_cast<char**>(argv), "d:P:v")) != -1)
+	while ((c = getopt(argc, const_cast<char**>(argv), "d:P:vl")) != -1)
 	{
 		switch (c)
 		{

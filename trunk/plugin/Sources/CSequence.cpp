@@ -73,7 +73,7 @@ AATable::AATable()
 	{
 		mMap[c] = kUnknownCode;
 		
-		for (int code = 0; code < kAACodeCount; ++code)
+		for (int code = 0; code < int(kAACodeCount); ++code)
 		{
 			if (toupper(c) == kAACodes[code])
 				mMap[c] = code;

@@ -63,7 +63,7 @@ struct MatrixInfo
 	double		beta;
 };
 
-const unsigned long kMaxShort = numeric_limits<short>::max();
+const int32 kMaxShort = numeric_limits<short>::max();
 
 const char kBlosum45Data[] = 
 	"#  Matrix made by matblas from blosum45.iij \n"
@@ -564,11 +564,11 @@ void CMatrix::Read(istream& in)
 {
 	mLowestScore = mHighestScore = 0;
 	
-	for (int x = 0; x < kAACodeCount; ++x)
+	for (uint32 x = 0; x < kAACodeCount; ++x)
 	{
 		mTable[x] = mTableData + x * kAACodeCount;
 		
-		for (int y = 0; y < kAACodeCount; ++y)
+		for (uint32 y = 0; y < kAACodeCount; ++y)
 			mTable[x][y] = kSentinalScore;
 	}
 	
@@ -587,7 +587,7 @@ void CMatrix::Read(istream& in)
 		
 		if (lineNumber == 0)
 		{
-			for (int i = 0; i < kAACodeCount and not ss.eof(); ++i)
+			for (uint32 i = 0; i < kAACodeCount and not ss.eof(); ++i)
 				ss >> columnHeadings[i];
 		}
 		else
@@ -595,13 +595,13 @@ void CMatrix::Read(istream& in)
 			char row;
 			ss >> row;
 			
-			for (int i = 0; i < kAACodeCount and not ss.eof(); ++i)
+			for (uint32 i = 0; i < kAACodeCount and not ss.eof(); ++i)
 			{
 				int32 score;
 				ss >> score;
 				
-				int x = Encode(row);
-				int y = Encode(columnHeadings[i]);
+				uint32 x = Encode(row);
+				uint32 y = Encode(columnHeadings[i]);
 				
 				assert(x >= 0 and x < kAACodeCount);
 				assert(y >= 0 and y < kAACodeCount);
@@ -619,9 +619,9 @@ void CMatrix::Read(istream& in)
 		++lineNumber;
 	}
 	
-	for (int x = 0; x < kAACodeCount; ++x)
+	for (uint32 x = 0; x < kAACodeCount; ++x)
 	{
-		for (int y = 0; y < kAACodeCount; ++y)
+		for (uint32 y = 0; y < kAACodeCount; ++y)
 		{
 			if (mTable[x][y] == kSentinalScore)
 			{
@@ -633,7 +633,7 @@ void CMatrix::Read(istream& in)
 		}
 	}
 	
-	for (int x = 0; x < kAACodeCount; ++x)
+	for (uint32 x = 0; x < kAACodeCount; ++x)
 	{
 		mTable[x][kSentinalCode] = kSentinalScore;
 		mTable[kSentinalCode][x] = kSentinalScore;

@@ -186,7 +186,7 @@ CSequence CBlastIndex::GetSequence(uint32 inDocNr, uint32 inIndex)
 		THROW(("Index %d for sequence is out of range", inIndex));
 
 //	HAutoBuf<uint32> offsets(new uint32[count + 1]);		<-- this appears to take too much time
-	const int kOffsetBufSize = 5;
+	const uint32 kOffsetBufSize = 5;
 
 	uint32 offsetBuf[kOffsetBufSize];
 	uint32* offsets = offsetBuf;

@@ -147,7 +147,7 @@ CWindow::CWindow(string& inSequence, long inStart, long inLength, const CAlphabe
 	long alphaSize = fAlphabet.GetSize();
 	
 	fComposition.insert(fComposition.begin(), alphaSize, 0);
-	for (uint32 i = fStart; i < fStart + fLength; ++i)
+	for (long i = fStart; i < fStart + fLength; ++i)
 	{
 		if (fAlphabet.Contains(fSequence[i]))
 			++fComposition[fAlphabet.GetIndex(fSequence[i])];
@@ -158,7 +158,7 @@ CWindow::CWindow(string& inSequence, long inStart, long inLength, const CAlphabe
 	fState.insert(fState.begin(), alphaSize + 1, 0);
 
 	int n = 0;
-	for (uint32 i = 0; i < alphaSize; ++i)
+	for (long i = 0; i < alphaSize; ++i)
 	{
 		if (fComposition[i] > 0)
 		{
@@ -215,7 +215,7 @@ void CWindow::IncState(long inClass)
 
 bool CWindow::ShiftWindow()
 {
-	if (fStart + fLength >= fSequence.length())
+	if (uint32(fStart + fLength) >= fSequence.length())
 		return false;
 	
 	char ch = fSequence[fStart];
@@ -371,7 +371,7 @@ static bool GetEntropy(string inSequence, const CAlphabet& inAlphabet,
 	long downset = (inWindow + 1) / 2 - 1;
 	long upset = inWindow - downset;
 	
-	if (inWindow <= inSequence.length())
+	if (inWindow <= long(inSequence.length()))
 	{
 		result = true;
 		outEntropy.clear();
@@ -488,7 +488,7 @@ string SEG(const string& inSequence)
 	
 	for (uint32 i = 0; i < segments.size(); ++i)
 	{
-		for (uint32 j = segments[i].first; j < segments[i].second; ++j)
+		for (long j = segments[i].first; j < segments[i].second; ++j)
 			result[j] = 'X';
 	}
 	
@@ -504,7 +504,7 @@ string DUST(const string& inSequence)
 	
 	for (uint32 i = 0; i < segments.size(); ++i)
 	{
-		for (uint32 j = segments[i].first; j < segments[i].second; ++j)
+		for (long j = segments[i].first; j < segments[i].second; ++j)
 			result[j] = 'X';
 	}
 	

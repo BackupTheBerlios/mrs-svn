@@ -222,7 +222,7 @@ struct MQueryResultsImp
 
 	virtual uint32				Count(bool inExact)
 								{
-									uint32 result;
+									uint32 result = fCount;
 
 									if (fCount == numeric_limits<uint32>::max())
 									{
@@ -239,8 +239,6 @@ struct MQueryResultsImp
 										else if (fIter.get() != nil)
 											result = fIter->Count();
 									}
-									else
-										result = fCount;
 									
 									return result;
 								}

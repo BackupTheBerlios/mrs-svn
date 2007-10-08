@@ -62,8 +62,8 @@ struct WeightGreater
 
 struct CSelector
 {
-	int		databits;
-	int		span;
+	int32	databits;
+	uint32	span;
 };
 
 const CSelector kSelectors[16] = {
@@ -77,7 +77,7 @@ const CSelector kSelectors[16] = {
 	{  3, 1 }
 };
 
-inline uint32 Select(uint32 inBitsNeeded[], uint32 inCount, int32 inWidth, int32 inMaxWidth,
+inline uint32 Select(int32 inBitsNeeded[], uint32 inCount, int32 inWidth, int32 inMaxWidth,
 	const CSelector inSelectors[])
 {
 	uint32 result = 0;
@@ -128,7 +128,7 @@ inline uint32 Select(uint32 inBitsNeeded[], uint32 inCount, int32 inWidth, int32
 }
 
 template<class T>
-inline void Shift(T& ioIterator, int64& ioLast, uint32& outDelta, uint32& outWidth)
+inline void Shift(T& ioIterator, int64& ioLast, uint32& outDelta, int32& outWidth)
 {
 	int64 next = *ioIterator++;
 	assert(next > ioLast);
@@ -163,7 +163,7 @@ void CompressSimpleArraySelector(COBitStream& inBits, std::vector<T>& inArray, i
 	int32 width = maxWidth;
 	int64 last = -1;
 	
-	uint32 bn[4];
+	int32 bn[4];
 	uint32 dv[4];
 	uint32 bc = 0;
 	typename std::vector<T>::iterator a = inArray.begin();
