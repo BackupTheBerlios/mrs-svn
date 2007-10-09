@@ -60,7 +60,7 @@ VERSION		= 4.0.0
 # DEBUG should be either 1 or 0
 DEBUG		= 0
 DEFINES		= CPU_$(CPU) MINI_H_LIB
-LIBS		= duma z m bz2 $(addsuffix $(BOOST_LIB_SUFFIX), boost_regex boost_thread)
+LIBS		= z m bz2 $(addsuffix $(BOOST_LIB_SUFFIX), boost_regex boost_thread)
 LIBPATHS	=  ./Lib/ /usr/local/lib/
 INCPATHS	= ./Lib/Includes/ ./Lib/X/ ./Lib/
 SYSINCPATHS	= /usr/include $(BOOST)

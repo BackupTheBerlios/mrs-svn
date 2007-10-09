@@ -139,8 +139,8 @@ class HMemoryStream : public HStreamBase
 {
   public:
 					HMemoryStream();
-					HMemoryStream(void* inData, uint32 inSize);
-					HMemoryStream(const void* inData, uint32 inSize);
+					HMemoryStream(void* inData, int64 inSize);
+					HMemoryStream(const void* inData, int64 inSize);
 					~HMemoryStream();
 
 	virtual int32	Write(const void* inBuffer, uint32 inSize);
@@ -157,9 +157,9 @@ class HMemoryStream : public HStreamBase
 	void			operator = (const HMemoryStream&);
 
 	char*			fData;
-	uint32			fLogicalSize;
-	uint32			fPhysicalSize;
-	uint32			fPointer;
+	int64			fLogicalSize;
+	int64			fPhysicalSize;
+	int64			fPointer;
 	bool			fReadOnly;
 };
 

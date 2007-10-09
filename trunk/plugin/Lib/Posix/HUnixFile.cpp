@@ -994,7 +994,7 @@ HMMappedFileStream::HMMappedFileStream(HFileStream& inFile, int64 inOffset, int6
 		
 	int64 pageSize = ::getpagesize();
 	int64 offset = pageSize * (inOffset / pageSize);
-	uint32 before = inOffset - offset;
+	int64 before = inOffset - offset;
 
 	fImpl->fBasePtr = ::mmap(0, inLength + before, PROT_READ, MAP_PRIVATE, inFile.fFD, offset);
 

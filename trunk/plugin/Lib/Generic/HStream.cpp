@@ -327,7 +327,7 @@ HMemoryStream::HMemoryStream()
 	fReadOnly = false;
 }
 
-HMemoryStream::HMemoryStream(void* inData, uint32 inSize)
+HMemoryStream::HMemoryStream(void* inData, int64 inSize)
 {
 	fPhysicalSize = fLogicalSize = inSize;
 	fData = new char [fPhysicalSize];
@@ -337,7 +337,7 @@ HMemoryStream::HMemoryStream(void* inData, uint32 inSize)
 	fReadOnly = false;
 }
 
-HMemoryStream::HMemoryStream(const void* inData, uint32 inSize)
+HMemoryStream::HMemoryStream(const void* inData, int64 inSize)
 {
 	fPhysicalSize = fLogicalSize = inSize;
 	fData = reinterpret_cast<char*>(const_cast<void*>(inData));
@@ -357,7 +357,7 @@ int32 HMemoryStream::Read(void* inBuffer, uint32 inCount)
 	if (fPointer > fLogicalSize or fData == nil)
 		return -1;
 	
-	uint32 n = fLogicalSize - fPointer;
+	int64 n = fLogicalSize - fPointer;
 	if (n > inCount)
 		n = inCount;
 	
@@ -409,7 +409,7 @@ int64 HMemoryStream::Seek(int64 inOffset, int inMode)
 			fPointer = inOffset;
 			break;
 		case SEEK_END:
-			fPointer = static_cast<uint32>(fLogicalSize + inOffset);
+			fPointer = static_cast<int64>(fLogicalSize + inOffset);
 			break;
 		case SEEK_CUR:
 			fPointer += inOffset;
