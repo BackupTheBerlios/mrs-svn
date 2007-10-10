@@ -182,7 +182,7 @@ struct CLexPage
 	inline
 	uint32		Free() const
 				{
-					return kLexDataSize - e[-N] - (N + 3) * sizeof(uint32);
+					return kLexDataSize - e[-static_cast<int32>(N)] - (N + 3) * sizeof(uint32);
 				}
 };
 
@@ -201,8 +201,9 @@ void CLexPage::Add(const string& inString)
 	}
 	else
 	{
-		e[-N - 1] = e[-N] + l;
-		inString.copy(s + e[-N], l);
+		int32 nn = -static_cast<int32>(N);
+		e[nn - 1] = e[nn] + l;
+		inString.copy(s + e[nn], l);
 		++N;
 	}
 }
