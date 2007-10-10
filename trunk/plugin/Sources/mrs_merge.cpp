@@ -67,8 +67,10 @@ void error(const char* msg, ...)
 
 void usage()
 {
-	cout << "Usage: mrs_merge -d databank -P part_count [-l] [-v]" << endl;
-	cout << "    -l   link data instead of copying it" << endl;
+	cout << "Usage: mrs_merge -d databank -P part_count [-l] [-v]" << endl
+	     << "       mrs_merge -d databank -p part1 [-p part2 ...] [-l] [-v]" << endl
+	     << endl
+	     << "    -l   link data instead of copying it" << endl;
 	exit(1);
 }
 
@@ -76,12 +78,13 @@ int main(int argc, const char* argv[])
 {
 	// scan the options
 
-	string db, script;
+	string db;
+	vector<string> partNames;
 	int parts = 0;
 	bool copy = true;
 
 	int c;
-	while ((c = getopt(argc, const_cast<char**>(argv), "d:P:vl")) != -1)
+	while ((c = getopt(argc, const_cast<char**>(argv), "d:P:p:vl")) != -1)
 	{
 		switch (c)
 		{
@@ -91,6 +94,10 @@ int main(int argc, const char* argv[])
 			
 			case 'P':
 				parts = atoi(optarg);
+				break;
+
+			case 'p':
+				partNames.push_back(optarg);
 				break;
 
 			case 'l':
@@ -107,11 +114,8 @@ int main(int argc, const char* argv[])
 		}
 	}
 
-	if (db.length() == 0 or parts == 0)
+	if (db.length() == 0 or ((parts == 0) == (partNames.size() == 0)))
 		usage();
-	
-	if (script.length() == 0)
-		script = db;
 	
 	string merged = db;
 	
@@ -129,13 +133,16 @@ int main(int argc, const char* argv[])
 		cout << "Merging databank " << db << " creating " << merged << endl;
 	
 	MDatabankArray dbs;
-
+	
 	for (int i = 1; i <= parts; ++i)
 	{
 		stringstream s;
 		s << db << '-' << i;
-		dbs.push_back(new MDatabank(s.str()));
+		partNames.push_back(s.str());
 	}
+	
+	for (vector<string>::iterator n = partNames.begin(); n != partNames.end(); ++n)
+		dbs.push_back(new MDatabank(*n));
 	
 	MDatabank::Merge(merged, dbs, copy, dbs.front()->GetName(),
 		dbs.front()->GetInfoURL(), dbs.front()->GetScriptName(), 

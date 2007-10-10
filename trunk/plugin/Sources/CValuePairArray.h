@@ -602,14 +602,11 @@ template<typename T, uint32 K>
 void VRIterator<T, K>::Restart()
 {
 	fWeight -= ReadGamma(*this->fBits);
-	
-//	assert(fWeight <= kMaxWeight);
-	assert(fWeight > 0);
 
-	if (fWeight > 0)
-		this->Reset();
-	else
-		this->fCount = 0;
+	if (fWeight == 0)
+		THROW(("Corruption detected in index data"));
+	
+	this->Reset();
 
 	assert(this->fCount <= fTotalCount - fTotalRead);
 }

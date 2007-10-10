@@ -2287,6 +2287,8 @@ void CIndexer::MergeIndices(HStreamBase& outData, vector<CDatabank*>& inParts)
 						{
 							docs.push_back(make_pair(doc, freq));
 
+							assert(doc < fHeader->entries);
+
 							float wdt = freq * idf;
 							dw[doc] += wdt * wdt;
 						}
