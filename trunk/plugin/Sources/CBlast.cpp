@@ -1505,6 +1505,7 @@ CBlastImp::CBlastImp(const string& inQuery, const string& inMatrix, uint32 inWor
 	, mWordSize(inWordSize)
 	, mFilter(inFilter)
 	, mGapped(inGapped)
+	, mReportLimit(inReportLimit)
 	, mExpect(inExpect)
 {
 	mUnfilteredQuery = Encode(inQuery);

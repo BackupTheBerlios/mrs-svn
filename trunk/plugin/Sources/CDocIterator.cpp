@@ -828,11 +828,11 @@ CDocCachedIterator::CDocCachedIterator(CDocIterator* inIterator, uint32 inCache)
 	, fCacheContainsAll(false)
 {
 	double start = system_time();
-	double kLimitTime = start + 0.1;		// limit to a tenth of a second
+	double limitTime = start + 0.1;		// limit to a tenth of a second
 
 	uint32 v = 0, n = 0;
 	
-	while (++n < inCache or ((n % 128) == 0 and kLimitTime > system_time()))
+	while (++n < inCache or ((n % 128) == 0 and limitTime > system_time()))
 	{
 		if (fIter->Next(v, false))
 			fCache.push_back(v);

@@ -387,11 +387,11 @@ int main(int argc, const char* argv[])
 	{
 		query.reset(mrsDb.Find(mrs_query));
 		hits.reset(query->Blast(sequence, matrix,
-			wordsize, expect, filter, gapped, gapOpen, gapExtend));
+			wordsize, expect, filter, gapped, gapOpen, gapExtend, 250));
 	}
 	else
 		hits.reset(mrsDb.Blast(sequence, matrix,
-			wordsize, expect, filter, gapped, gapOpen, gapExtend));
+			wordsize, expect, filter, gapped, gapOpen, gapExtend, 250));
 
 	if (hits.get())
 		Report(mrsDb, id, desc, sequence.length(), gNrOfHits,  matrix, expect, gapped, gapOpen, gapExtend, filter, *hits.get());
