@@ -359,6 +359,10 @@ mrs_query: $(LIBNAME) Sources/mrs_query.cpp
 	@ $(CC) $(CFLAGS) -o $@ -ILib/Includes Sources/mrs_query.cpp $(LIBNAME) $(LDFLAGS)
 	@ echo "Done"
 
+mrs_test: $(LIBNAME) Sources/mrs_test.cpp
+	$(CC) Sources/mrs_test.cpp -o $@ $(INCLUDES) $(CFLAGS) $(LIBNAME) $(LDFLAGS)
+	@ echo "Done"
+
 tags: FORCE
 	$(CTAGS) $(wildcard $(addsuffix *, $(SRC_PATHS))) $(wildcard $(addsuffix *.h, $(INCPATHS)))
 
