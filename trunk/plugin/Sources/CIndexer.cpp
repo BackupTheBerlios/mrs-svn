@@ -2845,6 +2845,7 @@ struct CIndexTester
 						, fCount(0)
 						, fIxCount(inIxCount)
 						, fTick(inIxCount / 60)
+						, fLastValue(0)
 					{
 					}
 	
@@ -2858,6 +2859,7 @@ struct CIndexTester
 	uint32			fCount;
 	uint32			fIxCount;
 	uint32			fTick;
+	int64			fLastValue;
 };
 
 void CIndexTester::VisitValue(const string& inKey, int64 inValue)
@@ -2890,25 +2892,50 @@ void CIndexTester::VisitSimple(const string& inKey, int64 inValue)
 		cerr << "Too many entries in index" << endl;
 		fCount = 0;
 	}
-
-	auto_ptr<CDbDocIteratorBase> iter(CreateDbDocIterator(fKind, fFile, inValue, fDocCount));
-
-	uint32 doc;
-	uint32 cnt = iter->Count(), n = 0;
-
-	while (iter->Next(doc, false))
+	
+	if (inValue <= fLastValue or fLastValue == 0)
 	{
-		if (doc >= fDocCount)
+		cerr << "Value is not increasing "
+			 << " key = " << inKey
+			 << " previous value = " << fLastValue
+			 << " value = " << inValue << endl;
+	}
+
+	fLastValue = inValue;
+
+	try
+	{
+		auto_ptr<CDbDocIteratorBase> iter(CreateDbDocIterator(fKind, fFile, inValue, fDocCount));
+	
+		uint32 doc;
+		uint32 cnt = iter->Count(), n = 0;
+	
+		while (iter->Next(doc, false))
 		{
-			cerr << "key: " << inKey << " value: " << inValue << " doc: " << doc << " <= out of range" << endl;
-			break;
+			if (doc >= fDocCount)
+			{
+				cerr << "key: " << inKey << " value: " << inValue << " doc: " << doc << " <= out of range" << endl;
+				break;
+			}
+			
+			if (++n > cnt)
+			{
+				cerr << "key: " << inKey << " value: " << inValue << " n: " << n << " too many entries in posting list, cnt: " << cnt << endl;
+				break;
+			}
 		}
-		
-		if (++n > cnt)
-		{
-			cerr << "key: " << inKey << " value: " << inValue << " n: " << n << " too many entries in posting list, cnt: " << cnt << endl;
-			break;
-		}
+	}
+	catch (HError& e)
+	{
+		cerr << "Exception caught: " << e.what() << endl
+			 << "key value was: " << inKey << endl;
+		exit(1);	 
+	}
+	catch (...)
+	{
+		cerr << "Unknown exception caught" << endl
+			 << "key value was: " << inKey << endl;
+		exit(1);	 
 	}
 }
 
@@ -2928,35 +2955,60 @@ void CIndexTester::VisitWeighted(const string& inKey, int64 inValue)
 		fCount = 0;
 	}
 
+	if (inValue <= fLastValue or fLastValue == 0)
+	{
+		cerr << "Value is not increasing "
+			 << " key = " << inKey
+			 << " previous value = " << fLastValue
+			 << " value = " << inValue << endl;
+	}
+
+	fLastValue = inValue;
+
 	auto_ptr<CDbDocIteratorBase> iter(CreateDbDocWeightIterator(fKind, fFile, inValue, fDocCount));
 	
 	uint32 doc;
 	uint8 freq;
 	uint32 cnt = iter->Count(), n = 0;
 
-	while (iter->Next(doc, freq, false))
+	try
 	{
-		if (doc >= fDocCount)
+		while (iter->Next(doc, freq, false))
 		{
-			cerr << "key: " << inKey << " value: " << inValue << " doc: " << doc << " <= out of range" << endl;
-			break;
+			if (doc >= fDocCount)
+			{
+				cerr << "key: " << inKey << " value: " << inValue << " doc: " << doc << " <= out of range" << endl;
+				break;
+			}
+	
+			if (freq == 0)
+			{
+				cerr << "key: " << inKey << " value: " << inValue << " zero frequency" << endl;
+				break;
+			}
+	
+			if (++n > cnt)
+			{
+				cerr << "key: " << inKey << " value: " << inValue << " n: " << n << " too many entries in posting list, cnt: " << cnt << endl;
+				break;
+			}
 		}
-
-		if (freq == 0)
-		{
-			cerr << "key: " << inKey << " value: " << inValue << " zero frequency" << endl;
-			break;
-		}
-
-		if (++n > cnt)
-		{
-			cerr << "key: " << inKey << " value: " << inValue << " n: " << n << " too many entries in posting list, cnt: " << cnt << endl;
-			break;
-		}
+	}
+	catch (HError& e)
+	{
+		cerr << "Exception caught: " << e.what() << endl
+			 << "key value was: " << inKey << endl;
+		exit(1);	 
+	}
+	catch (...)
+	{
+		cerr << "Unknown exception caught" << endl
+			 << "key value was: " << inKey << endl;
+		exit(1);	 
 	}
 }
 
-void CIndexer::Test()
+void CIndexer::Test() const
 {
 	uint32 ix;
 	for (ix = 0; ix < fHeader->count; ++ix)

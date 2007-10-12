@@ -98,7 +98,7 @@ class CIndexer
 	
 	void			PrintInfo() const;
 	void			DumpIndex(const std::string& inIndex) const;
-	void			Test();
+	void			Test() const;
 
 	void			SetStopWords(const std::vector<std::string>& inStopWords);
 	
