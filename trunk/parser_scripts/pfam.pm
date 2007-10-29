@@ -46,7 +46,7 @@ sub new
 	my $invocant = shift;
 	
 	my $self = {
-		url		=> 'http://www.sanger.ac.uk/Software/Pfam/',
+		url		=> 'http://pfam.sanger.ac.uk/',
 		section	=> 'other',
 		meta	=> [ 'title' ],
 		@_
