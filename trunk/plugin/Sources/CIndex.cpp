@@ -1218,7 +1218,7 @@ void CIndexImpT<DD>::CreateFromIterator(CIteratorBase& inData)
 	// first pass, collect the data from the iterator building the leaf pages
 	
 	string k, lk;
-	int64 v, lv = 0;
+	int64 v;
 	
 	CIndexPage p(fFile, fBaseOffset);
 	CTempValueList up;
