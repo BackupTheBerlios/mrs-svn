@@ -1203,7 +1203,7 @@ void CIndexImpT<DD>::VisitForPattern(
 struct CTempValue
 {
 	string		key;
-	uint32		value;
+	int64		value;
 	uint32		pageLeft;
 	uint32		pageRight;
 };
@@ -1218,7 +1218,7 @@ void CIndexImpT<DD>::CreateFromIterator(CIteratorBase& inData)
 	// first pass, collect the data from the iterator building the leaf pages
 	
 	string k, lk;
-	int64 v;
+	int64 v, lv = 0;
 	
 	CIndexPage p(fFile, fBaseOffset);
 	CTempValueList up;
@@ -1242,6 +1242,7 @@ void CIndexImpT<DD>::CreateFromIterator(CIteratorBase& inData)
 			THROW(("Attempt to build an index from unsorted data: '%s' <= '%s' ",
 				k.c_str(), lk.c_str()));
 		}
+
 		lk = k;
 		
 		if (not p.CanStore(k))
@@ -1725,12 +1726,15 @@ void iterator_imp_t<DD>::end()
 	fDiskPage.Load(*fFile, fBaseOffset, fPage);
 	fPageIndex = fDiskPage.GetN();
 
-	while (fDiskPage.GetP(fPageIndex - 1) != 0)
+	if (fPageIndex > 0)
 	{
-		fStack.push(fPage);
-		fPage = fDiskPage.GetP(fPageIndex - 1);
-		fDiskPage.Load(*fFile, fBaseOffset, fPage);
-		fPageIndex = fDiskPage.GetN();
+		while (fDiskPage.GetP(fPageIndex - 1) != 0)
+		{
+			fStack.push(fPage);
+			fPage = fDiskPage.GetP(fPageIndex - 1);
+			fDiskPage.Load(*fFile, fBaseOffset, fPage);
+			fPageIndex = fDiskPage.GetN();
+		}
 	}
 }
 
