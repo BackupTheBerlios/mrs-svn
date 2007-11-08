@@ -80,7 +80,7 @@ struct CNode
 // This asserts that space is used optimally.
 struct CLexPage
 {
-	uint32		N;
+	int32		N;
 	uint32		first;
 	char		s[kLexDataSize];
 	uint32		e[1];
@@ -438,7 +438,7 @@ inline string CLexiconImp::GetString(uint32 inNr) const
 {
 	LexPageArray::const_iterator p = GetPage(inNr);
 	
-	if (p == fPages.end() or inNr >= (*p)->N)
+	if (p == fPages.end() or (*p)->N <= 0 or inNr >= static_cast<uint32>((*p)->N))
 		THROW(("Lexicon is invalid"));
 	
 	return (*p)->GetEntry(inNr);
@@ -450,7 +450,7 @@ int CLexiconImp::Compare(const string& inKey, uint32 inNr) const
 	
 	LexPageArray::const_iterator p = GetPage(inNr);
 	
-	if (p != fPages.end() and inNr < (*p)->N)
+	if (p != fPages.end() and (*p)->N > 0 and inNr < static_cast<uint32>((*p)->N))
 		result = (*p)->Compare(inKey, inNr);
 	else
 		assert(false);
@@ -473,8 +473,8 @@ int CLexiconImp::Compare(const CNode* inA, const CNode* inB) const
 		assert(a != fPages.end());
 		assert(b != fPages.end());
 		
-		if (a != fPages.end() and nrA < (*a)->N and
-			b != fPages.end() and nrB < (*b)->N)
+		if (a != fPages.end() and nrA < static_cast<uint32>((*a)->N) and
+			b != fPages.end() and nrB < static_cast<uint32>((*b)->N))
 		{
 			result = (*b)->Compare(*a, nrA, nrB);
 		}
@@ -495,8 +495,8 @@ int CLexiconImp::Compare(uint32 inA, uint32 inB) const
 		assert(a != fPages.end());
 		assert(b != fPages.end());
 	
-		if (a != fPages.end() and inA < (*a)->N and
-			b != fPages.end() and inB < (*b)->N)
+		if (a != fPages.end() and inA < static_cast<uint32>((*a)->N) and
+			b != fPages.end() and inB < static_cast<uint32>((*b)->N))
 		{
 			result = (*b)->Compare(*a, inA, inB);
 		}
@@ -519,8 +519,8 @@ int CLexiconImp::Compare(uint32 inA, uint32 inB, CLexCompare& inCompare) const
 		assert(a != fPages.end());
 		assert(b != fPages.end());
 	
-		if (a != fPages.end() and inA < (*a)->N and
-			b != fPages.end() and inB < (*b)->N)
+		if (a != fPages.end() and inA < static_cast<uint32>((*a)->N) and
+			b != fPages.end() and inB < static_cast<uint32>((*b)->N))
 		{
 			result = (*b)->Compare(*a, inA, inB, inCompare);
 		}
@@ -541,7 +541,7 @@ bool CLexiconImp::CompareKeyBits(
 	
 	LexPageArray::const_iterator p = GetPage(inNr);
 	
-	if (p != fPages.end() and inNr < (*p)->N)
+	if (p != fPages.end() and (*p)->N > 0 and inNr < static_cast<uint32>((*p)->N))
 		b = (*p)->TestKeyBit(inNr, inBit);
 	else
 		assert(false);

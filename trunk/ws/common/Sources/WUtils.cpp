@@ -10,6 +10,7 @@
 #include <cerrno>
 #include <pwd.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <boost/thread.hpp>
 
 #include "WUtils.h"

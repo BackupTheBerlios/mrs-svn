@@ -1013,7 +1013,7 @@ bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPar
 	// in the ideal case we store the bits in the same order as their
 	// corresponding key in the BTree. That speeds up merging later on
 	// considerably.
-	// This smelss a bit like hacking...
+	// This smells a bit like hacking...
 	// In case the bit sections is less than 4 Gb (32 bits wide) we
 	// store the length of the bit vector in the upper 32 bits of the second
 	// field of the pair in lexicon. 
@@ -1068,7 +1068,6 @@ bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPar
 
 	push_heap(lexicon.begin(), lexicon.end(), sortLex);
 	
-//	sort(lexicon.begin(), lexicon.end(), sortLex);
 	sort_heap(lexicon.begin(), lexicon.end(), sortLex);
 
 	// copy the bits to the data file

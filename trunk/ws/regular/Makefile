@@ -228,11 +228,11 @@ $(OBJDIR):
 
 $(OBJDIR)/%.o: %.cpp
 	@ echo "=> "$(@F)
-	@ $(CC) -c $< -o $@ $(INCLUDES) -MD $(CFLAGS)
+	@ $(CC) -MD -c $< -o $@ $(INCLUDES) $(CFLAGS)
 
 $(OBJDIR)/%.o: %.c
 	@ echo "=> "$(@F)
-	@ $(CC) -c $< -o $@ $(INCLUDES) -MD $(CFLAGS)
+	@ $(CC) -MD -c $< -o $@ $(INCLUDES) $(CFLAGS)
 
 include $(OBJS:%.o=%.d)
 

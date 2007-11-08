@@ -118,15 +118,13 @@ WSDatabankTable& WSDatabankTable::Instance()
 MDatabankPtr WSDatabankTable::operator[](const string& inCode)
 {
 	boost::mutex::scoped_lock lock(mLock);
+
+	DBTable::iterator tbl = mDBs.find(inCode);
 	
-	if (mDBs.find(inCode) == mDBs.end() or not mDBs[inCode].mDB->IsUpToDate())
-	{
-		MDatabankPtr db(new MDatabank(inCode));
-		db->PrefetchDocWeights("__ALL_TEXT__");
-		mDBs[inCode].mDB = db;
-	}
-	
-	return mDBs[inCode].mDB;
+	if (tbl == mDBs.end())
+		throw string("Databank not found: " + inCode).c_str();
+
+	return tbl->second.mDB;
 }
 
 bool WSDatabankTable::Ignore(const string& inCode)

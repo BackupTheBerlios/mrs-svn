@@ -55,8 +55,9 @@ In Ubuntu you will have to install the following packages using apt (Synaptic?)
 	libboost-dev
 	libboost-regex-dev
 	libboost-filesystem-dev
+	libboost-thread-dev
 	zlib1g-dev
-	libbz1-dev
+	libbz2-dev
 	libxml2-dev
 	libperl-dev
 	libexpat1-dev

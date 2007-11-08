@@ -10,20 +10,20 @@
 	
 	<!-- service specific settings -->
 	<search-ws>
-		<address>__HOST_NAME__</address>
+		<address>0.0.0.0</address>
 		<port>8081</port>
 		<logfile>/var/log/mrsws-search.log</logfile>
 		<threads>2</threads>
 	</search-ws>
 	
 	<blast-ws>
-		<address>__HOST_NAME__</address>
+		<address>0.0.0.0</address>
 		<port>8082</port>
 		<logfile>/var/log/mrsws-blast.log</logfile>
 	</blast-ws>
 	
 	<clustal-ws>
-		<address>__HOST_NAME__</address>
+		<address>0.0.0.0</address>
 		<port>8083</port>
 		<logfile>/var/log/mrsws-clustal.log</logfile>
 		<clustalw-exe>__CLUSTALW__</clustalw-exe>
