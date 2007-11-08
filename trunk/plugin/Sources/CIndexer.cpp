@@ -2893,7 +2893,7 @@ void CIndexTester::VisitSimple(const string& inKey, int64 inValue)
 		fCount = 0;
 	}
 	
-	if (inValue <= fLastValue or fLastValue == 0)
+	if (inValue <= fLastValue and inValue > 0)
 	{
 		cerr << "Value is not increasing "
 			 << " key = " << inKey
@@ -2955,7 +2955,7 @@ void CIndexTester::VisitWeighted(const string& inKey, int64 inValue)
 		fCount = 0;
 	}
 
-	if (inValue <= fLastValue or fLastValue == 0)
+	if (inValue <= fLastValue and inValue > 0)
 	{
 		cerr << "Value is not increasing "
 			 << " key = " << inKey
