@@ -62,6 +62,7 @@ my $use_tr1 = 0;
 my $os = `uname -s`;	chomp($os);
 my $host = hostname;
 my $cpu = `uname -p`;	chomp($cpu);
+$cpu = `uname -m` if $cpu eq 'unknown';
 
 my $maintainer = `whoami`;
 chomp($maintainer);
