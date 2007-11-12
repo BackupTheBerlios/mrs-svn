@@ -12,6 +12,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <boost/thread.hpp>
+#include <signal.h>
 
 #include "WUtils.h"
 
