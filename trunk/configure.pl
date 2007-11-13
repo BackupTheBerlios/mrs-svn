@@ -367,7 +367,7 @@ END
 	
 	# boost libraries
 	
-	print "Checking the boost libraries...";
+	print "Checking the boost header files...";
 	
 	$C_file =<<END;
 #include <boost/version.hpp>
@@ -591,7 +591,8 @@ sub WriteMakefiles()
 	my $no_blast_def = "";
 	$no_blast_def = "DEFINES       += NO_BLAST\n" if $no_blast;
 
-	my $opt = "-march=$gcc_march" if defined $gcc_march;
+	my $opt = "	# e.g. -march=nocona for Core 2 processors, but be careful";
+	$opt = "-march=$gcc_march" if defined $gcc_march;
 
 	open MCFG, ">make.config" or die "Could not open the file make.config for writing!\n";
 	
@@ -623,9 +624,9 @@ LIBS          += $libs
 # compiler flags and defines
 
 IQUOTE        = $iquote
-DEFINES       += MRS_CONFIG_FILE='$etc_dir/mrs-config.xml'
-DEFINES       += MRS_DATA_DIR='$data_dir/mrs'
-DEFINES       += MRS_PARSER_DIR='$parser_scripts'
+DEFINES       += MRS_CONFIG_FILE='"$etc_dir/mrs-config.xml"'
+DEFINES       += MRS_DATA_DIR='"$data_dir/mrs"'
+DEFINES       += MRS_PARSER_DIR='"$parser_scripts"'
 DEFINES       += HAVE_TR1=$use_tr1
 OPT           += $opt
 $no_blast_def
@@ -668,8 +669,6 @@ sub compile {
 	open F, ">/tmp/$bn.cpp";
 	print F $code;
 	close F;
-
-#print "\ncompiling: '$cc -o /tmp/$bn.out /tmp/$bn.cpp $ld_options'\n";
 
 	my $err = `$cc -o /tmp/$bn.out /tmp/$bn.cpp $ld_options 2>&1`;
 	

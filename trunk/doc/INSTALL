@@ -2,7 +2,7 @@ Installation instructions MRS-3
 
 For the extremely impatient:
 
-perl install.pl
+perl configure.pl
 make
 make install
 cd /usr/local/share/mrs/update_scripts
