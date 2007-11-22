@@ -48,7 +48,7 @@ DEFINES		= CPU_$(CPU) MINI_H_LIB
 WARNINGS	= -Wall -Wno-multichar
 RDEFINES	= -DMACOS=0 -DUNIX=1
 LIBNAME		= mrs
-LIBS		= z expat m bz2 gsoap++ xml2 $(addsuffix $(BOOST_LIB_SUFFIX), boost_regex boost_filesystem boost_thread)
+LIBS		= z expat m bz2 gsoap++
 LIBPATHS	=  ../../plugin/Lib/ /usr/local/lib/ ../../plugin/
 INCPATHS	= ../../plugin/Lib/Includes/ ../../plugin/Lib/Posix/ ../../plugin/Lib/ ../../plugin/Sources/
 SYSINCPATHS	= /usr/include
@@ -198,11 +198,11 @@ all: $(TARGET)
 
 # build rules
 
-echo_flags:
+echo_flags: $(OBJS)
 	 @ echo Compiler flags used: $(CFLAGS)
 	 @ echo Include paths: $(INCLUDES)
 
-$(TARGET): echo_flags $(OBJDIR) Sources/soapH.h $(OBJS)
+$(TARGET): $(OBJDIR) Sources/soapH.h $(OBJS)
 	$(MAKE) DEBUG=$(DEBUG) -C ../../plugin $(LIBNAME)
 	@ echo "Linking "$(@F)
 	$(CC) -o $(TARGET) ../../plugin/$(LIBNAME) $(OBJS) $(LDFLAGS)
