@@ -322,6 +322,18 @@ int main() { struct soap S; return 0; }
 END
 	# first locate the libraries we need: libgsoap.a or libgsoap.so
 	my $link_ok = 0;
+
+	# find stdsoap2.h first
+	
+	foreach my $d ( @inc_dirs_guess )
+	{
+		if (-e "$d/stdsoap2.h") {
+			$inc_dirs{$d} = 1;
+			last;
+		}
+	}
+	
+	# now see if we can compile a soap application
 	
 	foreach my $lib_dir (@lib_dirs_guess) {
 		next unless -e "$lib_dir/libgsoap.a" or -e "$lib_dir/libgsoap.so";
