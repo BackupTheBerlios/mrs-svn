@@ -1,65 +1,20 @@
 # make file for soap server
 
-OS			= $(shell uname -s)
-HOST		= $(shell uname -n)
-UNAME_CPU	= $(shell uname -p)
-
-ifeq ($(OS),Linux)
-	UNAME_CPU	= $(shell uname -m)
-endif
-
-ifeq ($(UNAME_CPU),x86_64)
-	CPU		= x86
-endif
-
-ifeq ($(UNAME_CPU),i686)
-	CPU		= x86
-endif
-
-ifeq ($(UNAME_CPU),i586)
-	CPU		= x86
-endif
-
-ifeq ($(UNAME_CPU),i386)
-	CPU		= x86
-endif
-
-ifeq ($(UNAME_CPU),ppc)
-	CPU		= ppc
-endif
-
-ifeq ($(UNAME_CPU),powerpc)
-	CPU		= ppc
-endif
-
-ifeq ($(UNAME_CPU),mips)
-	CPU		= mips
-endif
-
-ifeq ($(CPU),)
-	Please make sure CPU is defined here
-endif
-
 SO_EXT		= .so
 TARGET		= mrsws
 # DEBUG should be either 1 or 0
 DEBUG		= 0
 DEFINES		= CPU_$(CPU) MINI_H_LIB
 WARNINGS	= -Wall -Wno-multichar
-RDEFINES	= -DMACOS=0 -DUNIX=1
 LIBNAME		= mrs
-LIBS		= z expat m bz2 gsoap++
-LIBPATHS	=  ../../plugin/Lib/ /usr/local/lib/ ../../plugin/
+LIBS		= z m bz2 gsoap++
+LIBPATHS	=  ../../plugin/Lib/ ../../plugin/
 INCPATHS	= ../../plugin/Lib/Includes/ ../../plugin/Lib/Posix/ ../../plugin/Lib/ ../../plugin/Sources/
 SYSINCPATHS	= /usr/include
-WARNINGS	=  -Wall -Wno-multichar -Wno-unknown-pragmas -Wno-long-long -Wno-sign-compare
+WARNINGS	= -Wall -Wno-multichar -Wno-unknown-pragmas
 CFLAGS		= -fsigned-char -g -ffor-scope
-CFLAGS		+= -fmessage-length=80 -fdiagnostics-show-location=every-line
+CFLAGS		+= -fmessage-length=132 -fdiagnostics-show-location=every-line
 LDFLAGS		= -fdata-sections -g # -ffunction-sections
-CC			= c++
-OPT			+= -fstrict-aliasing
-SOAPCPP2	= soapcpp2
-PERL		= /usr/bin/perl
 
 include ../../make.config
 
@@ -68,55 +23,28 @@ LDFLAGS		+= $(shell $(PERL) -MExtUtils::Embed -e ldopts)
 ifeq ($(OS),FreeBSD)
 	LIBS		+= 
 	INCPATHS	+= 
-	DEFINES		+= HAS_ENDIAN FREEBSD
+	SYSINCPATHS	+= /usr/local/include
+	DEFINES		+= HAS_ENDIAN FREEBSD HAVE_SYS_IOCTL_H HAVE_SYS_SOCKIO_H \
+					HAVE_SYS_SOCKET_H HAVE_NETINET_IN_H HAVE_SRANDOM HAVE_NET_IF_DL_H HAVE_SA_LEN
 	LDFLAGS		+= -shared
-	CTAGS		= exctags
 	STRIP		= strip -d
-
-include /etc/make.conf
-
-ifeq ($(CPUTYPE),p4)
-	OPT			+= -march=pentium4
-endif
-
-ifeq ($(CPUTYPE),i686)
-	OPT			+= -march=pentium3
-endif
-
 endif
 
 ifeq ($(OS),Linux)
-	SHELLLIBS	+= dl pthread
-	DEFINES		+= LINUX
+	DEFINES		+= LINUX HAVE_SYS_IOCTL_H \
+					HAVE_SYS_SOCKET_H HAVE_NETINET_IN_H HAVE_SRANDOM HAVE_SA_LEN
 	LD_SO_FLAG	= -shared
 	LDFLAGS		+= -pthread
 	STRIP		= strip -d
-	OPT			+= -O3
-
-ifeq ($(UNAME_CPU),x86_64)
-	OPT			+= -m64 -march=nocona
-endif
-
-ifeq ($(UNAME_CPU),i686)
-	OPT			+= -march=pentium3
-endif
-
 endif
 
 ifeq ($(OS),Darwin)
-	DEFINES		+= DARWIN
+	SO_EXT		:= .bundle
+	LD_SO_FLAG	= -bundle -undefined suppress -flat_namespace
+	DEFINES		+= DARWIN HAVE_SYS_IOCTL_H HAVE_SYS_SOCKIO_H \
+					HAVE_SYS_SOCKET_H HAVE_NETINET_IN_H HAVE_SRANDOM HAVE_NET_IF_DL_H HAVE_SA_LEN
 	LDFLAGS		+= 
-	CFLAGS		+= -force_cpusubtype_ALL
-	OPT			+= -O3 -falign-loops=32
-	LDFLAGS		+= /System/Library/Perl/5.8.6/darwin-thread-multi-2level/auto/DynaLoader/DynaLoader.a
-	
-ifeq ($(CPU),ppc)
-		OPT		+= -mcpu=G4
-endif
-	
-	CTAGS		= /sw/bin/ctags
 	STRIP		= strip -S
-	JAVA_INC	= -I/System/Library/Frameworks/JavaVM.framework/Versions/1.4.2/Headers/
 endif
 
 ifeq ($(DEBUG),0)
@@ -126,7 +54,6 @@ ifeq ($(DEBUG),0)
 else
 	OBJDIR	= Obj.Debug
 	DEFINES	+= DEBUG
-#	LIBS	+= efence
 	LIBNAME	:= $(LIBNAME)d
 endif
 
@@ -170,6 +97,9 @@ VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(S
 INCLUDES = $(foreach path, $(INCPATHS) $(SRC_PATHS), $(addprefix -I, $(path)))
 INCLUDES += $(shell $(PERL) -MExtUtils::Embed -e ccopts)
 
+# since we're using c++ the following flag can safely be removed:
+INCLUDES := $(filter-out -Wdeclaration-after-statement, $(INCLUDES))
+
 ifneq ($(IQUOTE),0)
 INCLUDES += -iquote
 else
@@ -198,7 +128,7 @@ all: $(TARGET)
 
 # build rules
 
-echo_flags: $(OBJS)
+echo_flags:
 	 @ echo Compiler flags used: $(CFLAGS)
 	 @ echo Include paths: $(INCLUDES)
 

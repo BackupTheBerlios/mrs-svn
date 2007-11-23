@@ -210,7 +210,7 @@ endif
 DEFS	= $(foreach define, $(DEFINES), $(addprefix -D, $(define)))
 CFLAGS	+= $(DEFS)
 
-all: $(OUTPUT)
+all: $(OUTPUT) mrs_blast mrs_query mrs_merge
 
 # build rules
 
@@ -227,7 +227,7 @@ lib: $(LIBNAME)
 doc: FORCE
 	doxygen doc/doxygen.config
 
-$(OUTPUT): echo_flags lib $(OBJDIR)/MRS_$(TARGET).o
+$(OUTPUT): $(LIBNAME) $(OBJDIR)/MRS_$(TARGET).o
 	@ echo "Linking "$(@F)
 	@ $(CC) -o $(OUTPUT) $(LD_SO_FLAG) $(LIBNAME) $(OBJDIR)/MRS_$(TARGET).o $(LDFLAGS)
 	@ chmod a+rx $(OUTPUT)
@@ -236,7 +236,7 @@ $(OUTPUT): echo_flags lib $(OBJDIR)/MRS_$(TARGET).o
 clean: FORCE
 	rm -rf $(OBJDIR)
 
-dist: FORCE
+dist: $(LIBNAME)
 	mkdir -p dist/lib dist/bin
 	$(PERL) -pi.bak -e 's/^.+VERSION.+$$/\t"VERSION"\t\t\t=> "$(VERSION)",/' dist/Makefile.PL
 	cp MRS.pm $(OUTPUT) dist/lib/
@@ -250,7 +250,7 @@ dist: FORCE
 	rm -rf dist/MRS-$(VERSION).tar.gz
 	cd dist; $(PERL) Makefile.PL INSTALLSCRIPT=$(INSTALL_DIR); $(MAKE) dist
 
-install: $(OUTPUT) dist mrs_blast mrs_query mrs_merge
+install: $(OUTPUT) dist
 	cd dist; $(SUDO) $(MAKE) install
 	$(SUDO) install -m 755 mrs_blast /usr/local/bin/mrs_blast
 	$(SUDO) install -m 755 mrs_query /usr/local/bin/mrs_query
