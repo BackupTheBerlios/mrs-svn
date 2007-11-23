@@ -210,7 +210,7 @@ endif
 DEFS	= $(foreach define, $(DEFINES), $(addprefix -D, $(define)))
 CFLAGS	+= $(DEFS)
 
-all: $(OUTPUT) mrs_blast mrs_query mrs_merge
+all: $(OUTPUT) mrs_blast mrs_query mrs_merge dist
 
 # build rules
 
@@ -236,7 +236,10 @@ $(OUTPUT): $(LIBNAME) $(OBJDIR)/MRS_$(TARGET).o
 clean: FORCE
 	rm -rf $(OBJDIR)
 
-dist: $(LIBNAME)
+dist: dist/MRS-$(VERSION).tar.gz
+	echo dist/MRS-$(VERSION).tar.gz
+
+dist/MRS-$(VERSION).tar.gz: $(OUTPUT) MRS.pm
 	mkdir -p dist/lib dist/bin
 	$(PERL) -pi.bak -e 's/^.+VERSION.+$$/\t"VERSION"\t\t\t=> "$(VERSION)",/' dist/Makefile.PL
 	cp MRS.pm $(OUTPUT) dist/lib/
@@ -250,11 +253,13 @@ dist: $(LIBNAME)
 	rm -rf dist/MRS-$(VERSION).tar.gz
 	cd dist; $(PERL) Makefile.PL INSTALLSCRIPT=$(INSTALL_DIR); $(MAKE) dist
 
-install: $(OUTPUT) dist
+install: $(OUTPUT)
+	$(MAKE) dist
 	cd dist; $(SUDO) $(MAKE) install
 	$(SUDO) install -m 755 mrs_blast /usr/local/bin/mrs_blast
 	$(SUDO) install -m 755 mrs_query /usr/local/bin/mrs_query
 	$(SUDO) install -m 755 mrs_query /usr/local/bin/mrs_merge
+	$(SUDO) install -m 755 mrs.pl /usr/local/bin/mrs.pl
 
 mrs_blast: $(LIBNAME) Sources/mrs_blast.cpp
 	$(CC) $(CFLAGS) -o $@ -ILib/Includes Sources/mrs_blast.cpp $(LIBNAME) $(LDFLAGS)

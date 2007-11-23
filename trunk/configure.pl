@@ -64,9 +64,9 @@ my $host = hostname;
 my $cpu = `uname -p`;	chomp($cpu);
 $cpu = `uname -m` if $cpu eq 'unknown';
 
-my $maintainer = `whoami`;
-chomp($maintainer);
-$maintainer = "$maintainer\@$host";
+my $owner = `whoami`;
+chomp($owner);
+my $maintainer = "$owner\@$host";
 
 # variables that can be set using flags to ./configure:
 
@@ -403,7 +403,7 @@ END
 		print " OK\n";
 	}
 
-	# OK, so boost is installed, but is boost_regex and booost_filesystem installed as well?
+	# OK, so boost is installed, but is boost_regex and boost_filesystem installed as well?
 	
 	print "Checking for boost_regex library...";
 	$C_file =<<END;
@@ -605,6 +605,7 @@ print MCFG<<EOF;
 CPU           = $cpu
 OS            = $os
 HOST          = $host
+OWNER         = $owner
 MAINTAINER    = $maintainer
 
 # Applications (compilers, interpreters, etc) to use

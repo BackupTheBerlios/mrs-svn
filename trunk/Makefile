@@ -15,10 +15,11 @@ clean:
 	$(MAKE) -Cws/clustal clean
 
 install:
-	install -d $(DATADIR)
-	install -d $(P_SCRIPTDIR)
-	find update_scripts | cpio -p $(U_SCRIPTDIR)
-	install -d $(U_SCRIPTDIR)
+	install -o $(OWNER) -d $(DATADIR)
+	install -o $(OWNER) -d $(P_SCRIPTDIR)
+	install -o $(OWNER) -d $(U_SCRIPTDIR)
+	cd ./update_scripts; find . | cpio -p $(U_SCRIPTDIR)
+	install -o $(OWNER) -d $(U_SCRIPTDIR)
 	cat update_scripts/make_TEMPLATE.conf | \
 		sed -e 's|__DATA_DIR__|$(DATADIR)|' \
 			-e 's|__BIN_DIR__|$(BINDIR)|' \
@@ -28,7 +29,7 @@ install:
 			-e 's|__PERL__|$(PERL)|' \
 			-e 's|__CXX__|$(CC)|' \
 			> $(U_SCRIPTDIR)/make_$(HOST).conf
-	find parser_scripts | cpio -p $(P_SCRIPTDIR)
+	cd ./parser_scripts; find . | cpio -p $(P_SCRIPTDIR)
 	install -d $(PREFIX)/etc
 	cat ws/mrs-config.xml.TEMPLATE | \
 		sed -e 's|__DATA_DIR__|$(DATADIR)|' \
@@ -39,4 +40,4 @@ install:
 	$(MAKE) -Cws/blast install
 	$(MAKE) -Cws/regular install
 	$(MAKE) -Cws/clustal install
-
+	$(MAKE) -C$(U_SCRIPTDIR) tools
