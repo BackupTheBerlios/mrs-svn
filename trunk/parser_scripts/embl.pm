@@ -573,7 +573,7 @@ sub pp
 				push @rows, $q->Tr($q->td('Encoded on'), $q->td($og)) if $og;
 				
 				push @rows, $q->Tr($q->td('Taxonomy'), $q->td(
-					join("; ", map { $q->a({-href=>"$url?db=taxonomy&query=$_"}, $_) } @oc)));
+					join("; ", map { $q->a({-href=>"query.do?db=taxonomy&query=$_"}, $_) } @oc)));
 				
 				undef @os;
 				undef $og;
