@@ -89,8 +89,8 @@ sub index_name
 
 package MRS::Script::ParserInterface;
 
-use strict;
-use warnings;
+#use strict;
+#use warnings;
 
 # code needed for Find Similar
 

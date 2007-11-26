@@ -39,7 +39,7 @@
 
 package MRS::Script::embl;
 
-use strict;
+#use strict;
 use POSIX qw/strftime/;
 
 our @ISA = "MRS::Script";
@@ -74,6 +74,7 @@ my %NAMES = (
 	embl			=>	'Nucleotide (EMBL)',
 	embl_release	=>	'EMBL Release',
 	embl_updates	=>	'EMBL Updates',
+	ensembl			=>	'Ensembl',
 );
 
 sub new
@@ -100,6 +101,9 @@ sub new
 		
 		if ($self->{db} eq 'embl_release') {
 			$self->{raw_files} = qr/\.dat\.gz$/;
+		}
+		elsif ($self->{db} eq 'ensembl') {
+			$self->{raw_files} = qr/__UNDEFINED__/;
 		}
 		elsif ($self->{db} eq 'embl_updates') {
 			
@@ -148,6 +152,9 @@ sub version
 	}
 	elsif ($db eq 'embl_updates') {
 		$vers = $self->{version};
+	}
+	elsif ($db eq 'ensembl') {
+		$vers = '';
 	}
 
 	die "Unknown db: $db" unless defined $vers;
@@ -236,13 +243,20 @@ sub parse
 			}
 			elsif ($fld eq 'DT')
 			{
-				if ($text =~ m/(\d{2})-([A-Z]{3})-(\d{4})/) {
-					my $date = sprintf('%4.4d-%2.2d-%2.2d', $3, $months{$2}, $1);
-					
-					eval { $m->IndexDate('date', $date); };
-					
-					warn $@ if $@;
-				}
+                                if ($text =~ /Created/)
+                                {
+                                        $text =~ m/(\d{2})-([A-Z]{3})-(\d{4})/;
+                                        my $date = sprintf('%4.4d-%2.2d-%2.2d', $3, $months{$2}, $1);
+                                        eval { $m->IndexDate('cd_date', $date); };
+                                        warn $@ if $@;
+                                }
+                                if ($text =~ /Last updated/)
+                                {
+                                        $text =~ m/(\d{2})-([A-Z]{3})-(\d{4})/;
+                                        my $date = sprintf('%4.4d-%2.2d-%2.2d', $3, $months{$2}, $1);
+                                        eval { $m->IndexDate('up_date', $date); };
+                                        warn $@ if $@;
+                                }
 			}
 			elsif (substr($fld, 0, 1) eq 'R')
 			{
@@ -396,10 +410,13 @@ sub print_ref
 		push @rr, $q->Tr($q->td({-class=>'label', -width=>'20%'}, 'Reference Position'), $q->td(lc $ref->{rp}));
 	}
 	
-	my @rc = split(m/;\s*/, $ref->{rc});
-	foreach my $rc (@rc)
+	if (defined $ref->{rc})
 	{
-		push @rr, $q->Tr($q->td({-class=>'label', -width=>'20%'}, 'Reference Comment'), $q->td(lc $rc));
+		my @rc = split(m/;\s*/, $ref->{rc});
+		foreach my $rc (@rc)
+		{
+			push @rr, $q->Tr($q->td({-class=>'label', -width=>'20%'}, 'Reference Comment'), $q->td(lc $rc));
+		}
 	}
 
 	push @rr, $q->Tr($q->td({-class=>'label', -width=>'20%'}, 'Reference Group'), $q->td($ref->{rg}))
@@ -419,6 +436,8 @@ sub pp
 {
 	my ($this, $q, $text, $id, $url) = @_;
 	
+	$url = "" unless defined $url;
+
 	my @rows;
 	my (%ref, @ref_rows);
 	
@@ -627,7 +646,7 @@ sub pp
 			undef %ref;
 			
 			my @dr;
-			my $last_db;
+			my $last_db = '';
 
 			push @rows, $q->Tr($q->th({-colspan=>2}, 'Cross-references'));
 			
@@ -886,9 +905,8 @@ sub sequence
 
 			while (my $line = <TEXT>)
 			{
-				last if ($line eq '//');
-				
 				chomp($line);
+				last if ($line eq '//');
 				$sequence .= $line;
 			}
 
@@ -896,7 +914,7 @@ sub sequence
 		}
 	}
 	close TEXT;
-	
+
 	return $sequence;	
 }
 

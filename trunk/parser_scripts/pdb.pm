@@ -268,7 +268,7 @@ sub raw_files()
 		next unless $d =~ m/^[0-9a-z]{2}$/;
 		
 		opendir D2, "$raw_dir/$d";
-		my @files = grep { -e "$raw_dir/$d/$_" and $_ =~ /\.ent\.Z$/ } readdir D2;
+		my @files = grep { -e "$raw_dir/$d/$_" and $_ =~ /\.ent\.gz$/ } readdir D2;
 		push @result, map { "$raw_dir/$d/$_" } @files if scalar @files;
 		closedir D2;
 	}
