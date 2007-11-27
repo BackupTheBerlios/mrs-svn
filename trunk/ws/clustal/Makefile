@@ -144,7 +144,7 @@ clean: FORCE
 dist: $(TARGET)
 
 install: dist
-	$(SUDO) install mrsws-clustal $(INSTALL_DIR)/mrsws-clustal
+	$(SUDO) install mrsws-clustal $(BINDIR)/mrsws-clustal
 	@ echo "To finish installation of the web-service you have to edit the file"
 	@ echo "ws/Sources/mrsws-clustal.wsdl and put it in the proper location."
 #	install Sources/mrsws-clustal.wsdl ../web-simple/htdocs/

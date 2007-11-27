@@ -256,10 +256,10 @@ dist/MRS-$(VERSION).tar.gz: $(OUTPUT) MRS.pm
 install: $(OUTPUT)
 	$(MAKE) dist
 	cd dist; $(SUDO) $(MAKE) install
-	$(SUDO) install -m 755 mrs_blast /usr/local/bin/mrs_blast
-	$(SUDO) install -m 755 mrs_query /usr/local/bin/mrs_query
-	$(SUDO) install -m 755 mrs_query /usr/local/bin/mrs_merge
-	$(SUDO) install -m 755 mrs.pl /usr/local/bin/mrs.pl
+	$(SUDO) install -m 755 mrs_blast $(BINDIR)/mrs_blast
+	$(SUDO) install -m 755 mrs_query $(BINDIR)/mrs_query
+	$(SUDO) install -m 755 mrs_query $(BINDIR)/mrs_merge
+	$(SUDO) install -m 755 mrs.pl $(BINDIR)/mrs.pl
 
 mrs_blast: $(LIBNAME) Sources/mrs_blast.cpp
 	$(CC) $(CFLAGS) -o $@ -ILib/Includes Sources/mrs_blast.cpp $(LIBNAME) $(LDFLAGS)

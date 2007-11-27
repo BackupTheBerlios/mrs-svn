@@ -145,7 +145,7 @@ clean: FORCE
 dist: $(TARGET)
 
 install: dist
-	$(SUDO) install mrsws $(INSTALL_DIR)/mrsws
+	$(SUDO) install mrsws $(BINDIR)/mrsws
 	@ echo "To finish installation of the web-service you have to edit the file"
 	@ echo "ws/Sources/mrsws.wsdl and put it in the proper location."
 #	install Sources/mrsws.wsdl ../web-simple/htdocs/
