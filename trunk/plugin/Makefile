@@ -13,7 +13,7 @@
 TARGET		= perl5
 SO_EXT		= .so
 LIBNAME		= libmrs
-VERSION		= 4.0.0
+VERSION		= 3.1
 # DEBUG should be either 1 or 0
 DEBUG		= 0
 DEFINES		= CPU_$(CPU) MINI_H_LIB

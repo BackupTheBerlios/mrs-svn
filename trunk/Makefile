@@ -35,7 +35,8 @@ install:
 		sed -e 's|__DATA_DIR__|$(DATADIR)|' \
 			-e 's|__PARSER_DIR__|$(P_SCRIPTDIR)|' \
 			-e 's|__CLUSTALW__|$(CLUSTALW)|' \
-			> $(PREFIX)/etc/mrs-config.xml
+			> $(PREFIX)/etc/mrs-config.xml.dist
+	test -f $(PREFIX)/etc/mrs-config.xml || install $(PREFIX)/etc/mrs-config.xml.dist $(PREFIX)/etc/mrs-config.xml
 	$(MAKE) -Cplugin install
 	$(MAKE) -Cws/blast install
 	$(MAKE) -Cws/regular install

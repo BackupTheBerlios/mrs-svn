@@ -8,7 +8,7 @@ make install
 cd /usr/local/share/mrs/update_scripts
 make enzyme
 
-If that all went well, you have an enzyme.cmp file in /usr/local/data/mrs/ and you can use mrs_query to search it. Then install the mrs-3.war file in tomcat and if this runs on the same machine you have a web site at http://localhost:8080/mrs-3/ that allows you to search this enzyme databank. Then you're ready to index other databanks.
+If that went well, you have an enzyme.cmp file in /usr/local/data/mrs/ and you can use mrs_query to search it. Then install the mrs-3.war file in tomcat and if this runs on the same machine you have a web site at http://localhost:8080/mrs-3/ that allows you to search this enzyme databank. Then you're ready to index other databanks.
 
 If this didn't work, proceed to the next chapter.
 
@@ -21,36 +21,34 @@ Three main parts can be distinguished:
 2. a couple of binary files (executables) that use the data files to do searches
 3. the web interface
 
-To make installation easier there is an install.pl script that does most of the work for you. It creates all needed directories and copies script files into these directories. These files are patched for your specific setup. Then it create a couple of makefiles after which you can build the executables.
+To make installation easier there is a configure.pl script and some makefiles that do most of the work for you. They create all needed directories and copy script files into these directories. These scripts are patched for your specific setup.
 
 If all goes well you will have something like the following after installation:
 
-/usr/local/data/...	       <== a directory tree containing all the MRS data
-                               when you plan to build all possible databanks
+/usr/local/data/...	       <== a directory tree containing all the MRS data.
+                               When you plan to build all possible databanks
                                including EMBL and Genbank you will need at
                                least a terabyte of diskspace here.
 
-/usr/local/share/mrs/parser_scripts      <== this directory contains Perl scripts
-                                             that are used in processing databanks
+/usr/local/share/mrs/parser_scripts   <== this directory contains Perl scripts
+                                          that are used in processing databanks
 
-/usr/local/share/mrs/update_scripts      <== this directory contains make files and
-                                             other scripts used to fetch and update
-                                             mrs databanks
+/usr/local/share/mrs/update_scripts   <== this directory contains make files
+                                          and other scripts used to fetch and
+                                          update mrs databanks
 
 /usr/local/bin/mrs*                      <== several executables
 
-and there will be a MRS plugin installed in the Perl library.
-
+Additionally there will be a MRS plugin installed in the Perl library.
 
 
 Prerequisites
 
-This manual assumes you are using the Ubuntu Linux distribution. In case you use any other Unix flavour you should read this section and then figure out what to do yourself. MRS is known to work on Red Hat Enterprise Linux and MacOS X since those
-are the two major platforms used in development.
+This manual assumes you are using the Ubuntu Linux distribution. In case you use any other Unix flavour you should read this section and then figure out what to do yourself. MRS is known to work on Red Hat Enterprise Linux and MacOS X since those are the two major platforms used in development.
 
 In Ubuntu you will have to install the following packages using apt (Synaptic?)
 
-	g++-4.1
+	g++-4.1		(or at least a modern and working c++ compiler)
 	gSoap
 	libboost-dev
 	libboost-regex-dev
@@ -68,15 +66,54 @@ Now you have to think about the directories and more importantly, where you want
 
 Installation
 
-Then you start the install script:
+Start the installation by running
 
-perl install.pl
+perl configure.pl
 
-This script will ask a couple of questions and provides defaults for most. You can accept the defaults or provide your own values. Please note that MRS prefers the most recent GCC at the time of writing which is version 4.1. Do not try to use an older version since that will probably fail.
+If you're lucky this works without any error. However, it takes the defaults for all options and may not give the desired results. The configure script has built in help which you can see by running
 
-You can always interrupt the install script and restart it later on.
+perl configure.pl --help
 
-When the install script has finished you can type:
+The result of this command is:
+
+Usage: perl configure.pl [OPTIONS]
+    --help              This help message
+    --prefix            The installation directory prefix string
+    --data-dir          The data directory, where all data files will be located.
+                        This should probably be a separate partition.
+                        Default is prefix/data.
+    --parser-script-dir The directory containing the MRS parser scripts
+                        Default is /usr/local/share/mrs/parser_scripts
+    --update-script-dir The directory containing the MRS update scripts
+                        Default is /usr/local/share/mrs/update_scripts
+    --cc                The compiler to use, perferrably a GCC >= 4.1
+                        Default is /usr/bin/g++-4.1
+    --gcc-march-flag=[] The -march=xx flag for gcc. This is used to build
+                        an optimized version of MRS code specifically for
+                        an architecture. Examples are 'nocona', 'prescott'
+                        and 'pentium4'.
+    --swig              The location of the SWIG executable. This executable
+                        must be version 1.3.27 exactly. Other versions are not
+                        supported.
+                        Default is /usr/bin/swig
+    --soapcpp2          The location of the soapcpp2 executable which is part of
+                        the gSoap toolset.
+                        Default is /usr/local/bin/soapcpp2
+    --boost=[path]      The path where the boost libraries are installed
+    --boost_regex=[]    The name of the boost_regex library
+                        Default is boost_regex-mt
+    --boost_filesystem=[] The name of the boost_filesystem library
+                        Default is boost_filesystem-mt
+    --boost_thread=[]   The name of the boost_thread library
+                        Default is boost_thread-mt
+    --no-blast          Do not compile the BLAST code.
+ 
+About the boost options, on my workstation running opensuse 10.3 I have to specify the boost_regex library by adding the option '--boost_regex=boost_regex'.
+You can find out what to use by searching the correct libboost_regex*.so file and then strip off the 'lib' prefix and '.so' suffix.
+
+You can always interrupt the configure script and restart it later on.
+
+When this script has finished you can type:
 
 make
 make install
@@ -98,6 +135,8 @@ The next step is to either use the MRS perl plugin directly from your scripts, o
 /usr/local/bin/mrsws-clustal
 
 They all accept the -b option to run them in the background. But perhaps it is best to not use that before you're comfortable with this software. It may be better to start each of them in a separate 'screen' session so you can follow what happens.
+
+In the mrs/ws/init.d directory you can find scripts suitable for RedHat EL 4. You can use these scripts to start the various mrsws servers as daemons. You can then add a line to your crontab to check if the services are still running and restart them if needed.
 
 The wsdl files for each of these services are not installed by default. You can find them in the directory mrs/ws/regular/Sources, mrs/ws/blast/Sources and mrs/ws/clustal/Sources respectively. You have to edit these wsdl files (notably the SOAP:address location attibute) and then put them somewhere on your web site.
 

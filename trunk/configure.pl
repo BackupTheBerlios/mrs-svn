@@ -135,38 +135,38 @@ $update_scripts =~ s|^prefix/|$prefix/|;
 
 sub Usage {
 print<<EOF;
-Usage: configure
-	--help				This help message
-	--prefix			The installation directory prefix string
-	--data-dir			The data directory, where all data files will be located.
-						This should probably be a separate partition.
-						Default is $data_dir.
-	--parser-script-dir	The directory containing the MRS parser scripts
-						Default is $prefix/share/mrs/parser_scripts
-	--update-script-dir	The directory containing the MRS update scripts
-						Default is $prefix/share/mrs/update_scripts
-	--cc				The compiler to use, perferrably a GCC >= 4.1
-						Default is $cc
-	--gcc-march-flag=[] The -march=xx flag for gcc. This is used to build
-	                    an optimized version of MRS code specifically for
-	                    an architecture. Examples are 'nocona', 'prescott'
-	                    and 'pentium4'.
-	--swig				The location of the SWIG executable. This executable
-						must be version 1.3.27 exactly. Other versions are not
-						supported.
-						Default is $swig
-	--soapcpp2			The location of the soapcpp2 executable which is part of
-						the gSoap toolset.
-						Default is $soapcpp2
-	--boost=[path]		The path where the boost libraries are installed
-	--boost_regex=[]	The name of the boost_regex library
-						Default is boost_regex-mt
-	--boost_filesystem=[] The name of the boost_filesystem library
-						Default is boost_filesystem-mt
-	--boost_thread=[]	The name of the boost_thread library
-						Default is boost_thread-mt
-	--no-blast          Do not compile the BLAST code.
-	
+Usage: perl configure.pl [OPTIONS]
+    --help              This help message
+    --prefix            The installation directory prefix string
+    --data-dir          The data directory, where all data files will be located.
+                        This should probably be a separate partition.
+                        Default is $data_dir.
+    --parser-script-dir The directory containing the MRS parser scripts
+                        Default is $prefix/share/mrs/parser_scripts
+    --update-script-dir The directory containing the MRS update scripts
+                        Default is $prefix/share/mrs/update_scripts
+    --cc                The compiler to use, perferrably a GCC >= 4.1
+                        Default is $cc
+    --gcc-march-flag=[] The -march=xx flag for gcc. This is used to build
+                        an optimized version of MRS code specifically for
+                        an architecture. Examples are 'nocona', 'prescott'
+                        and 'pentium4'.
+    --swig              The location of the SWIG executable. This executable
+                        must be version 1.3.27 exactly. Other versions are not
+                        supported.
+                        Default is $swig
+    --soapcpp2          The location of the soapcpp2 executable which is part of
+                        the gSoap toolset.
+                        Default is $soapcpp2
+    --boost=[path]      The path where the boost include files are installed
+    --boost_regex=[]    The name of the boost_regex library
+                        Default is boost_regex-mt
+    --boost_filesystem=[] The name of the boost_filesystem library
+                        Default is boost_filesystem-mt
+    --boost_thread=[]   The name of the boost_thread library
+                        Default is boost_thread-mt
+    --no-blast          Do not compile the BLAST code.
+    
 EOF
 	exit;
 }
@@ -387,16 +387,15 @@ END
 int main() { std::cout << BOOST_LIB_VERSION << std::endl; return 0; }
 END
 	
-	my ($boost_version, $boost_inc);
+	my $boost_version;
 	
 	eval {
-		my $c_opts = $cc;
-		$c_opts = "$cc -I$boost_dir" if defined $boost_dir;
-		
-		$boost_version = &compile($C_file, $c_opts);
+		$inc_dirs{$boost_dir} = 1 if defined $boost_dir;
+		$boost_version = &compile($C_file);
 	};
 	
-	if ($@ or not defined $boost_version or length($boost_version) == 0) {
+	if ($@ or not defined $boost_version or length($boost_version) == 0)
+	{
 		foreach my $d ( @inc_dirs_guess )
 		{
 			if (-d "$d/boost") {
