@@ -1,0 +1,46 @@
+# Defaults for makefiles
+# 
+# $Id: make.pre,v 1.6 2003/10/28 10:57:37 dbman Exp $
+#
+# This file should be included in each makefile
+# Make sure you've defined the DATABANK variable before including this file
+
+HOST = $(shell hostname -s)
+include make_$(HOST).conf
+
+SRCDIR		= $(DATADIR)raw/$(DATABANK)/
+DSTDIR		= $(DATADIR)uncompressed/$(DATABANK)/
+FASTADIR	= $(DATADIR)fasta/$(DATABANK)/
+
+# export the variables that mrs needs
+MRS_DATA_DIR	= $(MRSDIR)
+export MRS_DATA_DIR
+
+MRS_RAW_DIR		= $(DATADIR)raw/
+export MRS_RAW_DIR
+
+MRS_SCRIPT_DIR	= $(PARSERDIR)
+export MRS_SCRIPT_DIR
+
+# some necessary variables to make things work
+
+DAY			= $(shell date "+%d")
+MONTH		= $(shell date "+%m")
+YEAR		= $(shell date "+%Y")
+
+RELEASE_SCRIPT	= while (<>) { if (/Release (\d+(\.\d+)?)/) { print $$1; exit; } }
+EMBL_RELEASE	= $(shell perl -e '$(RELEASE_SCRIPT)' $(DATADIR)raw/embl/relnotes.txt)
+
+PATHS		= $(SRCDIR) $(DSTDIR) $(FASTADIR) $(BLASTDIR) $(MRSDIR)
+
+VPATH		:=
+VPATH		+= $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(PATHS))))
+
+# do we need to make directories?
+
+firstTarget: all
+	echo "no target was specified - 'all' was assumed"
+
+${PATHS}:
+	mkdir -p $@
+
