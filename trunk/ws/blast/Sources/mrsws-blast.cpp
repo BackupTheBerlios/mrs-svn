@@ -956,6 +956,9 @@ int main(int argc, const char* argv[])
 	}
 	else if (VERBOSE)
 		cerr << "Configuration file " << gConfigFile.string() << " does not exist, ignoring" << endl;
+
+	if (THREADS < 2)
+		THREADS = 2;
 	
 	if (not fs::exists(gDataDir) or not fs::is_directory(gDataDir))
 	{

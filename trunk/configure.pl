@@ -220,7 +220,7 @@ sub CheckMachine()
 {
 	# find out the OS and CPU we're using
 	
-	if ($cpu eq 'x86_64' or $cpu =~ m/i[456]86/) {
+	if ($cpu eq 'x86_64' or $cpu =~ m/i[3456]86/) {
 		$cpu = 'x86';
 	}
 	elsif ($cpu eq 'ppc' or $cpu eq 'powerpc') {
