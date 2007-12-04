@@ -47,12 +47,11 @@ endif
 PERL_CORE		= $(shell $(PERL) -MExtUtils::Embed -e perl_inc)
 
 ifeq ($(OS),FreeBSD)
-	LIBS		+= 
-	INCPATHS	+= 
-	SYSINCPATHS	+= /usr/local/include
 	DEFINES		+= HAS_ENDIAN FREEBSD HAVE_SYS_IOCTL_H HAVE_SYS_SOCKIO_H \
-					HAVE_SYS_SOCKET_H HAVE_NETINET_IN_H HAVE_SRANDOM HAVE_NET_IF_DL_H HAVE_SA_LEN
-	LDFLAGS		+= -shared
+					HAVE_SYS_SOCKET_H HAVE_NETINET_IN_H HAVE_SRANDOM \
+					HAVE_NET_IF_DL_H HAVE_SA_LEN HAVE_INTTYPES_H
+	LD_SO_FLAG	+= -shared
+	LDFLAGS		+= -pthread
 	STRIP		= strip -d
 endif
 
@@ -326,5 +325,5 @@ endif
 FORCE:
 
 test:
-	echo $(PERL)
-	echo $(PERL_CORE)
+	@ echo $(PERL)
+	@ echo $(PERL_CORE)

@@ -60,7 +60,7 @@ my @inc_dirs_guess = (
 my $use_tr1 = 0;
 
 my $os = `uname -s`;	chomp($os);
-my $host = hostname;
+my $host = hostname;	$host =~ s/^([^.]+)\..+/$1/; # strip off the domain part
 my $cpu = `uname -p`;	chomp($cpu);
 $cpu = `uname -m` if $cpu eq 'unknown';
 
@@ -220,7 +220,7 @@ sub CheckMachine()
 {
 	# find out the OS and CPU we're using
 	
-	if ($cpu eq 'x86_64' or $cpu =~ m/i[3456]86/) {
+	if ($cpu eq 'x86_64' or $cpu =~ m/i[3456]86/ or $cpu eq 'amd64') {
 		$cpu = 'x86';
 	}
 	elsif ($cpu eq 'ppc' or $cpu eq 'powerpc') {
