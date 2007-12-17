@@ -244,67 +244,6 @@ bool HFileSpec::operator!=(const HFileSpec& inOther)
 
 #pragma mark -
 
-#ifndef MINI_H_LIB
-
-#include "HWinWindowImp.h"
-
-struct HTSMDocImp
-{
-			HTSMDocImp(HWindow* inWindow);
-			~HTSMDocImp();
-	
-	HWND	fWindow;
-	HIMC	fIMC;
-	HIMC	fPreviousIMC;
-};
-
-HTSMDocImp::HTSMDocImp(HWindow* inWindow)
-	: fWindow(0)
-	, fIMC(::ImmCreateContext())
-	, fPreviousIMC(0)
-{
-	if (inWindow)
-	{
-		assert(inWindow);
-		fWindow = static_cast<HWinWindowImp*>(inWindow->impl())->GetHandle();
-	}
-}
-
-HTSMDocImp::~HTSMDocImp()
-{
-	::ImmDestroyContext(fIMC);
-}
-
-HTSMDoc::HTSMDoc(HWindow* inWindow, HHandler* /*inHandler*/)
-	: fImpl(new HTSMDocImp(inWindow))
-{
-}
-
-HTSMDoc::~HTSMDoc()
-{
-	Deactivate();
-	delete fImpl;
-}
-
-void HTSMDoc::Activate()
-{
-	fImpl->fPreviousIMC = ::ImmAssociateContext(fImpl->fWindow, fImpl->fIMC);
-}
-
-void HTSMDoc::Deactivate()
-{
-	::ImmAssociateContext(fImpl->fWindow, fImpl->fPreviousIMC);
-}
-
-void HTSMDoc::Fix()
-{
-	::ImmNotifyIME(fImpl->fIMC, NI_COMPOSITIONSTR, CPS_CANCEL, 0);
-}
-
-#pragma mark -
-
-#endif
-
 HWTStr::HWTStr(const char* inUTF8, unsigned long inLength)
 	: fUTF8(inUTF8)
 	, fLength(inLength)

@@ -185,6 +185,7 @@ void RunClustalW(
 				fileParam.c_str(),
 				"-TYPE=PROTEIN",
 				"-OUTPUT=GDE",
+				"-OUTPUTTREE=phylip",
 				"-CASE=UPPER",
 				nil
 			};

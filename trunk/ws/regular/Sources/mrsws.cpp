@@ -1132,12 +1132,12 @@ ns__Cooccurrence(
 		}
 
 		// do we have enough terms?
-		if (terms.size() > maxresultcount - resultoffset)
+		if (static_cast<int32>(terms.size()) > maxresultcount - resultoffset)
 		{
 			sort(terms.begin(), terms.end(), CoTermScoreGreater());
 			
 			vector<CoTerm>::iterator t = terms.begin();
-			uint32 n = 0;
+			int32 n = 0;
 			
 			while (n < resultoffset and t != terms.end())
 			{
@@ -1147,7 +1147,6 @@ ns__Cooccurrence(
 			
 			while (n < resultoffset + maxresultcount and t != terms.end())
 			{
-//cout << t->term << '\t' << t->count * t->idf << endl;
 				response.push_back(t->term);
 				++t;
 				++n;
@@ -1160,8 +1159,6 @@ ns__Cooccurrence(
 			"An error occurred while doing a Count",
 			e.what());
 	}
-
-//copy(response.begin(), response.end(), ostream_iterator<string>(cout, " "));
 
 	return result;
 }

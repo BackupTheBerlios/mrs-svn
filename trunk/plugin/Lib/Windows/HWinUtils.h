@@ -31,24 +31,4 @@ extern long  gOSVersionMinor;
 void UnixToWinPath(std::string& ioPath);
 void WinToUnixPath(std::string& ioPath);
 
-#ifndef MINI_H_LIB
-void GetModifierState(unsigned long& outModifiers, bool inAsync);
-void RegisterFileExtension(const char* inExt, const char* inDesc);
-void RestoreFileExtension(const char* inExt);
-bool NextAssoc(unsigned long& ioCookie, std::string& outExt, std::string& outDesc);
-
-class StSaveDC
-{
-  public:
-		  	StSaveDC();
-			StSaveDC(void* inDC);
-			~StSaveDC();
-	
-	void*	GetDC() const	{ return fDC; }
-  private:
-  	void*	fDC;
-  	int		fState;
-};
-#endif
-
 #endif

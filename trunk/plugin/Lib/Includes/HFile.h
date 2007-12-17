@@ -127,23 +127,6 @@ namespace HFile
 		struct IteratorImp*	fImpl;
 	};
 	
-#ifndef MINI_H_LIB
-	class GlobIterator
-	{
-	  public:
-						GlobIterator(std::string inGlobPattern);
-		virtual			~GlobIterator();
-
-		bool			Next(HUrl& outUrl);
-
-	  private:
-						GlobIterator(const GlobIterator&);
-		GlobIterator&	operator=(const GlobIterator&);
-	  
-		struct GlobImp*	fImpl;
-	};
-#endif
-	
 	class Chooser
 	{
 	  public:

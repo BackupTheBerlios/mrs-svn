@@ -41,13 +41,13 @@
  
 #include "MRS.h"
 
-#ifndef USE_TR1
+#ifndef HAVE_TR1
 #if P_GNU
-#warning("USE_TR1 is not defined, reverting to use __gnu_cxx::hash_set (add HAVE_TR1=1 to make.config if you want to use tr1)")
+#warning("HAVE_TR1 is not defined, reverting to use __gnu_cxx::hash_set (add HAVE_TR1=1 to make.config if you want to use tr1)")
 #else
-#pragma warning("USE_TR1 is not defined, reverting to use std::set")
+#pragma warning("HAVE_TR1 is not defined, reverting to use std::set")
 #endif
-#define	USE_TR1 0
+#define	HAVE_TR1 0
 #endif
 
 #include <list>
@@ -56,7 +56,7 @@
 #include <limits>
 #include <ctime>
 #include <sstream>
-#if USE_TR1
+#if HAVE_TR1
 #include <tr1/unordered_set>
 #elif P_GNU
 #include <ext/hash_set>
@@ -471,7 +471,7 @@ class CFullTextIndex
 				{ return inA->term > inB->term or (inA->term == inB->term and inA->doc > inB->doc); }
 	};
 
-#if USE_TR1
+#if HAVE_TR1
 	typedef tr1::unordered_set<uint32, boost::hash<uint32> >	CHashedSet;
 #elif P_GNU
 	typedef __gnu_cxx::hash_set<uint32>							CHashedSet;

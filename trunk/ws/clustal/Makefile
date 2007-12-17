@@ -1,11 +1,8 @@
 # make file for soap server
 
-SO_EXT		= .so
 TARGET		= mrsws-clustal
 # DEBUG should be either 1 or 0
 DEBUG		= 0
-DEFINES		= CPU_$(CPU) MINI_H_LIB
-WARNINGS	= -Wall -Wno-multichar
 LIBNAME		= mrs
 LIBS		= z m bz2 gsoap++
 LIBPATHS	=  ../../plugin/Lib/ ../../plugin/
@@ -14,11 +11,11 @@ SYSINCPATHS	= /usr/include
 WARNINGS	= -Wall -Wno-multichar -Wno-unknown-pragmas
 CFLAGS		= -fsigned-char -g -ffor-scope
 CFLAGS		+= -fmessage-length=132 -fdiagnostics-show-location=every-line
-LDFLAGS		= -fdata-sections -g # -ffunction-sections
+LDFLAGS		= -fdata-sections -g
 
 include ../../make.config
 
-LDFLAGS		+= $(shell $(PERL) -MExtUtils::Embed -e ldopts)
+DEFINES     += CPU_$(CPU)
 
 ifeq ($(OS),FreeBSD)
 	DEFINES		+= HAS_ENDIAN FREEBSD HAVE_SYS_IOCTL_H HAVE_SYS_SOCKIO_H \
@@ -37,10 +34,9 @@ ifeq ($(OS),Linux)
 endif
 
 ifeq ($(OS),Darwin)
-	SO_EXT		:= .bundle
-	LD_SO_FLAG	= -bundle -undefined suppress -flat_namespace
 	DEFINES		+= DARWIN HAVE_SYS_IOCTL_H HAVE_SYS_SOCKIO_H \
 					HAVE_SYS_SOCKET_H HAVE_NETINET_IN_H HAVE_SRANDOM HAVE_NET_IF_DL_H HAVE_SA_LEN
+	LD_SO_FLAG	= -bundle -undefined suppress -flat_namespace
 	LDFLAGS		+= 
 	STRIP		= strip -S
 endif
@@ -62,64 +58,47 @@ ifeq ($(PROFILE),1)
 	LIBNAME	:= $(LIBNAME)p
 endif
 
-LDFLAGS += $(addprefix -L, $(LIBPATHS)) 
 LIBNAME := lib$(LIBNAME).a
 
 Sources = \
-	./Sources/mrsws-clustal.cpp \
+	./Sources/$(TARGET).cpp \
 	./Sources/soapC.cpp \
 	./Sources/soapServer.cpp \
 	../common/Sources/WConfig.cpp \
 	../common/Sources/WUtils.cpp \
 	../common/Sources/WError.cpp
 
-define SOURCES
-	$(Sources)
-endef
-
-define SRC_TO_OBJ
-	$(addprefix $(OBJDIR)/, $(addsuffix .o, $(foreach file, $(SOURCES), $(basename $(notdir $(file))))))
-endef
-
-OBJS = $(SRC_TO_OBJ)
+OBJS = $(addprefix $(OBJDIR)/, $(addsuffix .o, $(basename $(notdir $(Sources)))))
 
 # create a unique list of paths to our sources
-SRC_PATHS += $(sort $(foreach file, $(SOURCES), $(dir $(file))))
+SRC_PATHS += $(sort $(dir $(Sources)))
 
 VPATH :=
 # add the list of source paths to VPATH if not already present
 VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(SRC_PATHS))))
 
 # add the list of source paths to INLCUDES if not already present
-INCLUDES = $(foreach path, $(INCPATHS) $(SRC_PATHS), $(addprefix -I, $(path)))
-INCLUDES += $(shell $(PERL) -MExtUtils::Embed -e ccopts)
-
-# since we're using c++ the following flag can safely be removed:
-INCLUDES := $(filter-out -Wdeclaration-after-statement, $(INCLUDES))
-
-ifneq ($(IQUOTE),0)
-INCLUDES += -iquote
+INCLUDES += $(addprefix -I, $(SYSINCPATHS))
+ifeq ($(IQUOTE),1)
+INCLUDES += $(addprefix -iquote, $(INCPATHS) $(SRC_PATHS))
 else
-INCLUDES += -I-
+INCLUDES += -I- $(addprefix -I, $(INCPATHS) $(SRC_PATHS))
 endif
-INCLUDES += $(foreach path, $(SYSINCPATHS) $(BOOST), $(addprefix -I, $(path)))
+# Perl's defines and includes
+INCLUDES += $(shell $(PERL) -MExtUtils::Embed -e perl_inc)
 
-# add the -L prefix to all library paths to search
-LINK_PATHS = $(foreach path, $(LIBPATHS), $(addprefix -L, $(path)))
-
-# add the -l prefix to all libs to be linked against
-LINK_LIBS = $(foreach lib, $(LIBS), $(addprefix -l, $(lib)))
-
-# add to the linker flags 
-LDFLAGS += $(LINK_PATHS) $(LINK_LIBS)
-
-CFLAGS	+= $(DBG) $(WARNINGS)
+CFLAGS	+= $(addprefix -D, $(DEFINES)) $(DBG) $(WARNINGS)
 ifeq ($(CPU), x86)
 CFLAGS	+= -fPIC
 endif
 
-DEFS	= $(foreach define, $(DEFINES), $(addprefix -D, $(define)))
-CFLAGS	+= $(DEFS)
+# add to the linker flags 
+# add the -L prefix to all library paths to search
+LDFLAGS += $(addprefix -L, $(LIBPATHS))
+# add the -l prefix to all libs to be linked against
+LDFLAGS += $(addprefix -l, $(LIBS))
+# Perl's flags
+LDFLAGS		+= $(shell $(PERL) -MExtUtils::Embed -e ldopts)
 
 all: $(TARGET)
 
@@ -132,7 +111,7 @@ echo_flags:
 $(TARGET): $(OBJDIR) Sources/soapH.h $(OBJS)
 	$(MAKE) DEBUG=$(DEBUG) -C ../../plugin $(LIBNAME)
 	@ echo "Linking "$(@F)
-	$(CC) -o $(TARGET) ../../plugin/$(LIBNAME) $(OBJS) $(LDFLAGS)
+	@ $(CC) -o $(TARGET) ../../plugin/$(LIBNAME) $(OBJS) $(LDFLAGS)
 	@ chmod a+rx $(TARGET)
 	@ echo "Done"
 
@@ -142,10 +121,10 @@ clean: FORCE
 dist: $(TARGET)
 
 install: dist
-	$(SUDO) install mrsws-clustal $(BINDIR)/mrsws-clustal
+	$(SUDO) install $(TARGET) $(BINDIR)/$(TARGET)
 	@ echo "To finish installation of the web-service you have to edit the file"
-	@ echo "ws/Sources/mrsws-clustal.wsdl and put it in the proper location."
-#	install Sources/mrsws-clustal.wsdl ../web-simple/htdocs/
+	@ echo "ws/Sources/$(TARGET).wsdl and put it in the proper location."
+#	install Sources/$(TARGET).wsdl ../web-simple/htdocs/
 
 tags: FORCE
 	$(CTAGS) $(wildcard $(addsuffix *, $(SRC_PATHS))) $(wildcard $(addsuffix *.h, $(INCPATHS)))
@@ -165,7 +144,7 @@ include $(OBJS:%.o=%.d)
 
 ${OBJS:.o=.d}:
 
-Sources/soapC.cpp Sources/soapServer.cpp Sources/soapH.h: Sources/mrsws-clustal.h
-	$(SOAPCPP2) -d Sources/ Sources/mrsws-clustal.h
+Sources/soapC.cpp Sources/soapServer.cpp Sources/soapH.h: Sources/$(TARGET).h
+	$(SOAPCPP2) -d Sources/ Sources/$(TARGET).h
 
 FORCE:

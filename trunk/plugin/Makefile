@@ -10,33 +10,27 @@
 # Now you can build debug and non debug versions, default is non-debug
 # but to build a debug version you type 'make DEBUG=1' instead of simply 'make'
 
-TARGET		= perl5
 SO_EXT		= .so
 LIBNAME		= libmrs
 VERSION		= 3.1
 # DEBUG should be either 1 or 0
 DEBUG		= 0
-DEFINES		= CPU_$(CPU) MINI_H_LIB
 LIBS		= z m bz2
-LIBPATHS	=  ./Lib/
+LIBPATHS	= ./Lib/
 INCPATHS	= ./Lib/Includes/ ./Lib/X/ ./Lib/
 SYSINCPATHS	= /usr/include
-WARNINGS	=  -Wall -Wno-multichar -Wno-unknown-pragmas -Wno-long-long
+WARNINGS	= -Wall -Wno-multichar -Wno-unknown-pragmas -Wno-long-long
 CFLAGS		= -fsigned-char -g -ffor-scope
 CFLAGS		+= -fmessage-length=132 -fdiagnostics-show-location=every-line
 LDFLAGS		= -fdata-sections -g
-#OPT			+= -fstrict-aliasing
+#OPT		+= -fstrict-aliasing
 OPT			+= -O3
 
-CC			= c++
+CC			= c++		# some reasonable defaults
 PERL		= perl
 SWIG		= swig
 
 include ../make.config
-
-ifeq ($(HAVE_TR1),1)
-DEFINES		+= USE_TR1
-endif
 
 ifneq ($(SWIG),)
 SWIG_VERSION	= $(shell $(SWIG) -version | grep Version | sed s'/SWIG Version //')
@@ -44,7 +38,7 @@ else
 SWIG_VERSION	= not_installed
 endif
 
-PERL_CORE		= $(shell $(PERL) -MExtUtils::Embed -e perl_inc)
+DEFINES     += CPU_$(CPU)
 
 ifeq ($(OS),FreeBSD)
 	DEFINES		+= HAS_ENDIAN FREEBSD HAVE_SYS_IOCTL_H HAVE_SYS_SOCKIO_H \
@@ -94,18 +88,7 @@ ifeq ($(PROFILE),1)
 endif
 
 LIBNAME	:= $(LIBNAME).a
-
-ifeq ($(TARGET),java)
-	OUTPUT		?= libmrs$(SO_EXT)
-else
-ifeq ($(TARGET),perl5)
-	OUTPUT		?= MRS$(SO_EXT)
-else
-fout
-endif
-endif
-
-LDFLAGS += $(addprefix -L, $(LIBPATHS)) 
+OUTPUT ?= MRS$(SO_EXT)
 
 Sources = \
 	./Sources/MRSInterface.cpp \
@@ -158,56 +141,35 @@ Sources += \
 	./Sources/CNCBI.cpp
 endif
 
-define SOURCES
-	$(Sources)
-endef
-
-define SRC_TO_OBJ
-	$(addprefix $(OBJDIR)/, $(addsuffix .o, $(foreach file, $(SOURCES), $(basename $(notdir $(file))))))
-endef
-
-OBJS = $(SRC_TO_OBJ)
+OBJS = $(addprefix $(OBJDIR)/, $(addsuffix .o, $(basename $(notdir $(Sources)))))
 
 # create a unique list of paths to our sources
-SRC_PATHS += $(sort $(foreach file, $(SOURCES), $(dir $(file))))
+SRC_PATHS += $(sort $(dir $(Sources)))
 
 VPATH :=
 # add the list of source paths to VPATH if not already present
 VPATH += $(addprefix :, $(subst  ,:, $(filter-out $($(subst, :, ,$(VPATH))), $(SRC_PATHS))))
 
 # add the list of source paths to INLCUDES if not already present
-INCLUDES = $(foreach path, $(INCPATHS) $(SRC_PATHS), $(addprefix -I, $(path)))
-ifneq ($(IQUOTE),0)
-INCLUDES += -iquote
+INCLUDES += $(addprefix -I, $(SYSINCPATHS))
+ifeq ($(IQUOTE),1)
+INCLUDES += $(addprefix -iquote, $(INCPATHS) $(SRC_PATHS))
 else
-INCLUDES += -I-
+INCLUDES += -I- $(addprefix -I, $(INCPATHS) $(SRC_PATHS))
 endif
-INCLUDES += $(foreach path, $(SYSINCPATHS), $(addprefix -I, $(path)))
+# Perl's defines and includes
+INCLUDES += $(shell $(PERL) -MExtUtils::Embed -e perl_inc)
 
-ifeq ($(TARGET),perl5)
-INCLUDES += $(PERL_CORE)
-endif
-
-ifeq ($(TARGET),java)
-INCLUDES += $(JAVA_INC)
-endif
-
-# add the -L prefix to all library paths to search
-LINK_PATHS = $(foreach path, $(LIBPATHS) $(BOOST_LIB), $(addprefix -L, $(path)))
-
-# add the -l prefix to all libs to be linked against
-LINK_LIBS = $(foreach lib, $(LIBS), $(addprefix -l, $(lib)))
-
-# add to the linker flags 
-LDFLAGS += $(LINK_PATHS) $(LINK_LIBS)
-
-CFLAGS	+= $(DBG) $(WARNINGS)
+CFLAGS	+= $(addprefix -D, $(DEFINES)) $(DBG) $(WARNINGS)
 ifeq ($(CPU), x86)
 CFLAGS	+= -fPIC
 endif
 
-DEFS	= $(foreach define, $(DEFINES), $(addprefix -D, $(define)))
-CFLAGS	+= $(DEFS)
+# add to the linker flags 
+# add the -L prefix to all library paths to search
+LDFLAGS += $(addprefix -L, $(LIBPATHS))
+# add the -l prefix to all libs to be linked against
+LDFLAGS += $(addprefix -l, $(LIBS))
 
 all: $(OUTPUT) mrs_blast mrs_query mrs_merge dist
 
@@ -226,9 +188,9 @@ lib: $(LIBNAME)
 doc: FORCE
 	doxygen doc/doxygen.config
 
-$(OUTPUT): $(LIBNAME) $(OBJDIR)/MRS_$(TARGET).o
+$(OUTPUT): $(LIBNAME) $(OBJDIR)/MRS_perl5.o
 	@ echo "Linking "$(@F)
-	@ $(CC) -o $(OUTPUT) $(LD_SO_FLAG) $(LIBNAME) $(OBJDIR)/MRS_$(TARGET).o $(LDFLAGS)
+	@ $(CC) -o $(OUTPUT) $(LD_SO_FLAG) $(LIBNAME) $(OBJDIR)/MRS_perl5.o $(LDFLAGS)
 	@ chmod a+rx $(OUTPUT)
 	@ echo "Done"
 
@@ -287,9 +249,10 @@ tags: FORCE
 $(OBJDIR):
 	@ test -d $(OBJDIR) || mkdir $(OBJDIR)
 
-$(OBJDIR)/%_$(TARGET).o: Sources/%_$(TARGET).cpp
+# Swig's code should not be optimized... really
+$(OBJDIR)/%_perl5.o: Sources/%_perl5.cpp
 	@ echo "=> "$(@F)
-	$(CC) -MD -c $< -o $@ $(INCLUDES) $(CFLAGS) -O0
+	@ $(CC) -MD -c $< -o $@ $(INCLUDES) $(CFLAGS) -O0
 
 $(OBJDIR)/%.o: %.cpp
 	@ echo "=> "$(@F)
@@ -308,22 +271,11 @@ ifeq ($(SWIG_VERSION),1.3.27)
 Sources/MRS_perl5.cpp: Sources/MRSInterface.h Sources/MRS_perl5.i
 	$(SWIG) $(DEFS) -c++ -perl5 -o Sources/MRS_perl5.cpp -outdir ./ Sources/MRS_perl5.i
 
-Sources/MRS_java.cpp: Sources/MRSInterface.h Sources/MRS_java.i
-	mkdir -p Java/nl/ru/cmbi/MRSPlugin
-	$(SWIG) $(DEFS) -c++ -java -o Sources/MRS_java.cpp -outdir Java/nl/ru/cmbi/MRSPlugin -package nl.ru.cmbi.MRSPlugin Sources/MRS_java.i
-
 else
 
 Sources/MRS_perl5.cpp: Sources/MRSInterface.h Sources/MRS_perl5.i
 	@ echo !!! WARNING !!! Not rebuilding required $@ since swig version is not 1.3.27
 
-Sources/MRS_java.cpp: Sources/MRSInterface.h Sources/MRS_java.i
-	@ echo !!! WARNING !!! Not rebuilding required $@ since swig version is not 1.3.27
-
 endif
 
 FORCE:
-
-test:
-	@ echo $(PERL)
-	@ echo $(PERL_CORE)
