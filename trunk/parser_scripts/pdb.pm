@@ -62,6 +62,8 @@ my %aa_map = (
 	'TRP'	=>	'W',
 	'TYR'	=>	'Y',
 	'VAL'	=>	'V',
+	'GLX'	=>	'Z',
+	'ASX'	=>	'B',
 );
 
 sub new
@@ -218,10 +220,17 @@ sub parse
 					
 					foreach my $aa (split(m/\s+/, $s))
 					{
-						if (length($aa) == 3 and defined $aa_map{$aa})
+						if (length($aa) == 3)
 						{
 							$sequence = "" unless defined $sequence;
-							$sequence .= $aa_map{$aa};
+							if (defined $aa_map{$aa})
+							{
+								$sequence .= $aa_map{$aa};
+							}
+							else
+							{
+								$sequence .= 'X';		# unknown, avoid gaps
+							}
 						}
 					}
 				}
