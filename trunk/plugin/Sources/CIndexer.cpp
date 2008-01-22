@@ -1647,6 +1647,7 @@ void CIndexer::CreateIndex(
 
 	uint32 iDoc, lDoc, iTerm, iIx, lTerm = 0, i, tFreq;
 	uint8 iFreq;
+	bool isStopWord = false;
 
 	CFullTextIndex::CRunEntryIterator iter(*fFullTextIndex);
 
@@ -1659,7 +1660,7 @@ void CIndexer::CreateIndex(
 		lDoc = iDoc;
 		tFreq = iFreq;
 
-		bool isStopWord = fFullTextIndex->IsStopWord(iTerm);
+		isStopWord = fFullTextIndex->IsStopWord(iTerm);
 
 		do
 		{
@@ -1706,8 +1707,11 @@ void CIndexer::CreateIndex(
 			indices[i]->FlushTerm(lTerm, fHeader->entries);
 	}
 
-	if (allIndex and not allIndex->Empty())
+	if (allIndex and not isStopWord)
+	{
+		allIndex->AddDocTerm(lDoc, tFreq);
 		allIndex->FlushTerm(lTerm, fHeader->entries);
+	}
 
 	if (VERBOSE > 0)
 		cout << "done" << endl;

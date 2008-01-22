@@ -73,16 +73,6 @@ double system_time()
 	return tv.tv_sec + tv.tv_usec / 1e6;
 }
 
-double get_dbl_time()
-{
-	return 0.5;
-}
-
-double get_caret_time()
-{
-	return 0.5333;
-}
-
 void delay(double inSeconds)
 {
 	if (inSeconds > 0)
@@ -92,28 +82,6 @@ void delay(double inSeconds)
 	}
 }
 
-/*bool GetUserName(std::string& outName)
-{
-	struct passwd* pw = getpwuid(gUid);
-	if (pw)
-	{
-		outName = pw->pw_gecos;
-		
-		if (outName.length() > 0)
-		{
-			std::string::size_type p = outName.find(',');
-			if (p != std::string::npos)
-				outName.erase(p, outName.length() - p);
-			p = outName.find('&');
-			if (p != std::string::npos)
-				outName.replace(p, 1, pw->pw_name);
-		}
-		else
-			outName = pw->pw_name;
-	}
-	return pw != nil && outName.length() > 0;
-}
-*/
 void debug_printf(const char* msg, ...)
 {
 	using namespace std;
@@ -122,26 +90,12 @@ void debug_printf(const char* msg, ...)
 	va_start(vl, msg);
 	vfprintf(stderr, msg, vl);
 	va_end(vl);
+
+	// automatically add a newline
+	fputs("\n", stderr);
 }
 
 void set_debug_info (const char* inFilename, int inLineNumber)
 {
 }
 
-/*
-bool UsePassiveFTPMode()
-{
-	const char* e = getenv("FTP_PASSIVE_MODE");
-	return e != nil && std::strcasecmp(e, "YES") == 0;
-}
-*/
-
-std::string GetFormattedFileDateAndTime(int64)
-{
-	return "";
-}
-
-bool GetFormattedBool()
-{
-	return false;
-}

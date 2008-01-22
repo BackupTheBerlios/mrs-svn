@@ -245,7 +245,7 @@
 #	if defined(__ppc__)
 #		define P_DEST_CPU	P_CPU_POWERPC
 #		define P_POWERPC	1
-#	elif defined(__i386__) || defined(CPU_x86)
+#	elif defined(__i386__) || defined(__amd64__) || defined(CPU_x86)
 #		define P_DEST_CPU	P_CPU_INTEL
 #		define P_INTEL		1
 #	else
