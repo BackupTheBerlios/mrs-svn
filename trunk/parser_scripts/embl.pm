@@ -303,11 +303,11 @@ sub parse
 my @links_db_xref = (
 	{
 		match	=> qr|^(embl:)(\S+)|i,
-		result	=> '$1.$q->a({-href=>"$url?db=embl&query=ac:$2"}, $2)'
+		result	=> '$1.$q->a({-href=>"query.do?db=embl&query=ac:$2"}, $2)'
 	},
 	{
 		match	=> qr[^(swiss-prot|sptrembl|uniprot/swiss-prot|uniprot/trembl|UniProtKB/Swiss-Prot):(\S+)]i,
-		result	=> '$1.":".$q->a({-href=>"$url?db=uniprot&query=ac:$2"}, $2)'
+		result	=> '$1.":".$q->a({-href=>"query.do?db=uniprot&query=ac:$2"}, $2)'
 	},
 	{
 		match	=> qr|^(taxon:)(\S+)|i,
@@ -319,7 +319,7 @@ my @links_db_xref = (
 	},
 	{
 		match	=> qr|^(GOA:)(\S+)|i,
-		result	=> '$1.$q->a({-href=>"$url?db=goa&query=acc:$2"}, $2)'
+		result	=> '$1.$q->a({-href=>"query.do?db=goa&query=acc:$2"}, $2)'
 	},
 	{
 		match	=> qr|^(InterPro:)(\S+)|i,
@@ -338,12 +338,12 @@ my @links_db_xref = (
 my %links = (
 	'EMBL'	=>	{
 		match	=> qr|^(\S+?)(?=;)|i,
-		result	=> '$q->a({-href=>"$url?db=embl&query=ac:$1"}, $1)'
+		result	=> '$q->a({-href=>"query.do?db=embl&query=ac:$1"}, $1)'
 	},
 
 	'UNIPROT'	=> {
 		match	=> qr[^(\S+)(?=;)]i,
-		result	=> '$q->a({-href=>"$url?db=uniprot&query=ac:$1"}, $1)'
+		result	=> '$q->a({-href=>"query.do?db=uniprot&query=ac:$1"}, $1)'
 	},
 
 	'PDB'		=> {

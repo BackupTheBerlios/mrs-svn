@@ -275,7 +275,7 @@ sub parse
 my @links = (
 	{
 		match	=> qr|^(DBSOURCE\s+REFSEQ:\s+accession\s+)([A-Z0-9_]+)|i,
-		result	=> '$1.$q->a({-href=>"$url?db=refseq_release|refseq_updates&id=$2"}, $2)'
+		result	=> '$1.$q->a({-href=>"$url?db=refseq&id=$2"}, $2)'
 	},
 	{
 		match	=> qr|(/db_xref="embl:)(\S+)(?=[;"])|i,

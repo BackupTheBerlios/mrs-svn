@@ -155,9 +155,9 @@ sub pp
 		{
 			my $value = $fields[$n];
 	
-			$value = "${url}?db=uniprot&id=$value'>$value</a>" if ($n == 2);
-			$value = "${url}?db=uniprot&query=ac:$value'>$value</a>" if ($n == 1);
-			$value =~ s|(GO:)(\d+)|${url}?db=go&id=$2'>$1$2</a>|g if ($n == 4);
+			$value = "<a href='query.do?db=uniprot&query=ac:$value'>$value</a>" if ($n == 1);
+			$value = "<a href='query.do?db=uniprot&id=$value'>$value</a>" if ($n == 2);
+			$value =~ s|(GO:)(\d+)|<a href='?db=go&id=$2'>$1$2</a>|g if ($n == 4);
 			
 			my $line = $labels[$n] . $value . "\n";
 			
