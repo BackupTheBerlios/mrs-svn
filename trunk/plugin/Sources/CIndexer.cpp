@@ -1645,7 +1645,7 @@ void CIndexer::CreateIndex(
 		cout.flush();
 	}
 
-	uint32 iDoc, lDoc, iTerm, iIx, lTerm = 0, i, tFreq;
+	uint32 iDoc, lDoc = 0, iTerm, iIx, lTerm = 0, i, tFreq = 0;
 	uint8 iFreq;
 	bool isStopWord = false;
 

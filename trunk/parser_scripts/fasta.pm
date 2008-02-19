@@ -84,6 +84,20 @@ sub parse
 			$m->StoreMetaData('title', substr($2, 0, 255));
 			$m->IndexText('title', $2);
 		}
+		elsif ($line =~ m/>(\S+)/)
+		{
+			if (defined $doc)
+			{
+				$m->Store($doc);
+				$m->AddSequence($seq);
+				$m->FlushDocument;
+			}
+
+			$doc = $line;
+			$seq = undef;
+
+			$m->IndexValue('id', $1);
+		}
 		else
 		{
 			$doc .= $line;

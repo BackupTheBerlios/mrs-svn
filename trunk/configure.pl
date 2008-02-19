@@ -61,8 +61,8 @@ my $use_tr1 = 0;
 
 my $os = `uname -s`;	chomp($os);
 my $host = hostname;	$host =~ s/^([^.]+)\..+/$1/; # strip off the domain part
-my $cpu = `uname -p`;	chomp($cpu);
-$cpu = `uname -m` if $cpu eq 'unknown';
+my $cpu = `art`;	chomp($cpu);
+if (not defined $cpu or $cpu eq 'unknown') { $cpu = `uname -m`; chomp($cpu); }
 
 my $owner = `whoami`;
 chomp($owner);
@@ -171,8 +171,6 @@ EOF
 	exit;
 }
 
-#/
-
 # OK, we have the options, now validate them and then try to build the makefiles and config files
 
 $| = 1;	# flush stdout
@@ -229,8 +227,6 @@ sub CheckMachine()
 	else {
 		die "Unsupported CPU: $cpu\nPlease report this problem to m.hekkelman\@cmbi.ru.nl\n";
 	}
-	
-	
 }
 
 sub ValidateOptions()

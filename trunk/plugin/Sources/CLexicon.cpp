@@ -96,7 +96,7 @@ struct CLexPage
 	inline
 	string		GetEntry(uint32 inEntry) const
 				{
-					assert(inEntry < N);
+					assert(static_cast<int32>(inEntry) < N);
 					int32 ix = static_cast<int32>(inEntry);
 					assert(e[-ix - 1] > e[-ix]);
 					assert(e[-ix - 1] < kLexDataSize - N * sizeof(uint32));
@@ -106,7 +106,7 @@ struct CLexPage
 	inline
 	int			Compare(const string& inKey, uint32 inEntry) const
 				{
-					assert(inEntry < N);
+					assert(static_cast<int32>(inEntry) < N);
 					int32 ix = static_cast<int32>(inEntry);
 					uint32 l1 = inKey.length();
 					uint32 l2 = e[-ix - 1] - e[-ix];
@@ -125,11 +125,11 @@ struct CLexPage
 	inline
 	int			Compare(const CLexPage* inPage, uint32 inPEntry, uint32 inEntry) const
 				{
-					assert(inPEntry < inPage->N);
+					assert(static_cast<int32>(inPEntry) < inPage->N);
 					int32 ix1 = static_cast<int32>(inPEntry);
 					uint32 l1 = inPage->e[-ix1 - 1] - inPage->e[-ix1];
 					
-					assert(inEntry < N);
+					assert(static_cast<int32>(inEntry) < N);
 					int32 ix2 = static_cast<int32>(inEntry);
 					uint32 l2 = e[-ix2 - 1] - e[-ix2];
 					
@@ -147,11 +147,11 @@ struct CLexPage
 	inline
 	int			Compare(const CLexPage* inPage, uint32 inPEntry, uint32 inEntry, CLexCompare& inCompare) const
 				{
-					assert(inPEntry < inPage->N);
+					assert(static_cast<int32>(inPEntry) < inPage->N);
 					int32 ix1 = static_cast<int32>(inPEntry);
 					uint32 l1 = inPage->e[-ix1 - 1] - inPage->e[-ix1];
 					
-					assert(inEntry < N);
+					assert(static_cast<int32>(inEntry) < N);
 					int32 ix2 = static_cast<int32>(inEntry);
 					uint32 l2 = e[-ix2 - 1] - e[-ix2];
 					
@@ -161,7 +161,7 @@ struct CLexPage
 	inline
 	bool		TestKeyBit(uint32 inEntry, uint32 inBit) const
 				{
-					assert(inEntry < N);
+					assert(static_cast<int32>(inEntry) < N);
 					int32 ix = static_cast<int32>(inEntry);
 					assert(e[-ix - 1] > e[-ix]);
 					assert(e[-ix - 1] < kLexDataSize - N * sizeof(uint32));
