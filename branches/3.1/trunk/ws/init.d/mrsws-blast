@@ -1,0 +1,77 @@
+#!/bin/bash
+#
+# mrsws        Startup script for the MRS web service
+#
+# description: MRS Web Service blast search
+# processname: mrsws-blast
+# chkconfig: - 86 14
+# config: /etc/sysconfig/mrsws-blast
+# pidfile: /var/run/mrsws-blast.pid
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+if [ -f /etc/sysconfig/mrsws-blast ]; then
+        . /etc/sysconfig/mrsws-blast
+fi
+
+prog=mrsws-blast
+mrsws=/usr/scratch/mrs/ws/blast/mrsws-blast
+pidfile=${PIDFILE-/var/run/mrsws-blast.pid}
+RETVAL=0
+
+start() {
+        echo -n $"Starting $prog: "
+        daemon $mrsws
+        RETVAL=$?
+        echo
+        return $RETVAL
+}
+stop() {
+	echo -n $"Stopping $prog: "
+	killproc $mrsws
+	RETVAL=$?
+	echo
+}
+reload() {
+    echo -n $"Reloading $prog: "
+    killproc $prog -HUP
+    RETVAL=$?
+    echo
+}
+
+# See how we were called.
+case "$1" in
+  start)
+	start
+	;;
+  stop)
+	stop
+	;;
+  status)
+        status $mrsws
+	RETVAL=$?
+	;;
+  restart)
+	stop
+	start
+	;;
+  condrestart)
+	if [ -f ${pidfile} ] ; then
+		stop
+		start
+	fi
+	;;
+  reload)
+        reload
+	;;
+  graceful|help|configtest|fullstatus)
+	$apachectl $@
+	RETVAL=$?
+	;;
+  *)
+	echo $"Usage: $prog {start|stop|restart|condrestart|reload|status|fullstatus|graceful|help|configtest}"
+	exit 1
+esac
+
+exit $RETVAL
