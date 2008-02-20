@@ -84,6 +84,9 @@ class CIndexer
 	CDocIterator*	CreateDocIterator(const std::string& inIndex,
 						const std::string& inKey, bool inKeyIsPattern,
 						CQueryOperator inOperator) const;
+	CDocIterator*	CreateDocIteratorForPhrase(const std::string& inIndex,
+						const std::vector<std::string>& inPhrase) const;
+
 	// It would be better to return CIndexIterator * here, but that
 	// gives trouble because that type needs inclusion of extra header
 	// files.
@@ -102,8 +105,8 @@ class CIndexer
 
 	void			SetStopWords(const std::vector<std::string>& inStopWords);
 	
-	void			IndexText(const std::string& inIndex, const std::string& inText);
-	void			IndexTextAndNumbers(const std::string& inIndex, const std::string& inText);
+	void			IndexText(const std::string& inIndex, const std::string& inText, bool inStoreIDL);
+	void			IndexTextAndNumbers(const std::string& inIndex, const std::string& inText, bool inStoreIDL);
 	void			IndexWord(const std::string& inIndex, const std::string& inText);
 	void			IndexDate(const std::string& inIndex, const std::string& inText);
 	void			IndexNumber(const std::string& inIndex, const std::string& inText);
@@ -120,7 +123,7 @@ class CIndexer
 
   private:
 
-	void			IndexText(const std::string& inIndex, const std::string& inText, bool inIndexNrs);
+	void			IndexText(const std::string& inIndex, const std::string& inText, bool inIndexNrs, bool inStoreIDL);
 
 	template<class INDEX_KIND>
 	CIndexBase*		GetIndexBase(const std::string& inIndex);

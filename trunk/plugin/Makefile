@@ -12,7 +12,7 @@
 
 SO_EXT		= .so
 LIBNAME		= libmrs
-VERSION		= 3.1
+VERSION		= 4.0d1
 # DEBUG should be either 1 or 0
 DEBUG		= 0
 LIBS		= z m bz2
@@ -266,16 +266,16 @@ include $(OBJS:%.o=%.d)
 
 ${OBJS:.o=.d}:
 
-ifeq ($(SWIG_VERSION),1.3.27)
+#ifeq ($(SWIG_VERSION),1.3.27)
 
 Sources/MRS_perl5.cpp: Sources/MRSInterface.h Sources/MRS_perl5.i
 	$(SWIG) $(DEFS) -c++ -perl5 -o Sources/MRS_perl5.cpp -outdir ./ Sources/MRS_perl5.i
 
-else
-
-Sources/MRS_perl5.cpp: Sources/MRSInterface.h Sources/MRS_perl5.i
-	@ echo !!! WARNING !!! Not rebuilding required $@ since swig version is not 1.3.27
-
-endif
+#else
+#
+#Sources/MRS_perl5.cpp: Sources/MRSInterface.h Sources/MRS_perl5.i
+#	@ echo !!! WARNING !!! Not rebuilding required $@ since swig version is not 1.3.27
+#
+#endif
 
 FORCE:

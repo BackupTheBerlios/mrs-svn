@@ -43,8 +43,13 @@
 
 #include <sstream>
 #include <iostream>
+#include <iterator>
+
 #include "HError.h"
 #include "HUtils.h"
+
+#include <boost/regex.hpp>
+#include <boost/functional.hpp>
 
 #include "CQuery.h"
 #include "CDatabank.h"
@@ -55,6 +60,13 @@
 #include "CIndex.h"
 
 using namespace std;
+
+// 	the regular expression [0-9a-z_]+((-|\\.)[0-9a-z_]+)*
+//	causes a bus error in boost... so we had to alter it.
+
+const boost::regex
+	kWordRE("[0-9a-z_]+([-.][0-9a-z_]+)*"),
+	kSplitWordRE("^([0-9a-z_]+)-([0-9a-z_]+)$");
 
 enum CQueryToken
 {
@@ -116,7 +128,6 @@ struct CQueryImp
 								const string& inTerm, bool inTermIsPattern);
 	CDocIterator*			IteratorForOperator(const string& inIndex,
 								const string& inKey, CQueryOperator inOperator);
-	CDocIterator*			IteratorForString(const string& inIndex, const string& inString);
 
 	string					DescribeToken(int inToken);
 	
@@ -549,9 +560,32 @@ CDocIterator* CQueryImp::Parse_Test()
 			break;
 		
 		case qeString:
-			result.reset(IteratorForString("*", fToken));
+		{
+			boost::sregex_iterator a(fToken.begin(), fToken.end(), kWordRE), b;
+			
+			vector<string> terms;
+			while (a != b)
+			{
+				boost::smatch m;
+				
+				if (boost::regex_match(a->str(), m, kSplitWordRE))
+				{
+					terms.push_back(m.str(1));
+					terms.push_back(m.str(2));
+				}
+				else
+					terms.push_back(a->str());
+				++a;
+			}
+//			transform(a, b, back_inserter(terms),
+//				boost::mem_fun(
+//					&boost::match_results<std::string::const_iterator>::str));
+
+			result.reset(fDatabank.CreateDocIteratorForPhrase("*", terms));
+
 			Match(qeString);
 			break;
+		}
 			
 		case qeIdent:
 		{
@@ -642,9 +676,22 @@ CDocIterator* CQueryImp::Parse_Term(const string& inIndex)
 	switch (fLookahead)
 	{
 		case qeString:
+		{
+			boost::sregex_iterator a(fToken.begin(), fToken.end(), kWordRE), b;
+			
+			vector<string> terms;
+//			copy(a, b, back_inserter(terms));
+			while (a != b)
+			{
+				terms.push_back(a->str());
+				++a;
+			}
+
+			result.reset(fDatabank.CreateDocIteratorForPhrase(inIndex, terms));
+
 			Match(qeString);
-			result.reset(IteratorForTerm(inIndex, fToken, false));
 			break;
+		}
 
 		case qeIdent:
 			if (fAutoWildcard)
@@ -713,64 +760,6 @@ CQueryImp::IteratorForOperator(const string& inIndex, const string& inKey,
 		THROW(("Index %s does not exists in this databank", inIndex.c_str()));
 	
 	return fDatabank.CreateDocIterator(inIndex, inKey, false, inOperator);
-}
-
-CDocIterator*
-CQueryImp::IteratorForString(const string& inIndex, const string& inString)
-{
-	if (inIndex != "*")
-		THROW(("string searching in a specific index is not supported yet, sorry"));
-
-	bool validIndexName = false;
-
-	for (uint32 ix = 0; ix < fIndexNames.size(); ++ix)
-	{
-		if (inIndex == fIndexNames[ix])
-		{
-			validIndexName = true;
-			break;
-		}
-	}
-	
-	if (not validIndexName)
-		THROW(("Index %s does not exists in this databank", inIndex.c_str()));
-
-	CDocIterator* result = nil;
-	
-	CTokenizer tok(inString.c_str(), inString.length());
-	bool isWord, isNumber;
-	vector<string> stringWords;
-	
-	while (tok.GetToken(isWord, isNumber))
-	{
-		uint32 l = tok.GetTokenLength();
-		
-		if (not (isWord or isNumber) or l == 0)
-			continue;
-
-		if (l < kMaxKeySize)
-		{
-			stringWords.push_back(tok.GetTokenValue());
-			
-			vector<CDocIterator*> ixs;
-	
-			for (uint32 ix = 0; ix < fIndexNames.size(); ++ix)
-			{
-				if (inIndex == "*" or inIndex == fIndexNames[ix])
-				{
-					ixs.push_back(
-						fDatabank.CreateDocIterator(fIndexNames[ix], tok.GetTokenValue(), false, kOpContains));
-				}
-			}
-			
-			if (result == nil)
-				result = CDocUnionIterator::Create(ixs);
-			else
-				result = CDocIntersectionIterator::Create(result, CDocUnionIterator::Create(ixs));
-		}
-	}
-	
-	return new CDbStringMatchIterator(fDatabank, stringWords, result);
 }
 
 // ----------------------------------------------------------------------------

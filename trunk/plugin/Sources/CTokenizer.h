@@ -56,7 +56,7 @@ class CTokenizer
 					CTokenizer(const char* inData, uint32 inLength);
 	virtual			~CTokenizer() {}
 
-	bool			GetToken(bool& outWord, bool& outNumber);
+	bool			GetToken(bool& outWord, bool& outNumber, bool& outPunct);
 
 	const char*		GetTokenValue() const			{ return tokenText; }
 	uint32			GetTokenLength() const			{ return t - tokenText; }

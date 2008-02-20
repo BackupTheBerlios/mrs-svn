@@ -188,10 +188,6 @@ string CDatabankBase::GetDbName() const
 	return kEmptyString;
 }
 
-//void CDatabankBase::DumpIndex(const string& inIndex)
-//{
-//}
-
 CIteratorBase* CDatabankBase::GetIteratorForIndex(const string& inIndex)
 {
     return nil;
@@ -378,7 +374,7 @@ CDatabank::CDatabank(const HUrl& inPath, const vector<string>& inMetaDataFields,
 	
 //	fDataFile = new HBufferedFileStream(fPath, mode);
 	fDataFile = new HFileStream(fPath, mode);
-	
+
 	fHeader->sig = kHeaderSig;
 	
 	// generate a uuid based on time and MAC address
@@ -1447,9 +1443,9 @@ void CDatabank::StoreMetaData(const std::string& inFieldName, const std::string&
 		THROW(("Meta data field %s not defined in the MDatabank::Create call", inFieldName.c_str()));
 }
 
-void CDatabank::IndexText(const string& inIndex, const string& inText)
+void CDatabank::IndexText(const string& inIndex, const string& inText, bool inStoreIDL)
 {
-	fIndexer->IndexText(inIndex, inText);
+	fIndexer->IndexText(inIndex, inText, inStoreIDL);
 }
 
 void CDatabank::IndexDate(const string& inIndex, const string& inText)
@@ -1457,9 +1453,9 @@ void CDatabank::IndexDate(const string& inIndex, const string& inText)
 	fIndexer->IndexDate(inIndex, inText);
 }
 
-void CDatabank::IndexTextAndNumbers(const string& inIndex, const string& inText)
+void CDatabank::IndexTextAndNumbers(const string& inIndex, const string& inText, bool inStoreIDL)
 {
-	fIndexer->IndexTextAndNumbers(inIndex, inText);
+	fIndexer->IndexTextAndNumbers(inIndex, inText, inStoreIDL);
 }
 
 void CDatabank::IndexNumber(const string& inIndex, const string& inText)
@@ -1525,6 +1521,12 @@ CDocIterator* CDatabank::CreateDocIterator(const string& inIndex,
 	else
 		result = GetIndexer()->CreateDocIterator(inIndex, inKey, inKeyIsPattern, inOperator);
 	return result;
+}
+
+CDocIterator* CDatabank::CreateDocIteratorForPhrase(
+	const string& inIndex, const vector<string>& inPhrase)
+{
+	return GetIndexer()->CreateDocIteratorForPhrase(inIndex, inPhrase);
 }
 
 class CKeyAccumulator
@@ -2014,6 +2016,31 @@ CDocIterator* CJoinedDatabank::CreateDocIterator(
 	{
 		CDocIterator* imp = fParts[ix].fDb->CreateDocIterator(
 			inIndex, inKey, inKeyIsPattern, inOperator);
+		
+		if (imp != nil)
+		{
+			if (first > 0)
+				imps.push_back(new CDocDeltaIterator(imp, first));
+			else
+				imps.push_back(imp);
+		}
+		
+		first += fParts[ix].fCount;
+	}
+	
+	return CDocUnionIterator::Create(imps);
+}
+
+CDocIterator* CJoinedDatabank::CreateDocIteratorForPhrase(
+	const string& inIndex, const vector<string>& inPhrase)
+{
+	vector<CDocIterator*> imps;
+	uint32 first = 0;
+	
+	for (uint32 ix = 0; ix < fPartCount; ++ix)
+	{
+		CDocIterator* imp = fParts[ix].fDb->CreateDocIteratorForPhrase(
+			inIndex, inPhrase);
 		
 		if (imp != nil)
 		{
