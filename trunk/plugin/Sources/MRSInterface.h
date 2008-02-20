@@ -199,6 +199,7 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 							const std::string& inURL, const std::string& inScriptName,
 							const std::string& inSection);
 
+
 	/**	\brief	Merge several databanks into one
 	 *
 	 *	Use the Merge static method to concatenate several databanks into one new file,
@@ -504,6 +505,21 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	
 	// interface for creating new databanks
 
+	/**	\brief	Store information in the info section
+	 *
+	 *	This StoreInfo routine is used to add additional information in the
+	 *	info section of the newly created databank. Examples of extra information
+	 *	are xml stylesheets or the script used to index a databank.
+	 *
+	 *	\param inInfoName	The name for the information chunk. The name should be exactly 4 characters long.
+	 *						(Actually, it isn't a name, it is a kind.)
+	 *	\param inInfoValue	The value (text) for the information chunk.
+	*/
+
+	void				StoreInfo(
+							const std::string&		inInfoName,
+							const std::string&		inInfoValue);
+
 	/** \brief	Set the list of stopwords to use for the __ALL_TEXT__ index
 	 *
 	 *	When constructing the special __ALL_TEXT__ index a list of stop words is
@@ -511,9 +527,20 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	 *	\param	inStopWords
 	 *					The list of stop words to use.
 	 */
-	
+
 	void				SetStopWords(MStringArray inStopWords);
 
+
+	/** \brief	Set the XML stylesheet to use for pretty printing.
+	 *
+	 *	Pass in the name of an XML stylesheet to use to create HTML output.
+	 *	\param	inStyleSheetName
+	 *					The name of the stylesheet to use.
+	 */
+
+	void				SetXMLStyleSheetName(
+							const std::string&		inStyleSheetName);
+	
 	/** \brief	Store a value for a meta data field
 	 *
 	 *	MRS can store values in a meta data field along with the document itself.
@@ -640,6 +667,17 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	 */
 
 	void				FlushDocument();
+
+	enum {
+		IS_VALUE_INDEX	= (1 << 0),
+		INDEX_NUMBERS	= (1 << 1),
+		STORE_AS_META	= (1 << 2),
+		STORE_IDL		= (1 << 3),
+	};
+
+	void				AddXPathForIndex(const std::string& inIndex, const std::string& inXPath,
+							unsigned long inFlags);
+	void				AddXMLDocument(const std::string& inDoc);
 
 	/** \brief	Create the final MRS file.
 	 *

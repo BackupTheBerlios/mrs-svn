@@ -891,10 +891,23 @@ MStringIterator* MDatabank::SuggestCorrection(const string& inWord)
 
 // interface for creating new databanks
 
+void MDatabank::StoreInfo(
+	const string&		inInfoName,
+	const string&		inInfoValue)
+{
+	fImpl->GetDB()->StoreInfo(inInfoName, inInfoValue);
+}
+
 void MDatabank::SetStopWords(vector<string> inStopWords)
 {
 	fImpl->GetDB()->SetStopWords(inStopWords);
 }
+
+void MDatabank::SetXMLStyleSheetName(
+	const string&		inStyleSheetName)
+{
+	fImpl->GetDB()->StoreInfo("xslt", inStyleSheetName);
+}	
 
 void MDatabank::Store(const string& inDocument)
 {
@@ -963,6 +976,24 @@ void MDatabank::FlushDocument()
 {
 	CStopwatch sw(fImpl->fFlushTime);
 	fImpl->GetDB()->FlushDocument();
+}
+
+void MDatabank::AddXPathForIndex(const string& inIndex, const string& inXPath,
+	unsigned long inFlags)
+{
+	fImpl->GetDB()->AddXPathForIndex(
+						inIndex,
+						inFlags & IS_VALUE_INDEX,
+						inFlags & INDEX_NUMBERS,
+						inFlags & STORE_AS_META,
+						inFlags & STORE_IDL,
+						inXPath);
+}
+
+void MDatabank::AddXMLDocument(const std::string& inDoc)
+{
+	CStopwatch sw(fImpl->fIndexTime);
+	fImpl->GetDB()->AddXMLDocument(inDoc);
 }
 
 void MDatabank::Finish(bool inCreateAllTextIndex, bool inCreateUpdateDatabank)

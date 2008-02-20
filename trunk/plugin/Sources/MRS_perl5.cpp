@@ -4871,6 +4871,76 @@ XS(_wrap_MDatabank_SuggestCorrection) {
 }
 
 
+XS(_wrap_MDatabank_StoreInfo) {
+  {
+    MDatabank *arg1 = (MDatabank *) 0 ;
+    std::string *arg2 = 0 ;
+    std::string *arg3 = 0 ;
+    void *argp1 = 0 ;
+    int res1 = 0 ;
+    int res2 = SWIG_OLDOBJ ;
+    int res3 = SWIG_OLDOBJ ;
+    int argvi = 0;
+    dXSARGS;
+    
+    if ((items < 3) || (items > 3)) {
+      SWIG_croak("Usage: MDatabank_StoreInfo(self,inInfoName,inInfoValue);");
+    }
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_MDatabank, 0 |  0 );
+    if (!SWIG_IsOK(res1)) {
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "MDatabank_StoreInfo" "', argument " "1"" of type '" "MDatabank *""'"); 
+    }
+    arg1 = reinterpret_cast< MDatabank * >(argp1);
+    {
+      std::string *ptr = (std::string *)0;
+      res2 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(1), &ptr);
+      if (!SWIG_IsOK(res2)) {
+        SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "MDatabank_StoreInfo" "', argument " "2"" of type '" "std::string const &""'"); 
+      }
+      if (!ptr) {
+        SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "MDatabank_StoreInfo" "', argument " "2"" of type '" "std::string const &""'"); 
+      }
+      arg2 = ptr;
+    }
+    {
+      std::string *ptr = (std::string *)0;
+      res3 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(2), &ptr);
+      if (!SWIG_IsOK(res3)) {
+        SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "MDatabank_StoreInfo" "', argument " "3"" of type '" "std::string const &""'"); 
+      }
+      if (!ptr) {
+        SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "MDatabank_StoreInfo" "', argument " "3"" of type '" "std::string const &""'"); 
+      }
+      arg3 = ptr;
+    }
+    {
+      try {
+        (arg1)->StoreInfo((std::string const &)*arg2,(std::string const &)*arg3);
+      }
+      
+      catch (const std::exception& e) {
+        gErrStr = e.what();
+        SWIG_croak(e.what());
+      }
+      catch (...) {
+        gErrStr = "Unknown exception";
+        SWIG_croak("unknown exception");
+      }
+    }
+    
+    
+    if (SWIG_IsNewObj(res2)) delete arg2;
+    if (SWIG_IsNewObj(res3)) delete arg3;
+    XSRETURN(argvi);
+  fail:
+    
+    if (SWIG_IsNewObj(res2)) delete arg2;
+    if (SWIG_IsNewObj(res3)) delete arg3;
+    SWIG_croak_null();
+  }
+}
+
+
 XS(_wrap_MDatabank_SetStopWords) {
   {
     MDatabank *arg1 = (MDatabank *) 0 ;
@@ -4936,6 +5006,61 @@ XS(_wrap_MDatabank_SetStopWords) {
     XSRETURN(argvi);
   fail:
     
+    SWIG_croak_null();
+  }
+}
+
+
+XS(_wrap_MDatabank_SetXMLStyleSheetName) {
+  {
+    MDatabank *arg1 = (MDatabank *) 0 ;
+    std::string *arg2 = 0 ;
+    void *argp1 = 0 ;
+    int res1 = 0 ;
+    int res2 = SWIG_OLDOBJ ;
+    int argvi = 0;
+    dXSARGS;
+    
+    if ((items < 2) || (items > 2)) {
+      SWIG_croak("Usage: MDatabank_SetXMLStyleSheetName(self,inStyleSheetName);");
+    }
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_MDatabank, 0 |  0 );
+    if (!SWIG_IsOK(res1)) {
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "MDatabank_SetXMLStyleSheetName" "', argument " "1"" of type '" "MDatabank *""'"); 
+    }
+    arg1 = reinterpret_cast< MDatabank * >(argp1);
+    {
+      std::string *ptr = (std::string *)0;
+      res2 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(1), &ptr);
+      if (!SWIG_IsOK(res2)) {
+        SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "MDatabank_SetXMLStyleSheetName" "', argument " "2"" of type '" "std::string const &""'"); 
+      }
+      if (!ptr) {
+        SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "MDatabank_SetXMLStyleSheetName" "', argument " "2"" of type '" "std::string const &""'"); 
+      }
+      arg2 = ptr;
+    }
+    {
+      try {
+        (arg1)->SetXMLStyleSheetName((std::string const &)*arg2);
+      }
+      
+      catch (const std::exception& e) {
+        gErrStr = e.what();
+        SWIG_croak(e.what());
+      }
+      catch (...) {
+        gErrStr = "Unknown exception";
+        SWIG_croak("unknown exception");
+      }
+    }
+    
+    
+    if (SWIG_IsNewObj(res2)) delete arg2;
+    XSRETURN(argvi);
+  fail:
+    
+    if (SWIG_IsNewObj(res2)) delete arg2;
     SWIG_croak_null();
   }
 }
@@ -6024,6 +6149,141 @@ XS(_wrap_MDatabank_FlushDocument) {
     XSRETURN(argvi);
   fail:
     
+    SWIG_croak_null();
+  }
+}
+
+
+XS(_wrap_MDatabank_AddXPathForIndex) {
+  {
+    MDatabank *arg1 = (MDatabank *) 0 ;
+    std::string *arg2 = 0 ;
+    std::string *arg3 = 0 ;
+    unsigned long arg4 ;
+    void *argp1 = 0 ;
+    int res1 = 0 ;
+    int res2 = SWIG_OLDOBJ ;
+    int res3 = SWIG_OLDOBJ ;
+    unsigned long val4 ;
+    int ecode4 = 0 ;
+    int argvi = 0;
+    dXSARGS;
+    
+    if ((items < 4) || (items > 4)) {
+      SWIG_croak("Usage: MDatabank_AddXPathForIndex(self,inIndex,inXPath,inFlags);");
+    }
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_MDatabank, 0 |  0 );
+    if (!SWIG_IsOK(res1)) {
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "MDatabank_AddXPathForIndex" "', argument " "1"" of type '" "MDatabank *""'"); 
+    }
+    arg1 = reinterpret_cast< MDatabank * >(argp1);
+    {
+      std::string *ptr = (std::string *)0;
+      res2 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(1), &ptr);
+      if (!SWIG_IsOK(res2)) {
+        SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "MDatabank_AddXPathForIndex" "', argument " "2"" of type '" "std::string const &""'"); 
+      }
+      if (!ptr) {
+        SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "MDatabank_AddXPathForIndex" "', argument " "2"" of type '" "std::string const &""'"); 
+      }
+      arg2 = ptr;
+    }
+    {
+      std::string *ptr = (std::string *)0;
+      res3 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(2), &ptr);
+      if (!SWIG_IsOK(res3)) {
+        SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "MDatabank_AddXPathForIndex" "', argument " "3"" of type '" "std::string const &""'"); 
+      }
+      if (!ptr) {
+        SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "MDatabank_AddXPathForIndex" "', argument " "3"" of type '" "std::string const &""'"); 
+      }
+      arg3 = ptr;
+    }
+    ecode4 = SWIG_AsVal_unsigned_SS_long SWIG_PERL_CALL_ARGS_2(ST(3), &val4);
+    if (!SWIG_IsOK(ecode4)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "MDatabank_AddXPathForIndex" "', argument " "4"" of type '" "unsigned long""'");
+    } 
+    arg4 = static_cast< unsigned long >(val4);
+    {
+      try {
+        (arg1)->AddXPathForIndex((std::string const &)*arg2,(std::string const &)*arg3,arg4);
+      }
+      
+      catch (const std::exception& e) {
+        gErrStr = e.what();
+        SWIG_croak(e.what());
+      }
+      catch (...) {
+        gErrStr = "Unknown exception";
+        SWIG_croak("unknown exception");
+      }
+    }
+    
+    
+    if (SWIG_IsNewObj(res2)) delete arg2;
+    if (SWIG_IsNewObj(res3)) delete arg3;
+    
+    XSRETURN(argvi);
+  fail:
+    
+    if (SWIG_IsNewObj(res2)) delete arg2;
+    if (SWIG_IsNewObj(res3)) delete arg3;
+    
+    SWIG_croak_null();
+  }
+}
+
+
+XS(_wrap_MDatabank_AddXMLDocument) {
+  {
+    MDatabank *arg1 = (MDatabank *) 0 ;
+    std::string *arg2 = 0 ;
+    void *argp1 = 0 ;
+    int res1 = 0 ;
+    int res2 = SWIG_OLDOBJ ;
+    int argvi = 0;
+    dXSARGS;
+    
+    if ((items < 2) || (items > 2)) {
+      SWIG_croak("Usage: MDatabank_AddXMLDocument(self,inDoc);");
+    }
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_MDatabank, 0 |  0 );
+    if (!SWIG_IsOK(res1)) {
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "MDatabank_AddXMLDocument" "', argument " "1"" of type '" "MDatabank *""'"); 
+    }
+    arg1 = reinterpret_cast< MDatabank * >(argp1);
+    {
+      std::string *ptr = (std::string *)0;
+      res2 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(1), &ptr);
+      if (!SWIG_IsOK(res2)) {
+        SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "MDatabank_AddXMLDocument" "', argument " "2"" of type '" "std::string const &""'"); 
+      }
+      if (!ptr) {
+        SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "MDatabank_AddXMLDocument" "', argument " "2"" of type '" "std::string const &""'"); 
+      }
+      arg2 = ptr;
+    }
+    {
+      try {
+        (arg1)->AddXMLDocument((std::string const &)*arg2);
+      }
+      
+      catch (const std::exception& e) {
+        gErrStr = e.what();
+        SWIG_croak(e.what());
+      }
+      catch (...) {
+        gErrStr = "Unknown exception";
+        SWIG_croak("unknown exception");
+      }
+    }
+    
+    
+    if (SWIG_IsNewObj(res2)) delete arg2;
+    XSRETURN(argvi);
+  fail:
+    
+    if (SWIG_IsNewObj(res2)) delete arg2;
     SWIG_croak_null();
   }
 }
@@ -9594,7 +9854,9 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MDatabank_Index", _wrap_MDatabank_Index},
 {"MRSc::MDatabank_Indices", _wrap_MDatabank_Indices},
 {"MRSc::MDatabank_SuggestCorrection", _wrap_MDatabank_SuggestCorrection},
+{"MRSc::MDatabank_StoreInfo", _wrap_MDatabank_StoreInfo},
 {"MRSc::MDatabank_SetStopWords", _wrap_MDatabank_SetStopWords},
+{"MRSc::MDatabank_SetXMLStyleSheetName", _wrap_MDatabank_SetXMLStyleSheetName},
 {"MRSc::MDatabank_StoreMetaData", _wrap_MDatabank_StoreMetaData},
 {"MRSc::MDatabank_Store", _wrap_MDatabank_Store},
 {"MRSc::MDatabank_IndexText", _wrap_MDatabank_IndexText},
@@ -9606,6 +9868,8 @@ static swig_command_info swig_commands[] = {
 {"MRSc::MDatabank_IndexNumber", _wrap_MDatabank_IndexNumber},
 {"MRSc::MDatabank_AddSequence", _wrap_MDatabank_AddSequence},
 {"MRSc::MDatabank_FlushDocument", _wrap_MDatabank_FlushDocument},
+{"MRSc::MDatabank_AddXPathForIndex", _wrap_MDatabank_AddXPathForIndex},
+{"MRSc::MDatabank_AddXMLDocument", _wrap_MDatabank_AddXMLDocument},
 {"MRSc::MDatabank_Finish", _wrap_MDatabank_Finish},
 {"MRSc::MDatabank_CreateDictionary", _wrap_MDatabank_CreateDictionary},
 {"MRSc::delete_MDatabank", _wrap_delete_MDatabank},
@@ -9963,6 +10227,26 @@ XS(SWIG_init) {
   }
   
   SWIG_TypeClientData(SWIGTYPE_p_MStringIterator, (void*) "MRS::MStringIterator");
+  /*@SWIG:%set_constant@*/ do {
+    SV *sv = get_sv((char*) SWIG_prefix "MDatabank_IS_VALUE_INDEX", TRUE | 0x2);
+    sv_setsv(sv, SWIG_From_int  SWIG_PERL_CALL_ARGS_1(static_cast< int >(MDatabank::IS_VALUE_INDEX)));
+    SvREADONLY_on(sv);
+  } while(0) /*@SWIG@*/;
+  /*@SWIG:%set_constant@*/ do {
+    SV *sv = get_sv((char*) SWIG_prefix "MDatabank_INDEX_NUMBERS", TRUE | 0x2);
+    sv_setsv(sv, SWIG_From_int  SWIG_PERL_CALL_ARGS_1(static_cast< int >(MDatabank::INDEX_NUMBERS)));
+    SvREADONLY_on(sv);
+  } while(0) /*@SWIG@*/;
+  /*@SWIG:%set_constant@*/ do {
+    SV *sv = get_sv((char*) SWIG_prefix "MDatabank_STORE_AS_META", TRUE | 0x2);
+    sv_setsv(sv, SWIG_From_int  SWIG_PERL_CALL_ARGS_1(static_cast< int >(MDatabank::STORE_AS_META)));
+    SvREADONLY_on(sv);
+  } while(0) /*@SWIG@*/;
+  /*@SWIG:%set_constant@*/ do {
+    SV *sv = get_sv((char*) SWIG_prefix "MDatabank_STORE_IDL", TRUE | 0x2);
+    sv_setsv(sv, SWIG_From_int  SWIG_PERL_CALL_ARGS_1(static_cast< int >(MDatabank::STORE_IDL)));
+    SvREADONLY_on(sv);
+  } while(0) /*@SWIG@*/;
   SWIG_TypeClientData(SWIGTYPE_p_MDatabank, (void*) "MRS::MDatabank");
   SWIG_TypeClientData(SWIGTYPE_p_MBooleanQuery, (void*) "MRS::MBooleanQuery");
   SWIG_TypeClientData(SWIGTYPE_p_MRankedQuery, (void*) "MRS::MRankedQuery");

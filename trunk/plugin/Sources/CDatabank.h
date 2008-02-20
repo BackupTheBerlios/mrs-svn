@@ -225,6 +225,7 @@ class CDatabank : public CDatabankBase
 #endif
 	
 	// for the perl interface
+	void 				StoreInfo(const std::string& inName, const std::string& inValue);
 	void				SetStopWords(const std::vector<std::string>& inStopWords);
 	virtual void		GetStopWords(std::set<std::string>& outStopWords) const;
 	
@@ -245,6 +246,12 @@ class CDatabank : public CDatabankBase
 #endif
 
 	void				FlushDocument();
+
+	// XML Import interface
+	void				AddXPathForIndex(const std::string& inIndex, bool inIsValueIndex,
+							bool inIndexNumbers, bool inStoreAsMetaData,
+							bool inStoreIDL, const std::string& inXPath);
+	void				AddXMLDocument(const std::string& inDoc);
 
 	void				Finish(bool inCreateAllTextIndex, bool inCreateUpdateDatabank);
 	
@@ -323,6 +330,8 @@ class CDatabank : public CDatabankBase
 		std::string	data;		// used during indexing only
 	};
 	
+	typedef std::vector<struct CXMLIndex*>	CXMLIndexList;
+	
 	HUrl			fPath;
 	int64			fModificationTime;
 	HStreamBase*	fDataFile;
@@ -335,6 +344,8 @@ class CDatabank : public CDatabankBase
 #ifndef NO_BLAST
 	CBlastIndex*	fBlastIndex;
 #endif
+
+	CXMLIndexList	fXMLIndexList;
 
 	// on disk info
 	SHeader*		fHeader;

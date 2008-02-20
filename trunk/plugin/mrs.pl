@@ -56,19 +56,21 @@ my %opts;
 
 if ($action eq 'create')
 {
-	getopts('d:s:vp:P:b:w:r:u', \%opts);
+	getopts('d:s:vVp:P:b:w:r:u', \%opts);
 	
 	my $db = $opts{d} or &Usage();
 	
 	$MRS::VERBOSE = 1 if $opts{v};
+	$MRS::VERBOSE = 2 if $opts{V};
 
 	&Create($db, $opts{'s'}, $opts{p}, $opts{P}, $opts{b}, $opts{w}, $opts{r}, $opts{u});
 }
 elsif ($action eq 'merge')
 {
-	getopts('d:m:P:lvs:', \%opts);
+	getopts('d:m:P:lvVs:', \%opts);
 
 	$MRS::VERBOSE = 1 if $opts{v};
+	$MRS::VERBOSE = 2 if $opts{V};
 
 	if ($opts{d} and $opts{P})
 	{
@@ -87,9 +89,10 @@ elsif ($action eq 'merge')
 }
 elsif ($action eq 'query')
 {
-	getopts('d:q:vr:', \%opts);
+	getopts('d:q:vVr:', \%opts);
 
 	$MRS::VERBOSE = 1 if $opts{v};
+	$MRS::VERBOSE = 2 if $opts{V};
 
 	my $db = $opts{d} or &Usage();
 	my $q = $opts{'q'};
@@ -99,9 +102,10 @@ elsif ($action eq 'query')
 }
 elsif ($action eq 'entry')
 {
-	getopts('d:e:v', \%opts);
+	getopts('d:e:vV', \%opts);
 
 	$MRS::VERBOSE = 1 if $opts{v};
+	$MRS::VERBOSE = 2 if $opts{V};
 
 	my $db = $opts{d} or &Usage();
 	my $e = $opts{'e'};
@@ -110,9 +114,10 @@ elsif ($action eq 'entry')
 }
 elsif ($action eq 'blast')
 {
-	getopts('d:q:vi:', \%opts);
+	getopts('d:q:vVi:', \%opts);
 
 	$MRS::VERBOSE = 1 if $opts{v};
+	$MRS::VERBOSE = 2 if $opts{V};
 
 	my $db = $opts{d} or &Usage();
 	my $q = $opts{'q'};
@@ -122,9 +127,10 @@ elsif ($action eq 'blast')
 }
 elsif ($action eq 'info')
 {
-	getopts('d:v', \%opts);
+	getopts('d:vV', \%opts);
 
 	$MRS::VERBOSE = 1 if $opts{v};
+	$MRS::VERBOSE = 2 if $opts{V};
 
 	my $db = $opts{d} or &Usage();
 
@@ -132,9 +138,10 @@ elsif ($action eq 'info')
 }
 elsif ($action eq 'dict')
 {
-	getopts('d:i:n:l:v', \%opts);
+	getopts('d:i:n:l:vV', \%opts);
 
 	$MRS::VERBOSE = 1 if $opts{v};
+	$MRS::VERBOSE = 2 if $opts{V};
 
 	my $db = $opts{d} or &Usage();
 	my $ix = $opts{i} or &Usage();
@@ -152,9 +159,10 @@ elsif ($action eq 'dump_index')
 }
 elsif ($action eq 'spellcheck')
 {
-	getopts('d:k:v', \%opts);
+	getopts('d:k:vV', \%opts);
 
 	$MRS::VERBOSE = 1 if $opts{v};
+	$MRS::VERBOSE = 2 if $opts{V};
 
 	my $db = $opts{d} or &Usage();
 	my $kw = $opts{k} or &Usage();
@@ -298,6 +306,8 @@ sub Create()
 			die "Could not create new databank $db: " . &MRS::errstr();
 
 	$p->{mrs} = $mrs;
+
+	$mrs->SetXMLStyleSheetName($p->{stylesheet}) if defined $p->{stylesheet};
 
 	# protect the new born file
 	chmod 0400, "$data_dir/$cmp_name.cmp" if not $exists;
