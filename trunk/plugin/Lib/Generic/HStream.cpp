@@ -804,7 +804,12 @@ void HBufferedFileStream::Truncate(int64 inOffset)
 HTempFileStream::HTempFileStream(const HUrl& inBaseName)
 	: fTempUrl(new HUrl)
 {
-	fFD = HFile::CreateTempFile(inBaseName.GetParent(), inBaseName.GetFileName(), *fTempUrl);
+	HUrl tempDir = inBaseName.GetParent();
+
+	if (getenv("MRS_SCRATCH_DIR") != nil)
+		tempDir = HUrl(getenv("MRS_SCRATCH_DIR"));
+	
+	fFD = HFile::CreateTempFile(tempDir, inBaseName.GetFileName(), *fTempUrl);
 	fOffset = 0;
 }
 
