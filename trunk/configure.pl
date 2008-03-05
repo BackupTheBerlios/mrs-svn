@@ -61,8 +61,8 @@ my $use_tr1 = 0;
 
 my $os = `uname -s`;	chomp($os);
 my $host = hostname;	$host =~ s/^([^.]+)\..+/$1/; # strip off the domain part
-my $cpu = `art`;	chomp($cpu);
-if (not defined $cpu or $cpu eq 'unknown') { $cpu = `uname -m`; chomp($cpu); }
+my $cpu = `uname -p`;	chomp($cpu);
+$cpu = `uname -m` if $cpu eq 'unknown'; chomp($cpu);
 
 my $owner = `whoami`;
 chomp($owner);
