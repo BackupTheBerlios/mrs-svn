@@ -13,19 +13,26 @@
 #include <signal.h>
 #include <boost/thread.hpp>
 #include <signal.h>
+#include <sys/time.h>
 
 #include "WUtils.h"
 
 using namespace std;
 
-extern double system_time();
-
 namespace {
 	
 static boost::mutex sStdOutLock;
+
+double system_time()
+{
+	struct timeval tv;
+	
+	gettimeofday(&tv, NULL);
+	
+	return tv.tv_sec + tv.tv_usec / 1e6;
+}
 	
 }
-
 
 // --------------------------------------------------------------------
 //
