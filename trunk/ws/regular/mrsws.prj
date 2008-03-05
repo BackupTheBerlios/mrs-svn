@@ -27,7 +27,7 @@
 	</libpaths>
 	<files>
 		<group name="Sources">
-			<file>mrsws.cpp</file>
+			<file>mrsws-search.cpp</file>
 			<file>soapServer.cpp</file>
 			<file>soapC.cpp</file>
 			<file>WConfig.cpp</file>
