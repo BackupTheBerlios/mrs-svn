@@ -92,7 +92,10 @@ string WConfigFileImp::GetValue(
 		if (nodes->nodeNr >= 1)
 		{
 			xmlNodePtr node = nodes->nodeTab[0];
-			const char* text = (const char*)XML_GET_CONTENT(node->children);
+			const char* text = nil;
+			
+			if (node->children)
+				text = (const char*)XML_GET_CONTENT(node->children);
 
 			if (text != nil)
 				result = text;
