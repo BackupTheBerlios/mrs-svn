@@ -1,6 +1,6 @@
 # make file for soap server
 
-TARGET		= mrsws
+TARGET		= mrsws-search
 # DEBUG should be either 1 or 0
 DEBUG		= 0
 LIBNAME		= mrs

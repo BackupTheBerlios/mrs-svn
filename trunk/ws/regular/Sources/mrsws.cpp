@@ -659,8 +659,16 @@ ns__FindAll(
 			if (dbt.Ignore(dbi->first))
 				continue;
 
-			auto_ptr<MQueryResults> r = PerformSearch(
-				dbi->second.mDB, queryterms, algorithm, alltermsrequired, booleanfilter);
+			auto_ptr<MQueryResults> r;
+			try
+			{
+				r.reset(PerformSearch(
+					dbi->second.mDB, queryterms, algorithm, alltermsrequired, booleanfilter).release());
+			}
+			catch (...)
+			{
+				continue;
+			}
 
 			if (r.get() != NULL)
 			{
@@ -1244,7 +1252,8 @@ void handler(int inSignal)
 
 void usage()
 {
-	cout << "usage: mrsws [-d datadir] [-p parserdir] [[-a address] [-p port] | -i input] [-v]" << endl;
+	cout << "usage: mrsws [-c configfile] [-d datadir] [-p parserdir] [[-a address] [-p port] | -i input] [-v]" << endl;
+	cout << "    -c   config file to use, (default " MRS_CONFIG_FILE ")" << endl;
 	cout << "    -d   data directory containing MRS files (default " << gDataDir.string() << ')' << endl;
 	cout << "    -p   parser directory containing parser scripts (default " << gParserDir.string() << ')' << endl;
 	cout << "    -a   address to bind to (default localhost)" << endl;

@@ -1,0 +1,111 @@
+#!/bin/sh
+#
+# /etc/init.d/mrsws-search -- startup script for the MRS web services
+#
+# Written by Maarten L. Hekkelman <m.hekkelman@cmbi.ru.nl>
+#
+### BEGIN INIT INFO
+# Provides:          mrsws-search
+# Required-Start:    $local_fs $remote_fs $network
+# Required-Stop:     $local_fs $remote_fs $network
+# Should-Start:      $named
+# Should-Stop:       $named
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start mrsws search.
+# Description:       Start the MRS search web service.
+### END INIT INFO
+
+set -e
+
+PATH=/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin
+NAME=mrsws-search
+DESC="MRS web services"
+DAEMON=/usr/local/bin/$NAME
+MRSWS_PID=/var/run/$NAME.pid
+DEFAULT=/etc/default/$NAME
+
+. /lib/lsb/init-functions
+. /etc/default/rcS
+
+# The following variables can be overwritten in $DEFAULT
+
+# Run mrsws as this user ID
+# MRSWS_USER=dba
+
+MRSWS_CONFIG_FILE=/usr/local/etc/mrs-config.xml
+
+# End of variables that can be overwritten in $DEFAULT
+
+# overwrite settings from default file
+if [ -f "$DEFAULT" ]; then
+	. "$DEFAULT"
+fi
+
+test -f $DAEMON || exit 0
+
+# [ -z "$MRSWS_USER" ] && MRSWS_USER=dba
+
+[ -z "$MRSWS_CONFIG_FILE" ] && MRSWS_CONFIG_FILE=/usr/local/etc/mrs-config.xml
+
+case "$1" in
+  start)
+	if [ ! -f "$MRSWS_CONFIG_FILE" ]; then
+		log_failure_msg "invalid mrs config file specified"
+		exit 1
+	fi
+
+	log_daemon_msg "Starting $DESC" "$NAME"
+	if start-stop-daemon --test --start --exec $DAEMON --pidfile $MRSWS_PID \
+		>/dev/null; then
+
+		$DAEMON -c $MRSWS_CONFIG_FILE
+	else
+		log_progress_msg "(already running)"
+	fi
+	log_end_msg 0
+	;;
+  stop)
+	log_daemon_msg "Stopping $DESC" "$NAME"
+        if start-stop-daemon --test --start --exec $DAEMON --pidfile $MRSWS_PID \
+		>/dev/null; then
+		log_progress_msg "(not running)"
+	else
+		killproc $DAEMON
+	fi
+	log_end_msg 0
+	;;
+   status)
+        if start-stop-daemon --test --start --exec $DAEMON --pidfile $MRSWS_PID \
+		>/dev/null; then
+
+		if [ -f "$MRSWS_PID" ]; then
+		    log_success_msg "$DESC is not running, but pid file exists."
+		else
+		    log_success_msg "$DESC is not running."
+		fi
+	else
+		log_success_msg "$DESC is running with pid `cat $MRSWS_PID`"
+	fi
+        ;;
+  restart|force-reload)
+        if start-stop-daemon --test --stop --exec $DAEMON --pidfile $MRSWS_PID \
+        >/dev/null; then
+		$0 stop
+		sleep 4
+	fi
+	$0 start
+	;;
+  try-restart)
+        if start-stop-daemon --test --start --exec $DAEMON --pidfile $MRSWS_PID \
+		>/dev/null; then
+		$0 start
+	fi
+        ;;
+  *)
+	log_success_msg "Usage: $0 {start|stop|restart|try-restart|force-reload|status}"
+	exit 1
+	;;
+esac
+
+exit 0

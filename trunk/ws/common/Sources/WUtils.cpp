@@ -105,9 +105,9 @@ void Daemonize(
 	
 	if (pid != 0)
 	{
-		ofstream pidFile(inPIDFile);
-		pidFile << pid << endl;
-		pidFile.close();
+//		ofstream pidFile(inPIDFile);
+//		pidFile << pid << endl;
+//		pidFile.close();
 		
 		_exit(0);
 	}
@@ -129,6 +129,11 @@ void Daemonize(
 
 	if (pid != 0)
 		_exit(0);
+
+	// write our pid to the pid file
+	ofstream pidFile(inPIDFile);
+	pidFile << getpid() << endl;
+	pidFile.close();
 
 	// open the log file
 	int fd = open(inLogFile.c_str(), O_CREAT|O_APPEND|O_RDWR, 0644);

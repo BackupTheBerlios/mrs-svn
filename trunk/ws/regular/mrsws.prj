@@ -47,7 +47,7 @@
 		</group>
 	</files>
 	<targets>
-		<target kind="Executable" name="mrsws Debug" linkTarget="mrsws">
+		<target kind="Executable" name="mrsws Debug" linkTarget="mrsws-search">
 			<defines>
 				<define>DEBUG</define>
 				<define>MINI_H_LIB</define>
@@ -63,7 +63,7 @@
 				<warning>no-deprecated</warning>
 			</warnings>
 		</target>
-		<target kind="Executable" name="mrsws Release" linkTarget="mrsws">
+		<target kind="Executable" name="mrsws Release" linkTarget="mrsws-search">
 			<defines>
 				<define>MINI_H_LIB</define>
 				<define>LINUX</define>
