@@ -105,6 +105,7 @@ CSimpleDocWeightArrayImp::CSimpleDocWeightArrayImp(HUrl& inFile, uint32 inCount)
 	, fMap(new HMMappedFileStream(*fFile, 0, inCount * sizeof(float)))
 	, fData(static_cast<const float*>(fMap->Buffer()))
 {
+	Prefetch();
 }
 
 CSimpleDocWeightArrayImp::CSimpleDocWeightArrayImp(HFileStream& inFile, int64 inOffset, uint32 inCount)
@@ -113,6 +114,7 @@ CSimpleDocWeightArrayImp::CSimpleDocWeightArrayImp(HFileStream& inFile, int64 in
 	, fMap(new HMMappedFileStream(inFile, inOffset, inCount * sizeof(float)))
 	, fData(static_cast<const float*>(fMap->Buffer()))
 {
+	Prefetch();
 }
 
 CSimpleDocWeightArrayImp::~CSimpleDocWeightArrayImp()

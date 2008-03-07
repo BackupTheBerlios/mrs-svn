@@ -56,7 +56,7 @@ using namespace std;
 
 const uint32
 	kBitBufferSize = 64,
-	kBitBufferExtend = 1024;
+	kBitBufferExtend = 512;
 
 const int64
 	kUnboundedBufferSize = numeric_limits<int64>::max();

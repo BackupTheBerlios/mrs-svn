@@ -10,6 +10,7 @@
 # Now you can build debug and non debug versions, default is non-debug
 # but to build a debug version you type 'make DEBUG=1' instead of simply 'make'
 
+TARGET		?= perl5
 SO_EXT		= .so
 LIBNAME		= libmrs
 VERSION		= 4.0d1
@@ -88,7 +89,14 @@ ifeq ($(PROFILE),1)
 endif
 
 LIBNAME	:= $(LIBNAME).a
+
+ifeq ($(TARGET),perl5)
 OUTPUT ?= MRS$(SO_EXT)
+endif
+
+ifeq ($(TARGET),java)
+OUTPUT ?= libmrs$(SO_EXT)
+endif
 
 Sources = \
 	./Sources/MRSInterface.cpp \
@@ -159,7 +167,15 @@ else
 INCLUDES += -I- $(addprefix -I, $(INCPATHS) $(SRC_PATHS))
 endif
 # Perl's defines and includes
+
+ifeq ($(TARGET),perl5)
 INCLUDES += $(shell $(PERL) -MExtUtils::Embed -e perl_inc)
+endif
+
+ifeq ($(TARGET),java)
+JAVA_INC ?= -I/usr/lib/jvm/java-1.5.0-sun-1.5.0.13/include/ -I/usr/lib/jvm/java-1.5.0-sun-1.5.0.13/include/linux/
+INCLUDES += $(JAVA_INC)
+endif
 
 CFLAGS	+= $(addprefix -D, $(DEFINES)) $(DBG) $(WARNINGS)
 ifeq ($(CPU), x86)
@@ -189,11 +205,21 @@ lib: $(LIBNAME)
 doc: FORCE
 	doxygen doc/doxygen.config
 
+ifeq ($(TARGET),perl5)
 $(OUTPUT): $(LIBNAME) $(OBJDIR)/MRS_perl5.o
 	@ echo "Linking "$(@F)
 	@ $(CC) -o $(OUTPUT) $(LD_SO_FLAG) $(LIBNAME) $(OBJDIR)/MRS_perl5.o $(LDFLAGS)
 	@ chmod a+rx $(OUTPUT)
 	@ echo "Done"
+endif
+
+ifeq ($(TARGET),java)
+$(OUTPUT): $(LIBNAME) $(OBJDIR)/MRS_java.o
+	@ echo "Linking "$(@F)
+	@ $(CC) -o $(OUTPUT) $(LD_SO_FLAG) $(LIBNAME) $(OBJDIR)/MRS_java.o $(LDFLAGS)
+	@ chmod a+rx $(OUTPUT)
+	@ echo "Done"
+endif
 
 clean: FORCE
 	rm -rf $(OBJDIR)
@@ -252,6 +278,10 @@ $(OBJDIR):
 
 # Swig's code should not be optimized... really
 $(OBJDIR)/%_perl5.o: Sources/%_perl5.cpp
+	@ echo "=> "$(@F)
+	@ $(CC) -MD -c $< -o $@ $(INCLUDES) $(CFLAGS) -O0
+
+$(OBJDIR)/%_java.o: Sources/%_java.cpp
 	@ echo "=> "$(@F)
 	@ $(CC) -MD -c $< -o $@ $(INCLUDES) $(CFLAGS) -O0
 

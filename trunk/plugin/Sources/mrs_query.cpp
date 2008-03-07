@@ -37,10 +37,14 @@
 #include <vector>
 #include <string>
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <sstream>
 #include <cerrno>
 #include <cstdarg>
+
+#include <sys/times.h>
+#include <sys/resource.h>
 
 //#include "MRS.h"
 
@@ -48,6 +52,73 @@
 #include "getopt.h"
 
 using namespace std;
+
+namespace {
+	
+typedef unsigned long uint32;
+
+ostream& operator<<(ostream& inStream, const struct timeval& t)
+{
+	uint32 hours = t.tv_sec / 3600;
+	uint32 minutes = ((t.tv_sec % 3600) / 60);
+	uint32 seconds = t.tv_sec % 60;
+	
+	uint32 milliseconds = t.tv_usec / 1000;
+	
+	inStream << hours << ':'
+			 << setw(2) << setfill('0') << minutes << ':'
+			 << setw(2) << setfill('0') << seconds << '.'
+			 << setw(3) << setfill('0') << milliseconds;
+	
+	return inStream;
+}
+
+class CStopwatch
+{
+  public:
+			CStopwatch(double& ioAccumulator);
+			~CStopwatch();
+
+  private:
+	double&			fAccumulator;
+	struct rusage	fStartTime;
+};
+
+CStopwatch::CStopwatch(double& ioAccumulator)
+	: fAccumulator(ioAccumulator)
+{
+	if (VERBOSE > 1)
+		getrusage(RUSAGE_SELF, &fStartTime);
+}
+
+CStopwatch::~CStopwatch()
+{
+	if (VERBOSE > 1)
+	{
+		struct rusage stop;
+		getrusage(RUSAGE_SELF, &stop);
+		
+		fAccumulator += (stop.ru_utime.tv_sec - fStartTime.ru_utime.tv_sec);
+		fAccumulator += 0.000001 * (stop.ru_utime.tv_usec - fStartTime.ru_utime.tv_usec);
+	}
+}
+
+static void PrintStatistics()
+{
+	struct rusage ru = {} ;
+	
+	if (getrusage(RUSAGE_SELF, &ru) < 0)
+		cerr << "Error calling getrusage" << endl;
+	
+	cout << "Total time user:    " << ru.ru_utime << endl;
+	cout << "Total time system:  " << ru.ru_stime << endl;
+	cout << "I/O operations in:  " << ru.ru_inblock << endl;
+	cout << "I/O operations out: " << ru.ru_oublock << endl;
+}	
+	
+}
+
+extern double system_time();
 
 void error(const char* msg, ...)
 {
@@ -152,13 +223,31 @@ int main(int argc, const char* argv[])
 		}
 	}
 	
-	MDatabank mrsDb(db);
+	double queryTime = 0, printTime = 0, openTime = 0;
+	double realQueryTime, realPrintTime, realOpenTime;
+	double now = system_time();
+
+	auto_ptr<MDatabank> mrsDb;
 	
+	{
+		CStopwatch sw(openTime);
+
+		mrsDb.reset(new MDatabank(db));
+	}
+	
+	realOpenTime = system_time() - now;
+	now = system_time();
+
+	if (VERBOSE > 1)
+		cout << "databank opened, building query" << endl;
+
 	auto_ptr<MQueryResults> r;
 
 	if (queryWords.size() > 0)
 	{
-		auto_ptr<MRankedQuery> q(mrsDb.RankedQuery(ix));
+		CStopwatch sw(queryTime);
+
+		auto_ptr<MRankedQuery> q(mrsDb->RankedQuery(ix));
 	
 		q->SetAlgorithm(alg);
 		q->SetAllTermsRequired(1);
@@ -169,22 +258,33 @@ int main(int argc, const char* argv[])
 		
 		auto_ptr<MBooleanQuery> m;
 		if (filter.length())
-				m.reset(mrsDb.BooleanQuery(filter));
+				m.reset(mrsDb->BooleanQuery(filter));
 	
+		if (VERBOSE > 1)
+			cout << "quiry built, performing" << endl;
+		
 		r.reset(q->Perform(m.get()));
 	}
 	else if (filter.length() > 0)
-		r.reset(mrsDb.Find(filter, false));
+		r.reset(mrsDb->Find(filter, false));
+	
+	realQueryTime = system_time() - now;
+	now = system_time();
+
+	if (VERBOSE > 1)
+		cout << "query done, printing results" << endl;
 	
 	if (r.get() != NULL)
 	{
+		CStopwatch sw(printTime);
+		
 		stringstream s;
 		
 		int n = 10;
 		const char* id;
 		while (n-- > 0 and (id = r->Next()) != NULL)
 		{
-			const char* title = mrsDb.GetMetaData(id, "title");
+			const char* title = mrsDb->GetMetaData(id, "title");
 			string desc;
 			if (title != NULL)
 				desc = title;
@@ -198,8 +298,45 @@ int main(int argc, const char* argv[])
 	else
 		cout << "No hits found" << endl;
 
+	realPrintTime = system_time() - now;
+
 	if (outBuf)
 		cout.rdbuf(outBuf);
+
+	if (VERBOSE > 1)
+	{
+		cout << "Time spent on" << endl;
+	
+		struct timeval t, tr;
+		
+		t.tv_sec = static_cast<uint32>(openTime);
+		t.tv_usec = static_cast<uint32>(openTime * 1000000.0) % 1000000;
+		
+		tr.tv_sec = static_cast<uint32>(realOpenTime);
+		tr.tv_usec = static_cast<uint32>(realOpenTime * 1000000.0) % 1000000;
+		
+		cout << "Open:       " << t << "     " << tr << endl;
+	
+		t.tv_sec = static_cast<uint32>(queryTime);
+		t.tv_usec = static_cast<uint32>(queryTime * 1000000.0) % 1000000;
+		
+		tr.tv_sec = static_cast<uint32>(realQueryTime);
+		tr.tv_usec = static_cast<uint32>(realQueryTime * 1000000.0) % 1000000;
+		
+		cout << "Query:      " << t << "     " << tr << endl;
+	
+		t.tv_sec = static_cast<uint32>(printTime);
+		t.tv_usec = static_cast<uint32>(printTime * 1000000.0) % 1000000;
+
+		tr.tv_sec = static_cast<uint32>(realPrintTime);
+		tr.tv_usec = static_cast<uint32>(realPrintTime * 1000000.0) % 1000000;
+
+		cout << "Printing:   " << t << "     " << tr << endl;
+		
+		cout << "total:" << endl;
+
+		PrintStatistics();
+	}
 
 	return 0;
 }

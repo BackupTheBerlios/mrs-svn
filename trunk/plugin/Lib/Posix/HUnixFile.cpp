@@ -43,9 +43,7 @@
 
 #include <stack>
 #include <cstdio>
-#if P_DEBUG
 #include <iostream>
-#endif
 
 #include <unistd.h>
 #include <dirent.h>
@@ -629,6 +627,8 @@ int64 Seek(int inFD, int64 inOffset, int inMode)
 int32 Read(int inFD, void* inBuffer, uint32 inSize)
 {
 	int result;
+
+//cout << "Read " << inFD << " size " << inSize << endl;
 	
 	for (;;)
 	{
@@ -644,7 +644,19 @@ int32 Read(int inFD, void* inBuffer, uint32 inSize)
 int32 PRead(int inFD, void* inBuffer, uint32 inSize, int64 inOffset)
 {
 	int result;
-	
+
+//static int sFD;
+//static int64 sOffset;
+//	if (sFD != inFD or sOffset != inOffset)
+//	{
+//		cout << "Seek " << inOffset << endl;
+//		sFD = inFD;
+//	}
+//
+//	sOffset = inOffset + inSize;
+//
+//cout << "PRead " << inFD << " size " << inSize << " offset " << inOffset << endl;
+//	
 	for (;;)
 	{
 		result = ::pread(inFD, inBuffer, inSize, inOffset);

@@ -529,8 +529,6 @@ void CIndexPage<DD>::GetData(uint32 inIndex, string& outKey, int64& outValue, ui
 	
 	const unsigned char* k = GetKey(inIndex);
 	outKey.assign(reinterpret_cast<const char*>(k) + 1, k[0]);
-//	outValue = fData.e[-static_cast<int32>(inIndex)].value;
-//	outP = fData.e[-static_cast<int32>(inIndex)].p;
 	outValue = fData.GetValue(inIndex);
 	outP = fData.GetP(inIndex);
 }
@@ -855,6 +853,8 @@ struct CIndexImp
 	virtual void	Dump(uint32 inPage, uint32 inParent, uint32 inLevel) = 0;
 #endif
 
+	virtual uint32	Depth(uint32 inPage) const = 0;
+
  	virtual int		Compare(const char* inA, uint32 inLengthA,
 						const char* inB, uint32 inLengthB) const;
 	int				Compare(const string& inA, const string& inB) const
@@ -927,6 +927,8 @@ struct CIndexImpT : public CIndexImp
 	virtual void	Test(CIndex& inIndex);
 	virtual void	Dump(uint32 inPage, uint32 inParent, uint32 inLevel);
 #endif
+
+	virtual uint32	Depth(uint32 inPage) const;
 
   private:
 
@@ -1395,6 +1397,19 @@ void CIndexImpT<DD>::Dump(uint32 inPage, uint32 inParent, uint32 inLevel)
 }
 #endif
 
+template<typename DD>
+uint32 CIndexImpT<DD>::Depth(uint32 inPage) const
+{
+	uint32 result = 1;
+	
+	const CIndexPage p(fFile, fBaseOffset, inPage);
+	
+	if (p.GetP0() != 0)
+		result += Depth(p.GetP0());
+
+	return result;
+}
+
 // ---------------------------------------------------------------------------
 
 template<typename DD>
@@ -1509,11 +1524,6 @@ CIndex* CIndex::CreateFromIterator(uint32 inIndexKind, CIndexVersion inVersion, 
 	result->fImpl->CreateFromIterator(inData);
 	
 	inFile.Seek(0, SEEK_END);
-	
-//#if P_DEBUG
-//	result->fImpl->Test(*result);
-////	result->Dump();
-//#endif
 	
 	return result.release();
 }
@@ -1678,6 +1688,11 @@ void CIndex::Dump() const
 	fImpl->Dump(fImpl->GetRoot(), 0, 0);
 }
 #endif
+
+uint32 CIndex::depth() const
+{
+	return fImpl->Depth(fImpl->GetRoot());
+}
 
 // ---------------------------------------------------------------------------
 //

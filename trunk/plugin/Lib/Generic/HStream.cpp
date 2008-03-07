@@ -55,9 +55,7 @@
 #include "HMutex.h"
 #include "HUtils.h"
 
-#ifdef P_DEBUG
 #include <iostream>
-#endif
 
 using namespace std;
 
@@ -734,6 +732,8 @@ int32 HBufferedFileStream::PWrite(const void* inBuffer, uint32 inSize, int64 inO
 
 int32 HBufferedFileStream::PRead(void* inBuffer, uint32 inSize, int64 inOffset)
 {
+//cout << "HBufferedFileStream::PRead " << fFD << " size: " << inSize << " offset: " << inOffset << endl;
+
 	// short cut, bypass cache in case we're reading too much
 	if (inSize > kBufferBlockCount * kBufferBlockSize)
 	{

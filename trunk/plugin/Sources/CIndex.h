@@ -182,6 +182,8 @@ class CIndex
 	iterator			lower_bound(const std::string& inKey);
 	iterator			upper_bound(const std::string& inKey);
 
+	uint32				depth() const;
+
 						// visitor
 
 	struct VisitorBase
