@@ -1,7 +1,6 @@
 # $Id: unigene.make,v 1.23 2004/12/12 08:33:46 maarten Exp $
 
 DATABANK		= unigene
-SRSLIBS			= unigene uniseq uniest uniuniq unigene_for_geneseeker
 MRSLIBS			= unigene uniuniq # uniseq
 MRS_PARTS		= 8
 

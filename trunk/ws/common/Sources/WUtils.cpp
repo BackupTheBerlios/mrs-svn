@@ -91,6 +91,16 @@ WLogger& WLogger::operator<<(
 	return *this;
 }
 
+WLogger& WLogger::operator<<(
+	float			inFloat)
+{
+	stringstream s;
+	s << inFloat;
+	mMsg += s.str();
+	
+	return *this;
+}
+
 // --------------------------------------------------------------------
 //
 //	Daemonize

@@ -359,4 +359,34 @@ sub index_name
 	return $result;
 }
 
+sub pp_script
+{
+	my ($mrs_format_dir, $text) = @_;
+	
+	my $result;
+
+	eval
+	{
+		require PPI;
+		require PPI::HTML;
+		
+		my $script = PPI::Document->new(\$text);
+		
+#		$script->tab_width(4);
+		
+		my $highlight = PPI::HTML->new(line_numbers => 1);
+		
+		$result = $highlight->html($script);
+		
+		$result =~ s/<br>\n/\n/g;
+	};
+	
+	if ($@)
+	{
+		$result = "Error in pretty printing script\n\n<pre>$text</pre>\n";
+	}
+	
+	return $result;
+}
+
 1;

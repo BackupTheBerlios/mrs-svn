@@ -11,7 +11,7 @@ my $url = 'http://localhost:8084/mrsws-admin';
 
 my $soap = SOAP::Lite->uri($ns_url)->proxy($url);
 
-&setDatabankInfo('sprot', 'ready', 1.0, 'no message');
+&setDatabankInfo('sprot', 'mirroring', 0.5, 'my_new_file.tgz');
 &getDatabankInfo('sprot');
 exit;
 

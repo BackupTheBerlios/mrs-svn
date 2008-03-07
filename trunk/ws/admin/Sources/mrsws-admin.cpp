@@ -20,6 +20,7 @@
 #include <boost/ptr_container/ptr_vector.hpp>
 #include <boost/filesystem/operations.hpp>
 #include <boost/filesystem/path.hpp>
+#include <boost/filesystem/fstream.hpp>
 #include <boost/regex.hpp>
 #include <boost/thread.hpp>
 #include <boost/bind.hpp>
@@ -31,6 +32,7 @@
 #include "WUtils.h"
 #include "WConfig.h"
 #include "WBuffer.h"
+#include "WFormat.h"
 
 #define nil NULL
 
@@ -63,6 +65,7 @@ fs::path gDataDir(MRS_DATA_DIR, fs::native);
 fs::path gParserDir(MRS_PARSER_DIR, fs::native);
 fs::path gConfigFile(MRS_CONFIG_FILE, fs::native);
 fs::path gLogFile(MRS_LOG_FILE, fs::native);
+fs::path gStatusDir(MRS_DATA_DIR "/../status", fs::native);
 
 WConfigFile*	gConfig = nil;
 int				VERBOSE = 0;
@@ -74,6 +77,31 @@ extern double system_time();
 typedef map<string,ns__DatabankStatusInfo>	DBStatusTable;
 
 DBStatusTable gStatus;
+
+// --------------------------------------------------------------------
+//
+
+string ReadFile(
+	const fs::path&		inFile)
+{
+	if (not fs::exists(inFile))
+		THROW(("File %s does not exist", inFile.string().c_str()));
+		
+	fs::ifstream file(inFile);
+	if (not file.is_open())
+		THROW(("Could not open file %s", inFile.string().c_str()));
+
+	stringstream result;
+	
+	while (not file.eof())
+	{
+		string line;
+		getline(file, line);
+		result << line << endl;
+	}
+	
+	return result.str();
+}
 
 // --------------------------------------------------------------------
 //
@@ -170,6 +198,8 @@ SOAP_FMAC5 int SOAP_FMAC6
 ns__GetParserScript(
 	struct soap*		soap,
 	string				script,
+	ns__ParserScriptFormat
+						format,
 	string&				response)
 {
 	int result = SOAP_OK;
@@ -177,7 +207,16 @@ ns__GetParserScript(
 
 	try
 	{
+		log << script;
 		
+		fs::path file = gParserDir / script;
+		if (not fs::exists(file))
+			file = gParserDir / (script + ".pm");
+		
+		response = ReadFile(file);
+		
+		if (format == html)
+			response = WFormatTable::PPScript(response);
 	}
 	catch (exception& e)
 	{
@@ -204,7 +243,9 @@ ns__SetDatabankStatusInfo(
 
 	try
 	{
-		log << db << " "
+		log << db
+			<< '(' << progress << ')'
+			<< " "
 			<< message;
 
 		struct ns__DatabankStatusInfo info;
@@ -337,6 +378,11 @@ int main(int argc, const char* argv[])
 		if (gConfig->GetSetting("/mrs-config/datadir", s))
 			gDataDir = fs::system_complete(fs::path(s, fs::native));
 		
+		gStatusDir = gDataDir / ".." / "status";
+
+		if (gConfig->GetSetting("/mrs-config/statusdir", s))
+			gStatusDir = fs::system_complete(fs::path(s, fs::native));
+		
 		if (gConfig->GetSetting("/mrs-config/scriptdir", s))
 			gParserDir = fs::system_complete(fs::path(s, fs::native));
 		
@@ -365,6 +411,8 @@ int main(int argc, const char* argv[])
 		cerr << "Parser directory " << gParserDir.string() << " is not a valid directory" << endl;
 		exit(1);
 	}
+	
+	WFormatTable::SetParserDir(gParserDir.string());
 
 	if (input_file.length())
 	{

@@ -5,14 +5,14 @@ include make.config
 all:
 	$(MAKE) -Cplugin all
 	$(MAKE) -Cws/blast all
-	$(MAKE) -Cws/regular all
 	$(MAKE) -Cws/clustal all
+	$(MAKE) -Cws/search all
 
 clean:
 	$(MAKE) -Cplugin clean
 	$(MAKE) -Cws/blast clean
-	$(MAKE) -Cws/regular clean
 	$(MAKE) -Cws/clustal clean
+	$(MAKE) -Cws/search clean
 
 install:
 	install -o $(OWNER) -d $(DATADIR)
@@ -39,6 +39,6 @@ install:
 	test -f $(PREFIX)/etc/mrs-config.xml || install $(PREFIX)/etc/mrs-config.xml.dist $(PREFIX)/etc/mrs-config.xml
 	$(MAKE) -Cplugin install
 	$(MAKE) -Cws/blast install
-	$(MAKE) -Cws/regular install
 	$(MAKE) -Cws/clustal install
+	$(MAKE) -Cws/search install
 	$(MAKE) -C$(U_SCRIPTDIR) tools

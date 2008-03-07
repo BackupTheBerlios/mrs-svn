@@ -56,6 +56,10 @@ ifneq ($(MIRROR_INCLUDE),)
 MIRROR_OPTIONS	+= -i'$(MIRROR_INCLUDE)'
 endif
 
+ADMIN_SERVER ?= http://localhost:8084/mrsws-admin
+
+MIRROR_OPTIONS += -p $(DATABANK)@$(ADMIN_SERVER)
+
 fetch: dirs
 	$(MIRROR) -d $(SRCDIR) $(MIRROR_OPTIONS) $(DB_URL)
 

@@ -19,6 +19,9 @@ class WLogger
 					char				inChar);
 
 	WLogger&	operator<<(
+					float				inFloat);
+
+	WLogger&	operator<<(
 					const std::string&	inString);
 
   private:

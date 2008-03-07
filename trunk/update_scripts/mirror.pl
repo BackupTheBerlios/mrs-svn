@@ -14,10 +14,11 @@ my $verbose = 1;
 my $cleanup = 0;
 my $include;
 my $no_fetch = 0;
+my $progress = 0;
 my $url;
 
 $Getopt::Std::STANDARD_HELP_VERSION = 1;
-getopts('d:i:rcvn', \%opts);
+getopts('d:i:rcvnp:', \%opts);
 
 $recursive = 1 if defined $opts{r};
 $dest = $opts{d} if defined $opts{d};
@@ -25,6 +26,10 @@ $include = $opts{i} if defined $opts{i};
 $verbose = 2 if defined $opts{v};
 $cleanup = 1 if defined $opts{c};
 $no_fetch = 1 if defined $opts{n};
+$progress = $opts{p} if defined $opts{p};
+
+my $soap;
+$soap = new Progress($progress) if defined ($progress);
 
 $url = shift;
 &HELP_MESSAGE() if not defined $url;
@@ -54,7 +59,7 @@ exit;
 
 sub VERSION_MESSAGE()
 {
-	print "mirror.pl 0.1 -- a lightweight ftp mirror tool by M.L. Hekkelman\n";
+	print "mirror.pl 0.2 -- a lightweight ftp mirror tool by M.L. Hekkelman\n";
 }
 
 sub HELP_MESSAGE()
@@ -68,12 +73,13 @@ sub HELP_MESSAGE()
 	print "    -c                   clean up, remove files not found on remote side\n";
 	print "    -n                   don't fetch or delete, just tell what would be done\n";
 	print "    -v                   verbose mode\n";
+	print "    -p db                send progress information to mrsws-admin for db\n";
 	exit;
 }
 
 sub fetch($$$)
 {
-	my ($s, $remote_dir, $local_dir) = @_;
+	my ($s, $remote_dir, $local_dir, $files, $delete) = @_;
 
 	print "Entering $remote_dir\n" if $verbose > 1;
 	
@@ -91,19 +97,15 @@ sub fetch($$$)
 		closedir DIR;
 	}
 	
-#	my @ls = $s->ls();
-#	if (scalar(@ls) == 0 or 1)	# stupid FTP servers... 
-#	{
-		my @ls;
-		foreach my $f ($s->dir())
+	my @ls;
+	foreach my $f ($s->dir())
+	{
+		if (($f =~ s/^.+?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\s+\d\d\:\d\d\s(.+)/$2/oi) or
+		    ($f =~ s/^.+?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\s+\d{4}\s(.+)/$2/oi))
 		{
-			if (($f =~ s/^.+?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\s+\d\d\:\d\d\s(.+)/$2/oi) or
-			    ($f =~ s/^.+?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\s+\d{4}\s(.+)/$2/oi))
-			{
-				push @ls, $f;
-			}
+			push @ls, $f;
 		}
-#	}
+	}
 
 	print "got listing\n" if $verbose > 1;
 	
@@ -140,31 +142,26 @@ sub fetch($$$)
 			
 			if ($fetch)
 			{
-				print "Fetching $e... " if $verbose > 1 or $no_fetch;
-				print "$e\n" if $verbose == 1;
+				my %file = (
+					path => $path,
+					name => $e,
+					mdtm => $mdtm,
+					size => $size,
+					dir => $local_dir
+				);
 				
-				if (not $no_fetch)
-				{
-					my $tmp = "$local_dir/.$e$$";
-					$s->get($path, $tmp) or die "Could not fetch file $e: $!";
-					unlink($file);
-					rename($tmp, $file);
-					utime $mdtm, $mdtm, $file;
-					print "done" if $verbose > 1;
-				}
+				push @{$files}, \%file;
 			}
 			elsif ($verbose > 1)
 			{
-				print "Up to date $e";
+				print "Up to date: $e\n";
 			}
 			
 			$localFiles{$e} = 0;
-
-			print "\n" if $verbose > 1 or $no_fetch;
 		}
 		elsif ($recursive)
 		{
-			&fetch($s, "$remote_dir/$e", "$local_dir/$e")
+			&fetch($s, "$remote_dir/$e", "$local_dir/$e", $files)
 				if $s->cwd($path);
 
 			$s->cwd($remote_dir) or die "Could not change directory: $!";
@@ -175,8 +172,7 @@ sub fetch($$$)
 	{
 		if ($localFiles{$r} == 1)
 		{
-			print "Deleting $r\n" if $verbose or $no_fetch;
-			unlink "$local_dir/$r" if not $no_fetch;
+			push @{$delete}, "$local_dir/$r";
 		}
 	}
 }
@@ -191,6 +187,8 @@ sub main
 	my $host = $uri->host;
 	my $port = $uri->port;
 	$port = 21 if not defined $port;
+
+	$soap->setDatabankInfo('mirroring', 0, "connecting") if $soap;
 	
 	my $s = new Net::FTP($uri->host, Passive => 1, Port => $port)
 		or die "Could not create FTP object";
@@ -210,5 +208,118 @@ sub main
 	$path = $s->pwd();
 	$s->binary or die "Could not change to binary mode";
 	
-	&fetch($s, $path, $dest);
+	my (@files, @delete);
+
+	$soap->setDatabankInfo('mirroring', 0, "retieving file list") if $soap;
+	
+	&fetch($s, $path, $dest, \@files, \@delete);
+	
+	if (not $no_fetch)
+	{
+		my $cnt = scalar(@files);
+		my $size = 0;
+		
+		foreach my $file (@files)
+		{
+			$size += $file->{size};
+		}
+		
+		my $fetched_size = 0;
+		
+		foreach my $file (@files)
+		{
+			my $name = $file->{name};
+			my $path = $file->{path};
+			my $dir = $file->{dir};
+			
+			$soap->setDatabankInfo('mirroring', (1.0 * $fetched_size) / $size, $name) if $soap;
+			
+			print "Fetching $name... " if $verbose > 1;
+			my $tmp = "$dir/.$name$$";
+			$s->get($path, $tmp) or die "Could not fetch file $name: $!";
+			
+			my $nfile = "$dir/$name";
+
+			unlink($nfile);
+			rename($tmp, $nfile);
+			utime $file->{mdtm}, $file->{mdtm}, $nfile;
+
+			$fetched_size += $file->{size};
+
+			print "done\n" if $verbose > 1;
+		}
+
+		$soap->setDatabankInfo('ready', 1.0, 'fetched all files successfully') if $soap;
+	}
+	else
+	{
+		print "Fetch:\n\t", join("\n\t", map { $_->{path} } @files), "\n";
+	}
+	
+	foreach my $path (@delete)
+	{			
+		print "Deleting $path\n" if $verbose or $no_fetch;
+		unlink $path if not $no_fetch;
+	}
 }
+
+package Progress;
+
+use strict;
+use warnings;
+use Data::Dumper;
+
+sub new
+{
+	my ($invocant, $db, $url) = @_;
+	my $soap;
+	
+	if (defined $db and not defined $url and $db =~ m/(.+)\@(.+)/)
+	{
+		$db = $1;
+		$url = $2;
+	}
+	
+	my $ns_url = 'http://mrs.cmbi.ru.nl/mrsws-admin';
+	my $ns = 'service';
+	
+	eval
+	{
+		require SOAP::Lite;
+		$soap = SOAP::Lite->uri($ns_url)->proxy($url);
+	};
+	
+	my $this = {
+		soap => $soap,
+		ns_url => $ns_url,
+		ns => $ns,
+		db => $db
+	};
+	
+	return bless $this, "Progress";
+};
+
+sub setDatabankInfo
+{
+	my ($self, $status, $progress, $message) = @_;
+	
+	my $soap = $self->{soap};
+	
+	return unless defined $soap;
+	
+	eval
+	{
+		my $ns = $self->{ns};
+		my $ns_url = $self->{ns_url};
+
+		$soap->call(
+	    	SOAP::Data->name("$ns:SetDatabankStatusInfo")
+							->attr({"xmlns:$ns" => $ns_url})
+			=> (
+				SOAP::Data->name("$ns:db")->type('xsd:string' => $self->{db}),
+				SOAP::Data->name("$ns:status")->type("$ns:DatabankStatus" => $status),
+				SOAP::Data->name("$ns:progress")->type('xsd:float' => $progress),
+				SOAP::Data->name("$ns:message")->type('xsd:string' => $message)
+			));
+	};
+};

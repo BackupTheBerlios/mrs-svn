@@ -1,5 +1,7 @@
 // MRS web services interface
 
+namespace WSAdmin {
+
 //gsoap ns service name: mrsws-admin
 //gsoap ns service style: document
 //gsoap ns service encoding: literal
@@ -45,8 +47,15 @@ int ns__GetDatabankMakeLog(
 	unsigned long				age = 0,
 	xsd__string&				response);
 
+enum ns__ParserScriptFormat
+{
+	plain,
+	html
+};
+
 int ns__GetParserScript(
 	xsd__string					script,
+	enum ns__ParserScriptFormat	format = html,
 	xsd__string&				response);
 
 // to store information
@@ -58,3 +67,4 @@ int ns__SetDatabankStatusInfo(
 	xsd__string					message = "",
 	int&						response);
 
+}

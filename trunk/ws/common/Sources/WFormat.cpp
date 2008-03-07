@@ -74,12 +74,17 @@ struct WFormatTableImp
 	string					IndexName(
 								const string&	inFormatter,
 								const string&	inIndex);
+	
+	string					PPScript(
+								const string&	inScript);
 
   private:
 
 	void					Format();
 
 	void					IndexName();
+	
+	void					PPScript();
 
 	void					Thread();
 
@@ -92,6 +97,7 @@ struct WFormatTableImp
 		eCmdStop,
 		eCmdNoop,
 		eCmdFormat,
+		eCmdPPScript,
 		eCmdIxName
 	}						cmd;
 	string					formatter;
@@ -180,6 +186,10 @@ void WFormatTableImp::Thread()
 			case eCmdIxName:
 				IndexName();
 				break;
+			
+			case eCmdPPScript:
+				PPScript();
+				break;
 		}
 		
 		output.notify_one();
@@ -250,6 +260,31 @@ void WFormatTableImp::IndexName()
 	LEAVE;                       /* ...and the XPUSHed "mortal" args.*/
 }
 
+void WFormatTableImp::PPScript()
+{
+	dSP;                            /* initialize stack pointer      */
+	ENTER;                          /* everything created after here */
+	SAVETMPS;                       /* ...is a temporary variable.   */
+	PUSHMARK(SP);                   /* remember the stack pointer    */
+									/* push the parser directory name onto the stack  */
+	XPUSHs(sv_2mortal(newSVpvn(parser_dir.c_str(), parser_dir.length())));
+									/* push the script text onto the stack  */
+	XPUSHs(sv_2mortal(newSVpvn(text.c_str(), text.length())));
+	PUTBACK;						/* make local stack pointer global */
+
+									/* call the function             */
+	perl_call_pv("Embed::WSFormat::pp_script", G_SCALAR | G_EVAL);
+
+	SPAGAIN;                        /* refresh stack pointer         */
+		                            /* pop the return value from stack */
+
+	result = POPp;
+	
+	PUTBACK;
+	FREETMPS;                       /* free that return value        */
+	LEAVE;                       /* ...and the XPUSHed "mortal" args.*/
+}
+
 string WFormatTableImp::Format(
 	const string&	inFormatter,
 	const string&	inFormat,
@@ -285,6 +320,22 @@ string WFormatTableImp::IndexName(
 	
 	formatter = inFormatter;
 	id = inIndex;
+
+	input.notify_one();
+	output.wait(lock);
+
+	return result;
+}
+
+string WFormatTableImp::PPScript(
+	const string&	inScript)
+{
+	boost::mutex::scoped_lock imp_lock(imp_mutex);
+	boost::mutex::scoped_lock lock(mutex);
+
+	cmd = eCmdPPScript;
+	
+	text = inScript;
 
 	input.notify_one();
 	output.wait(lock);
@@ -343,6 +394,12 @@ string WFormatTable::IndexName(
 	const string&	inIndex)
 {
 	return Impl()->IndexName(inFormatter, inIndex);
+}
+
+string WFormatTable::PPScript(
+	const string&	inScript)
+{
+	return Impl()->PPScript(inScript);
 }
 
 void WFormatTable::SetParserDir(

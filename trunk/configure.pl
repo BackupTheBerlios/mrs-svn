@@ -62,7 +62,7 @@ my $use_tr1 = 0;
 my $os = `uname -s`;	chomp($os);
 my $host = hostname;	$host =~ s/^([^.]+)\..+/$1/; # strip off the domain part
 my $cpu = `uname -p`;	chomp($cpu);
-$cpu = `uname -m` if $cpu eq 'unknown'; chomp($cpu);
+if (not defined $cpu or $cpu eq 'unknown') { $cpu = `uname -m`; chomp($cpu); }
 
 my $owner = `whoami`;
 chomp($owner);
@@ -221,7 +221,7 @@ sub CheckMachine()
 	if ($cpu eq 'x86_64' or $cpu =~ m/i[3456]86/ or $cpu eq 'amd64') {
 		$cpu = 'x86';
 	}
-	elsif ($cpu eq 'ppc' or $cpu eq 'powerpc') {
+	elsif ($cpu eq 'ppc' or $cpu eq 'powerpc' or $cpu eq 'Power Macintosh') {
 		$cpu = 'ppc';
 	}
 	else {

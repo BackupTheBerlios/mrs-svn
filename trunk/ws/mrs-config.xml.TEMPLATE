@@ -3,8 +3,9 @@
 	<!-- generic, paths and stuff -->
 	<datadir>__DATA_DIR__/mrs</datadir>
 	<scriptdir>__PARSER_DIR__</scriptdir>
+	<!--<statusdir>__DATA_DIR__/../status</statusdir>-->
 
-	<!-- user name to run as when run as daemon
+	<!-- user name to use when run as daemon
 	<user>dba</user>
 	-->
 	

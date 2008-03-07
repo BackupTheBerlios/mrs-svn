@@ -19,6 +19,9 @@ class WFormatTable
 	static std::string		IndexName(
 								const std::string&	inFormatter,
 								const std::string&	inIndex);
+
+	static std::string		PPScript(
+								const std::string&	inScript);
 	
 	static void				SetParserDir(
 								const std::string&	inParserDir);
