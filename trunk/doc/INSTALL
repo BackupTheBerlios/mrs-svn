@@ -59,6 +59,7 @@ In Ubuntu you will have to install the following packages using apt (Synaptic?)
 	libxml2-dev
 	libperl-dev
 	libexpat1-dev
+	clustalw
 
 If these packages are available, MRS should build without any errors. One program is not installable using Synaptic and that is clustalw. You will have to fetch it from the EBI yourself.
 
