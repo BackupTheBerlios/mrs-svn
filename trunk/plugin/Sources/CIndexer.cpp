@@ -3109,7 +3109,13 @@ uint32 CIndexer::GetMaxWeight() const
 
 struct CIndexTester
 {
-					CIndexTester(uint32 inKind, HStreamBase& inFile, uint32 inDocCount, uint32 inIxCount, uint32 inFlags)
+					CIndexTester(
+						uint32			inKind,
+						HStreamBase&	inFile,
+						uint32			inDocCount,
+						uint32			inIxCount,
+						uint32			inFlags,
+						bool			inExitOnFailure)
 						: fKind(inKind)
 						, fFile(inFile)
 						, fDocCount(inDocCount)
@@ -3118,6 +3124,7 @@ struct CIndexTester
 						, fTick(inIxCount / 60)
 						, fFlags(inFlags)
 						, fLastValue(0)
+						, fExitOnFailure(inExitOnFailure)
 					{
 					}
 	
@@ -3133,15 +3140,22 @@ struct CIndexTester
 	uint32			fTick;
 	uint32			fFlags;
 	int64			fLastValue;
+	bool			fExitOnFailure;
 };
 
 void CIndexTester::VisitValue(const string& inKey, int64 inValue)
 {
 	if (inValue >= fDocCount)
+	{
 		cerr << "key: " << inKey << " value: " << inValue << " <= out of range" << endl;
+		if (fExitOnFailure) exit(1);
+	}
 	
 	if (++fCount > fDocCount)
+	{
 		cerr << "Too many index entries" << endl;
+		if (fExitOnFailure) exit(1);
+	}
 	
 	if (fTick > 0 and (fCount % fTick) == 0)
 	{
@@ -3164,6 +3178,7 @@ void CIndexTester::VisitSimple(const string& inKey, int64 inValue)
 	{
 		cerr << "Too many entries in index" << endl;
 		fCount = 0;
+		if (fExitOnFailure) exit(1);
 	}
 
 	if (inValue <= fLastValue and inValue > 0)
@@ -3172,6 +3187,7 @@ void CIndexTester::VisitSimple(const string& inKey, int64 inValue)
 			 << " key = " << inKey
 			 << " previous value = " << fLastValue
 			 << " value = " << inValue << endl;
+		if (fExitOnFailure) exit(1);
 	}
 
 	fLastValue = inValue;
@@ -3189,12 +3205,14 @@ void CIndexTester::VisitSimple(const string& inKey, int64 inValue)
 			if (doc >= fDocCount)
 			{
 				cerr << "key: " << inKey << " value: " << inValue << " doc: " << doc << " <= out of range" << endl;
+				if (fExitOnFailure) exit(1);
 				break;
 			}
 			
 			if (++n > cnt)
 			{
 				cerr << "key: " << inKey << " value: " << inValue << " n: " << n << " too many entries in posting list, cnt: " << cnt << endl;
+				if (fExitOnFailure) exit(1);
 				break;
 			}
 		}
@@ -3203,13 +3221,13 @@ void CIndexTester::VisitSimple(const string& inKey, int64 inValue)
 	{
 		cerr << "Exception caught: " << e.what() << endl
 			 << "key value was: " << inKey << endl;
-		exit(1);	 
+		if (fExitOnFailure) exit(1);
 	}
 	catch (...)
 	{
 		cerr << "Unknown exception caught" << endl
 			 << "key value was: " << inKey << endl;
-		exit(1);	 
+		if (fExitOnFailure) exit(1);
 	}
 }
 
@@ -3227,6 +3245,7 @@ void CIndexTester::VisitWeighted(const string& inKey, int64 inValue)
 	{
 		cerr << "Too many entries in index" << endl;
 		fCount = 0;
+		if (fExitOnFailure) exit(1);
 	}
 
 	if (inValue <= fLastValue and inValue > 0)
@@ -3235,6 +3254,7 @@ void CIndexTester::VisitWeighted(const string& inKey, int64 inValue)
 			 << " key = " << inKey
 			 << " previous value = " << fLastValue
 			 << " value = " << inValue << endl;
+		if (fExitOnFailure) exit(1);
 	}
 
 	fLastValue = inValue;
@@ -3252,18 +3272,21 @@ void CIndexTester::VisitWeighted(const string& inKey, int64 inValue)
 			if (doc >= fDocCount)
 			{
 				cerr << "key: " << inKey << " value: " << inValue << " doc: " << doc << " <= out of range" << endl;
+				if (fExitOnFailure) exit(1);
 				break;
 			}
 	
 			if (freq == 0)
 			{
 				cerr << "key: " << inKey << " value: " << inValue << " zero frequency" << endl;
+				if (fExitOnFailure) exit(1);
 				break;
 			}
 	
 			if (++n > cnt)
 			{
 				cerr << "key: " << inKey << " value: " << inValue << " n: " << n << " too many entries in posting list, cnt: " << cnt << endl;
+				if (fExitOnFailure) exit(1);
 				break;
 			}
 		}
@@ -3272,17 +3295,18 @@ void CIndexTester::VisitWeighted(const string& inKey, int64 inValue)
 	{
 		cerr << "Exception caught: " << e.what() << endl
 			 << "key value was: " << inKey << endl;
-		exit(1);	 
+		if (fExitOnFailure) exit(1);
 	}
 	catch (...)
 	{
 		cerr << "Unknown exception caught" << endl
 			 << "key value was: " << inKey << endl;
-		exit(1);	 
+		if (fExitOnFailure) exit(1);
 	}
 }
 
-void CIndexer::Test() const
+void CIndexer::Test(
+	bool		inExitOnFailure) const
 {
 	uint32 ix;
 	for (ix = 0; ix < fHeader->count; ++ix)
@@ -3296,7 +3320,9 @@ void CIndexer::Test() const
 		HStreamView bits(*fFile, fParts[ix].bits_offset, fFile->Size() - bitsOffset);
 
 		CIndexTester tester(
-			fHeader->array_compression_kind, bits, fHeader->entries, fParts[ix].entries, fParts[ix].flags);
+			fHeader->array_compression_kind, bits,
+			fHeader->entries, fParts[ix].entries, fParts[ix].flags,
+			inExitOnFailure);
 
 		switch (fParts[ix].kind)
 		{

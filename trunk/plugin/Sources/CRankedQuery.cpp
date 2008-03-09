@@ -184,7 +184,11 @@ class CAccumulator
 						free(fData);
 					}
 	
-	ItemRef			operator[](uint32 inDocNr)				{ return ItemRef(*this, fData, inDocNr); }
+	ItemRef			operator[](uint32 inDocNr)
+					{
+						assert(inDocNr < fDocCount);
+						return ItemRef(*this, fData, inDocNr);
+					}
 	
 	class Iterator : public CDocIterator
 	{

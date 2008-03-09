@@ -249,8 +249,9 @@ class CDatabank : public CDatabankBase
 
 	// XML Import interface
 	void				AddXPathForIndex(const std::string& inIndex, bool inIsValueIndex,
-							bool inIndexNumbers, bool inStoreAsMetaData,
-							bool inStoreIDL, const std::string& inXPath);
+							bool inIndexNumbers, bool inIndexString,
+							bool inStoreAsMetaData, bool inStoreIDL,
+							const std::string& inXPath);
 	void				AddXMLDocument(const std::string& inDoc);
 
 	void				Finish(bool inCreateAllTextIndex, bool inCreateUpdateDatabank);

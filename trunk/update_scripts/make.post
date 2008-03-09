@@ -48,6 +48,14 @@ endif
 
 blast: $(BLAST_FILES)
 
+SNARF ?= snarf
+
+ifneq ($(HTTP_URL),)
+fetch: dirs
+	cd $(SRCDIR); $(SNARF) -q $(HTTP_URL)
+endif
+
+
 ifeq ($(DB_URL),)
 fetch: dirs
 else

@@ -985,6 +985,7 @@ void MDatabank::AddXPathForIndex(const string& inIndex, const string& inXPath,
 						inIndex,
 						inFlags & IS_VALUE_INDEX,
 						inFlags & INDEX_NUMBERS,
+						inFlags & INDEX_STRING,
 						inFlags & STORE_AS_META,
 						inFlags & STORE_IDL,
 						inXPath);

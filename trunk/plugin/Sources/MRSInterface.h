@@ -669,10 +669,26 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	void				FlushDocument();
 
 	enum {
+	/** \brief The value of this XPath is used to create a 'value' index. */
+
 		IS_VALUE_INDEX	= (1 << 0),
+
+	/** \brief Index the numbers in the text of this XPath too. */
+
 		INDEX_NUMBERS	= (1 << 1),
+
+	/** \brief Store the content of the XPath as a meta data field */
+
 		STORE_AS_META	= (1 << 2),
+		
+	/** \brief Store 'in document location' information along with the words for this XPath. */
+	
 		STORE_IDL		= (1 << 3),
+		
+	/** \brief Store the content of this XPath entirely in the index (no word splitting). */
+		
+		INDEX_STRING	= (1 << 4),
+	
 	};
 
 	void				AddXPathForIndex(const std::string& inIndex, const std::string& inXPath,

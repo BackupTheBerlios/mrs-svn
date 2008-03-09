@@ -27,11 +27,11 @@ LDFLAGS		= -fdata-sections -g
 #OPT		+= -fstrict-aliasing
 OPT			+= -O3
 
-CC			= c++		# some reasonable defaults
-PERL		= perl
-SWIG		= swig
-
 include ../make.config
+
+CC			?= c++		# some reasonable defaults
+PERL		?= perl
+SWIG		?= swig
 
 ifneq ($(SWIG),)
 SWIG_VERSION	= $(shell $(SWIG) -version | grep Version | sed s'/SWIG Version //')
@@ -297,7 +297,7 @@ include $(OBJS:%.o=%.d)
 
 ${OBJS:.o=.d}:
 
-#ifeq ($(SWIG_VERSION),1.3.27)
+ifeq ($(SWIG_VERSION),1.3.27)
 
 Sources/MRS_perl5.cpp: Sources/MRSInterface.h Sources/MRS_perl5.i
 	$(SWIG) $(DEFS) -c++ -perl5 -o Sources/MRS_perl5.cpp -outdir ./ Sources/MRS_perl5.i
@@ -306,11 +306,14 @@ Sources/MRS_java.cpp: Sources/MRSInterface.h Sources/MRS_java.i
 	mkdir -p Java/nl/ru/cmbi/MRSPlugin
 	$(SWIG) $(DEFS) -c++ -java -o Sources/MRS_java.cpp -outdir Java/nl/ru/cmbi/MRSPlugin -package nl.ru.cmbi.MRSPlugin Sources/MRS_java.i
 
-#else
-#
-#Sources/MRS_perl5.cpp: Sources/MRSInterface.h Sources/MRS_perl5.i
-#	@ echo !!! WARNING !!! Not rebuilding required $@ since swig version is not 1.3.27
-#
-#endif
+else
+
+Sources/MRS_perl5.cpp: Sources/MRSInterface.h Sources/MRS_perl5.i
+	@ echo !!! WARNING !!! Not rebuilding required $@ since swig version is not 1.3.27
+
+Sources/MRS_java.cpp: Sources/MRSInterface.h Sources/MRS_java.i
+	@ echo !!! WARNING !!! Not rebuilding required $@ since swig version is not 1.3.27
+
+endif
 
 FORCE:

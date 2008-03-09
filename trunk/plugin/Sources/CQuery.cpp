@@ -73,6 +73,7 @@ enum CQueryToken
 	qeUndefined	=	-1,
 	qeEnd		=	256,
 	qeString,
+	qeLiteral,
 	qeNumber,
 	qeIdent,
 	qePattern,
@@ -228,6 +229,7 @@ basic_ostream<T>& operator<<(basic_ostream<T>& os, CQueryToken inToken)
 	{
 		case qeEnd:					os << "end of query"; 	break;
 		case qeString:				os << "string";			break;
+		case qeLiteral:				os << "literal";		break;
 		case qeNumber:				os << "number"; 		break;
 		case qeIdent:				os << "identifier"; 	break;
 		case qePattern:				os << "pattern";		break;
@@ -389,13 +391,18 @@ CQueryToken CQueryImp::GetNextToken()
 					fTokenOffset = fOffset;
 				break;
 			
-			// second block, quoted strings
+			// second block, quoted strings or literals
 			
 			case 10:
 				if (ch == '"')
 				{
 					fToken.clear();
 					state = 11;
+				}
+				else if (ch == '\'')
+				{
+					fToken.clear();
+					state = 12;
 				}
 				else
 					Restart(start, state);
@@ -408,6 +415,19 @@ CQueryToken CQueryImp::GetNextToken()
 				{
 					fToken.erase(fToken.length() - 1, 1);
 					token = qeString;
+					Unescape(fToken);
+				}
+				else
+					escape = not escape and ch == '\\';
+				break;
+			
+			case 12:
+				if (ch == 0)
+					THROW(("Parse error: unterminated literal"));
+				else if (ch == '\'' and not escape)
+				{
+					fToken.erase(fToken.length() - 1, 1);
+					token = qeLiteral;
 					Unescape(fToken);
 				}
 				else
@@ -513,6 +533,8 @@ CQueryToken CQueryImp::GetNextToken()
 		else if (fToken == "NOT")
 			token = qeNOT;
 	}
+
+// cout << "GetNextToken: " << fToken << " (" << token << ")" << endl;
 	
 	return token;
 }
@@ -692,6 +714,11 @@ CDocIterator* CQueryImp::Parse_Term(const string& inIndex)
 			Match(qeString);
 			break;
 		}
+
+		case qeLiteral:
+			result.reset(IteratorForTerm(inIndex, fToken, false));
+			Match(qeLiteral);
+			break;
 
 		case qeIdent:
 			if (fAutoWildcard)

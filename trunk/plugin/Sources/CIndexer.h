@@ -101,7 +101,8 @@ class CIndexer
 	
 	void			PrintInfo() const;
 	void			DumpIndex(const std::string& inIndex) const;
-	void			Test() const;
+	void			Test(
+						bool		inExitOnFailure = true) const;
 
 	void			SetStopWords(const std::vector<std::string>& inStopWords);
 	

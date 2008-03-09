@@ -58,6 +58,8 @@
 
 #include <libxml/xpath.h>
 
+#include <boost/algorithm/string.hpp>
+
 #include "CDatabank.h"
 #include "CCompress.h"
 #include "CDecompress.h"
@@ -77,6 +79,8 @@
 #include "CXMLDocument.h"
 
 using namespace std;
+
+namespace ba = boost::algorithm;
 
 /*
 	Data file format related structures
@@ -180,6 +184,7 @@ struct CXMLIndex
 	string						index;
 	bool						isValue;
 	bool						indexNumbers;
+	bool						indexString;
 	bool						storeAsMetaData;
 	bool						storeIDL;
 	vector<xmlXPathCompExprPtr>	expr;
@@ -1559,7 +1564,8 @@ void CDatabank::FlushDocument()
 }
 
 void CDatabank::AddXPathForIndex(const std::string& inIndex, bool inIsValueIndex,
-	bool inIndexNumbers, bool inStoreAsMetaData, bool inStoreIDL, const std::string& inXPath)
+	bool inIndexNumbers, bool inIndexString, bool inStoreAsMetaData, bool inStoreIDL,
+	const std::string& inXPath)
 {
 	string index = tolower(inIndex);
 	
@@ -1579,6 +1585,7 @@ void CDatabank::AddXPathForIndex(const std::string& inIndex, bool inIsValueIndex
 		xmlIndex->index = index;
 		xmlIndex->isValue = inIsValueIndex;
 		xmlIndex->indexNumbers = inIndexNumbers;
+		xmlIndex->indexString = inIndexString;
 		xmlIndex->storeAsMetaData = inStoreAsMetaData;
 		xmlIndex->storeIDL = inStoreIDL;
 		fXMLIndexList.push_back(xmlIndex);
@@ -1611,6 +1618,11 @@ void CDatabank::AddXMLDocument(const std::string& inDoc)
 			
 			if (ix->isValue)
 				IndexValue(ix->index, text);
+			else if (ix->indexString)
+			{
+				ba::trim(text);
+				IndexWord(ix->index, text);
+			}
 			else if (ix->indexNumbers)
 				IndexTextAndNumbers(ix->index, text, ix->storeIDL);
 			else

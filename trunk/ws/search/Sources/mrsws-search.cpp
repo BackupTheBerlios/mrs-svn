@@ -1369,7 +1369,14 @@ int main(int argc, const char* argv[])
 		soap_init(&soap);
 
 		WSDatabankTable::Instance().ReloadDbs();
-					
+		
+		// open the log file
+		int fd = open(input_file.c_str(), O_RDONLY);
+		if (fd < 0)
+			cerr << "Opening input file " << input_file << " failed" << endl;
+		
+		dup2(fd, STDIN_FILENO);
+		
 		soap_serve(&soap);
 		soap_destroy(&soap);
 		soap_end(&soap);
