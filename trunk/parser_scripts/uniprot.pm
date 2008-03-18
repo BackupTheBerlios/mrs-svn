@@ -631,7 +631,7 @@ END
 				$de =~ s/\[Contains: ([^]]+)]//;
 			}
 			
-			while ($de =~ /\(([^)]+)\)/)
+			while ($de =~ /(?<= )\(([^)]+)\)/)
 			{
 				my $s = $1;
 				
@@ -642,7 +642,7 @@ END
 				
 				push @synonyms, $q->td($s);
 				
-				$de =~ s/\(([^)]+)\)//;
+				$de =~ s/(?<= )\(([^)]+)\)//;
 			}
 			
 			push @name_rows, $q->Tr($q->th({-colspan=>2}, 'Name and origin of the protein'));
