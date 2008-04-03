@@ -317,7 +317,7 @@ class CMergeWeightedDocInfo
 // index
 
 const uint32
-	kRunBlockSize = 0x100000,		// 1 Mb
+//	kRunBlockSize = 0x100000,		// 1 Mb
 	kBufferEntryCount = 2000000;	// that's about 2.5 megabytes compressed
 
 typedef vector<uint32> DocLoc;
@@ -1797,6 +1797,8 @@ void CIndexer::CreateIndex(
 	CFullTextIndex::CRunEntryIterator iter(*fFullTextIndex);
 
 	int64 vStep = iter.Count() / 10;
+	if (vStep == 0)
+		vStep = 1;
 	
 	// the next loop is very *hot*, make sure it is optimized as much as possible
 	if (iter.Next(iDoc, iTerm, iIx, iFreq))

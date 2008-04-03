@@ -54,6 +54,8 @@
 #include "CDocWeightArray.h"
 #include "CTokenizer.h"
 
+#include "CUtils.h"
+
 using namespace std;
 
 struct Term
@@ -303,7 +305,7 @@ void CRankedQuery::AddTerm(const string& inKey, uint32 inFrequency)
 {
 	auto_ptr<Term> t(new Term);
 
-	t->key = inKey;
+	t->key = tolower(inKey);
 	t->weight = inFrequency;
 	
 	fImpl->fTerms.push_back(t.release());

@@ -43,6 +43,7 @@
 #define CSEQUENCE_H
 
 #include <string>
+#include <cassert>
 
 struct CMatrix;
 
@@ -206,8 +207,15 @@ class CSequence
 #endif
 
 uint8 Encode(char inAA);
-CSequence Encode(const std::string& inAASequence);
-std::string Decode(CSequence inSequence);
+
+CSequence Encode(
+	const std::string&		inAASequence);
+
+std::string Decode(
+	const CSequence&		inSequence);
+
+std::string Decode(
+	const CMutableSequence&	inSequence);
 
 char Decode(uint8 inCode);
 

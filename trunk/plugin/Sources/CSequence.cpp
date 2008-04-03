@@ -118,10 +118,20 @@ CSequence Encode(const string& inAASequence)
 	return CSequence(result.begin(), result.end());
 }
 
-string Decode(CSequence inSequence)
+string Decode(
+	const CSequence&			inSequence)
 {
 	string result;
-	for (CSequence::iterator i = inSequence.begin(); i != inSequence.end(); ++i)
+	for (CSequence::const_iterator i = inSequence.begin(); i != inSequence.end(); ++i)
+		result.push_back(Decode(*i));
+	return result;
+}
+
+string Decode(
+	const CMutableSequence&		inSequence)
+{
+	string result;
+	for (CMutableSequence::const_iterator i = inSequence.begin(); i != inSequence.end(); ++i)
 		result.push_back(Decode(*i));
 	return result;
 }
