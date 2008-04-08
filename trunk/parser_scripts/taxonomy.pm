@@ -104,6 +104,9 @@ sub parse
 				$cn = $value if $fld eq 'COMMON NAME';
 				
 				$m->IndexText('text', $value);
+				
+				$fld =~ s/\s/_/g;
+				$m->IndexText(lc $fld, $value);
 			}
 		}
 	}
