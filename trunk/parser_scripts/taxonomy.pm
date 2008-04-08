@@ -82,6 +82,8 @@ sub parse
 
 			$id = undef;
 			$doc = undef;
+			$sn = undef;
+			$cn = undef;
 		}
 		elsif ($line =~ /^(\S+(\s\S+)*)\s+:\s+(.+)/o)
 		{
