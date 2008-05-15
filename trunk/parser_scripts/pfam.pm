@@ -36,10 +36,34 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 #
+# 2007-02-23 some changes by Guy Bottu from BEN
+#   long names for fields
+#   nseq field
+#   version subroutine
 
 package MRS::Script::pfam;
 
 our @ISA = "MRS::Script";
+
+my %INDICES = (
+	'id' => 'Identification',
+	'ac' => 'Accession number',
+	'au' => 'Entry author',
+	'am' => 'Alignment method (localfirst, globalfirst or byscore)',
+	'cc' => 'Comments and Notes',
+	'dc' => 'Comment about database reference',
+	'de' => 'Description',
+	'dr' => 'Database cross-reference',
+	'gs' => 'UniProt sequence cross-reference',
+	'ne' => 'Pfam accession number nested domain',
+	'nseq' => 'The number of sequences per cluster',
+	'nl' => 'Location nested domain',
+	'pi' => 'Previous identifier',
+	'ref' => 'Any reference field',
+	'se' => 'Source of seed',
+	'sq' => 'Number of sequences in alignment',
+	'tp' => 'Type (Family, Domain, Motif or Repeat)',
+);
 
 sub new
 {
@@ -49,6 +73,7 @@ sub new
 		url		=> 'http://pfam.sanger.ac.uk/',
 		section	=> 'other',
 		meta	=> [ 'title' ],
+		indices	=> \%INDICES,
 		@_
 	};
 	
@@ -64,8 +89,8 @@ sub new
 		
 		my %FILES = (
 			pfama		=> qr/Pfam-A\.full\.gz/,
-			pfamb		=> qr/Pfam-A\.seed\.gz/,
-			pfamseed	=> qr/Pfam-B\.gz/,
+			pfamb		=> qr/Pfam-B\.gz/,
+			pfamseed	=> qr/Pfam-A\.seed\.gz/,
 		);
 		
 		$self->{raw_dir} =~ s|pfam[^/]+/?$|pfam|;
@@ -111,18 +136,24 @@ sub parse
 			{
 				$m->IndexValue('id', $value);
 			}
+			elsif ($field =~ /BM|GA|TC|NC/o)  # useless fields
+			{}
 			elsif ($field eq 'AC' and $value =~ m/(P[BF]\d+)/)
 			{
 				$m->IndexValue('ac', $1);
 			}
 			elsif (substr($field, 0, 1) eq 'R')
 			{
-				$m->IndexText('ref', substr($line, 5));
+				$m->IndexText('ref', $value);
+			}
+			elsif (substr($field, 0, 2) eq 'SQ')
+			{
+				$m->IndexNumber('nseq', $value);
 			}
 			else
 			{
 				$m->StoreMetaData('title', $value) if $field eq 'DE';
-				$m->IndexText(lc($field), substr($line, 5));
+				$m->IndexText(lc($field), $value);
 			}
 		}
 		elsif (substr($line, 0, 5) eq '#=GS ')
@@ -154,6 +185,31 @@ my @links = (
 		result	=> '$1.$q->a({-href=>"$url?db=prosite_doc&id=$2"}, $2)'
 	},
 );
+
+sub version
+{
+	my ($self) = @_;
+	my $vers;
+
+	my $raw_dir = $self->{raw_dir} or die "raw_dir is not defined\n";
+
+	open RELNOTES, "<$raw_dir/relnotes.txt";
+
+	while (my $line = <RELNOTES>)
+	{
+		if ($line =~ /^\s+(RELEASE [0-9.]+)/)
+		{
+			$vers = $1;
+			last;
+		}
+	}
+
+	close RELNOTES;
+
+	chomp($vers);
+
+	return $vers;
+}
 
 sub pp
 {
