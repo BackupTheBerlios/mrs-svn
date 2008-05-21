@@ -115,6 +115,11 @@ ns__GetDatabankStatusInfo(
 	vector<struct ns__DatabankStatusInfo>&
 						response)
 {
+	if (soap->action != nil)
+		cout << "soap->action = " << soap->action << endl;
+	else
+		cout << "soap->action = undefined" << endl;
+
 	int result = SOAP_OK;
 	WLogger log(soap->ip, __func__);
 
@@ -153,6 +158,11 @@ ns__GetDatabankMirrorLog(
 	unsigned long		age,
 	string&				response)
 {
+	if (soap->action != nil)
+		cout << "soap->action = " << soap->action << endl;
+	else
+		cout << "soap->action = undefined" << endl;
+
 	int result = SOAP_OK;
 	WLogger log(soap->ip, __func__);
 
@@ -238,6 +248,11 @@ ns__SetDatabankStatusInfo(
 	string				message,
 	int&				response)
 {
+	if (soap->action != nil)
+		cout << "soap->action = " << soap->action << endl;
+	else
+		cout << "soap->action = undefined" << endl;
+
 	int result = SOAP_OK;
 	WLogger log(soap->ip, __func__);
 

@@ -4,68 +4,99 @@
 	<datadir>__DATA_DIR__/mrs</datadir>
 	<scriptdir>__PARSER_DIR__</scriptdir>
 	<!--<statusdir>__DATA_DIR__/../status</statusdir>-->
+	<logfile>/var/log/mrsws.log</logfile>
+
+	<!-- ClustalW specific info -->
+	<clustalw-exe>__CLUSTALW__</clustalw-exe>
+	<max-run-time>120</max-run-time>
 
 	<!-- user name to use when run as daemon
 	<user>dba</user>
 	-->
 	
 	<!-- service specific settings -->
-	<search-ws>
+	<ws>
+		<service>search</service>
 		<address>0.0.0.0</address>
 		<port>8081</port>
-		<logfile>/var/log/mrsws-search.log</logfile>
 		<threads>2</threads>
-	</search-ws>
+
+		<!-- list of databases to present -->
+		<dbs>
+			<db ignore-in-all="1">uniprot</db>
+			<db>embl</db>
+			<db>dbest</db>
+			<db blast="1">pdb</db>
+			<db>pdbfinder2</db>
+			<db>omim</db>
+			<db>locuslink</db>
+			<db>refseq</db>
+			<db ignore-in-all="1">genbank_release</db>
+			<db>dssp</db>
+			<db>hssp</db>
+			<db>unigene</db>
+			<db>uniuniq</db>
+			<db>ligand-compound</db>
+			<db>ligand-enzyme</db>
+			<db>ligand-glycan</db>
+			<db>ligand-reaction</db>
+			<db>taxonomy</db>
+			<db>go</db>
+			<db>goa</db>
+			<db>enzyme</db>
+			<db>pfama</db>
+			<db>pfamb</db>
+			<db>pfamseed</db>
+			<db>interpro</db>
+			<db>prosite</db>
+			<db>prosite_doc</db>
+			<db>oxford</db>
+			<db>mimmap</db>
+			<db blast="1">sprot</db>
+			<db blast="1">trembl</db>
+			<db>gpcrdb</db>
+			<db>prints</db>
+			<db>gene</db>
+		</dbs>
+	</ws>
 	
-	<blast-ws>
+	<ws>
+		<service>blast</service>
 		<address>0.0.0.0</address>
 		<port>8082</port>
-		<logfile>/var/log/mrsws-blast.log</logfile>
-	</blast-ws>
+		<threads>2</threads>
+		
+		<dbs>
+			<db>pdb</db>
+			<db>sprot</db>
+			<db>trembl</db>
+		</dbs>
+	</ws>
 	
-	<clustal-ws>
+	<ws>
+		<service>clustalw</service>
 		<address>0.0.0.0</address>
 		<port>8083</port>
-		<logfile>/var/log/mrsws-clustal.log</logfile>
-		<clustalw-exe>__CLUSTALW__</clustalw-exe>
-		<max-run-time>120</max-run-time>
-	</clustal-ws>
+	</ws>
+	
+	<ws>
+		<service>admin</service>
+		<address>0.0.0.0</address>
+		<port>8084</port>
+	</ws>
 
-	<!-- list of databases to present -->
-	<dbs>
-		<db ignore-in-all="1">uniprot</db>
-		<db>embl</db>
-		<db>dbest</db>
-		<db blast="1">pdb</db>
-		<db>pdbfinder2</db>
-		<db>omim</db>
-		<db>locuslink</db>
-		<db>refseq</db>
-		<db ignore-in-all="1">genbank_release</db>
-		<db>dssp</db>
-		<db>hssp</db>
-		<db>unigene</db>
-		<db>uniuniq</db>
-		<db>ligand-compound</db>
-		<db>ligand-enzyme</db>
-		<db>ligand-glycan</db>
-		<db>ligand-reaction</db>
-		<db>taxonomy</db>
-		<db>go</db>
-		<db>goa</db>
-		<db>enzyme</db>
-		<db>pfama</db>
-		<db>pfamb</db>
-		<db>pfamseed</db>
-		<db>interpro</db>
-		<db>prosite</db>
-		<db>prosite_doc</db>
-		<db>oxford</db>
-		<db>mimmap</db>
-		<db blast="1">sprot</db>
-		<db blast="1">trembl</db>
-		<db>gpcrdb</db>
-		<db>prints</db>
-		<db>gene</db>
-	</dbs>
+	<!-- our private data provider, this databank should not be published
+		 outside our department -->
+	<ws>
+		<service>search</service>
+		<address>0.0.0.0</address>
+		<port>8085</port>
+		<threads>2</threads>
+
+		<!-- list of databases to present -->
+		<dbs>
+			<db>medline</db>
+		</dbs>
+	</ws>
+
 </mrs-config>

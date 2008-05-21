@@ -101,6 +101,14 @@ LDFLAGS += $(addprefix -l, $(LIBS))
 # Perl's flags
 LDFLAGS		+= $(shell $(PERL) -MExtUtils::Embed -e ldopts)
 
+ifeq ($(OS),Darwin)
+ifeq ($(CPU),x86)
+LDFLAGS		:= $(shell echo $(LDFLAGS) | sed -e 's/-arch ppc//')
+else
+LDFLAGS		:= $(shell echo $(LDFLAGS) | sed -e 's/-arch i386//')
+endif
+endif
+
 all: $(TARGET)
 
 # build rules

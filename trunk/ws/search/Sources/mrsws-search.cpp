@@ -492,12 +492,26 @@ PerformSearch(
 	vector<string>::iterator qt = queryterms.begin();
 	while (qt != queryterms.end())
 	{
+		string::size_type h;
+		
 		if (qt->find('*') != string::npos or qt->find('?') != string::npos)
 		{
 			booleanfilter += " ";
 			booleanfilter += *qt;
 			
 			qt = queryterms.erase(qt);
+		}
+		else if ((h = qt->find('-')) != string::npos and qt->find('-', h + 1) == string::npos)
+		{
+			string t1 = qt->substr(0, h);
+			string t2 = qt->substr(h + 1, string::npos);
+			
+//			booleanfilter += " \'" + t1 + ' ' + t2 + '\'';
+			
+			qt = queryterms.erase(qt);
+
+			qt = queryterms.insert(qt, t2);
+			qt = queryterms.insert(qt, t1);
 		}
 		else
 			++qt;

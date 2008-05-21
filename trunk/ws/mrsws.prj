@@ -1,0 +1,89 @@
+<?xml version="1.0"?>
+<project>
+	<pkg-config>
+		<pkg tool="perl">default</pkg>
+		<pkg tool="pkg-config">libxml-2.0</pkg>
+	</pkg-config>
+	<syspaths>
+		<path>/usr/include</path>
+		<path>/usr/local/include</path>
+	</syspaths>
+	<userpaths>
+		<path>../plugin/Lib</path>
+		<path>../plugin/Lib/Includes</path>
+		<path>../plugin/Lib/Generic</path>
+		<path>../plugin/Lib/Posix</path>
+		<path>../plugin/Lib/uuid</path>
+		<path>../plugin/Sources</path>
+		<path>Sources</path>
+	</userpaths>
+	<libpaths>
+		<path>/usr/lib</path>
+		<path>/usr/local/lib</path>
+		<path>/home/maarten/projects/mrs/ws/../plugin</path>
+	</libpaths>
+	<frameworks/>
+	<files>
+		<group name="Sources">
+			<file>mrsws.cpp</file>
+			<file>WConfig.cpp</file>
+			<file>WServer.cpp</file>
+			<file>WFormat.cpp</file>
+			<file>envC.cpp</file>
+			<file>WDatabankTable.cpp</file>
+			<file>WSSearch.cpp</file>
+			<file>WSSearchNSC.cpp</file>
+			<file>WSSearchNSServer.cpp</file>
+			<file>WSAdmin.cpp</file>
+			<file>WSAdminNSC.cpp</file>
+			<file>WSAdminNSServer.cpp</file>
+			<file>WSBlast.cpp</file>
+			<file>WSBlastNSC.cpp</file>
+			<file>WSBlastNSServer.cpp</file>
+		</group>
+		<group name="Libraries">
+			<link>z</link>
+			<link>bz2</link>
+			<link>gsoap++</link>
+			<link>xml2</link>
+			<link>boost_filesystem</link>
+			<link>boost_thread</link>
+			<link>boost_regex</link>
+			<link>mrsd</link>
+		</group>
+	</files>
+	<resources resource_dir="."/>
+	<targets>
+		<target kind="Executable" name="mrsws Debug" linkTarget="mrsws">
+			<defines>
+				<define>DEBUG</define>
+				<define>MINI_H_LIB</define>
+				<define>LINUX</define>
+				<define>HAVE_TR1</define>
+			</defines>
+			<cflags>
+				<cflag>-g</cflag>
+			</cflags>
+			<warnings>
+				<warning>all</warning>
+				<warning>no-deprecated</warning>
+			</warnings>
+		</target>
+		<target kind="Executable" name="mrsws Release" linkTarget="mrsws">
+			<defines>
+				<define>MINI_H_LIB</define>
+				<define>LINUX</define>
+				<define>HAVE_TR1</define>
+				<define>NDEBUG</define>
+			</defines>
+			<cflags>
+				<cflag>-g</cflag>
+				<cflag>-O3</cflag>
+			</cflags>
+			<warnings>
+				<warning>all</warning>
+				<warning>no-deprecated</warning>
+			</warnings>
+		</target>
+	</targets>
+</project>
