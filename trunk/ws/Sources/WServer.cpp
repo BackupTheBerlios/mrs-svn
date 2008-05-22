@@ -75,7 +75,7 @@ void WServer::Log(
 	struct tm tm;
 	localtime_r(&now, &tm);
 	
-	n = strftime(b, size, "[%d/%b/%Y:%H:%M:%S] ", &tm);
+	n = strftime(b, size, "[%d/%b/%Y-%H:%M:%S] ", &tm);
 
 	b += n;
 	size -= n;

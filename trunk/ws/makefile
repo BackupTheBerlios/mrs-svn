@@ -1,4 +1,12 @@
 
+all: Sources/envH.h Sources/WSBlastNS.nsmap Sources/WSAdminNS.nsmap Sources/WSClustalNS.nsmap Sources/WSSearchNS.nsmap
+
+Sources/env.h:
+	touch $@
+
+Sources/envH.h Sources/envC.cpp Sources/envStubs.h: Sources/env.h
+	soapcpp2 -d Sources -penv Sources/env.h
+
 Sources/WSBlastNS.nsmap: Sources/mrsws-blast.h
 	soapcpp2 -d Sources -q WSBlastNS -n -S -L -p WSBlastNS -x Sources/mrsws-blast.h
 

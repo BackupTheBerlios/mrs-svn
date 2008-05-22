@@ -6,97 +6,98 @@
 	<!--<statusdir>__DATA_DIR__/../status</statusdir>-->
 	<logfile>/var/log/mrsws.log</logfile>
 
-	<!-- ClustalW specific info -->
-	<clustalw-exe>__CLUSTALW__</clustalw-exe>
-	<max-run-time>120</max-run-time>
-
 	<!-- user name to use when run as daemon
 	<user>dba</user>
 	-->
 	
 	<!-- service specific settings -->
-	<ws>
-		<service>search</service>
-		<address>0.0.0.0</address>
-		<port>8081</port>
-		<threads>2</threads>
-
-		<!-- list of databases to present -->
-		<dbs>
-			<db ignore-in-all="1">uniprot</db>
-			<db>embl</db>
-			<db>dbest</db>
-			<db blast="1">pdb</db>
-			<db>pdbfinder2</db>
-			<db>omim</db>
-			<db>locuslink</db>
-			<db>refseq</db>
-			<db ignore-in-all="1">genbank_release</db>
-			<db>dssp</db>
-			<db>hssp</db>
-			<db>unigene</db>
-			<db>uniuniq</db>
-			<db>ligand-compound</db>
-			<db>ligand-enzyme</db>
-			<db>ligand-glycan</db>
-			<db>ligand-reaction</db>
-			<db>taxonomy</db>
-			<db>go</db>
-			<db>goa</db>
-			<db>enzyme</db>
-			<db>pfama</db>
-			<db>pfamb</db>
-			<db>pfamseed</db>
-			<db>interpro</db>
-			<db>prosite</db>
-			<db>prosite_doc</db>
-			<db>oxford</db>
-			<db>mimmap</db>
-			<db blast="1">sprot</db>
-			<db blast="1">trembl</db>
-			<db>gpcrdb</db>
-			<db>prints</db>
-			<db>gene</db>
-		</dbs>
-	</ws>
+	<servers>
+		<server>
+			<service>search</service>
+			<address>0.0.0.0</address>
+			<port>8081</port>
+			<threads>2</threads>
 	
-	<ws>
-		<service>blast</service>
-		<address>0.0.0.0</address>
-		<port>8082</port>
-		<threads>2</threads>
+			<!-- list of databases to present -->
+			<dbs>
+				<db ignore-in-all="1">uniprot</db>
+				<db>embl</db>
+				<db>dbest</db>
+				<db blast="1">pdb</db>
+				<db>pdbfinder2</db>
+				<db>omim</db>
+				<db>locuslink</db>
+				<db>refseq</db>
+				<db ignore-in-all="1">genbank_release</db>
+				<db>dssp</db>
+				<db>hssp</db>
+				<db>unigene</db>
+				<db>uniuniq</db>
+				<db>ligand-compound</db>
+				<db>ligand-enzyme</db>
+				<db>ligand-glycan</db>
+				<db>ligand-reaction</db>
+				<db>taxonomy</db>
+				<db>go</db>
+				<db>goa</db>
+				<db>enzyme</db>
+				<db>pfama</db>
+				<db>pfamb</db>
+				<db>pfamseed</db>
+				<db>interpro</db>
+				<db>prosite</db>
+				<db>prosite_doc</db>
+				<db>oxford</db>
+				<db>mimmap</db>
+				<db>sprot</db>
+				<db>trembl</db>
+				<db>gpcrdb</db>
+				<db>prints</db>
+				<db>gene</db>
+			</dbs>
+		</server>
 		
-		<dbs>
-			<db>pdb</db>
-			<db>sprot</db>
-			<db>trembl</db>
-		</dbs>
-	</ws>
+		<server>
+			<service>blast</service>
+			<address>0.0.0.0</address>
+			<port>8082</port>
+			<threads>2</threads>
+			
+			<dbs>
+				<db>pdb</db>
+				<db>sprot</db>
+				<db>trembl</db>
+			</dbs>
+		</server>
+		
+		<server>
+			<service>clustalw</service>
+			<address>0.0.0.0</address>
+			<port>8083</port>
+			<clustalw-exe>__CLUSTALW__</clustalw-exe>
+			<max-run-time>120</max-run-time>
+		</server>
+		
+		<server>
+			<service>admin</service>
+			<address>0.0.0.0</address>
+			<port>8084</port>
+		</server>
 	
-	<ws>
-		<service>clustalw</service>
-		<address>0.0.0.0</address>
-		<port>8083</port>
-	</ws>
+		<!-- our private data provider, this databank should not be published
+			 outside our department -->
+		<server>
+			<service>search</service>
+			<address>0.0.0.0</address>
+			<port>8085</port>
+			<threads>2</threads>
 	
-	<ws>
-		<service>admin</service>
-		<address>0.0.0.0</address>
-		<port>8084</port>
-	</ws>
-
-	<!-- our private data provider, this databank should not be published
-		 outside our department -->
-	<ws>
-		<service>search</service>
-		<address>0.0.0.0</address>
-		<port>8085</port>
-		<threads>2</threads>
-
-		<!-- list of databases to present -->
-		<dbs>
-			<db>medline</db>
-		</dbs>
-	</ws>
+			<!-- list of databases to present -->
+			<dbs>
+				<db>medline</db>
+			</dbs>
+		</server>
+		
+	</servers>
 
 </mrs-config>
