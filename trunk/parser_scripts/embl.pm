@@ -138,7 +138,10 @@ sub version
 	
 	if ($db eq 'embl_release')
 	{
-		open RELNOTES, "<$raw_dir/relnotes.txt";
+		my $file = "$raw_dir/relnotes";
+		$file = "gzcat $file.gz|" unless -f $file;
+		
+		open RELNOTES, $file or die "Could not open relnotes.txt file: $!\n";
 		
 		while (my $line = <RELNOTES>)
 		{

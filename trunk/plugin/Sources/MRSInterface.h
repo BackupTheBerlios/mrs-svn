@@ -576,7 +576,7 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	 *					are needed to perform phrase searches.
 	 */
 
-	void				IndexText(const std::string& inIndex, const std::string& inText, bool inStoreIDL = true);
+	void				IndexText(const std::string& inIndex, const std::string& inText /*, bool inStoreIDL = true */);
 
 	/** \brief	Store the words and numbers in inText into index inIndex
 	 *
@@ -590,7 +590,7 @@ class MDatabank : public MRSObject<MDatabank, struct MDatabankImp>
 	 *					are needed to perform phrase searches.
 	 */
 
-	void				IndexTextAndNumbers(const std::string& inIndex, const std::string& inText, bool inStoreIDL = true);
+	void				IndexTextAndNumbers(const std::string& inIndex, const std::string& inText /*, bool inStoreIDL = true */);
 
 	/** \brief	Store a single word into full text index inIndex
 	 *

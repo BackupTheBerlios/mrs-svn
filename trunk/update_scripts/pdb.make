@@ -2,7 +2,6 @@
 
 DATABANK		= pdb
 MRSLIBS			= pdb
-MRS_DICT		= text:title:ref:remark
 MRS_PARTS		= 2
 
 include make.pre
@@ -17,7 +16,7 @@ PRESERVE_DATE = 1
 #MIRROR_INCLUDE = .*\.ent\.Z$$
 #MIRROR_OPTIONS += -r
 
-ZIPFILES = $(wildcard $(SRCDIR)*/*.Z)
+ZIPFILES = $(wildcard $(SRCDIR)*/*.gz)
 DATFILES = $(addprefix $(DSTDIR), $(notdir $(basename $(ZIPFILES))))
 
 # include separate dependancy files, generated with perl script
@@ -33,8 +32,6 @@ fetch: cleanup_deps
 		$(SRCDIR)
 
 include pdb.deps
-
-mrs: data
 
 include make.post
 

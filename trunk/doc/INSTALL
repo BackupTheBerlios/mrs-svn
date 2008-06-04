@@ -54,6 +54,7 @@ In Ubuntu you will have to install the following packages using apt (Synaptic?)
 	libboost-regex-dev
 	libboost-filesystem-dev
 	libboost-thread-dev
+	libboost-serialization-dev
 	zlib1g-dev
 	libbz2-dev
 	libxml2-dev

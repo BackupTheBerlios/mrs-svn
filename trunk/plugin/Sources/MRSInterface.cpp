@@ -921,16 +921,18 @@ void MDatabank::StoreMetaData(const string& inFieldName, const string& inValue)
 	fImpl->GetDB()->StoreMetaData(inFieldName, inValue);
 }
 
-void MDatabank::IndexText(const string& inIndex, const string& inText, bool inStoreIDL)
+void MDatabank::IndexText(const string& inIndex, const string& inText /*, bool inStoreIDL*/)
 {
 	CStopwatch sw(fImpl->fIndexTime);
-	fImpl->GetDB()->IndexText(inIndex, inText, inStoreIDL);
+//	fImpl->GetDB()->IndexText(inIndex, inText, inStoreIDL);
+	fImpl->GetDB()->IndexText(inIndex, inText, true);
 }
 
-void MDatabank::IndexTextAndNumbers(const string& inIndex, const string& inText, bool inStoreIDL)
+void MDatabank::IndexTextAndNumbers(const string& inIndex, const string& inText /*, bool inStoreIDL */)
 {
 	CStopwatch sw(fImpl->fIndexTime);
-	fImpl->GetDB()->IndexTextAndNumbers(inIndex, inText, inStoreIDL);
+//	fImpl->GetDB()->IndexTextAndNumbers(inIndex, inText, inStoreIDL);
+	fImpl->GetDB()->IndexTextAndNumbers(inIndex, inText, true);
 }
 
 void MDatabank::IndexWord(const string& inIndex, const string& inText)

@@ -86,6 +86,22 @@ bool	gQuit;
 extern double system_time();
 
 // --------------------------------------------------------------------
+//	Debug code
+
+#ifndef NDEBUG
+bool gOKToThrow;
+
+void ReportThrow(const char* inFunc, const char* inFile, int inLine)
+{
+	if (gOKToThrow)
+		return;
+	
+	cerr << endl << "Exception in " << inFunc << ", " << inFile << ':' << inLine << endl;
+}
+
+#endif
+
+// --------------------------------------------------------------------
 //
 //	Daemonize
 // 
@@ -369,26 +385,8 @@ int main(int argc, char * const argv[])
 	
 	WFormatTable::SetParserDir(gParserDir.string());
 
-//	// --------------------------------------------------------------------
-//	// in case we've been launched with an input file, handle it and exit
-//
-//	if (input_file.length() > 0)
-//	{
-//		struct soap soap;
-//		
-//		soap_init(&soap);
-//
-//		WSDatabankTable::Instance().ReloadDbs();
-//					
-//		soap_serve(&soap);
-//		soap_destroy(&soap);
-//		soap_end(&soap);
-//		
-//		exit(0);
-//	}
-
 	// --------------------------------------------------------------------
-	// otherwise set up application and start Main Loop
+	// set up application and start Main Loop
 
 	if (daemon)
 		Daemonize(user);

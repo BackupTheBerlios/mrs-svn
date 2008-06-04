@@ -49,7 +49,7 @@
 			<link>boost_filesystem</link>
 			<link>boost_thread</link>
 			<link>boost_regex</link>
-			<link>mrsd</link>
+			<link>mrs</link>
 		</group>
 	</files>
 	<resources resource_dir="."/>
