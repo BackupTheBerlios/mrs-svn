@@ -68,6 +68,7 @@ class CBlastIndex;
 class CDictionary;
 class CDocWeightArray;
 class CIteratorBase;
+class CLexicon;
 
 struct SIndexPart;
 struct SHeader;
@@ -231,16 +232,18 @@ class CDatabank : public CDatabankBase
 	
 	void				Store(const std::string& inDocument);
 	void				StoreMetaData(const std::string& inFieldName, const std::string& inValue);
-	void				IndexText(const std::string& inIndex, const std::string& inText, bool inStoreIDL);
-	void				IndexTextAndNumbers(const std::string& inIndex, const std::string& inText, bool inStoreIDL);
-	void				IndexWord(const std::string& inIndex, const std::string& inText);
-	void				IndexValue(const std::string& inIndex, const std::string& inText);
-	void				IndexDate(const std::string& inIndex, const std::string& inText);
-	void				IndexNumber(const std::string& inIndex, const std::string& inText);
-	
-							// Weight should be a float between 0 and 1
-	void				IndexWordWithWeight(const std::string& inIndex,	
-							const std::string& inText, uint32 inFrequency);
+
+	void				IndexTokens(
+							const std::string&			inIndex,
+							const std::vector<uint32>&	inTokens);
+
+	void				IndexValue(
+							const std::string&			inIndex,
+							uint32						inValue);
+//	
+//							// Weight should be a float between 0 and 1
+//	void				IndexWordWithWeight(const std::string& inIndex,	
+//							const std::string& inText, uint32 inFrequency);
 #ifndef NO_BLAST
 	void				AddSequence(const std::string& inSequence);
 #endif
@@ -254,7 +257,10 @@ class CDatabank : public CDatabankBase
 							const std::string& inXPath);
 	void				AddXMLDocument(const std::string& inDoc);
 
-	void				Finish(bool inCreateAllTextIndex, bool inCreateUpdateDatabank);
+	void				Finish(
+							CLexicon&		inLexicon,
+							bool			inCreateAllTextIndex,
+							bool			inCreateUpdateDatabank);
 	
 	virtual uint32		Count() const;
 	virtual int64		GetRawDataSize() const;

@@ -53,6 +53,8 @@
  
 #include "MRS.h"
 
+#include <boost/thread.hpp>
+
 #include "HError.h"
 #include "CLexicon.h"
 
@@ -274,6 +276,7 @@ struct CLexiconImp
 	NodePageArray	fNodes;
 	CNode*			fRoot;
 	uint32			fCount;
+	boost::mutex	fMutex;
 };
 
 CLexiconImp::CLexiconImp()

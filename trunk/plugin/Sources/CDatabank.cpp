@@ -594,7 +594,10 @@ string CDatabank::GetDbName() const
 	return basename(fPath.GetFileName());
 }
 
-void CDatabank::Finish(bool inCreateAllTextIndex, bool inCreateUpdateDatabank)
+void CDatabank::Finish(
+	CLexicon&	inLexicon,
+	bool		inCreateAllTextIndex,
+	bool		inCreateUpdateDatabank)
 {
 	assert(fCompressor->Count() == fHeader->entries);
 	assert(fIndexer->Count() == fHeader->entries);
@@ -623,8 +626,8 @@ void CDatabank::Finish(bool inCreateAllTextIndex, bool inCreateUpdateDatabank)
 	
 	fDataFile->Seek(0, SEEK_END);
 	
-	fIndexer->CreateIndex(*fDataFile, fHeader->index_offset,
-		fHeader->index_size, inCreateAllTextIndex, inCreateUpdateDatabank);
+	fIndexer->CreateIndex(*fDataFile, fHeader->index_offset, fHeader->index_size,
+		inLexicon, inCreateAllTextIndex, inCreateUpdateDatabank);
 
 	auto_ptr<CIndex> idIndex(fIndexer->GetIndex("id"));
 	if (idIndex.get() != nil)
@@ -1494,40 +1497,18 @@ void CDatabank::StoreMetaData(const std::string& inFieldName, const std::string&
 		THROW(("Meta data field %s not defined in the MDatabank::Create call", inFieldName.c_str()));
 }
 
-void CDatabank::IndexText(const string& inIndex, const string& inText, bool inStoreIDL)
+void CDatabank::IndexTokens(
+	const string&			inIndex,
+	const vector<uint32>&	inTokens)
 {
-	fIndexer->IndexText(inIndex, inText, inStoreIDL);
+	fIndexer->IndexTokens(inIndex, inTokens);
 }
 
-void CDatabank::IndexDate(const string& inIndex, const string& inText)
+void CDatabank::IndexValue(
+	const string&			inIndex,
+	uint32					inValue)
 {
-	fIndexer->IndexDate(inIndex, inText);
-}
-
-void CDatabank::IndexTextAndNumbers(const string& inIndex, const string& inText, bool inStoreIDL)
-{
-	fIndexer->IndexTextAndNumbers(inIndex, inText, inStoreIDL);
-}
-
-void CDatabank::IndexNumber(const string& inIndex, const string& inText)
-{
-	fIndexer->IndexNumber(inIndex, inText);
-}
-
-void CDatabank::IndexWord(const string& inIndex, const string& inText)
-{
-	fIndexer->IndexWord(inIndex, inText);
-}
-
-void CDatabank::IndexValue(const string& inIndex, const string& inText)
-{
-	fIndexer->IndexValue(inIndex, inText);
-}
-
-void CDatabank::IndexWordWithWeight(const string& inIndex,	
-	const string& inText, uint32 inFrequency)
-{
-	fIndexer->IndexWordWithWeight(inIndex, inText, inFrequency);
+	fIndexer->IndexValue(inIndex, inValue);
 }
 
 #ifndef NO_BLAST
@@ -1551,16 +1532,15 @@ void CDatabank::FlushDocument()
 	if (fBlastIndex)
 		fBlastIndex->FlushDoc();
 #endif
-
-	if (VERBOSE >= 1 and (fIndexer->Count() % 1000) == 0)
-	{
-		cout << ".";
-		
-		if ((fIndexer->Count() % 60000) == 0)
-			cout << ' ' << fIndexer->Count() << endl;
-		else
-			cout.flush();
-	}
+//	if (VERBOSE >= 1 and (fIndexer->Count() % 1000) == 0)
+//	{
+//		cout << ".";
+//		
+//		if ((fIndexer->Count() % 60000) == 0)
+//			cout << ' ' << fIndexer->Count() << endl;
+//		else
+//			cout.flush();
+//	}
 }
 
 void CDatabank::AddXPathForIndex(const std::string& inIndex, bool inIsValueIndex,
@@ -1599,39 +1579,39 @@ void CDatabank::AddXPathForIndex(const std::string& inIndex, bool inIsValueIndex
 }
 
 void CDatabank::AddXMLDocument(const std::string& inDoc)
-{
-	CXMLDocument doc(inDoc);
-	
-	for (CXMLIndexList::iterator i = fXMLIndexList.begin(); i != fXMLIndexList.end(); ++i)
-	{
-		CXMLIndex* ix = *i;
-		
-		string text;
-
-		for (vector<xmlXPathCompExprPtr>::iterator ce = ix->expr.begin(); ce != ix->expr.end(); ++ce)
-			doc.FetchText(*ce, text);
-		
-		if (text.length() > 0)
-		{
-			if (ix->storeAsMetaData)
-				StoreMetaData(ix->index, text);
-			
-			if (ix->isValue)
-				IndexValue(ix->index, text);
-			else if (ix->indexString)
-			{
-				ba::trim(text);
-				IndexWord(ix->index, text);
-			}
-			else if (ix->indexNumbers)
-				IndexTextAndNumbers(ix->index, text, ix->storeIDL);
-			else
-				IndexText(ix->index, text, ix->storeIDL);
-		}
-	}
-	
-	Store(inDoc);
-	FlushDocument();
+{//
+//	CXMLDocument doc(inDoc);
+//	
+//	for (CXMLIndexList::iterator i = fXMLIndexList.begin(); i != fXMLIndexList.end(); ++i)
+//	{
+//		CXMLIndex* ix = *i;
+//		
+//		string text;
+//
+//		for (vector<xmlXPathCompExprPtr>::iterator ce = ix->expr.begin(); ce != ix->expr.end(); ++ce)
+//			doc.FetchText(*ce, text);
+//		
+//		if (text.length() > 0)
+//		{
+//			if (ix->storeAsMetaData)
+//				StoreMetaData(ix->index, text);
+//			
+//			if (ix->isValue)
+//				IndexValue(ix->index, text);
+//			else if (ix->indexString)
+//			{
+//				ba::trim(text);
+//				IndexWord(ix->index, text);
+//			}
+//			else if (ix->indexNumbers)
+//				IndexTextAndNumbers(ix->index, text, ix->storeIDL);
+//			else
+//				IndexText(ix->index, text, ix->storeIDL);
+//		}
+//	}
+//	
+//	Store(inDoc);
+//	FlushDocument();
 }
 
 CDocIterator* CDatabank::CreateDocIterator(const string& inIndex,

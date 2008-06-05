@@ -65,9 +65,8 @@
 #include <boost/functional/hash/hash.hpp>
 #include <boost/ptr_container/ptr_vector.hpp>
 #include <numeric>
-#include <boost/lambda/lambda.hpp>
-#include <boost/lambda/bind.hpp>
-#include <boost/lambda/algorithm.hpp>
+#include <boost/bind.hpp>
+#include <boost/thread.hpp>
 #include "HFile.h"
 #include "HUtils.h"
 #include "HError.h"
@@ -85,7 +84,6 @@
 #include "CDocWeightArray.h"
 
 using namespace std;
-using namespace boost::lambda;
 
 // Global, settable from the outside
 
@@ -356,16 +354,11 @@ class CFullTextIndex
 	bool			UsesInDocLocation(uint32 inIndexNr) const					{ return (fDocLocationIxMap & (1 << inIndexNr)) != 0; }
 
 	// two versions for AddWord, one works with lexicon's ID's
-	void			AddWord(uint8 inIndex, const string& inWord, uint8 inFrequency);
+//	void			AddWord(uint8 inIndex, const string& inWord, uint8 inFrequency);
 	void			AddWord(uint8 inIndex, uint32 inWord, uint8 inFrequency);
 	
 	void			Stop();				// called to increase fDocWordLocation
 	
-	uint32			Store(const string& inWord)
-					{
-						return lexicon.Store(inWord);
-					}
-
 	void			FlushDoc(uint32 inDocNr);
 	
 	void			Merge();
@@ -394,16 +387,16 @@ class CFullTextIndex
 
 	friend class CRunEntryIterator;
 
-	string			Lookup(uint32 inTerm);
-	int				Compare(uint32 inTermA, uint32 inTermB) const
-					{
-						return lexicon.Compare(inTermA, inTermB);
-					}
-
-	int				Compare(uint32 inTermA, uint32 inTermB, CLexCompare& inCompare) const
-					{
-						return lexicon.Compare(inTermA, inTermB, inCompare);
-					}
+//	string			Lookup(uint32 inTerm);
+//	int				Compare(uint32 inTermA, uint32 inTermB) const
+//					{
+//						return lexicon.Compare(inTermA, inTermB);
+//					}
+//
+//	int				Compare(uint32 inTermA, uint32 inTermB, CLexCompare& inCompare) const
+//					{
+//						return lexicon.Compare(inTermA, inTermB, inCompare);
+//					}
 
 	bool			IsStopWord(uint32 inTerm) const
 					{
@@ -411,11 +404,9 @@ class CFullTextIndex
 					}
 
 	uint32			GetWeightBitCount() const		{ return fWeightBitCount; }
-
+	
   private:
 	
-	void			FlushRun();
-
 	struct DocWord
 	{
 		uint32		word;
@@ -445,6 +436,12 @@ class CFullTextIndex
 						{ return term < inOther.term or (term == inOther.term and doc < inOther.doc); }
 	};
 	
+	void			FlushRun();
+
+	void			FlushRunThread(
+						BufferEntry*			inBuffer,
+						uint32					inBufferLength);
+
 	struct RunInfo
 	{
 		int64		offset;
@@ -512,7 +509,6 @@ class CFullTextIndex
 
 	CHashedSet		fStopWords;
 
-	CLexicon		lexicon;
 	uint32			fWeightBitCount;
 	DocWords		fDocWords;
 	uint32			fFTIndexCnt;
@@ -520,9 +516,13 @@ class CFullTextIndex
 	uint32			fDocWordLocation;
 	BufferEntry*	buffer;
 	uint32			buffer_ix;
+	BufferEntry*	flushed_buffer;
+	uint32			flushed_buffer_ix;
 	RunInfoArray	fRunInfo;
 	HUrl			fScratchUrl;
 	HStreamBase*	fScratch;
+	
+	boost::thread*	fFlushRunThread;
 };
 
 CFullTextIndex::CFullTextIndex(const HUrl& inScratchUrl, uint32 inWeightBitCount)
@@ -532,29 +532,32 @@ CFullTextIndex::CFullTextIndex(const HUrl& inScratchUrl, uint32 inWeightBitCount
 	, fDocWordLocation(0)
 	, buffer(new BufferEntry[kBufferEntryCount])
 	, buffer_ix(0)
+	, flushed_buffer(nil)
+	, flushed_buffer_ix(0)
 	, fScratchUrl(inScratchUrl)
 	, fScratch(new HTempFileStream(fScratchUrl))
+	, fFlushRunThread(nil)
 {
 }
 
 CFullTextIndex::~CFullTextIndex()
 {
+	if (fFlushRunThread != nil)
+	{
+		fFlushRunThread->join();
+		delete fFlushRunThread;
+	}
+	
 	delete[] buffer;
 	delete fScratch;
 }
 
 void CFullTextIndex::SetStopWords(const vector<string>& inStopWords)
 {
-	fStopWords.clear();
-	for (vector<string>::const_iterator sw = inStopWords.begin(); sw != inStopWords.end(); ++sw)
-		fStopWords.insert(Store(*sw));
-}
-
-void CFullTextIndex::AddWord(uint8 inIndex, const string& inWord, uint8 inFrequency)
-{
-	assert(inWord.length() > 0);
-	
-	AddWord(inIndex, lexicon.Store(inWord), inFrequency);
+#warning("fix me")
+//	fStopWords.clear();
+//	for (vector<string>::const_iterator sw = inStopWords.begin(); sw != inStopWords.end(); ++sw)
+//		fStopWords.insert(Store(*sw));
 }
 
 void CFullTextIndex::AddWord(uint8 inIndex, uint32 inWord, uint8 inFrequency)
@@ -635,13 +638,29 @@ void CFullTextIndex::FlushDoc(uint32 inDoc)
 
 void CFullTextIndex::FlushRun()
 {
-	uint32 firstDoc = buffer[0].doc;	// the first doc in this run
+	if (fFlushRunThread != nil)
+	{
+		fFlushRunThread->join();
+		delete fFlushRunThread;
+	}
 	
-	sort(buffer, buffer + buffer_ix);
+	fFlushRunThread = new boost::thread(boost::bind(&CFullTextIndex::FlushRunThread, this, buffer, buffer_ix));
+	
+	buffer = new BufferEntry[kBufferEntryCount];
+	buffer_ix = 0;
+}
+
+void CFullTextIndex::FlushRunThread(
+	BufferEntry*		inBuffer,
+	uint32				inBufferLength)
+{
+	uint32 firstDoc = inBuffer[0].doc;	// the first doc in this run
+	
+	sort(inBuffer, inBuffer + inBufferLength);
 
 	RunInfo ri;
 	ri.offset = fScratch->Seek(0, SEEK_END);
-	ri.count = buffer_ix;
+	ri.count = inBufferLength;
 	fRunInfo.push_back(ri);
 	
 	COBitStream bits(*fScratch);
@@ -651,46 +670,45 @@ void CFullTextIndex::FlushRun()
 	
 	WriteGamma(bits, d + 1);
 
-	for (uint32 i = 0; i < buffer_ix; ++i)
+	for (uint32 i = 0; i < inBufferLength; ++i)
 	{
-		if (buffer[i].term > t)
+		if (inBuffer[i].term > t)
 			d = firstDoc;
 
-		WriteUnary(bits, (buffer[i].term - t) + 1);
-		WriteGamma(bits, (buffer[i].doc - d) + 1);
-		WriteGamma(bits, buffer[i].ix + 1);
+		WriteUnary(bits, (inBuffer[i].term - t) + 1);
+		WriteGamma(bits, (inBuffer[i].doc - d) + 1);
+		WriteGamma(bits, inBuffer[i].ix + 1);
 
-		assert(buffer[i].weight > 0);
-		assert(buffer[i].weight <= ((1 << fWeightBitCount) - 1));
+		assert(inBuffer[i].weight > 0);
+		assert(inBuffer[i].weight <= ((1 << fWeightBitCount) - 1));
 
-		WriteBinary(bits, buffer[i].weight, fWeightBitCount);
+		WriteBinary(bits, inBuffer[i].weight, fWeightBitCount);
 		
-		if (UsesInDocLocation(buffer[i].ix))
+		if (UsesInDocLocation(inBuffer[i].ix))
 		{
-			CompressArray(bits, buffer[i].loc, kMaxInDocumentLocation);
-			buffer[i].loc.clear();
+			CompressArray(bits, inBuffer[i].loc, kMaxInDocumentLocation);
+			inBuffer[i].loc.clear();
 		}
 		
-		t = buffer[i].term;
-		d = buffer[i].doc;
+		t = inBuffer[i].term;
+		d = inBuffer[i].doc;
 	}
 	
 	bits.sync();
 
-	buffer_ix = 0;
+	delete[] inBuffer;
 }
 
 void CFullTextIndex::ReleaseBuffer()
 {
-	FlushRun();
-	delete[] buffer;
-	buffer = NULL;
-	
-	if (VERBOSE >= 1)
+	if (fFlushRunThread != nil)
 	{
-		cout << endl << "Wrote " << fRunInfo.size() << " info runs" << endl;
-		cout << endl << "Lexicon contains " << lexicon.Count() << " entries" << endl;
+		fFlushRunThread->join();
+		delete fFlushRunThread;
 	}
+	
+	FlushRunThread(buffer, buffer_ix);
+	buffer = nil;
 }
 
 CFullTextIndex::CRunEntryIterator::CRunEntryIterator(CFullTextIndex& inIndex)
@@ -763,11 +781,6 @@ bool CFullTextIndex::CRunEntryIterator::Next(uint32& outDoc, uint32& outTerm,
 	return result;
 }
 
-inline string CFullTextIndex::Lookup(uint32 inTerm)
-{
-	return lexicon.GetString(inTerm);
-}
-
 // --------------------------------------------------------------------
 //
 //
@@ -775,32 +788,36 @@ inline string CFullTextIndex::Lookup(uint32 inTerm)
 class CFullTextIterator : public CIteratorBase
 {
   public:
-						CFullTextIterator(CFullTextIndex& inFullTextIndex,
-							vector<pair<uint32,int64> >& inLexicon);
+						CFullTextIterator(
+							CLexicon&						inLexicon,
+							vector<pair<uint32,int64> >&	inData);
 
 	virtual bool		Next(string& outString, int64& outValue);
 
   private:
-	CFullTextIndex&							fFullText;
+	CLexicon&								fLexicon;
 	vector<pair<uint32,int64> >::iterator	fCurrent, fEnd;
 };
 
-CFullTextIterator::CFullTextIterator(CFullTextIndex& inFullTextIndex,
-		vector<pair<uint32,int64> >& inLexicon)
-	: fFullText(inFullTextIndex)
-	, fCurrent(inLexicon.begin())
-	, fEnd(inLexicon.end())
+CFullTextIterator::CFullTextIterator(
+	CLexicon&						inLexicon,
+	vector<pair<uint32,int64> >&	inData)
+	: fLexicon(inLexicon)
+	, fCurrent(inData.begin())
+	, fEnd(inData.end())
 {
 }
 
-bool CFullTextIterator::Next(string& outKey, int64& outValue)
+bool CFullTextIterator::Next(
+	string&		outKey,
+	int64&		outValue)
 {
 	bool result = false;
 	if (fCurrent != fEnd)
 	{
 		result = true;
 
-		outKey = fFullText.Lookup(fCurrent->first);
+		outKey = fLexicon.GetString(fCurrent->first);
 		outValue = fCurrent->second;
 		
 		++fCurrent;
@@ -830,12 +847,17 @@ class CIndexBase : public CLexCompare
 	bool			UsesInDocLocation() const	{ return fUsesIDL; }
 	void			SetUsesInDocLocation(bool inUseIDL);
 
-	void			AddWord(const string& inWord, uint32 inFrequency = 1);
+//	void			AddWord(const string& inWord, uint32 inFrequency = 1);
+	void			AddWord(const uint32 inWord, uint32 inFrequency = 1);
 	
 	virtual void	AddDocTerm(uint32 inDoc, uint8 inFrequency, CIBitStream& inDocLoc);
 	virtual void	FlushTerm(uint32 inTerm, uint32 inDocCount);
 	
-	virtual bool	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
+	virtual bool	Write(
+						HStreamBase&		inDataFile,
+						CLexicon&			inLexicon,
+						uint32				inDocCount,
+						SIndexPart&			outInfo);
 
 					// NOTE: empty is overloaded (i.e. used for two purposes)
 	bool			Empty() const				{ return fEmpty; }
@@ -876,16 +898,19 @@ class CIndexBase : public CLexCompare
 
 struct SortLex
 {
-			SortLex(CFullTextIndex& inFT, CIndexBase* inIndexBase)
-				: fFT(inFT), fBase(inIndexBase) {}
+			SortLex(
+				CLexicon& 		inLexicon,
+				CIndexBase*		inIndexBase)
+				: fLexicon(inLexicon)
+				, fBase(inIndexBase) {}
 	
 	inline
 	bool	operator()(const pair<uint32,uint64>& inA, const pair<uint32,uint64>& inB) const
 			{
-				return fFT.Compare(inA.first, inB.first, *fBase) < 0;
+				return fLexicon.Compare(inA.first, inB.first, *fBase) < 0;
 			}
 	
-	CFullTextIndex&	fFT;
+	CLexicon&		fLexicon;
 	CIndexBase*		fBase;
 };
 
@@ -935,7 +960,13 @@ int CIndexBase::Compare(const char* inA, uint32 inLengthA, const char* inB, uint
 	return comp.Compare(inA, inLengthA, inB, inLengthB);
 }
 
-void CIndexBase::AddWord(const string& inWord, uint32 inFrequency)
+//void CIndexBase::AddWord(const string& inWord, uint32 inFrequency)
+//{
+//	fFullTextIndex.AddWord(fIndexNr, inWord, inFrequency);
+//	fEmpty = false;
+//}
+
+void CIndexBase::AddWord(const uint32 inWord, uint32 inFrequency)
 {
 	fFullTextIndex.AddWord(fIndexNr, inWord, inFrequency);
 	fEmpty = false;
@@ -1114,7 +1145,11 @@ void CIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 	fEmpty = true;
 }
 
-bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPart& outInfo)
+bool CIndexBase::Write(
+	HStreamBase&		inDataFile,
+	CLexicon&			inLexicon,
+	uint32				/*inDocCount*/,
+	SIndexPart&			outInfo)
 {
 	if (fRawIndex == nil)	// shortcut in case we didn't collect any data
 		return false;
@@ -1174,7 +1209,7 @@ bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPar
 	lexicon.push_back(make_pair(term, offset));
 	--fRawIndexCnt;
 	
-	SortLex sortLex(fFullTextIndex, this);
+	SortLex sortLex(inLexicon, this);
 	
 	while (fRawIndexCnt-- > 0)
 	{
@@ -1234,7 +1269,7 @@ bool CIndexBase::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPar
 
 	// construct the optimized b-tree
 
-	CFullTextIterator iter(fFullTextIndex, lexicon);
+	CFullTextIterator iter(inLexicon, lexicon);
 	auto_ptr<CIndex> indx(CIndex::CreateFromIterator(fKind, outInfo.index_version, iter, inDataFile));
 
 	outInfo.tree_offset = indx->GetOffset();
@@ -1264,7 +1299,11 @@ class CValueIndex : public CIndexBase
 	virtual void	AddDocTerm(uint32 inDoc, uint8 inFrequency, CIBitStream& inDocLoc);
 	virtual void	FlushTerm(uint32 inTerm, uint32 inDocCount);
 
-	virtual bool	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
+	virtual bool	Write(
+						HStreamBase&		inDataFile,
+						CLexicon&			inLexicon,
+						uint32				inDocCount,
+						SIndexPart&			outInfo);
 	
   private:
 	vector<uint32>	fDocs;
@@ -1288,16 +1327,17 @@ void CValueIndex::FlushTerm(uint32 inTerm, uint32 inDocCount)
 {
 	if (fDocs.size() != 1 and not fIsUpdate)
 	{
-		string term = fFullTextIndex.Lookup(inTerm);
-
-		cerr << endl
-			 << "Term " << term << " is not unique for index "
-			 << fName << ", it appears in document: ";
-
-		for (vector<uint32>::iterator d = fDocs.begin(); d != fDocs.end(); ++d)
-			cerr << *d << " ";
-
-		cerr << endl;
+#warning("fix me")
+//		string term = fFullTextIndex.Lookup(inTerm);
+//
+//		cerr << endl
+//			 << "Term " << term << " is not unique for index "
+//			 << fName << ", it appears in document: ";
+//
+//		for (vector<uint32>::iterator d = fDocs.begin(); d != fDocs.end(); ++d)
+//			cerr << *d << " ";
+//
+//		cerr << endl;
 	}
 	
 	if (fDocs.size() > 0)
@@ -1307,7 +1347,11 @@ void CValueIndex::FlushTerm(uint32 inTerm, uint32 inDocCount)
 	fEmpty = true;
 }
 
-bool CValueIndex::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPart& outInfo)
+bool CValueIndex::Write(
+	HStreamBase&		inDataFile,
+	CLexicon&			inLexicon,
+	uint32				/*inDocCount*/,
+	SIndexPart&			outInfo)
 {
 	if (fIndex.size() == 0)
 		return false;
@@ -1324,9 +1368,9 @@ bool CValueIndex::Write(HStreamBase& inDataFile, uint32 /*inDocCount*/, SIndexPa
 	outInfo.kind = fKind;
 
 	// construct the optimized b-tree
-	sort(fIndex.begin(), fIndex.end(), SortLex(fFullTextIndex, this));
+	sort(fIndex.begin(), fIndex.end(), SortLex(inLexicon, this));
 
-	CFullTextIterator iter(fFullTextIndex, fIndex);
+	CFullTextIterator iter(inLexicon, fIndex);
 	auto_ptr<CIndex> indx(CIndex::CreateFromIterator(fKind, outInfo.index_version, iter, inDataFile));
 
 	outInfo.tree_offset = indx->GetOffset();
@@ -1361,7 +1405,11 @@ class CWeightedWordIndex : public CIndexBase
 						const string& inName, uint16 inIndexNr,
 						const HUrl& inScratch);
 
-	virtual bool	Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo);
+	virtual bool	Write(
+						HStreamBase&		inDataFile,
+						CLexicon&			inLexicon,
+						uint32				inDocCount,
+						SIndexPart&			outInfo);
 };
 
 CWeightedWordIndex::CWeightedWordIndex(CFullTextIndex& inFullTextIndex,
@@ -1371,9 +1419,13 @@ CWeightedWordIndex::CWeightedWordIndex(CFullTextIndex& inFullTextIndex,
 	fWeightBitCount = inFullTextIndex.GetWeightBitCount();
 }
 
-bool CWeightedWordIndex::Write(HStreamBase& inDataFile, uint32 inDocCount, SIndexPart& outInfo)
+bool CWeightedWordIndex::Write(
+	HStreamBase&		inDataFile,
+	CLexicon&			inLexicon,
+	uint32				inDocCount,
+	SIndexPart&			outInfo)
 {
-	if (not CIndexBase::Write(inDataFile, inDocCount, outInfo))
+	if (not CIndexBase::Write(inDataFile, inLexicon, inDocCount, outInfo))
 		return false;
 	
 	outInfo.weight_offset = inDataFile.Seek(0, SEEK_END);
@@ -1548,10 +1600,59 @@ CIndexBase* CIndexer::GetIndexBase(const string& inIndex)
 	return index;
 }
 
-void CIndexer::IndexText(const string& inIndex, const string& inText, bool inIndexNrs, bool inStoreIDL)
+//void CIndexer::IndexText(const string& inIndex, const string& inText, bool inIndexNrs, bool inStoreIDL)
+//{
+//	if (inText.length() == 0)
+//		return;
+//	
+//	CIndexBase* index = GetIndexBase<CTextIndex>(inIndex);
+//	if (index->Empty())
+//	{
+//		if (inStoreIDL)
+//			index->SetUsesInDocLocation(inStoreIDL);
+//	}
+//	else if (index->UsesInDocLocation() != inStoreIDL)
+//		THROW(("Inconsistent use of the store IDL flag for index %s", inIndex.c_str()));
+//
+//	CTokenizer tok(inText.c_str(), inText.length());
+//	bool isWord, isNumber, isPunct;
+//	
+//	while (tok.GetToken(isWord, isNumber, isPunct))
+//	{
+//		uint32 l = tok.GetTokenLength();
+//		
+//		if (isPunct or (isNumber and not inIndexNrs))
+//		{
+//			fFullTextIndex->Stop();
+//			continue;
+//		}
+//		
+//		if (not (isWord or isNumber) or l == 0)
+//			continue;
+//
+//		if (l <= kMaxKeySize)
+//			index->AddWord(string(tok.GetTokenValue(), l));
+//		else
+//			fFullTextIndex->Stop();
+//	}
+//}
+//
+//void CIndexer::IndexText(const string& inIndex, const string& inText, bool inStoreIDL)
+//{
+//	IndexText(inIndex, inText, false, inStoreIDL);
+//}
+//
+//void CIndexer::IndexTextAndNumbers(const string& inIndex, const string& inText, bool inStoreIDL)
+//{
+//	IndexText(inIndex, inText, true, inStoreIDL);
+//}
+
+void CIndexer::IndexTokens(const string& inIndex, const vector<uint32>& inTokens)
 {
-	if (inText.length() == 0)
+	if (inTokens.size() == 0)
 		return;
+
+	bool inStoreIDL = true;
 	
 	CIndexBase* index = GetIndexBase<CTextIndex>(inIndex);
 	if (index->Empty())
@@ -1562,153 +1663,136 @@ void CIndexer::IndexText(const string& inIndex, const string& inText, bool inInd
 	else if (index->UsesInDocLocation() != inStoreIDL)
 		THROW(("Inconsistent use of the store IDL flag for index %s", inIndex.c_str()));
 
-	CTokenizer tok(inText.c_str(), inText.length());
-	bool isWord, isNumber, isPunct;
-	
-	while (tok.GetToken(isWord, isNumber, isPunct))
+	for (vector<uint32>::const_iterator t = inTokens.begin(); t != inTokens.end(); ++t)
 	{
-		uint32 l = tok.GetTokenLength();
-		
-		if (isPunct or (isNumber and not inIndexNrs))
-		{
-			fFullTextIndex->Stop();
-			continue;
-		}
-		
-		if (not (isWord or isNumber) or l == 0)
-			continue;
-
-		if (l <= kMaxKeySize)
-			index->AddWord(string(tok.GetTokenValue(), l));
-		else	
+		if (*t)
+			index->AddWord(*t);
+		else
 			fFullTextIndex->Stop();
 	}
 }
 
-void CIndexer::IndexText(const string& inIndex, const string& inText, bool inStoreIDL)
-{
-	IndexText(inIndex, inText, false, inStoreIDL);
-}
-
-void CIndexer::IndexTextAndNumbers(const string& inIndex, const string& inText, bool inStoreIDL)
-{
-	IndexText(inIndex, inText, true, inStoreIDL);
-}
-
-void CIndexer::IndexWord(const string& inIndex, const string& inText)
-{
-	if (inText.length() > 0)
-	{
-		CIndexBase* index = GetIndexBase<CTextIndex>(inIndex);
-
-		if (inText.length() > kMaxKeySize)
-			THROW(("Data error: length of key too long (%s)", inText.c_str()));
-	
-		index->AddWord(tolower(inText));
-	}
-}
-
-void CIndexer::IndexDate(const string& inIndex, const string& inText)
-{
-	// inText is a formatted date which must conform to:
-	// YYYY-MM-DD
-	// Make sure it is a valid date first...
-	
-	uint32 year, month, day;
-	char *p;
-
-	if (inText.length() != 10)
-		THROW(("Invalid formatted date specified(1): '%s'", inText.c_str()));
-	
-	year = strtoul(inText.c_str(), &p, 10);
-	if (p == nil or *p != '-')
-		THROW(("Invalid formatted date specified(2): '%s'", inText.c_str()));
-	month = strtoul(p + 1, &p, 10);
-	if (p == nil or *p != '-' or month < 1 or month > 12)
-		THROW(("Invalid formatted date specified(3): '%s'", inText.c_str()));
-	day = strtoul(p + 1, &p, 10);
-	if (not (p == nil or *p == 0) or day < 1 or day > 31)
-		THROW(("Invalid formatted date specified(4): '%s'", inText.c_str()));
-	
-	struct tm tm = { 0 };
-	tm.tm_mday = day;
-	tm.tm_mon = month - 1;
-	tm.tm_year = year - 1900;
-#if P_VISUAL_CPP
-#pragma message("TODO: fix me!")
-	time_t t = mktime(&tm);
-
-//	if (localtime_r(&t, &tm) == nil)
-//		THROW(("Invalid formatted date specified(5): '%s'", inText.c_str()));
-#else
-	time_t t = timegm(&tm);
-
-	if (gmtime_r(&t, &tm) == nil)
-		THROW(("Invalid formatted date specified(5): '%s'", inText.c_str()));
-#endif
-	
-	if (VERBOSE > 0)
-	{
-		if (uint32(tm.tm_mday) != day or uint32(tm.tm_mon) != month - 1 or uint32(tm.tm_year + 1900) != year)
-			cerr << "Warning: Invalid formatted date specified(6): " << inText << endl;
-		//THROW(("Invalid formatted date specified(6): '%s'", inText.c_str()));
-	}
-
-	// OK, so the date specified seems to be valid, now store it as a text string
-
-	if (inText.length() > 0)
-	{
-		CIndexBase* index = fIndices[inIndex];
-		if (index == NULL)
-		{
-			HUrl url(fDb + '.' + inIndex + "_indx");
-			index = fIndices[inIndex] =
-				new CDateIndex(*fFullTextIndex, inIndex, fNextIndexID++, url);
-		}
-		else if (dynamic_cast<CDateIndex*>(index) == NULL)
-			THROW(("Inconsistent use of indexes for index %s", inIndex.c_str()));
-	
-		index->AddWord(inText);
-	}
-}
-
-void CIndexer::IndexNumber(const string& inIndex, const string& inText)
-{
-	// inText should be an integer i.e. only consisting of digits.
-	
-	for (string::const_iterator ch = inText.begin(); ch != inText.end(); ++ch)
-	{
-		if (not isdigit(*ch))
-			THROW(("Value passed to IndexNumber is not a valid integer: '%s'", inText.c_str()));
-	}
-
-	if (inText.length() > 0)
-	{
-		CIndexBase* index = GetIndexBase<CNumberIndex>(inIndex);
-	
-		index->AddWord(inText);
-	}
-}
-
-void CIndexer::IndexValue(const string& inIndex, const string& inText)
+void CIndexer::IndexValue(const string& inIndex, uint32 inValue)
 {
 	CIndexBase* index = GetIndexBase<CValueIndex>(inIndex);
 
-	if (inText.length() > kMaxKeySize)
-		THROW(("Data error: length of unique key too long (%s)", inText.c_str()));
-
-	index->AddWord(tolower(inText));
+	index->AddWord(inValue);
 }
 
-void CIndexer::IndexWordWithWeight(const string& inIndex, const string& inText, uint32 inFrequency)
-{
-	CIndexBase* index = GetIndexBase<CWeightedWordIndex>(inIndex);
-
-	if (inText.length() > kMaxKeySize)
-		THROW(("Data error: length of unique key too long (%s)", inText.c_str()));
-
-	index->AddWord(tolower(inText), inFrequency);
-}
+//void CIndexer::IndexWord(const string& inIndex, const string& inText)
+//{
+//	if (inText.length() > 0)
+//	{
+//		CIndexBase* index = GetIndexBase<CTextIndex>(inIndex);
+//
+//		if (inText.length() > kMaxKeySize)
+//			THROW(("Data error: length of key too long (%s)", inText.c_str()));
+//	
+//		index->AddWord(tolower(inText));
+//	}
+//}
+//
+//void CIndexer::IndexDate(const string& inIndex, const string& inText)
+//{
+//	// inText is a formatted date which must conform to:
+//	// YYYY-MM-DD
+//	// Make sure it is a valid date first...
+//	
+//	uint32 year, month, day;
+//	char *p;
+//
+//	if (inText.length() != 10)
+//		THROW(("Invalid formatted date specified(1): '%s'", inText.c_str()));
+//	
+//	year = strtoul(inText.c_str(), &p, 10);
+//	if (p == nil or *p != '-')
+//		THROW(("Invalid formatted date specified(2): '%s'", inText.c_str()));
+//	month = strtoul(p + 1, &p, 10);
+//	if (p == nil or *p != '-' or month < 1 or month > 12)
+//		THROW(("Invalid formatted date specified(3): '%s'", inText.c_str()));
+//	day = strtoul(p + 1, &p, 10);
+//	if (not (p == nil or *p == 0) or day < 1 or day > 31)
+//		THROW(("Invalid formatted date specified(4): '%s'", inText.c_str()));
+//	
+//	struct tm tm = { 0 };
+//	tm.tm_mday = day;
+//	tm.tm_mon = month - 1;
+//	tm.tm_year = year - 1900;
+//#if P_VISUAL_CPP
+//#pragma message("TODO: fix me!")
+//	time_t t = mktime(&tm);
+//
+////	if (localtime_r(&t, &tm) == nil)
+////		THROW(("Invalid formatted date specified(5): '%s'", inText.c_str()));
+//#else
+//	time_t t = timegm(&tm);
+//
+//	if (gmtime_r(&t, &tm) == nil)
+//		THROW(("Invalid formatted date specified(5): '%s'", inText.c_str()));
+//#endif
+//	
+//	if (VERBOSE > 0)
+//	{
+//		if (uint32(tm.tm_mday) != day or uint32(tm.tm_mon) != month - 1 or uint32(tm.tm_year + 1900) != year)
+//			cerr << "Warning: Invalid formatted date specified(6): " << inText << endl;
+//		//THROW(("Invalid formatted date specified(6): '%s'", inText.c_str()));
+//	}
+//
+//	// OK, so the date specified seems to be valid, now store it as a text string
+//
+//	if (inText.length() > 0)
+//	{
+//		CIndexBase* index = fIndices[inIndex];
+//		if (index == NULL)
+//		{
+//			HUrl url(fDb + '.' + inIndex + "_indx");
+//			index = fIndices[inIndex] =
+//				new CDateIndex(*fFullTextIndex, inIndex, fNextIndexID++, url);
+//		}
+//		else if (dynamic_cast<CDateIndex*>(index) == NULL)
+//			THROW(("Inconsistent use of indexes for index %s", inIndex.c_str()));
+//	
+//		index->AddWord(inText);
+//	}
+//}
+//
+//void CIndexer::IndexNumber(const string& inIndex, const string& inText)
+//{
+//	// inText should be an integer i.e. only consisting of digits.
+//	
+//	for (string::const_iterator ch = inText.begin(); ch != inText.end(); ++ch)
+//	{
+//		if (not isdigit(*ch))
+//			THROW(("Value passed to IndexNumber is not a valid integer: '%s'", inText.c_str()));
+//	}
+//
+//	if (inText.length() > 0)
+//	{
+//		CIndexBase* index = GetIndexBase<CNumberIndex>(inIndex);
+//	
+//		index->AddWord(inText);
+//	}
+//}
+//
+//void CIndexer::IndexValue(const string& inIndex, const string& inText)
+//{
+//	CIndexBase* index = GetIndexBase<CValueIndex>(inIndex);
+//
+//	if (inText.length() > kMaxKeySize)
+//		THROW(("Data error: length of unique key too long (%s)", inText.c_str()));
+//
+//	index->AddWord(tolower(inText));
+//}
+//
+//void CIndexer::IndexWordWithWeight(const string& inIndex, const string& inText, uint32 inFrequency)
+//{
+//	CIndexBase* index = GetIndexBase<CWeightedWordIndex>(inIndex);
+//
+//	if (inText.length() > kMaxKeySize)
+//		THROW(("Data error: length of unique key too long (%s)", inText.c_str()));
+//
+//	index->AddWord(tolower(inText), inFrequency);
+//}
 
 void CIndexer::FlushDoc()
 {
@@ -1721,6 +1805,7 @@ void CIndexer::CreateIndex(
 	HStreamBase&	inFile,
 	int64&			outOffset,
 	int64&			outSize,
+	CLexicon&		inLexicon,
 	bool			inCreateAllTextIndex,
 	bool			inCreateUpdateDatabank)
 {
@@ -1868,7 +1953,7 @@ void CIndexer::CreateIndex(
 	{
 		if (indx->second != nil)
 		{
-			if (indx->second->Write(inFile, fHeader->entries, fParts[ix]))
+			if (indx->second->Write(inFile, inLexicon, fHeader->entries, fParts[ix]))
 				++ix;
 			else
 				--fHeader->count;
@@ -1879,7 +1964,7 @@ void CIndexer::CreateIndex(
 
 	if (allIndex != nil)
 	{
-		allIndex->Write(inFile, fHeader->entries, fParts[ix++]);
+		allIndex->Write(inFile, inLexicon, fHeader->entries, fParts[ix++]);
 		delete allIndex;
 	}
 	

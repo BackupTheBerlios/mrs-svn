@@ -65,9 +65,11 @@ class CIndexer
 	virtual			~CIndexer();
 	
 	void			CreateIndex(HStreamBase& data,
-						int64& outOffset, int64& outSize,
-						bool inCreateAllTextIndex,
-						bool inCreateUpdateDatabank);
+						int64&			outOffset,
+						int64&			outSize,
+						CLexicon&		inLexicon,
+						bool			inCreateAllTextIndex,
+						bool			inCreateUpdateDatabank);
 	
 	void			MergeIndices(HStreamBase& outData,
 						std::vector<CDatabank*>& inParts);
@@ -106,14 +108,22 @@ class CIndexer
 
 	void			SetStopWords(const std::vector<std::string>& inStopWords);
 	
-	void			IndexText(const std::string& inIndex, const std::string& inText, bool inStoreIDL);
-	void			IndexTextAndNumbers(const std::string& inIndex, const std::string& inText, bool inStoreIDL);
-	void			IndexWord(const std::string& inIndex, const std::string& inText);
-	void			IndexDate(const std::string& inIndex, const std::string& inText);
-	void			IndexNumber(const std::string& inIndex, const std::string& inText);
-	void			IndexValue(const std::string& inIndex, const std::string& inText);
-	void			IndexWordWithWeight(const std::string& inIndex,	
-						const std::string& inText, uint32 inFrequency);
+//	void			IndexText(const std::string& inIndex, const std::string& inText, bool inStoreIDL);
+//	void			IndexTextAndNumbers(const std::string& inIndex, const std::string& inText, bool inStoreIDL);
+//	void			IndexWord(const std::string& inIndex, const std::string& inText);
+//	void			IndexDate(const std::string& inIndex, const std::string& inText);
+//	void			IndexNumber(const std::string& inIndex, const std::string& inText);
+//	void			IndexValue(const std::string& inIndex, const std::string& inText);
+//	void			IndexWordWithWeight(const std::string& inIndex,	
+//						const std::string& inText, uint32 inFrequency);
+
+	void			IndexTokens(
+						const std::string&			inIndex,
+						const std::vector<uint32>&	inTokens);
+	
+	void			IndexValue(
+						const std::string&			inIndex,
+						uint32						inValue);
 
 	bool			GetDocumentNr(const std::string& inDocumentID, uint32& outDocNr) const;
 
