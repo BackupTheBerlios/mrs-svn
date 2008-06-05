@@ -68,6 +68,22 @@ struct CParserImp
 							const char*			inIndex,
 							const char*			inText);
 
+	void				IndexWord(
+							const char*			inIndex,
+							const char*			inText);
+
+	void				IndexTextAndNumbers(
+							const char*			inIndex,
+							const char*			inText);
+
+	void				IndexDate(
+							const char*			inIndex,
+							const char*			inText);
+
+	void				IndexNumber(
+							const char*			inIndex,
+							const char*			inText);
+
 	void				IndexValue(
 							const char*			inIndex,
 							const char*			inText);
@@ -75,6 +91,9 @@ struct CParserImp
 	void				StoreMetaData(
 							const char*			inField,
 							const char*			inValue);
+	
+	void				AddSequence(
+							const char*			inSequence);
 	
 	void				Store(
 							const char*			inDocument);
@@ -90,7 +109,7 @@ struct CParserImp
 							SV*					inScalar);
 
 	HV*					GetHash()				{ return mParserHash; }
-
+	
 	PerlInterpreter*	mPerl;
 	SV*					mParser;
 	HV*					mParserHash;
@@ -130,7 +149,7 @@ CParserImp::CParserImp(
 	int err = perl_parse(mPerl, xs_init, 2, const_cast<char**>(embedding), nil);
 	SV* errgv = GvSV(PL_errgv);
 
-	if (err != 0 or SvPOK(errgv))
+	if (err != 0)
 	{
 		string errmsg = "no perl error available";
 	
@@ -165,7 +184,7 @@ CParserImp::CParserImp(
 	sp = PL_stack_sp;
 
 	errgv = GvSV(PL_errgv);
-	if (SvPOK(errgv) or n != 1 /*or not SvOK(ST(0))*/)
+	if (n != 1 or Perl_sv_2bool(aTHX_ ERRSV))
 	{
 		string errmsg(SvPVX(errgv), SvCUR(errgv));
 		THROW(("Perl error creating parser object: %s", errmsg.c_str()));
@@ -214,7 +233,7 @@ void CParserImp::Parse(
 
 	SV* errgv = GvSV(PL_errgv);
 
-	if (SvPOK(errgv))
+	if (Perl_sv_2bool(aTHX_ ERRSV))
 	{
 		string errmsg(SvPVX(errgv), SvCUR(errgv));
 		THROW(("Error parsing file: %s", errmsg.c_str()));
@@ -281,6 +300,27 @@ void CParserImp::IndexText(
 	mCurrentDocument->AddIndexText(inIndex, inText);
 }
 
+void CParserImp::IndexWord(
+	const char*			inIndex,
+	const char*			inText)
+{
+	mCurrentDocument->AddIndexText(inIndex, inText);
+}
+
+void CParserImp::IndexTextAndNumbers(
+	const char*			inIndex,
+	const char*			inText)
+{
+	mCurrentDocument->AddIndexText(inIndex, inText);
+}
+
+void CParserImp::IndexDate(
+	const char*			inIndex,
+	const char*			inText)
+{
+	mCurrentDocument->AddIndexText(inIndex, inText);
+}
+
 void CParserImp::IndexValue(
 	const char*			inIndex,
 	const char*			inText)
@@ -288,11 +328,24 @@ void CParserImp::IndexValue(
 	mCurrentDocument->AddIndexValue(inIndex, inText);
 }
 
+void CParserImp::IndexNumber(
+	const char*			inIndex,
+	const char*			inText)
+{
+	mCurrentDocument->AddIndexText(inIndex, inText);
+}
+
 void CParserImp::StoreMetaData(
 	const char*			inField,
 	const char*			inValue)
 {
 	mCurrentDocument->SetMetaData(inField, inValue);
+}
+
+void CParserImp::AddSequence(
+	const char*			inSequence)
+{
+	mCurrentDocument->AddSequence(inSequence);
 }
 
 void CParserImp::Store(
@@ -518,6 +571,22 @@ XS(_MRSParser_Store)
 	XSRETURN(0);
 }
 
+XS(_MRSParser_AddSequence)
+{
+	dXSARGS;
+	
+	if (items != 2 or not SvPOK(ST(1)))
+		Perl_croak(aTHX_ "Usage: MRS::Parser::AddSequence(self, sequence);");
+	
+	CParserImp* proxy = CParserImp::GetObject(ST(0));
+	if (proxy == nil)
+		Perl_croak(aTHX_ "Error, MRS::Parser object is not specified");
+	
+	proxy->AddSequence(Perl_sv_2pvutf8_nolen(aTHX_ ST(1)));
+	
+	XSRETURN(0);
+}
+
 XS(_MRSParser_StoreMetaData)
 {
 	dXSARGS;
@@ -584,6 +653,70 @@ XS(_MRSParser_IndexText)
 	XSRETURN(0);
 }
 
+XS(_MRSParser_IndexWord)
+{
+	dXSARGS;
+	
+	if (items != 3 or not SvPOK(ST(1)) /*or not SvPOK(ST(2))*/)
+		Perl_croak(aTHX_ "Usage: MRS::Parser::IndexWord(self, indexname, word);");
+	
+	CParserImp* proxy = CParserImp::GetObject(ST(0));
+	if (proxy == nil)
+		Perl_croak(aTHX_ "Error, MRS::Parser object is not specified");
+	
+	proxy->IndexWord(Perl_sv_2pvutf8_nolen(aTHX_ ST(1)), Perl_sv_2pvutf8_nolen(aTHX_ ST(2)));
+	
+	XSRETURN(0);
+}
+
+XS(_MRSParser_IndexTextAndNumbers)
+{
+	dXSARGS;
+	
+	if (items != 3 or not SvPOK(ST(1)) or not SvPOK(ST(2)))
+		Perl_croak(aTHX_ "Usage: MRS::Parser::IndexTextAndNumbers(self, indexname, text);");
+	
+	CParserImp* proxy = CParserImp::GetObject(ST(0));
+	if (proxy == nil)
+		Perl_croak(aTHX_ "Error, MRS::Parser object is not specified");
+	
+	proxy->IndexTextAndNumbers(Perl_sv_2pvutf8_nolen(aTHX_ ST(1)), Perl_sv_2pvutf8_nolen(aTHX_ ST(2)));
+	
+	XSRETURN(0);
+}
+
+XS(_MRSParser_IndexDate)
+{
+	dXSARGS;
+	
+	if (items != 3 or not SvPOK(ST(1)) or not SvPOK(ST(2)))
+		Perl_croak(aTHX_ "Usage: MRS::Parser::IndexDate(self, indexname, date);");
+	
+	CParserImp* proxy = CParserImp::GetObject(ST(0));
+	if (proxy == nil)
+		Perl_croak(aTHX_ "Error, MRS::Parser object is not specified");
+	
+	proxy->IndexDate(Perl_sv_2pvutf8_nolen(aTHX_ ST(1)), Perl_sv_2pvutf8_nolen(aTHX_ ST(2)));
+	
+	XSRETURN(0);
+}
+
+XS(_MRSParser_IndexNumber)
+{
+	dXSARGS;
+	
+	if (items != 3 or not SvPOK(ST(1)) /*or not SvIOK(ST(2))*/)
+		Perl_croak(aTHX_ "Usage: MRS::Parser::IndexNumber(self, indexname, number);");
+	
+	CParserImp* proxy = CParserImp::GetObject(ST(0));
+	if (proxy == nil)
+		Perl_croak(aTHX_ "Error, MRS::Parser object is not specified");
+	
+	proxy->IndexNumber(Perl_sv_2pvutf8_nolen(aTHX_ ST(1)), Perl_sv_2pvutf8_nolen(aTHX_ ST(2)));
+	
+	XSRETURN(0);
+}
+
 void xs_init(pTHX)
 {
 	char *file = const_cast<char*>(__FILE__);
@@ -603,10 +736,15 @@ void xs_init(pTHX)
 
 	Perl_newXS(aTHX_ const_cast<char*>("MRS::Parser::GetLine"), _MRSParser_GetLine, file);
 	Perl_newXS(aTHX_ const_cast<char*>("MRS::Parser::Store"), _MRSParser_Store, file);
+	Perl_newXS(aTHX_ const_cast<char*>("MRS::Parser::AddSequence"), _MRSParser_AddSequence, file);
 	Perl_newXS(aTHX_ const_cast<char*>("MRS::Parser::StoreMetaData"), _MRSParser_StoreMetaData, file);
 	Perl_newXS(aTHX_ const_cast<char*>("MRS::Parser::FlushDocument"), _MRSParser_FlushDocument, file);
 	Perl_newXS(aTHX_ const_cast<char*>("MRS::Parser::IndexValue"), _MRSParser_IndexValue, file);
 	Perl_newXS(aTHX_ const_cast<char*>("MRS::Parser::IndexText"), _MRSParser_IndexText, file);
+	Perl_newXS(aTHX_ const_cast<char*>("MRS::Parser::IndexWord"), _MRSParser_IndexWord, file);
+	Perl_newXS(aTHX_ const_cast<char*>("MRS::Parser::IndexTextAndNumbers"), _MRSParser_IndexTextAndNumbers, file);
+	Perl_newXS(aTHX_ const_cast<char*>("MRS::Parser::IndexDate"), _MRSParser_IndexDate, file);
+	Perl_newXS(aTHX_ const_cast<char*>("MRS::Parser::IndexNumber"), _MRSParser_IndexNumber, file);
 }
 
 // ------------------------------------------------------------------
@@ -640,3 +778,61 @@ void CParser::Run(
 	inDocBuffer->Put(CDocument::sEnd);
 }
 
+bool CParser::IsRawFile(
+	const string&			inFile)
+{
+	return true;
+}
+
+void CParser::GetInfo(
+	string&			outName,
+	string&			outVersion,
+	string&			outUrl,
+	string&			outSection,
+	vector<string>&	outMetaDataFields)
+{
+	HV* hash = mImpl->GetHash();
+	if (hash == nil)
+		THROW(("runtime error"));
+	
+	SV** sv = Perl_hv_fetch(aTHX_ hash, "name", 4, 0);
+	if (sv != nil and SvPOK(*sv))
+		outName = SvPVX(*sv);
+	
+	sv = Perl_hv_fetch(aTHX_ hash, "version", 7, 0);
+	if (sv != nil and SvPOK(*sv))
+		outVersion = SvPVX(*sv);
+	
+	sv = Perl_hv_fetch(aTHX_ hash, "url", 3, 0);
+	if (sv != nil and SvPOK(*sv))
+		outUrl = SvPVX(*sv);
+	
+	sv = Perl_hv_fetch(aTHX_ hash, "section", 7, 0);
+	if (sv != nil and SvPOK(*sv))
+		outSection = SvPVX(*sv);
+	
+	sv = Perl_hv_fetch(aTHX_ hash, "meta", 4, 0);
+	if (sv != nil)
+	{
+		AV* av = nil;
+	
+		if (SvTYPE(*sv) == SVt_PVAV)
+			av = (AV*)*sv;
+		else if (SvROK(*sv))
+		{
+			SV* rv = SvRV(*sv);
+			if (SvTYPE(rv) == SVt_PVAV)
+				av = (AV*)rv;
+		}
+		
+		if (av != nil)
+		{
+			for (int i = 0; i < Perl_av_len(aTHX_ av) + 1; ++i)
+			{
+				sv = Perl_av_fetch(aTHX_ av, i, 0);
+				if (sv != nil and SvPOK(*sv))
+					outMetaDataFields.push_back(SvPVX(*sv));
+			}
+		}
+	}
+}

@@ -14,17 +14,23 @@
 #include <getopt.h>
 #include <string>
 #include <iostream>
+#include <iomanip>
 
+#include "HFile.h"
 #include "HBuffer.h"
 
 #include "CDatabank.h"
 #include "CParser.h"
 #include "CReader.h"
+#include "CDocument.h"
 
 using namespace std;
 namespace fs = boost::filesystem;
 
-int VERBOSE = 0;
+// ------------------------------------------------------------------
+
+fs::path		gRawDir("/data/raw/");
+fs::path		gMrsDir("/data/mrs/");
 
 // ------------------------------------------------------------------
 
@@ -54,6 +60,9 @@ class CBuilder
 
 	CDatabank*	mDatabank;
 	string		mDatabankName, mScriptName;
+	CParser*	mParser;
+	HFile::SafeSaver*
+				mSafe;
 };
 
 CBuilder::CBuilder(
@@ -62,11 +71,48 @@ CBuilder::CBuilder(
 	: mDatabank(nil)
 	, mDatabankName(inDatabank)
 	, mScriptName(inScript)
+	, mParser(nil)
+	, mSafe(nil)
 {
+	try
+	{
+		mParser = new CParser(mScriptName);
+		
+		string name, version, url, section;
+		vector<string> meta;
+		
+		mParser->GetInfo(name, version, url, section, meta);
+		
+		fs::path file = gMrsDir / (inDatabank + ".cmp");
+		HUrl path;
+		path.SetNativePath(file.string());
+		
+		if (fs::exists(file))
+		{
+			mSafe = new HFile::SafeSaver(path);
+			path = mSafe->GetURL();
+		}
+		
+		mDatabank = new CDatabank(path, meta, inDatabank,
+			version, url, inScript, section);
+	}
+	catch (...)
+	{
+		if (mParser != nil)
+			delete mParser;
+		
+		if (mDatabank != nil)
+			delete mDatabank;
+		
+		throw;
+	}
 }
 
 CBuilder::~CBuilder()
 {
+	delete mParser;
+	delete mDatabank;
+	delete mSafe;
 }
 
 void CBuilder::Run()
@@ -107,7 +153,13 @@ void CBuilder::Run()
 	for (vector<fs::path>::iterator file = rawFiles.begin(); file != rawFiles.end(); ++file)
 	{
 		if (VERBOSE > 1)
-			cerr << "Reading file " << file->string() << endl;
+			cerr << '\r'
+				 << setw(32) << file->leaf()
+				 << " ["
+				 << setw(6) << (file - rawFiles.begin()) + 1
+				 << '/'
+				 << setw(6) << rawFiles.size()
+				 << ']';
 		
 		CReaderPtr reader(CReader::CreateReader(*file));
 		readerBuffer.Put(reader);
@@ -118,25 +170,80 @@ void CBuilder::Run()
 	parser_threads.join_all();
 	indexDocThread.join();
 	compressDocThread.join();
+
+	if (VERBOSE > 1)
+		cout << endl << "done" << endl;
 	
 	mDatabank->Finish(true, false);
+	delete mDatabank;
+	mDatabank = nil;
+	
+	if (mSafe != nil)
+		mSafe->Commit();
 }
 
 void CBuilder::CollectRawFiles(
 	vector<fs::path>&	outRawFiles,
 	int64&				outRawFilesSize)
 {
+	fs::path rawDir = gRawDir / mDatabankName;
+	
+	outRawFilesSize = 0;
+	
+	if (not fs::exists(rawDir))
+		THROW(("Raw directory %s does not exist", rawDir.string().c_str()));
+	
+	fs::directory_iterator end_itr;
+	for (fs::directory_iterator itr(rawDir); itr != end_itr; ++itr)
+	{
+		if (mParser->IsRawFile(itr->leaf()))
+		{
+			outRawFiles.push_back(*itr);
+			outRawFilesSize += fs::file_size(*itr);
+		}
+	}
 }
 
 void CBuilder::IndexDoc(
 	CDocumentBuffer*	inIndexDocBuffer,
 	CDocumentBuffer*	inCompressDocBuffer)
 {
+	CDocumentPtr next;
+	
+	while ((next = inIndexDocBuffer->Get()) != CDocument::sEnd)
+	{
+		const CDocument::DataMap& indexedTextData = next->GetIndexedTextData();
+		
+		for (CDocument::DataMap::const_iterator d = indexedTextData.begin(); d != indexedTextData.end(); ++d)
+			mDatabank->IndexText(d->first, d->second, true);
+
+		const CDocument::DataMap& indexedValueData = next->GetIndexedValueData();
+		
+		for (CDocument::DataMap::const_iterator d = indexedValueData.begin(); d != indexedValueData.end(); ++d)
+			mDatabank->IndexValue(d->first, d->second);
+
+		mDatabank->FlushDocument();
+		
+		inCompressDocBuffer->Put(next);
+	}
+	
+	inCompressDocBuffer->Put(CDocument::sEnd);
 }
 
 void CBuilder::CompressDoc(
 	CDocumentBuffer*	inCompressDocBuffer)
 {
+	CDocumentPtr next;
+	
+	while ((next = inCompressDocBuffer->Get()) != CDocument::sEnd)
+	{
+		const CDocument::DataMap& metaData = next->GetMetaData();
+		
+		for (CDocument::DataMap::const_iterator d = metaData.begin(); d != metaData.end(); ++d)
+			mDatabank->StoreMetaData(d->first, d->second);
+		
+		mDatabank->Store(next->GetText());
+	}
 }
 
 // ------------------------------------------------------------------
@@ -188,7 +295,7 @@ int main(int argc, char* const argv[])
 
 	try
 	{
-		CBuilder builder(script, databank);
+		CBuilder builder(databank, script);
 		builder.Run();
 	}
 	catch (exception& e)

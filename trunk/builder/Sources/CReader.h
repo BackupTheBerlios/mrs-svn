@@ -11,6 +11,8 @@ class CReader
 {
   public:
 	
+						~CReader();
+
 	static CReader*		CreateReader(
 							boost::filesystem::path&
 												inFile);
@@ -23,8 +25,14 @@ class CReader
 	bool				Eof();
 
   private:
-						CReader();
+						CReader(
+							struct CReaderImp*	inImpl);
 	
+						CReader(
+							const CReader&);
+	CReader&			operator=(
+							const CReader&);
+
 	struct CReaderImp*	mImpl;
 };
 

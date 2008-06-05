@@ -26,6 +26,8 @@
 	<files>
 		<group name="Builder">
 			<file>CBuilder.cpp</file>
+			<file>CDocument.cpp</file>
+			<file>CReader.cpp</file>
 			<file>CParser.cpp</file>
 		</group>
 		<group name="MRSSources">
@@ -93,6 +95,7 @@
 			<link>boost_regex</link>
 			<link>boost_thread</link>
 			<link>archive</link>
+			<link>magic</link>
 		</group>
 	</files>
 	<resources resource_dir="../../../../../.."/>
