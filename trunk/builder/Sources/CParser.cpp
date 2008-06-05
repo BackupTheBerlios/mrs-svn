@@ -600,7 +600,7 @@ XS(_MRSParser_StoreMetaData)
 	
 	proxy->StoreMetaData(
 		Perl_sv_2pvutf8_nolen(aTHX_ ST(1)),
-		Perl_sv_2pvutf8_nolen(aTHX_ ST(1)));
+		Perl_sv_2pvutf8_nolen(aTHX_ ST(2)));
 	
 	XSRETURN(0);
 }

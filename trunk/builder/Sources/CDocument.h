@@ -2,16 +2,28 @@
 #define CDOCUMENT_H
 
 #include <boost/shared_ptr.hpp>
+#include <boost/ptr_container/ptr_vector.hpp>
 #include <map>
 #include <vector>
 
 class CDocument;
 typedef boost::shared_ptr<CDocument> CDocumentPtr;
 
+class CLexicon;
+
 class CDocument
 {
   public:
 	typedef std::map<std::string,std::string>	DataMap;
+
+	struct CIndexTokens
+	{
+		bool					is_value;
+		std::string				index;
+		std::vector<uint32>		tokens;
+	};
+
+	typedef boost::ptr_vector<CIndexTokens>		TokenMap;
 
 						CDocument();
 						~CDocument();
@@ -44,6 +56,11 @@ class CDocument
 											{ return mIndexedTextData; }
 	const DataMap&		GetIndexedValueData()
 											{ return mIndexedValueData; }
+	const TokenMap&		GetTokenData()
+											{ return mTokenData; }
+
+	void				TokenizeText(
+							CLexicon&		inLexicon);
 
   private:
 	std::string			mID;
@@ -51,6 +68,7 @@ class CDocument
 	DataMap				mMetaData;
 	DataMap				mIndexedTextData;
 	DataMap				mIndexedValueData;
+	TokenMap			mTokenData;
 	std::vector<std::string>
 						mSequences;
 };

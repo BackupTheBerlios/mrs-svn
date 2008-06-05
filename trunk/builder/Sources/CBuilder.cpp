@@ -22,10 +22,17 @@
 #include "CDatabank.h"
 #include "CParser.h"
 #include "CReader.h"
+#include "CLexicon.h"
 #include "CDocument.h"
 
 using namespace std;
 namespace fs = boost::filesystem;
+
+int VERBOSE = 0;
+int COMPRESSION_LEVEL = 9;
+unsigned int THREADS = 2;
+const char* COMPRESSION_DICTIONARY = "";
+const char* COMPRESSION = "zlib";
 
 // ------------------------------------------------------------------
 
@@ -51,6 +58,10 @@ class CBuilder
 					vector<fs::path>&	outRawFiles,
 					int64&				outRawFilesSize);
 
+	void		TokenizeDoc(
+					CDocumentBuffer*	inTokenizeDocBuffer,
+					CDocumentBuffer*	inIndexDocBuffer);
+	
 	void		IndexDoc(
 					CDocumentBuffer*	inIndexDocBuffer,
 					CDocumentBuffer*	inCompressDocBuffer);
@@ -63,6 +74,7 @@ class CBuilder
 	CParser*	mParser;
 	HFile::SafeSaver*
 				mSafe;
+	CLexicon	mLexicon;
 };
 
 CBuilder::CBuilder(
@@ -138,15 +150,16 @@ void CBuilder::Run()
 		nrOfParsers = rawFiles.size();
 
 	CReaderBuffer readerBuffer;
-	CDocumentBuffer indexDocBuffer, compressDocBuffer;
+	CDocumentBuffer tokenizeDocBuffer, indexDocBuffer, compressDocBuffer;
 	
 	for (uint32 i = 0; i < nrOfParsers; ++i)
 	{
 		CParser* parser = new CParser(mScriptName);
 		parsers.push_back(parser);
-		parser_threads.create_thread(boost::bind(&CParser::Run, parser, &readerBuffer, &indexDocBuffer));
+		parser_threads.create_thread(boost::bind(&CParser::Run, parser, &readerBuffer, &tokenizeDocBuffer));
 	}
 	
+	boost::thread tokenizeDocThread(boost::bind(&CBuilder::TokenizeDoc, this, &tokenizeDocBuffer, &indexDocBuffer));
 	boost::thread indexDocThread(boost::bind(&CBuilder::IndexDoc, this, &indexDocBuffer, &compressDocBuffer));
 	boost::thread compressDocThread(boost::bind(&CBuilder::CompressDoc, this, &compressDocBuffer));
 	
@@ -168,13 +181,14 @@ void CBuilder::Run()
 	readerBuffer.Put(CReader::sEnd);
 	
 	parser_threads.join_all();
+	tokenizeDocThread.join();
 	indexDocThread.join();
 	compressDocThread.join();
 
 	if (VERBOSE > 1)
 		cout << endl << "done" << endl;
 	
-	mDatabank->Finish(true, false);
+	mDatabank->Finish(mLexicon, true, false);
 	delete mDatabank;
 	mDatabank = nil;
 	
@@ -204,6 +218,21 @@ void CBuilder::CollectRawFiles(
 	}
 }
 
+void CBuilder::TokenizeDoc(
+	CDocumentBuffer*	inTokenizeDocBuffer,
+	CDocumentBuffer*	inIndexDocBuffer)
+{
+	CDocumentPtr next;
+	
+	while ((next = inTokenizeDocBuffer->Get()) != CDocument::sEnd)
+	{
+		next->TokenizeText(mLexicon);
+		inIndexDocBuffer->Put(next);
+	}
+	
+	inIndexDocBuffer->Put(CDocument::sEnd);
+}
+
 void CBuilder::IndexDoc(
 	CDocumentBuffer*	inIndexDocBuffer,
 	CDocumentBuffer*	inCompressDocBuffer)
@@ -212,15 +241,15 @@ void CBuilder::IndexDoc(
 	
 	while ((next = inIndexDocBuffer->Get()) != CDocument::sEnd)
 	{
-		const CDocument::DataMap& indexedTextData = next->GetIndexedTextData();
-		
-		for (CDocument::DataMap::const_iterator d = indexedTextData.begin(); d != indexedTextData.end(); ++d)
-			mDatabank->IndexText(d->first, d->second, true);
+		const CDocument::TokenMap& tokenData = next->GetTokenData();
 
-		const CDocument::DataMap& indexedValueData = next->GetIndexedValueData();
-		
-		for (CDocument::DataMap::const_iterator d = indexedValueData.begin(); d != indexedValueData.end(); ++d)
-			mDatabank->IndexValue(d->first, d->second);
+		for (CDocument::TokenMap::const_iterator d = tokenData.begin(); d != tokenData.end(); ++d)
+		{
+			if (d->is_value)
+				mDatabank->IndexValue(d->index, d->tokens[0]);
+			else
+				mDatabank->IndexTokens(d->index, d->tokens);
+		}
 
 		mDatabank->FlushDocument();
 		
