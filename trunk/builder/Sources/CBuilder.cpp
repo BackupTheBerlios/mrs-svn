@@ -19,11 +19,13 @@
 #include "HFile.h"
 #include "HBuffer.h"
 
+#include "HBuffer.h"
 #include "CDatabank.h"
 #include "CParser.h"
 #include "CReader.h"
 #include "CLexicon.h"
 #include "CDocument.h"
+#include "CCompress.h"
 
 using namespace std;
 namespace fs = boost::filesystem;
@@ -40,6 +42,12 @@ fs::path		gRawDir("/data/raw/");
 fs::path		gMrsDir("/data/mrs/");
 
 // ------------------------------------------------------------------
+
+typedef boost::shared_ptr<CReader>		CReaderPtr;
+typedef HBuffer<CReaderPtr,100>			CReaderBuffer;
+
+typedef boost::shared_ptr<CDocument>	CDocumentPtr;
+typedef HBuffer<CDocumentPtr,100>		CDocumentBuffer;
 
 class CBuilder
 {
@@ -58,20 +66,33 @@ class CBuilder
 					vector<fs::path>&	outRawFiles,
 					int64&				outRawFilesSize);
 
+	void		ParseFiles(
+					const string&		inScriptName,
+					CReaderBuffer*		inReaderBuffer,
+					CDocumentBuffer*	inCompressDocBuffer);
+	
+	void		ProcessDocument(
+					CDocumentPtr		inDocument,
+					void*				inUserData);
+
+	void		CompressDoc(
+					CDocumentBuffer*	inCompressDocBuffer,
+					CDocumentBuffer*	inTokenizeDocBuffer);
+
 	void		TokenizeDoc(
 					CDocumentBuffer*	inTokenizeDocBuffer,
 					CDocumentBuffer*	inIndexDocBuffer);
 	
 	void		IndexDoc(
-					CDocumentBuffer*	inIndexDocBuffer,
-					CDocumentBuffer*	inCompressDocBuffer);
+					CDocumentBuffer*	inIndexDocBuffer);
 	
-	void		CompressDoc(
-					CDocumentBuffer*	inCompressDocBuffer);
-
 	CDatabank*	mDatabank;
 	string		mDatabankName, mScriptName;
 	CParser*	mParser;
+	CCompressorFactory*
+				mCompressorFactory;
+	vector<string>
+				mMeta;
 	HFile::SafeSaver*
 				mSafe;
 	CLexicon	mLexicon;
@@ -84,6 +105,7 @@ CBuilder::CBuilder(
 	, mDatabankName(inDatabank)
 	, mScriptName(inScript)
 	, mParser(nil)
+	, mCompressorFactory(nil)
 	, mSafe(nil)
 {
 	try
@@ -91,9 +113,8 @@ CBuilder::CBuilder(
 		mParser = new CParser(mScriptName);
 		
 		string name, version, url, section;
-		vector<string> meta;
 		
-		mParser->GetInfo(name, version, url, section, meta);
+		mParser->GetInfo(name, version, url, section, mMeta);
 		
 		fs::path file = gMrsDir / (inDatabank + ".cmp");
 		HUrl path;
@@ -105,8 +126,11 @@ CBuilder::CBuilder(
 			path = mSafe->GetURL();
 		}
 		
-		mDatabank = new CDatabank(path, meta, inDatabank,
-			version, url, inScript, section);
+#warning("fix me")
+		mCompressorFactory = new CCompressorFactory("zlib", 3, "", 0);
+		
+		mDatabank = new CDatabank(path, mMeta, inDatabank,
+			version, url, inScript, section, *mCompressorFactory);
 	}
 	catch (...)
 	{
@@ -143,25 +167,22 @@ void CBuilder::Run()
 	if (VERBOSE > 0)
 		cerr << "Processing " << rawFiles.size() << " raw files totalling " << totalRawFilesSize << " bytes" << endl;
 	
-	boost::ptr_vector<CParser> parsers;
-	boost::thread_group parser_threads;
-	uint32 nrOfParsers = 4;
+	boost::thread_group parser_threads, compress_threads;
+	uint32 nrOfParsers = 2;
 	if (nrOfParsers > rawFiles.size())
 		nrOfParsers = rawFiles.size();
 
 	CReaderBuffer readerBuffer;
-	CDocumentBuffer tokenizeDocBuffer, indexDocBuffer, compressDocBuffer;
+	CDocumentBuffer compressDocBuffer, tokenizeDocBuffer, indexDocBuffer;
 	
 	for (uint32 i = 0; i < nrOfParsers; ++i)
 	{
-		CParser* parser = new CParser(mScriptName);
-		parsers.push_back(parser);
-		parser_threads.create_thread(boost::bind(&CParser::Run, parser, &readerBuffer, &tokenizeDocBuffer));
+		parser_threads.create_thread(boost::bind(&CBuilder::ParseFiles, this, mScriptName, &readerBuffer, &compressDocBuffer));
+		compress_threads.create_thread(boost::bind(&CBuilder::CompressDoc, this, &compressDocBuffer, &tokenizeDocBuffer));
 	}
 	
 	boost::thread tokenizeDocThread(boost::bind(&CBuilder::TokenizeDoc, this, &tokenizeDocBuffer, &indexDocBuffer));
-	boost::thread indexDocThread(boost::bind(&CBuilder::IndexDoc, this, &indexDocBuffer, &compressDocBuffer));
-	boost::thread compressDocThread(boost::bind(&CBuilder::CompressDoc, this, &compressDocBuffer));
+	boost::thread indexDocThread(boost::bind(&CBuilder::IndexDoc, this, &indexDocBuffer));
 	
 	for (vector<fs::path>::iterator file = rawFiles.begin(); file != rawFiles.end(); ++file)
 	{
@@ -181,9 +202,9 @@ void CBuilder::Run()
 	readerBuffer.Put(CReader::sEnd);
 	
 	parser_threads.join_all();
+	compress_threads.join_all();
 	tokenizeDocThread.join();
 	indexDocThread.join();
-	compressDocThread.join();
 
 	if (VERBOSE > 1)
 		cout << endl << "done" << endl;
@@ -218,6 +239,47 @@ void CBuilder::CollectRawFiles(
 	}
 }
 
+void CBuilder::ParseFiles(
+	const string&		inScriptName,
+	CReaderBuffer*		inReaderBuffer,
+	CDocumentBuffer*	inCompressDocBuffer)
+{
+	CParser parser(inScriptName);
+
+	CReaderPtr next;
+	while ((next = inReaderBuffer->Get()) != CReader::sEnd)
+		parser.Parse(*next, inCompressDocBuffer,
+			boost::bind(&CBuilder::ProcessDocument, this, _1, _2));
+	
+	inReaderBuffer->Put(CReader::sEnd);
+	inCompressDocBuffer->Put(CDocument::sEnd);
+}
+
+void CBuilder::ProcessDocument(
+	CDocumentPtr		inDocument,
+	void*				inUserData)
+{
+	CDocumentBuffer* compressDocBuffer = reinterpret_cast<CDocumentBuffer*>(inUserData);
+	compressDocBuffer->Put(inDocument);
+}
+
+void CBuilder::CompressDoc(
+	CDocumentBuffer*	inCompressDocBuffer,
+	CDocumentBuffer*	inTokenizeDocBuffer)
+{
+	CDocumentPtr next;
+	auto_ptr<CCompressor> compressor(mCompressorFactory->CreateCompressor());
+	
+	while ((next = inCompressDocBuffer->Get()) != CDocument::sEnd)
+	{
+		next->Compress(mMeta, *compressor);
+		inTokenizeDocBuffer->Put(next);
+	}
+	
+	inCompressDocBuffer->Put(CDocument::sEnd);
+	inTokenizeDocBuffer->Put(CDocument::sEnd);
+}
+
 void CBuilder::TokenizeDoc(
 	CDocumentBuffer*	inTokenizeDocBuffer,
 	CDocumentBuffer*	inIndexDocBuffer)
@@ -234,13 +296,14 @@ void CBuilder::TokenizeDoc(
 }
 
 void CBuilder::IndexDoc(
-	CDocumentBuffer*	inIndexDocBuffer,
-	CDocumentBuffer*	inCompressDocBuffer)
+	CDocumentBuffer*	inIndexDocBuffer)
 {
 	CDocumentPtr next;
 	
 	while ((next = inIndexDocBuffer->Get()) != CDocument::sEnd)
 	{
+		mDatabank->StoreDocument(*next);
+
 		const CDocument::TokenMap& tokenData = next->GetTokenData();
 
 		for (CDocument::TokenMap::const_iterator d = tokenData.begin(); d != tokenData.end(); ++d)
@@ -252,26 +315,6 @@ void CBuilder::IndexDoc(
 		}
 
 		mDatabank->FlushDocument();
-		
-		inCompressDocBuffer->Put(next);
-	}
-	
-	inCompressDocBuffer->Put(CDocument::sEnd);
-}
-
-void CBuilder::CompressDoc(
-	CDocumentBuffer*	inCompressDocBuffer)
-{
-	CDocumentPtr next;
-	
-	while ((next = inCompressDocBuffer->Get()) != CDocument::sEnd)
-	{
-		const CDocument::DataMap& metaData = next->GetMetaData();
-		
-		for (CDocument::DataMap::const_iterator d = metaData.begin(); d != metaData.end(); ++d)
-			mDatabank->StoreMetaData(d->first, d->second);
-		
-		mDatabank->Store(next->GetText());
 	}
 }
 

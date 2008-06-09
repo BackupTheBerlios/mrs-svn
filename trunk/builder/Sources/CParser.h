@@ -1,32 +1,32 @@
 #ifndef CPARSER_H
 #define CPARSER_H
 
-#include "HBuffer.h"
 #include <boost/shared_ptr.hpp>
+#include <boost/function.hpp>
 #include <vector>
 
-class CReader;
-typedef boost::shared_ptr<CReader>		CReaderPtr;
-typedef HBuffer<CReaderPtr>				CReaderBuffer;
-
 class CDocument;
+class CReader;
 typedef boost::shared_ptr<CDocument>	CDocumentPtr;
-typedef HBuffer<CDocumentPtr>			CDocumentBuffer;
 
 class CParser
 {
   public:
+
+	typedef boost::function<void(CDocumentPtr, void*)>	CDocCallback;
+
 						CParser(
 							const std::string&		inScriptName);
 
 						~CParser();
 	
-	void				Run(
-							CReaderBuffer*			inReaders,
-							CDocumentBuffer*		inDocBuffer);
-
 	bool				IsRawFile(
 							const std::string&		inFile);
+
+	void				Parse(
+							CReader&				inReader,
+							void*					inUserData,
+							CDocCallback			inCallback);
 
 	void				GetInfo(
 							std::string&			outName,

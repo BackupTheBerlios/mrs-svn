@@ -8,6 +8,7 @@
 
 #include <cmath>
 #include <cstdlib>
+#include <boost/thread.hpp>
 
 #define PERL_NO_SHORT_NAMES 1
 //#define PERL_IMPLICIT_CONTEXT 1
@@ -49,15 +50,17 @@ void boot_DynaLoader(pTHX_ CV* cv);
 
 struct CParserImp
 {
+	typedef CParser::CDocCallback CDocCallback;
+	
 						CParserImp(
 							const string&		inScriptName);
 
 						~CParserImp();
 
 	void				Parse(
-							CReader&			inReader,
-							CDocumentBuffer&	inDocBuffer);
-
+							CReader&				inReader,
+							void*					inUserData,
+							CDocCallback			inCallback);
 	
 	// implemented callbacks
 	
@@ -116,7 +119,8 @@ struct CParserImp
 	static CParserImp*	sConstructingImp;
 
 	CReader*			mReader;
-	CDocumentBuffer*	mDocBuffer;
+	CDocCallback		mCallback;
+	void*				mUserData;
 	CDocumentPtr		mCurrentDocument;
 };
 
@@ -130,7 +134,6 @@ CParserImp::CParserImp(
 	, mParser(nil)
 	, mParserHash(nil)
 	, mReader(nil)
-	, mDocBuffer(nil)
 {
 	mPerl = perl_alloc();
 	if (mPerl == nil)
@@ -206,11 +209,13 @@ CParserImp::~CParserImp()
 }
 
 void CParserImp::Parse(
-	CReader&			inReader,
-	CDocumentBuffer&	inDocBuffer)
+	CReader&				inReader,
+	void*					inUserData,
+	CDocCallback			inCallback)
 {
 	mReader = &inReader;
-	mDocBuffer = &inDocBuffer;
+	mCallback = inCallback;
+	mUserData = inUserData;
 	
 	mCurrentDocument.reset(new CDocument);
 	
@@ -245,7 +250,8 @@ void CParserImp::Parse(
 	Perl_pop_scope(aTHX);
 	
 	mReader = nil;
-	mDocBuffer = nil;
+	mCallback = nil;
+	mUserData = nil;
 }
 
 CParserImp* CParserImp::GetObject(
@@ -356,7 +362,7 @@ void CParserImp::Store(
 
 void CParserImp::FlushDocument()
 {
-	mDocBuffer->Put(mCurrentDocument);
+	mCallback(mCurrentDocument, mUserData);
 	mCurrentDocument.reset(new CDocument);
 }
 
@@ -760,22 +766,12 @@ CParser::~CParser()
 	delete mImpl;
 }
 
-void CParser::Run(
-	CReaderBuffer*			inReaders,
-	CDocumentBuffer*		inDocBuffer)
+void CParser::Parse(
+	CReader&			inReader,
+	void*				inUserData,
+	CDocCallback		inCallback)
 {
-	for (;;)
-	{
-		CReaderPtr next = inReaders->Get();
-		
-		if (next == CReader::sEnd)
-			break;
-		
-		mImpl->Parse(*next, *inDocBuffer);
-	}
-	
-	inReaders->Put(CReader::sEnd);
-	inDocBuffer->Put(CDocument::sEnd);
+	mImpl->Parse(inReader, inUserData, inCallback);
 }
 
 bool CParser::IsRawFile(

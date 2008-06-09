@@ -5,11 +5,13 @@
 #include <boost/ptr_container/ptr_vector.hpp>
 #include <map>
 #include <vector>
+#include "HStream.h"
 
 class CDocument;
 typedef boost::shared_ptr<CDocument> CDocumentPtr;
 
 class CLexicon;
+class CCompressor;
 
 class CDocument
 {
@@ -26,13 +28,14 @@ class CDocument
 	typedef boost::ptr_vector<CIndexTokens>		TokenMap;
 
 						CDocument();
+
 						~CDocument();
 
-	void				SetText(
-							const char*		inText);
-	
 	void				SetMetaData(
 							const char*		inField,
+							const char*		inText);
+
+	void				SetText(
 							const char*		inText);
 	
 	void				AddIndexText(
@@ -48,22 +51,25 @@ class CDocument
 	
 	static CDocumentPtr	sEnd;
 
-	const std::string&	GetText()			{ return mText; }
-	const std::string&	GetID()				{ return mID; }
-	
-	const DataMap&		GetMetaData()		{ return mMetaData; }
-	const DataMap&		GetIndexedTextData()
-											{ return mIndexedTextData; }
-	const DataMap&		GetIndexedValueData()
-											{ return mIndexedValueData; }
-	const TokenMap&		GetTokenData()
-											{ return mTokenData; }
+	const DataMap&		GetIndexedTextData()	{ return mIndexedTextData; }
+
+	const DataMap&		GetIndexedValueData()	{ return mIndexedValueData; }
+
+	const TokenMap&		GetTokenData()			{ return mTokenData; }
 
 	void				TokenizeText(
 							CLexicon&		inLexicon);
 
+	void				Compress(
+							const std::vector<std::string>&
+											inMetaDataFields,
+							CCompressor&	inCompressor);
+
+	const void*			Data() const			{ return mData.Buffer(); }
+	int64				Size() const			{ return mData.Size(); }
+	uint32				TextLength() const		{ return mText.length(); }
+
   private:
-	std::string			mID;
 	std::string			mText;
 	DataMap				mMetaData;
 	DataMap				mIndexedTextData;
@@ -71,6 +77,7 @@ class CDocument
 	TokenMap			mTokenData;
 	std::vector<std::string>
 						mSequences;
+	HMemoryStream		mData;
 };
 
 #endif

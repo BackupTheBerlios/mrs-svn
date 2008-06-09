@@ -5,6 +5,7 @@
 #include "CLexicon.h"
 #include "CTokenizer.h"
 #include "CDocument.h"
+#include "CCompress.h"
 
 using namespace std;
 
@@ -23,6 +24,7 @@ CDocument::~CDocument()
 void CDocument::SetText(
 	const char*		inText)
 {
+	assert(mText.length() == 0);
 	mText.assign(inText);
 }
 
@@ -37,9 +39,6 @@ void CDocument::AddIndexText(
 	const char*		inIndex,
 	const char*		inText)
 {
-	if (strcasecmp(inIndex, "id") == 0)
-		mID.assign(inText);
-	
 	mIndexedTextData[inIndex] += inText;
 	mIndexedTextData[inIndex] += "\n";
 }
@@ -107,4 +106,29 @@ void CDocument::TokenizeText(
 		
 		mTokenData.push_back(it.release());
 	}
+}
+
+void CDocument::Compress(
+	const vector<string>&	inMetaDataFields,
+	CCompressor&			inCompressor)
+{
+	if (inMetaDataFields.size() > 0)
+	{
+		vector<pair<const char*,uint32> > dv;
+		
+		for (vector<string>::const_iterator m = inMetaDataFields.begin(); m != inMetaDataFields.end(); ++m)
+		{
+			DataMap::iterator mf = mMetaData.find(*m);
+			if (mf != mMetaData.end())
+				dv.push_back(make_pair(mf->second.c_str(), mf->second.length()));
+			else
+				dv.push_back(make_pair("", 0));
+		}
+
+		dv.push_back(make_pair(mText.c_str(), mText.length()));
+
+		inCompressor.CompressData(dv, mData);
+	}
+	else
+		inCompressor.CompressDocument(mText.c_str(), mText.length(), mData);
 }
