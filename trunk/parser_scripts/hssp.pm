@@ -37,34 +37,31 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-package MRS::Script::hssp;
+package MRS::Parser::hssp;
 
-our @ISA = "MRS::Script";
+our @ISA = "MRS::Parser";
 
 sub new
 {
 	my $invocant = shift;
-	my $self = {
+	my $self = new MRS::Parser(
 		url			=> 'http://www.cmbi.kun.nl/gv/hssp/',
 		name		=> 'HSSP',
 		section		=> 'structure',
 		meta		=> [ 'title' ],
 		raw_files	=> qr/\.hssp$/,
 		@_
-	};
-	return bless $self, "MRS::Script::hssp";
+	);
+	return bless $self, "MRS::Parser::hssp";
 }
 
-sub parse
+sub Parse
 {
 	my $self = shift;
-	local *IN = shift;
 	
-	my ($doc, $m, $state);
+	my ($doc, $state);
 
-	$m = $self->{mrs};
-	
-	my $lookahead = <IN>;
+	my $lookahead = $self->GetLine;
 	
 	$state = 0;
 
@@ -73,7 +70,7 @@ sub parse
 	while (defined $lookahead)
 	{
 		my $line = $lookahead;
-		$lookahead = <IN>;
+		$lookahead = $self->GetLine;
 		
 		$doc .= $line;
 		chomp($line);
@@ -82,7 +79,7 @@ sub parse
 		{
 			my $id = $1;
 			
-			$m->IndexValue('id', $id);
+			$self->IndexValue('id', $id);
 			
 			$state = 1;
 		}
@@ -100,16 +97,29 @@ sub parse
 				$line =~ s/(\w)\.(?=\w)/$1. /og
 					if ($fld eq 'AUTHOR');
 
-				$m->StoreMetaData('title', lc($line))
+				$self->StoreMetaData('title', lc($line))
 					if ($fld eq 'HEADER');
 
-				$m->IndexText('text', $line);
+				my %fldmap = (
+					'NALIGN'		=> 1,
+					'SEQLENGTH'		=> 1,
+					'NCHAIN'		=> 1,
+					'KCHAIN'		=> 1
+				);
+
+				if (defined $fldmap{$fld}) {
+					my $value = $1 if ($line =~ m/^(\d+)/);
+					$self->IndexNumber(lc $fld, $value);
+				}
+				else {
+					$self->IndexText('text', $line);
+				}
 			}
 		}
 	}
 
-	$m->Store($doc);
-	$m->FlushDocument;
+	$self->Store($doc);
+	$self->FlushDocument;
 }
 
 sub pp

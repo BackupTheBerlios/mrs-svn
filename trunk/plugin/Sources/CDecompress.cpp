@@ -123,9 +123,15 @@ void CDecompressorImp::Init()
 {
 }
 
-void CDecompressorImp::LinkData(const std::string& inDataFileName,
-	const std::string& inDataFileUUID, HStreamBase& outData, uint32& outKind,
-	int64& outDataOffset, int64& outDataSize, int64& outTableOffset, int64& outTableSize)
+void CDecompressorImp::LinkData(
+	const string&		inDataFileName,
+	const string&		inDataFileUUID,
+	HStreamBase&		outData,
+	uint32&				outKind,
+	int64&				outDataOffset,
+	int64&				outDataSize,
+	int64&				outTableOffset,
+	int64&				outTableSize)
 {
 	HSwapStream<net_swapper> data(outData);
 	

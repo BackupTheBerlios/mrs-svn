@@ -77,6 +77,7 @@
 #include "CDictionary.h"
 #include "CDocWeightArray.h"
 #include "CXMLDocument.h"
+#include "CDocument.h"
 
 using namespace std;
 
@@ -375,13 +376,18 @@ void CDatabankBase::GetStopWords(std::set<std::string>& outStopWords) const
 	Implementations
 */
 
-CDatabank::CDatabank(const HUrl& inPath, const vector<string>& inMetaDataFields,
-		const string& inName, const string& inVersion, const string& inURL, const string& inScriptName,
-		const string& inSection)
+CDatabank::CDatabank(
+	const HUrl&				inPath,
+	const vector<string>&	inMetaDataFields,
+	const string&			inName,
+	const string&			inVersion,
+	const string&			inURL,
+	const string&			inScriptName,
+	const string&			inSection,
+	CCompressorFactory&		inCompressorFactory)
 	: fPath(inPath)
 	, fModificationTime(0)
 	, fDataFile(NULL)
-	, fCompressor(NULL)
 	, fIndexer(NULL)
 	, fReadOnly(false)
 	, fInfoContainer(nil)
@@ -397,6 +403,10 @@ CDatabank::CDatabank(const HUrl& inPath, const vector<string>& inMetaDataFields,
 	, fBlast(nil)
 #endif
 	, fOmitVector(nil)
+	// compression
+	, fDataOffset(0)
+	, fFirstDocOffset(0)
+	, fDocStart(0)
 {
 	memset(fHeader, 0, sizeof(SHeader));
 	memset(fDataHeader, 0, sizeof(SDataHeader));
@@ -442,9 +452,20 @@ CDatabank::CDatabank(const HUrl& inPath, const vector<string>& inMetaDataFields,
 	fParts = new SDataPart[1];
 	memset(fParts, 0, sizeof(SDataPart));
 	fParts[0].sig = kPartSig;
+	fParts[0].kind = inCompressorFactory.GetCompressionKind();
 	*fDataFile << fParts[0];
 	
-	fCompressor = new CCompressor(*fDataFile, inPath);
+	HUrl offsetsUrl = inPath;
+	offsetsUrl.SetFileName(offsetsUrl.GetFileName() + ".offsets");
+	
+	fDocIndexData = new HTempFileStream(offsetsUrl);
+	fDataOffset = fDataFile->Tell();
+	
+	inCompressorFactory.InitDataStream(*fDataFile);
+
+	fFirstDocOffset = fDataFile->Tell();
+	(*fDocIndexData) << 0ULL;
+	
 	fIndexer = new CIndexer(inPath);
 
 	fInfoContainer = new CDbInfo;
@@ -462,7 +483,6 @@ CDatabank::CDatabank(const HUrl& inUrl)
 	: fPath(inUrl)
 	, fModificationTime(0)
 	, fDataFile(NULL)
-	, fCompressor(NULL)
 	, fIndexer(NULL)
 	, fReadOnly(true)
 	, fInfoContainer(nil)
@@ -478,6 +498,7 @@ CDatabank::CDatabank(const HUrl& inUrl)
 	, fBlast(nil)
 #endif
 	, fOmitVector(nil)
+	, fDocIndexData(nil)
 {
 	HFile::GetModificationTime(fPath, fModificationTime);
 	
@@ -578,7 +599,6 @@ CDatabank::~CDatabank()
 	delete fHeader;
 	
 	delete fDataFile;
-	delete fCompressor;
 	delete fIndexer;
 	delete fInfoContainer;
 	delete fIdTable;
@@ -587,6 +607,8 @@ CDatabank::~CDatabank()
 	delete fBlastIndex;
 #endif
 	delete[] fOmitVector;
+	
+	delete fDocIndexData;
 }
 
 string CDatabank::GetDbName() const
@@ -599,31 +621,35 @@ void CDatabank::Finish(
 	bool		inCreateAllTextIndex,
 	bool		inCreateUpdateDatabank)
 {
-	assert(fCompressor->Count() == fHeader->entries);
 	assert(fIndexer->Count() == fHeader->entries);
 
 	if (VERBOSE >= 1)
 		cout << endl << "Finishing" << endl;
 
-	if (fCompressor == nil or fHeader->entries == 0)
+	if (fHeader->entries == 0)
 		THROW(("No data processed, cannot continue"));
 	
 	assert(fParts);
 	
 	SDataPart& partInfo = fParts[0];
 	
-	fCompressor->Finish(partInfo.data_offset, partInfo.data_size,
-		partInfo.table_offset, partInfo.table_size,
-		partInfo.kind, partInfo.count);
+	partInfo.data_offset = fDataOffset;
+	partInfo.data_size = fDataFile->Tell() - fDataOffset;
+	partInfo.table_offset = fDataFile->Tell();
+	CCArray<int64> arr(*fDocIndexData, partInfo.data_size);
+	fDataFile->Write(arr.Peek(), arr.Size());
+	partInfo.table_size = fDataFile->Tell() - partInfo.table_offset;
+	partInfo.count = fHeader->entries;
+	
+//	fCompressor->Finish(partInfo.data_offset, partInfo.data_size,
+//		partInfo.table_offset, partInfo.table_size,
+//		partInfo.kind, partInfo.count);
 	
 	fHeader->data_size = fDataFile->Tell() - fHeader->data_offset;
 
 	fDataFile->Seek(fHeader->data_offset + sizeof(SDataHeader) + fDataHeader->meta_data_count * sizeof(SMetaData), SEEK_SET);
 	*fDataFile << partInfo;
 
-	delete fCompressor;
-	fCompressor = NULL;
-	
 	fDataFile->Seek(0, SEEK_END);
 	
 	fIndexer->CreateIndex(*fDataFile, fHeader->index_offset, fHeader->index_size,
@@ -1458,57 +1484,60 @@ void CDatabank::GetStopWords(set<string>& outStopWords) const
 	}
 }
 
-void CDatabank::Store(const string& inDocument)
+void CDatabank::StoreDocument(
+	const CDocument&	inDocument)
 {
-	if (fMetaData != nil)
-	{
-		vector<pair<const char*,uint32> > dv;
-		
-		for (uint32 i = 0; i < fDataHeader->meta_data_count; ++i)
-			dv.push_back(make_pair(fMetaData[i].data.c_str(), fMetaData[i].data.length()));
-
-		dv.push_back(make_pair(inDocument.c_str(), inDocument.length()));
-
-		fCompressor->AddData(dv);
-
-		for (uint32 i = 0; i < fDataHeader->meta_data_count; ++i)
-			fMetaData[i].data.clear();
-	}
-	else
-		fCompressor->AddDocument(inDocument.c_str(), inDocument.length());
-
+	fDataFile->Write(inDocument.Data(), inDocument.Size());
+	(*fDocIndexData) << (fDataFile->Tell() - fFirstDocOffset);
 	++fHeader->entries;
-	fParts[0].raw_data_size += inDocument.length();
+	fParts[0].raw_data_size += inDocument.TextLength();
 }
 
-void CDatabank::StoreMetaData(const std::string& inFieldName, const std::string& inData)
-{
-	uint32 i;
-	for (i = 0; i < fDataHeader->meta_data_count; ++i)
-	{
-		if (inFieldName == fMetaData[i].name)
-		{
-			fMetaData[i].data += inData;
-			break;
-		}
-	}
-	
-	if (i == fDataHeader->meta_data_count)
-		THROW(("Meta data field %s not defined in the MDatabank::Create call", inFieldName.c_str()));
-}
+//void CDatabank::Store(const string& inDocument)
+//{
+//	if (fMetaData != nil)
+//	{
+//		vector<pair<const char*,uint32> > dv;
+//		
+//		for (uint32 i = 0; i < fDataHeader->meta_data_count; ++i)
+//			dv.push_back(make_pair(fMetaData[i].data.c_str(), fMetaData[i].data.length()));
+//
+//		dv.push_back(make_pair(inDocument.c_str(), inDocument.length()));
+//
+//		fCompressor->AddData(dv);
+//
+//		for (uint32 i = 0; i < fDataHeader->meta_data_count; ++i)
+//			fMetaData[i].data.clear();
+//	}
+//	else
+//		fCompressor->AddDocument(inDocument.c_str(), inDocument.length());
+//
+//	++fHeader->entries;
+//	fParts[0].raw_data_size += inDocument.length();
+//}
+//
+//void CDatabank::StoreMetaData(const std::string& inFieldName, const std::string& inData)
+//{
+//	uint32 i;
+//	for (i = 0; i < fDataHeader->meta_data_count; ++i)
+//	{
+//		if (inFieldName == fMetaData[i].name)
+//		{
+//			fMetaData[i].data += inData;
+//			break;
+//		}
+//	}
+//	
+//	if (i == fDataHeader->meta_data_count)
+//		THROW(("Meta data field %s not defined in the MDatabank::Create call", inFieldName.c_str()));
+//}
 
 void CDatabank::IndexTokens(
-	const string&			inIndex,
+	const string&			inIndexName,
+	uint32					inIndexKind,
 	const vector<uint32>&	inTokens)
 {
-	fIndexer->IndexTokens(inIndex, inTokens);
-}
-
-void CDatabank::IndexValue(
-	const string&			inIndex,
-	uint32					inValue)
-{
-	fIndexer->IndexValue(inIndex, inValue);
+	fIndexer->IndexTokens(inIndexName, inIndexKind, inTokens);
 }
 
 #ifndef NO_BLAST

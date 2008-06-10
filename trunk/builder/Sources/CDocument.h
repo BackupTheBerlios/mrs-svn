@@ -3,6 +3,7 @@
 
 #include <boost/shared_ptr.hpp>
 #include <boost/ptr_container/ptr_vector.hpp>
+#include <boost/ptr_container/ptr_map.hpp>
 #include <map>
 #include <vector>
 #include "HStream.h"
@@ -16,16 +17,30 @@ class CCompressor;
 class CDocument
 {
   public:
-	typedef std::map<std::string,std::string>	DataMap;
+	struct CIndexData
+	{
+		uint32					 index_kind;
+		std::vector<std::string> text;
+
+								CIndexData(
+									uint32		inKind,
+									const char*	inText)
+									: index_kind(inKind)
+								{
+									text.push_back(inText);
+								}
+	};
+	
+	typedef boost::ptr_map<std::string,CIndexData>	DataMap;		
 
 	struct CIndexTokens
 	{
-		bool					is_value;
-		std::string				index;
+		uint32					index_kind;
+		std::string				index_name;
 		std::vector<uint32>		tokens;
 	};
 
-	typedef boost::ptr_vector<CIndexTokens>		TokenMap;
+	typedef boost::ptr_vector<CIndexTokens>			TokenMap;
 
 						CDocument();
 
@@ -41,6 +56,14 @@ class CDocument
 	void				AddIndexText(
 							const char*		inIndex,
 							const char*		inText);
+
+	void				AddIndexNumber(
+							const char*		inIndex,
+							const char*		inNumber);
+	
+	void				AddIndexDate(
+							const char*		inIndex,
+							const char*		inDate);
 	
 	void				AddIndexValue(
 							const char*		inIndex,
@@ -51,9 +74,7 @@ class CDocument
 	
 	static CDocumentPtr	sEnd;
 
-	const DataMap&		GetIndexedTextData()	{ return mIndexedTextData; }
-
-	const DataMap&		GetIndexedValueData()	{ return mIndexedValueData; }
+	const DataMap&		GetIndexedData()		{ return mIndexedData; }
 
 	const TokenMap&		GetTokenData()			{ return mTokenData; }
 
@@ -71,9 +92,9 @@ class CDocument
 
   private:
 	std::string			mText;
-	DataMap				mMetaData;
-	DataMap				mIndexedTextData;
-	DataMap				mIndexedValueData;
+	std::map<std::string,std::string>
+						mMetaData;
+	DataMap				mIndexedData;
 	TokenMap			mTokenData;
 	std::vector<std::string>
 						mSequences;

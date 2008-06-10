@@ -69,6 +69,8 @@ class CDictionary;
 class CDocWeightArray;
 class CIteratorBase;
 class CLexicon;
+class CDocument;
+class CCompressorFactory;
 
 struct SIndexPart;
 struct SHeader;
@@ -185,12 +187,19 @@ class CDatabank : public CDatabankBase
 {
   public:
 							// two constructors, for perl plugin interface
-						CDatabank(const HUrl& inFile);
-						CDatabank(const HUrl& inFile,
-							const std::vector<std::string>& inMetaDataFields,
-							const std::string& inName, const std::string& inVersion,
-							const std::string& inURL, const std::string& inScriptName,
-							const std::string& inSection);
+						CDatabank(
+							const HUrl&			inFile);
+
+						CDatabank(
+							const HUrl&			inFile,
+							const std::vector<std::string>&
+												inMetaDataFields,
+							const std::string&	inName,
+							const std::string&	inVersion,
+							const std::string&	inURL,
+							const std::string&	inScriptName,
+							const std::string&	inSection,
+							CCompressorFactory&	inCompressorFactory);
 					
 						~CDatabank();
 
@@ -230,16 +239,13 @@ class CDatabank : public CDatabankBase
 	void				SetStopWords(const std::vector<std::string>& inStopWords);
 	virtual void		GetStopWords(std::set<std::string>& outStopWords) const;
 	
-	void				Store(const std::string& inDocument);
-	void				StoreMetaData(const std::string& inFieldName, const std::string& inValue);
+	void				StoreDocument(
+							const CDocument&			inDocument);
 
 	void				IndexTokens(
-							const std::string&			inIndex,
+							const std::string&			inIndexName,
+							uint32						inIndexKind,
 							const std::vector<uint32>&	inTokens);
-
-	void				IndexValue(
-							const std::string&			inIndex,
-							uint32						inValue);
 //	
 //							// Weight should be a float between 0 and 1
 //	void				IndexWordWithWeight(const std::string& inIndex,	
@@ -342,7 +348,6 @@ class CDatabank : public CDatabankBase
 	HUrl			fPath;
 	int64			fModificationTime;
 	HStreamBase*	fDataFile;
-	CCompressor*	fCompressor;
 	CPartList		fDataParts;
 	CIndexer*		fIndexer;
 	bool			fReadOnly;
@@ -363,6 +368,12 @@ class CDatabank : public CDatabankBase
 	SBlastIndexHeader*	fBlast;
 #endif
 	mutable uint8*	fOmitVector;
+	
+	// compression info
+
+	int64			fDataOffset, fFirstDocOffset;
+	int64			fDocStart;
+	HStreamBase*	fDocIndexData;
 };
 
 class CJoinedDatabank : public CDatabankBase

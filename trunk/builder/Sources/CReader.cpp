@@ -7,6 +7,7 @@
 #include <zlib.h>
 #include <fcntl.h>
 #include <cerrno>
+#include <iostream>
 
 #include "CReader.h"
 
@@ -225,6 +226,13 @@ CReader* CReader::CreateReader(
 		result = new CReader(new CTextReaderImpl(inFile));
 	else if (mimetype == "application/x-gzip")
 		result = new CReader(new CGZipReaderImpl(inFile));
+	else if (mimetype == "application/octet-stream")
+	{
+		cerr << endl
+			 << "Unknown file type for file " << inFile.leaf()
+			 << ", falling back to text mode" << endl;
+		result = new CReader(new CTextReaderImpl(inFile));
+	}
 	else
 		THROW(("Unsupported file type '%s' for file %s",
 			mimetype.c_str(),

@@ -9,7 +9,7 @@
 #include <deque>
 #include <boost/thread.hpp>
 
-template<class T, uint32 N = 10>
+template<class T, uint32 N = 100>
 class HBuffer
 {
   public:
@@ -18,10 +18,15 @@ class HBuffer
 
 	T					Get();
 
+	// flags to help debug performance issues
+	bool				WasFull() const		{ return mWasFull; }
+	bool				WasEmpty() const	{ return mWasEmpty; }
+
   private:
 	std::deque<T>		mQueue;
 	boost::mutex		mMutex;
 	boost::condition	mEmptyCondition, mFullCondition;
+	bool				mWasFull, mWasEmpty;
 };
 
 template<class T, uint32 N>
@@ -30,8 +35,12 @@ void HBuffer<T,N>::Put(
 {
 	boost::mutex::scoped_lock lock(mMutex);
 
+	mWasFull = false;
 	while (mQueue.size() >= N)
+	{
 		mFullCondition.wait(lock);
+		mWasFull = true;
+	}
 	
 	mQueue.push_back(inValue);
 
@@ -43,8 +52,12 @@ T HBuffer<T,N>::Get()
 {
 	boost::mutex::scoped_lock lock(mMutex);
 
+	mWasEmpty = false;
 	while (mQueue.empty())
+	{
 		mEmptyCondition.wait(lock);
+		mWasEmpty = true;
+	}
 	
 	T result = mQueue.front();
 	mQueue.pop_front();

@@ -39,15 +39,58 @@ void CDocument::AddIndexText(
 	const char*		inIndex,
 	const char*		inText)
 {
-	mIndexedTextData[inIndex] += inText;
-	mIndexedTextData[inIndex] += "\n";
+	string key(inIndex);
+	
+	DataMap::iterator m = mIndexedData.find(key);
+	if (m == mIndexedData.end())
+		mIndexedData.insert(key, new CIndexData(kTextIndex, inText));
+	else if (m->second->index_kind == kTextIndex)
+		m->second->text.push_back(inText);
+	else
+		THROW(("Inconsistent use of indices for index %s", inIndex));
+}
+
+void CDocument::AddIndexNumber(
+	const char*		inIndex,
+	const char*		inNumber)
+{
+	string key(inIndex);
+	
+	DataMap::iterator m = mIndexedData.find(key);
+	if (m == mIndexedData.end())
+		mIndexedData.insert(key, new CIndexData(kNumberIndex, inNumber));
+	else if (m->second->index_kind == kNumberIndex)
+		m->second->text.push_back(inNumber);
+	else
+		THROW(("Inconsistent use of indices for index %s", inIndex));
+}
+
+void CDocument::AddIndexDate(
+	const char*		inIndex,
+	const char*		inDate)
+{
+	string key(inIndex);
+	
+	DataMap::iterator m = mIndexedData.find(key);
+	if (m == mIndexedData.end())
+		mIndexedData.insert(key, new CIndexData(kDateIndex, inDate));
+	else if (m->second->index_kind == kDateIndex)
+		m->second->text.push_back(inDate);
+	else
+		THROW(("Inconsistent use of indices for index %s", inIndex));
 }
 
 void CDocument::AddIndexValue(
 	const char*		inIndex,
 	const char*		inValue)
 {
-	mIndexedValueData[inIndex] = inValue;
+	string key(inIndex);
+	
+	DataMap::iterator m = mIndexedData.find(key);
+	if (m == mIndexedData.end())
+		mIndexedData.insert(key, new CIndexData(kValueIndex, inValue));
+	else
+		THROW(("Already set value for index %s", inIndex));
 }
 
 void CDocument::AddSequence(
@@ -61,49 +104,46 @@ void CDocument::TokenizeText(
 {
 	bool inIndexNrs = true;
 	
-	for (DataMap::iterator dm = mIndexedTextData.begin(); dm != mIndexedTextData.end(); ++dm)
+	for (DataMap::iterator dm = mIndexedData.begin(); dm != mIndexedData.end(); ++dm)
 	{
-		CTokenizer tok(dm->second.c_str(), dm->second.length());
-		bool isWord, isNumber, isPunct;
-		
 		auto_ptr<CIndexTokens> it(new CIndexTokens);
 
-		it->is_value = false;
-		it->index = dm->first;
-	
-		while (tok.GetToken(isWord, isNumber, isPunct))
+		it->index_kind = dm->second->index_kind;
+		it->index_name = dm->first;
+
+		for (vector<string>::iterator text = dm->second->text.begin(); text != dm->second->text.end(); ++text)
 		{
-			uint32 l = tok.GetTokenLength();
-			
-			if (isPunct or (isNumber and not inIndexNrs))
+			if (it->index_kind == kTextIndex)
 			{
-				it->tokens.push_back(0);
-				continue;
-			}
+				CTokenizer tok(text->c_str(), text->length());
+				bool isWord, isNumber, isPunct;
+				
+				while (tok.GetToken(isWord, isNumber, isPunct))
+				{
+					uint32 l = tok.GetTokenLength();
+					
+					if (isPunct or (isNumber and not inIndexNrs))
+					{
+						it->tokens.push_back(0);
+						continue;
+					}
+					
+					if (not (isWord or isNumber) or l == 0)
+						continue;
 			
-			if (not (isWord or isNumber) or l == 0)
-				continue;
-	
-			if (l <= kMaxKeySize)
-			{
-				uint32 word = inLexicon.Store(string(tok.GetTokenValue(), l));
-				it->tokens.push_back(word);
+					if (l <= kMaxKeySize)
+					{
+						uint32 word = inLexicon.Store(string(tok.GetTokenValue(), l));
+						it->tokens.push_back(word);
+					}
+					else	
+						it->tokens.push_back(0);
+				}
 			}
-			else	
-				it->tokens.push_back(0);
+			else
+				it->tokens.push_back(inLexicon.Store(*text));
 		}
-		
-		mTokenData.push_back(it.release());
-	}
 
-	for (DataMap::iterator dm = mIndexedValueData.begin(); dm != mIndexedValueData.end(); ++dm)
-	{
-		auto_ptr<CIndexTokens> it(new CIndexTokens);
-
-		it->is_value = true;
-		it->index = dm->first;
-		it->tokens.push_back(inLexicon.Store(dm->second));
-		
 		mTokenData.push_back(it.release());
 	}
 }
@@ -118,7 +158,7 @@ void CDocument::Compress(
 		
 		for (vector<string>::const_iterator m = inMetaDataFields.begin(); m != inMetaDataFields.end(); ++m)
 		{
-			DataMap::iterator mf = mMetaData.find(*m);
+			map<string,string>::iterator mf = mMetaData.find(*m);
 			if (mf != mMetaData.end())
 				dv.push_back(make_pair(mf->second.c_str(), mf->second.length()));
 			else

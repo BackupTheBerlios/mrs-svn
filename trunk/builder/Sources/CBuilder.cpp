@@ -88,6 +88,7 @@ class CBuilder
 	
 	CDatabank*	mDatabank;
 	string		mDatabankName, mScriptName;
+	fs::path	mRawDir;
 	CParser*	mParser;
 	CCompressorFactory*
 				mCompressorFactory;
@@ -110,7 +111,9 @@ CBuilder::CBuilder(
 {
 	try
 	{
-		mParser = new CParser(mScriptName);
+		mRawDir = gRawDir / mDatabankName;
+		
+		mParser = new CParser(mDatabankName, mScriptName, mRawDir.string());
 		
 		string name, version, url, section;
 		
@@ -164,11 +167,14 @@ void CBuilder::Run()
 	if (VERBOSE > 1)
 		cerr << "done" << endl;
 	
+	if (rawFiles.size() == 0)
+		THROW(("No files to process, aborting"));
+	
 	if (VERBOSE > 0)
 		cerr << "Processing " << rawFiles.size() << " raw files totalling " << totalRawFilesSize << " bytes" << endl;
 	
-	boost::thread_group parser_threads, compress_threads;
-	uint32 nrOfParsers = 2;
+	boost::thread_group parser_threads, compress_threads, tokenize_threads;
+	uint32 nrOfParsers = 4;
 	if (nrOfParsers > rawFiles.size())
 		nrOfParsers = rawFiles.size();
 
@@ -179,9 +185,10 @@ void CBuilder::Run()
 	{
 		parser_threads.create_thread(boost::bind(&CBuilder::ParseFiles, this, mScriptName, &readerBuffer, &compressDocBuffer));
 		compress_threads.create_thread(boost::bind(&CBuilder::CompressDoc, this, &compressDocBuffer, &tokenizeDocBuffer));
+		tokenize_threads.create_thread(boost::bind(&CBuilder::TokenizeDoc, this, &tokenizeDocBuffer, &indexDocBuffer));
 	}
 	
-	boost::thread tokenizeDocThread(boost::bind(&CBuilder::TokenizeDoc, this, &tokenizeDocBuffer, &indexDocBuffer));
+//	boost::thread tokenizeDocThread(boost::bind(&CBuilder::TokenizeDoc, this, &tokenizeDocBuffer, &indexDocBuffer));
 	boost::thread indexDocThread(boost::bind(&CBuilder::IndexDoc, this, &indexDocBuffer));
 	
 	for (vector<fs::path>::iterator file = rawFiles.begin(); file != rawFiles.end(); ++file)
@@ -203,7 +210,8 @@ void CBuilder::Run()
 	
 	parser_threads.join_all();
 	compress_threads.join_all();
-	tokenizeDocThread.join();
+	tokenize_threads.join_all();
+//	tokenizeDocThread.join();
 	indexDocThread.join();
 
 	if (VERBOSE > 1)
@@ -221,22 +229,27 @@ void CBuilder::CollectRawFiles(
 	vector<fs::path>&	outRawFiles,
 	int64&				outRawFilesSize)
 {
-	fs::path rawDir = gRawDir / mDatabankName;
+//	fs::path rawDir = gRawDir / mDatabankName;
+//	
+//	outRawFilesSize = 0;
+//	
+//	if (not fs::exists(rawDir))
+//		THROW(("Raw directory %s does not exist", rawDir.string().c_str()));
+//	
+//	fs::directory_iterator end_itr;
+//	for (fs::directory_iterator itr(rawDir); itr != end_itr; ++itr)
+//	{
+//		if (mParser->IsRawFile(itr->leaf()))
+//		{
+//			outRawFiles.push_back(*itr);
+//			outRawFilesSize += fs::file_size(*itr);
+//		}
+//	}
+	mParser->CollectRawFiles(outRawFiles);
 	
 	outRawFilesSize = 0;
-	
-	if (not fs::exists(rawDir))
-		THROW(("Raw directory %s does not exist", rawDir.string().c_str()));
-	
-	fs::directory_iterator end_itr;
-	for (fs::directory_iterator itr(rawDir); itr != end_itr; ++itr)
-	{
-		if (mParser->IsRawFile(itr->leaf()))
-		{
-			outRawFiles.push_back(*itr);
-			outRawFilesSize += fs::file_size(*itr);
-		}
-	}
+	for (vector<fs::path>::iterator file = outRawFiles.begin(); file != outRawFiles.end(); ++file)
+		outRawFilesSize += fs::file_size(*file);
 }
 
 void CBuilder::ParseFiles(
@@ -244,12 +257,17 @@ void CBuilder::ParseFiles(
 	CReaderBuffer*		inReaderBuffer,
 	CDocumentBuffer*	inCompressDocBuffer)
 {
-	CParser parser(inScriptName);
+	CParser parser(mDatabankName, inScriptName, mRawDir.string());
 
 	CReaderPtr next;
 	while ((next = inReaderBuffer->Get()) != CReader::sEnd)
+	{
+//if (inReaderBuffer->WasEmpty())
+//	cerr << "inReaderBuffer was empty" << endl;
+
 		parser.Parse(*next, inCompressDocBuffer,
 			boost::bind(&CBuilder::ProcessDocument, this, _1, _2));
+	}
 	
 	inReaderBuffer->Put(CReader::sEnd);
 	inCompressDocBuffer->Put(CDocument::sEnd);
@@ -272,6 +290,9 @@ void CBuilder::CompressDoc(
 	
 	while ((next = inCompressDocBuffer->Get()) != CDocument::sEnd)
 	{
+//if (inCompressDocBuffer->WasEmpty())
+//	cerr << "inCompressDocBuffer was empty" << endl;
+
 		next->Compress(mMeta, *compressor);
 		inTokenizeDocBuffer->Put(next);
 	}
@@ -288,6 +309,9 @@ void CBuilder::TokenizeDoc(
 	
 	while ((next = inTokenizeDocBuffer->Get()) != CDocument::sEnd)
 	{
+//if (inTokenizeDocBuffer->WasEmpty())
+//	cerr << "inTokenizeDocBuffer was empty" << endl;
+
 		next->TokenizeText(mLexicon);
 		inIndexDocBuffer->Put(next);
 	}
@@ -302,17 +326,15 @@ void CBuilder::IndexDoc(
 	
 	while ((next = inIndexDocBuffer->Get()) != CDocument::sEnd)
 	{
+//if (inIndexDocBuffer->WasEmpty())
+//	cerr << "inIndexDocBuffer was empty" << endl;
+
 		mDatabank->StoreDocument(*next);
 
 		const CDocument::TokenMap& tokenData = next->GetTokenData();
 
 		for (CDocument::TokenMap::const_iterator d = tokenData.begin(); d != tokenData.end(); ++d)
-		{
-			if (d->is_value)
-				mDatabank->IndexValue(d->index, d->tokens[0]);
-			else
-				mDatabank->IndexTokens(d->index, d->tokens);
-		}
+			mDatabank->IndexTokens(d->index_name, d->index_kind, d->tokens);
 
 		mDatabank->FlushDocument();
 	}

@@ -381,6 +381,8 @@ bool CLexiconImp::Find(const string& inKey, uint32& outNr) const
 
 uint32 CLexiconImp::Store(const string& inKey)
 {
+	boost::mutex::scoped_lock lock(fMutex);
+
 	CNode* x = fRoot;
 
 	const CNode* t = Find(x, inKey);

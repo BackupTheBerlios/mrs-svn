@@ -3,11 +3,14 @@
 
 #include <boost/shared_ptr.hpp>
 #include <boost/function.hpp>
+#include <boost/filesystem.hpp>
 #include <vector>
 
 class CDocument;
 class CReader;
 typedef boost::shared_ptr<CDocument>	CDocumentPtr;
+
+namespace fs = boost::filesystem;
 
 class CParser
 {
@@ -16,12 +19,17 @@ class CParser
 	typedef boost::function<void(CDocumentPtr, void*)>	CDocCallback;
 
 						CParser(
-							const std::string&		inScriptName);
+							const std::string&		inDatabank,
+							const std::string&		inScriptName,
+							const std::string&		inRawDir);
 
 						~CParser();
 	
 	bool				IsRawFile(
 							const std::string&		inFile);
+
+	void				CollectRawFiles(
+							std::vector<fs::path>&	outRawFiles);
 
 	void				Parse(
 							CReader&				inReader,

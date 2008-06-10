@@ -315,11 +315,12 @@ HStreamBase& HStreamBase::operator<< (string s)
 #define kMemBlockSize			512
 #define kMemBlockExtendSize		10240
 
+static char* kEmptyMemoryBuffer = const_cast<char*>("");
+
 HMemoryStream::HMemoryStream()
 {
-	fPhysicalSize = kMemBlockSize;
-	fData = new char [fPhysicalSize];
-	if (fData == NULL) ThrowIfNil(fData);
+	fPhysicalSize = 0;
+	fData = kEmptyMemoryBuffer;
 	fLogicalSize = 0;
 	fPointer = 0;
 	fReadOnly = false;
@@ -346,7 +347,7 @@ HMemoryStream::HMemoryStream(const void* inData, int64 inSize)
 
 HMemoryStream::~HMemoryStream()
 {
-	if (not fReadOnly)
+	if (not fReadOnly and fData != kEmptyMemoryBuffer)
 		delete [] fData;
 }
 
@@ -377,8 +378,12 @@ int32 HMemoryStream::Write(const void* inBuffer, uint32 inCount)
 			kMemBlockExtendSize * ((fPointer + inCount) / kMemBlockExtendSize + 2));
 		
 		char* t = new char[newSize];
-		memcpy (t, fData, fPhysicalSize);
-		delete [] fData;
+		if (fData != kEmptyMemoryBuffer)
+		{
+			if (fPhysicalSize > 0)
+				memcpy(t, fData, fPhysicalSize);
+			delete [] fData;
+		}
 
 		fData = t;
 		fPhysicalSize = newSize;

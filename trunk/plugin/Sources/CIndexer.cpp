@@ -316,7 +316,7 @@ class CMergeWeightedDocInfo
 
 const uint32
 //	kRunBlockSize = 0x100000,		// 1 Mb
-	kBufferEntryCount = 2000000;	// that's about 2.5 megabytes compressed
+	kBufferEntryCount = 200000;	// that's about 2.5 megabytes compressed
 
 typedef vector<uint32> DocLoc;
 
@@ -386,17 +386,6 @@ class CFullTextIndex
 	};
 
 	friend class CRunEntryIterator;
-
-//	string			Lookup(uint32 inTerm);
-//	int				Compare(uint32 inTermA, uint32 inTermB) const
-//					{
-//						return lexicon.Compare(inTermA, inTermB);
-//					}
-//
-//	int				Compare(uint32 inTermA, uint32 inTermB, CLexCompare& inCompare) const
-//					{
-//						return lexicon.Compare(inTermA, inTermB, inCompare);
-//					}
 
 	bool			IsStopWord(uint32 inTerm) const
 					{
@@ -642,6 +631,7 @@ void CFullTextIndex::FlushRun()
 	{
 		fFlushRunThread->join();
 		delete fFlushRunThread;
+		fFlushRunThread = nil;
 	}
 	
 	fFlushRunThread = new boost::thread(boost::bind(&CFullTextIndex::FlushRunThread, this, buffer, buffer_ix));
@@ -705,6 +695,7 @@ void CFullTextIndex::ReleaseBuffer()
 	{
 		fFlushRunThread->join();
 		delete fFlushRunThread;
+		fFlushRunThread = nil;
 	}
 	
 	FlushRunThread(buffer, buffer_ix);
@@ -867,7 +858,6 @@ class CIndexBase : public CLexCompare
 	virtual int		Compare(const char* inA, uint32 inLengthA, const char* inB, uint32 inLengthB) const;
 
   protected:
-
 	string			fName;
   	uint32			fKind;
 
@@ -894,7 +884,6 @@ class CIndexBase : public CLexCompare
 	uint32			fLastTermNr;
 	uint64			fLastOffset;
 };
-
 
 struct SortLex
 {
@@ -1647,21 +1636,46 @@ CIndexBase* CIndexer::GetIndexBase(const string& inIndex)
 //	IndexText(inIndex, inText, true, inStoreIDL);
 //}
 
-void CIndexer::IndexTokens(const string& inIndex, const vector<uint32>& inTokens)
+void CIndexer::IndexTokens(
+	const string&			inIndexName,
+	uint32					inIndexKind,
+	const vector<uint32>&	inTokens)
 {
 	if (inTokens.size() == 0)
 		return;
-
-	bool inStoreIDL = true;
 	
-	CIndexBase* index = GetIndexBase<CTextIndex>(inIndex);
-	if (index->Empty())
+	bool inStoreIDL = true;
+	CIndexBase* index = nil;
+
+	switch (inIndexKind)
 	{
-		if (inStoreIDL)
-			index->SetUsesInDocLocation(inStoreIDL);
+		case kTextIndex:
+			index = GetIndexBase<CTextIndex>(inIndexName);
+			if (index->Empty())
+			{
+				if (inStoreIDL)
+					index->SetUsesInDocLocation(inStoreIDL);
+			}
+			break;
+		
+		case kNumberIndex:
+			index = GetIndexBase<CNumberIndex>(inIndexName);
+			break;
+		
+		case kValueIndex:
+			index = GetIndexBase<CValueIndex>(inIndexName);
+			break;
+		
+		case kDateIndex:
+			index = GetIndexBase<CDateIndex>(inIndexName);
+			break;
+		
+		default:
+			THROW(("Runtime error, unsupport index kind"));
 	}
-	else if (index->UsesInDocLocation() != inStoreIDL)
-		THROW(("Inconsistent use of the store IDL flag for index %s", inIndex.c_str()));
+
+	if (index == nil)
+		THROW(("Runtime error"));
 
 	for (vector<uint32>::const_iterator t = inTokens.begin(); t != inTokens.end(); ++t)
 	{
@@ -1670,13 +1684,6 @@ void CIndexer::IndexTokens(const string& inIndex, const vector<uint32>& inTokens
 		else
 			fFullTextIndex->Stop();
 	}
-}
-
-void CIndexer::IndexValue(const string& inIndex, uint32 inValue)
-{
-	CIndexBase* index = GetIndexBase<CValueIndex>(inIndex);
-
-	index->AddWord(inValue);
 }
 
 //void CIndexer::IndexWord(const string& inIndex, const string& inText)

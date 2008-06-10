@@ -49,6 +49,7 @@ sub load_parser
 package MRS::Parser;
 
 use strict;
+use Data::Dumper;
 
 require Exporter;
 require DynaLoader;
@@ -68,6 +69,22 @@ sub this
 {
 	my $ptr = shift;
 	return tied(%$ptr);
+}
+
+sub raw_files
+{
+	my ($self) = @_;
+
+	my $raw_files = $self->{raw_files};
+	$raw_files = qr/.*/ unless defined $raw_files;
+	
+	my $raw_dir = $self->{raw_dir};
+
+	opendir DIR, $raw_dir or die "Could not open raw dir $raw_dir\n";
+	my @raw_files = grep { -e "$raw_dir/$_" and $_ =~ m/$raw_files/ } readdir(DIR);
+	closedir DIR;
+
+	return map { "$raw_dir/$_" } @raw_files;
 }
 
 1;

@@ -42,6 +42,8 @@
 #ifndef CCOMPRESS_H
 #define CCOMPRESS_H
 
+#include "HUrl.h"
+
 #include <map>
 #include <vector>
 
@@ -51,42 +53,70 @@ class ProgressCallBackHandlerBase;
 class CLexicon;
 struct DatabankHeader;
 
-enum {
+enum CCompressionKind {
 	kZLibCompressed = FOUR_CHAR_INLINE('mrsz'),
 	kHuffWordCompressed = FOUR_CHAR_INLINE('mrsh'),
 	kbzLibCompressed = FOUR_CHAR_INLINE('mrsb'),
 	kInvalidData = FOUR_CHAR_INLINE('zero'),
 	kMergedData = FOUR_CHAR_INLINE('mrsm'),
-	kLinkedData = FOUR_CHAR_INLINE('link')
+	kLinkedData = FOUR_CHAR_INLINE('link'),
+	kUnCompressed = FOUR_CHAR_INLINE('none')
+};
+
+class CCompressor;
+struct CCompressorImp;
+
+class CCompressorFactory
+{
+  public:
+						CCompressorFactory(
+							const char*		inCompressionAlgorithmName,
+							int32			inCompressionLevel,
+							const char*		inDictionary,
+							uint32			inDictionaryLength);
+
+	void				InitDataStream(
+							HStreamBase&	outData);
+
+	CCompressor*		CreateCompressor();
+
+	CCompressionKind	GetCompressionKind() const			{ return fKind; }
+
+  private:
+	CCompressionKind	fKind;
+	int32				fLevel;
+	std::string			fDictionary;
 };
 
 class CCompressor
 {
   public:
-						CCompressor(HStreamBase& inData, const HUrl& inDb);
+
 	virtual				~CCompressor();
 
-	void				AddDocument(const char* inText, uint32 inSize);
-	
-						// AddData accepts an array of pairs of pointers to data and lengths
-						// the last pair is the document
-	void				AddData(std::vector<std::pair<const char*,uint32> >& inDataVector);
+	void				CompressDocument(
+							const char*		inText,
+							uint32			inSize,
+							HStreamBase&	outData);
 
-	void				Finish(int64& outDataOffset, int64& outDataSize,
-							int64& outTableOffset, int64& outTableSize,
-							uint32& outCompressionKind, uint32& outCount);
-	
-	uint32				Count() const		{ return fDocCount; }
+	void				CompressData(
+							std::vector<std::pair<const char*,uint32> >&
+											inDataVector,
+							HStreamBase&	outData);
 
   private:
 
-	struct CCompressorImp*	fImpl;
-	HStreamBase&			fData;
-	int64					fDataOffset, fFirstDocOffset;
-	int64					fDocStart;
-	HStreamBase*			fDocIndexData;
-	uint32					fDocCount;
-	HUrl					fOffsetsUrl, fScratchUrl;
+	friend class CCompressorFactory;
+	
+						CCompressor(
+							CCompressorImp*	inImpl);
+						
+						CCompressor(
+							const CCompressor&);
+	CCompressor&		operator=(
+							const CCompressor&);
+
+	CCompressorImp*		fImpl;
 };
 
 #endif // CCOMPRESS_H

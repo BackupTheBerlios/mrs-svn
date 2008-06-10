@@ -58,37 +58,45 @@
 #include "CDatabank.h"
 #include "CBitStream.h"
 #include "CTextTable.h"
-#include "CArray.h"
 
 using namespace std;
 
 const uint32
-	kFirstPassCutOff = 5000000,
-	kMinWordOccurence = 10,
 	kMaxDictionarySize = 0x7fff,
-	kCompressionLevel = 9,
-	kMaxWordsLexiconSize = 250000,
-	kMaxNonWordsLexiconSize = 25000,
-	kMaxNumberLength = 4,
 	kMaxMetaDataLength = numeric_limits<uint16>::max();
 
 struct CCompressorImp
 {
-					CCompressorImp(HStreamBase& inData, uint32 inSig);
+					CCompressorImp(
+						uint32			inSig);
+
 	virtual			~CCompressorImp();
+
+	virtual void	CompressDocument(
+						const char*		inText,
+						uint32			inSize,
+						HStreamBase&	inStream) = 0;
 	
-	virtual void	CompressDocument(const char* inText, uint32 inSize) = 0;
-	virtual void	CompressData(vector<pair<const char*,uint32> >& inDataVector) = 0;
+	virtual void	CompressData(
+						vector<pair<const char*,uint32> >&
+										inDataVector,
+						HStreamBase&	inStream) = 0;
+
+	virtual void	InitStream(
+						HStreamBase&	inStream);
 	
-	static CCompressorImp* Create(HStreamBase& inData, const string& inCompressionType);
+	static CCompressorImp*
+					Create(
+						const uint32	inCompressionKind,
+						int32			inCompressionLevel,
+						const string&	inDictionary);
 	
-	HSwapStream<net_swapper>	data;
-	uint32						sig;
+	uint32			sig;
 };
 
-CCompressorImp::CCompressorImp(HStreamBase& inData, uint32 inSig)
-	: data(inData)
-	, sig(inSig)
+CCompressorImp::CCompressorImp(
+	uint32				inSig)
+	: sig(inSig)
 {
 }
 
@@ -96,44 +104,58 @@ CCompressorImp::~CCompressorImp()
 {
 }
 
+void CCompressorImp::InitStream(
+	HStreamBase&		inStream)
+{
+}
+
 namespace {
 
-// ZLib compression
+// ------------------------------------------------------------------
+//
+//	The ZLib compressor impl
+//
 
 struct CZLibCompressorImp : public CCompressorImp
 {
-					CZLibCompressorImp(HStreamBase& inData);
+					CZLibCompressorImp(
+						int32			inCompressionLevel,
+						const string&	inDictionary);
+
 					~CZLibCompressorImp();
 	
-	virtual void	CompressDocument(const char* inText, uint32 inSize);
-	virtual void	CompressData(vector<pair<const char*,uint32> >& inDataVector);
+	virtual void	CompressDocument(
+						const char*		inData,
+						uint32			inDataLength,
+						HStreamBase&	inStream);
+	
+	virtual void	CompressData(
+						vector<pair<const char*,uint32> >&
+										inDataVector,
+						HStreamBase&	inStream);
+
+	virtual void	InitStream(
+						HStreamBase&	inStream);
 	
 	z_stream_s		z_stream;
 	string			dictionary;
 };
 
-CZLibCompressorImp::CZLibCompressorImp(HStreamBase& inData)
-	: CCompressorImp(inData, kZLibCompressed)
+CZLibCompressorImp::CZLibCompressorImp(
+	int32			inCompressionLevel,
+	const string&	inDictionary)
+	: CCompressorImp(kZLibCompressed)
 {
 	memset(&z_stream, 0, sizeof(z_stream));
 
-	int compressionLevel = kCompressionLevel;
-	if (COMPRESSION_LEVEL >= 0 and COMPRESSION_LEVEL <= 9)
-		compressionLevel = COMPRESSION_LEVEL;
-
-	int err = deflateInit(&z_stream, compressionLevel);
+	int err = deflateInit(&z_stream, inCompressionLevel);
 	if (err != Z_OK)
 		THROW(("Compressor error: %s", z_stream.msg));
 
 	// write a simplified dictionary
-	dictionary = COMPRESSION_DICTIONARY;
+	dictionary = inDictionary;
 	if (dictionary.length() > kMaxDictionarySize)
 		dictionary.erase(0, dictionary.length() - kMaxDictionarySize);
-	
-	uint16 ds = static_cast<uint16>(dictionary.length());
-	data << ds;
-	if (ds > 0)
-		data.Write(dictionary.c_str(), ds);
 }
 
 CZLibCompressorImp::~CZLibCompressorImp()
@@ -141,8 +163,25 @@ CZLibCompressorImp::~CZLibCompressorImp()
 	deflateEnd(&z_stream);
 }
 
-void CZLibCompressorImp::CompressDocument(const char* inText, uint32 inSize)
+void CZLibCompressorImp::InitStream(
+	HStreamBase&	inStream)
 {
+	HSwapStream<net_swapper> data(inStream);
+	
+	uint16 ds = 0;
+	data << ds;
+
+	if (ds > 0)
+		data.Write(dictionary.c_str(), ds);
+}
+
+void CZLibCompressorImp::CompressDocument(
+	const char*		inText,
+	uint32			inSize,
+	HStreamBase&	inStream)
+{
+	HSwapStream<net_swapper> data(inStream);
+	
 	const int kBufferSize = 4096;
 	static HAutoBuf<unsigned char> sBuffer(new unsigned char[kBufferSize]);
 
@@ -188,8 +227,13 @@ void CZLibCompressorImp::CompressDocument(const char* inText, uint32 inSize)
 		THROW(("Deflate error: %s (%d)", z_stream.msg, err));
 }
 
-void CZLibCompressorImp::CompressData(vector<pair<const char*,uint32> >& inDataVector)
+void CZLibCompressorImp::CompressData(
+	vector<pair<const char*,uint32> >&
+					inDataVector,
+	HStreamBase&	inStream)
 {
+	HSwapStream<net_swapper> data(inStream);
+
 	for (uint32 ix = 1; ix < inDataVector.size(); ++ix)
 		data << static_cast<uint16>(inDataVector[ix - 1].second);
 	
@@ -253,34 +297,51 @@ void CZLibCompressorImp::CompressData(vector<pair<const char*,uint32> >& inDataV
 		THROW(("Deflate error: %s (%d)", z_stream.msg, err));
 }
 
+// ------------------------------------------------------------------
+//
+//	The bzip2 compressor impl
+//
+
 struct CbzLibCompressorImp : public CCompressorImp
 {
-					CbzLibCompressorImp(HStreamBase& inData);
+					CbzLibCompressorImp(
+						int32			inCompressionLevel);
+
 					~CbzLibCompressorImp();
+
+	virtual void	CompressDocument(
+						const char*		inText,
+						uint32			inSize,
+						HStreamBase&	inStream);
 	
-	virtual void	CompressDocument(const char* inText, uint32 inSize);
-	virtual void	CompressData(vector<pair<const char*,uint32> >& inDataVector);
+	virtual void	CompressData(
+						vector<pair<const char*,uint32> >&
+										inDataVector,
+						HStreamBase&	inStream);
 	
 	bz_stream		fStream;
 	int				fCompressionLevel;
 };
 
-CbzLibCompressorImp::CbzLibCompressorImp(HStreamBase& inData)
-	: CCompressorImp(inData, kbzLibCompressed)
+CbzLibCompressorImp::CbzLibCompressorImp(
+	int32			inCompressionLevel)
+	: CCompressorImp(kbzLibCompressed)
+	, fCompressionLevel(inCompressionLevel)
 {
 	memset(&fStream, 0, sizeof(fStream));
-
-	fCompressionLevel = kCompressionLevel;
-	if (COMPRESSION_LEVEL >= 0 and COMPRESSION_LEVEL <= 9)
-		fCompressionLevel = COMPRESSION_LEVEL;
 }
 
 CbzLibCompressorImp::~CbzLibCompressorImp()
 {
 }
 
-void CbzLibCompressorImp::CompressDocument(const char* inText, uint32 inSize)
+void CbzLibCompressorImp::CompressDocument(
+	const char*		inText,
+	uint32			inSize,
+	HStreamBase&	inStream)
 {
+	HSwapStream<net_swapper> data(inStream);
+	
 	int err = BZ2_bzCompressInit(&fStream, fCompressionLevel, 0, 0);
 	if (err != BZ_OK)
 		THROW(("Compressor error: %d", err));
@@ -326,8 +387,13 @@ void CbzLibCompressorImp::CompressDocument(const char* inText, uint32 inSize)
 	memset(&fStream, 0, sizeof(fStream));
 }
 
-void CbzLibCompressorImp::CompressData(vector<pair<const char*,uint32> >& inDataVector)
+void CbzLibCompressorImp::CompressData(
+	vector<pair<const char*,uint32> >&
+					inDataVector,
+	HStreamBase&	inStream)
 {
+	HSwapStream<net_swapper> data(inStream);
+	
 	for (uint32 ix = 1; ix < inDataVector.size(); ++ix)
 		data << static_cast<uint16>(inDataVector[ix - 1].second);
 	
@@ -391,109 +457,110 @@ void CbzLibCompressorImp::CompressData(vector<pair<const char*,uint32> >& inData
 
 }
 
-CCompressorImp* CCompressorImp::Create(HStreamBase& inData, const string& inCompressionType)
+CCompressorImp* CCompressorImp::Create(
+	uint32			inCompressionType,
+	int32			inCompressionLevel,
+	const string&	inDictionary)
 {
 	CCompressorImp* result = NULL;
 	
-	if (inCompressionType == "huffword")
+	switch (inCompressionType)
 	{
-		THROW(("huffword is no longer supported as compression algorithm"));
-//		result = new CHuffWordCompressorImp(inData);
-//		if (VERBOSE)
-//			cout << "Using huffword compression" << endl;
+		case kZLibCompressed:
+			result = new CZLibCompressorImp(inCompressionLevel, inDictionary);
+			break;
+		
+		case kbzLibCompressed:
+			result = new CbzLibCompressorImp(inCompressionLevel);
+			break;
+		
+		default:
+			THROW(("Unknown compression type"));
 	}
-	else if (inCompressionType == "zlib")
-	{
-		result = new CZLibCompressorImp(inData);
-		if (VERBOSE)
-			cout << "Using zlib compression" << endl;
-	}
-	else if (inCompressionType == "bzip")
-	{
-		result = new CbzLibCompressorImp(inData);
-		if (VERBOSE)
-			cout << "Using bzip compression" << endl;
-	}
-	else
-		THROW(("Unknown compression type"));
 
 	return result;
 }
 
-CCompressor::CCompressor(HStreamBase& inData, const HUrl& inDb)
-	: fImpl(nil)
-	, fData(inData)
-	, fDataOffset(0)
-	, fFirstDocOffset(0)
-	, fDocIndexData(nil)
-	, fDocCount(0)
+// ------------------------------------------------------------------
+//
+//	The compressor factory
+//
+
+CCompressorFactory::CCompressorFactory(
+	const char*		inCompressionAlgorithmName,
+	int32			inCompressionLevel,
+	const char*		inDictionary,
+	uint32			inDictionaryLength)
+	: fKind(kInvalidData)
+	, fLevel(inCompressionLevel)
 {
-	fOffsetsUrl = HUrl(inDb.GetURL() + ".offsets");
-	fDocIndexData = new HTempFileStream(fOffsetsUrl);
-
-	fDataOffset = fData.Tell();
-
-	fImpl = CCompressorImp::Create(inData, COMPRESSION);
+	if (inDictionary and inDictionaryLength > 0)
+		fDictionary.assign(inDictionary, inDictionaryLength);
 	
-	fFirstDocOffset = fData.Tell();
-	(*fDocIndexData) << 0ULL;
+	if (strcmp(inCompressionAlgorithmName, "huffword") == 0)
+		THROW(("huffword is no longer supported as compression algorithm"));
+	else if (strcmp(inCompressionAlgorithmName, "zlib") == 0 or
+			 strcmp(inCompressionAlgorithmName, "gzip") == 0)
+	{
+		fKind = kZLibCompressed;
+		if (VERBOSE)
+			cout << "Using zlib compression" << endl;
+	}
+	else if (strcmp(inCompressionAlgorithmName, "bzip") == 0)
+	{
+		fKind = kbzLibCompressed;
+		if (VERBOSE)
+			cout << "Using bzip compression" << endl;
+	}
+	else
+		THROW(("Unknown compression algorithm"));
+}
+
+void CCompressorFactory::InitDataStream(
+	HStreamBase&	outData)
+{
+	auto_ptr<CCompressorImp> imp(CCompressorImp::Create(fKind, fLevel, fDictionary));
+	imp->InitStream(outData);
+}
+
+CCompressor* CCompressorFactory::CreateCompressor()
+{
+	return new CCompressor(CCompressorImp::Create(fKind, fLevel, fDictionary));
+}
+
+// ------------------------------------------------------------------
+//
+//	The compressor base class
+//
+
+CCompressor::CCompressor(
+	CCompressorImp*		inImpl)
+	: fImpl(inImpl)
+{
 }
 
 CCompressor::~CCompressor()
 {
 	delete fImpl;
-	delete fDocIndexData;
 }
 
-void CCompressor::AddDocument(const char* inText, uint32 inSize)
+void CCompressor::CompressDocument(
+	const char*		inText,
+	uint32			inSize,
+	HStreamBase&	inStream)
 {
 	assert(inSize > 0);
 
-	if (fFirstDocOffset == 0)
-		fFirstDocOffset = fData.Tell();
-	
-	fImpl->CompressDocument(inText, inSize);
-	(*fDocIndexData) << (fData.Tell() - fFirstDocOffset);
-
-	++fDocCount;
+	fImpl->CompressDocument(inText, inSize, inStream);
 }
 
-void CCompressor::AddData(vector<pair<const char*,uint32> >& inDataVector)
+void CCompressor::CompressData(
+	vector<pair<const char*,uint32> >&
+					inDataVector,
+	HStreamBase&	inStream)
 {
 	assert(inDataVector.size() > 1);
 
-	if (fFirstDocOffset == 0)
-		fFirstDocOffset = fData.Tell();
-	
-	assert(inDataVector.size() > 1);
-	if (inDataVector.size() <= 1)
-		THROW(("Logic error: trying to store data without meta data"));
-	
-	for (vector<pair<const char*,uint32> >::iterator d = inDataVector.begin(); d != inDataVector.end() - 1; ++d)
-	{
-		if (d->second > kMaxMetaDataLength)
-			THROW(("Meta data value is too long"));
-	}
-	
-	fImpl->CompressData(inDataVector);
-	(*fDocIndexData) << (fData.Tell() - fFirstDocOffset);
-
-	++fDocCount;
-}
-
-void CCompressor::Finish(int64& outDataOffset, int64& outDataSize,
-	int64& outTableOffset, int64& outTableSize,
-	uint32& outCompressionKind, uint32& outCount)
-{
-	outCompressionKind = fImpl->sig;
-	outCount = fDocCount;
-
-	outDataOffset = fDataOffset;
-	outDataSize = fData.Tell() - fDataOffset;
-
-	outTableOffset = fData.Tell();
-	CCArray<int64> arr(*fDocIndexData, outDataSize);
-	fData.Write(arr.Peek(), arr.Size());
-	outTableSize = fData.Tell() - outTableOffset;
+	fImpl->CompressData(inDataVector, inStream);
 }
 

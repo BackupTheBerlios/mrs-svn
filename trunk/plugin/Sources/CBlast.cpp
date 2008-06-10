@@ -1053,7 +1053,11 @@ int32 CBlastQueryBase::AlignGapped(
 				}
 			}
 			else
+			{
 				beforeFirstRow = false;
+				if (j > colEnd)
+					colEnd = j;
+			}
 		}
 		
 		lastColStart = colStart;

@@ -118,12 +118,9 @@ class CIndexer
 //						const std::string& inText, uint32 inFrequency);
 
 	void			IndexTokens(
-						const std::string&			inIndex,
+						const std::string&			inIndexName,
+						uint32						inIndexKind,
 						const std::vector<uint32>&	inTokens);
-	
-	void			IndexValue(
-						const std::string&			inIndex,
-						uint32						inValue);
 
 	bool			GetDocumentNr(const std::string& inDocumentID, uint32& outDocNr) const;
 

@@ -6,6 +6,7 @@
 #include "CReader.h"
 #include "CDocument.h"
 
+#include <iostream>
 #include <cmath>
 #include <cstdlib>
 #include <boost/thread.hpp>
@@ -53,14 +54,19 @@ struct CParserImp
 	typedef CParser::CDocCallback CDocCallback;
 	
 						CParserImp(
-							const string&		inScriptName);
+							const string&		inDatabank,
+							const string&		inScriptName,
+							const string&		inRawDir);
 
 						~CParserImp();
 
 	void				Parse(
-							CReader&				inReader,
-							void*					inUserData,
-							CDocCallback			inCallback);
+							CReader&			inReader,
+							void*				inUserData,
+							CDocCallback		inCallback);
+
+	void				CollectRawFiles(
+							vector<fs::path>&		outRawFiles);
 	
 	// implemented callbacks
 	
@@ -129,7 +135,9 @@ const char* CParserImp::kMRSParserObjectName = "MRS::Parser::Object";
 CParserImp* CParserImp::sConstructingImp = nil;
 
 CParserImp::CParserImp(
-	const string&		inScriptName)
+	const string&		inDatabank,
+	const string&		inScriptName,
+	const string&		inRawDir)
 	: mPerl(nil)
 	, mParser(nil)
 	, mParserHash(nil)
@@ -148,6 +156,15 @@ CParserImp::CParserImp(
 	const char* embedding[] = { "", "MRSParser.pm" };
 	
 	mParserHash = Perl_newHV(aTHX);
+	
+	// init the parser hash with our default values: db and raw_dir
+	(void)Perl_hv_store_ent(aTHX_ mParserHash,
+		Perl_newSVpv(aTHX_ "db", 2),
+		Perl_newSVpv(aTHX_ inDatabank.c_str(), inDatabank.length()), 0);
+
+	(void)Perl_hv_store_ent(aTHX_ mParserHash,
+		Perl_newSVpv(aTHX_ "raw_dir", 7),
+		Perl_newSVpv(aTHX_ inRawDir.c_str(), inRawDir.length()), 0);
 	
 	int err = perl_parse(mPerl, xs_init, 2, const_cast<char**>(embedding), nil);
 	SV* errgv = GvSV(PL_errgv);
@@ -254,6 +271,53 @@ void CParserImp::Parse(
 	mUserData = nil;
 }
 
+void CParserImp::CollectRawFiles(
+	vector<fs::path>&		outRawFiles)
+{
+	PERL_SET_CONTEXT(mPerl);
+
+	SV** sp = PL_stack_sp;
+	Perl_push_scope(aTHX);
+	Perl_save_int(aTHX_ (int*)&PL_tmps_floor);
+	PL_tmps_floor = PL_tmps_ix;
+	
+	if (++PL_markstack_ptr == PL_markstack_max)
+	    Perl_markstack_grow(aTHX);
+    *PL_markstack_ptr = (sp) - PL_stack_base;
+	
+	*++sp = SvRV(mParser);
+
+	PL_stack_sp = sp;
+	int n = Perl_call_method(aTHX_ "raw_files", G_ARRAY | G_EVAL);
+	sp = PL_stack_sp;
+
+	SV* errgv = GvSV(PL_errgv);
+
+	if (Perl_sv_2bool(aTHX_ ERRSV))
+	{
+		string errmsg(SvPVX(errgv), SvCUR(errgv));
+		THROW(("Error calling raw_files: %s", errmsg.c_str()));
+	}
+	
+	for (int i = 0; i < n; ++i)
+	{
+		fs::path path(SvPVX(POPs));
+		if (fs::exists(path))
+			outRawFiles.push_back(path);
+	}
+
+	if (PL_tmps_ix > PL_tmps_floor)
+		Perl_free_tmps(aTHX);
+
+	Perl_pop_scope(aTHX);
+	
+	mReader = nil;
+	mCallback = nil;
+	mUserData = nil;
+}
+
+
+
 CParserImp* CParserImp::GetObject(
 	SV*					inScalar)
 {
@@ -324,7 +388,7 @@ void CParserImp::IndexDate(
 	const char*			inIndex,
 	const char*			inText)
 {
-	mCurrentDocument->AddIndexText(inIndex, inText);
+	mCurrentDocument->AddIndexDate(inIndex, inText);
 }
 
 void CParserImp::IndexValue(
@@ -338,7 +402,7 @@ void CParserImp::IndexNumber(
 	const char*			inIndex,
 	const char*			inText)
 {
-	mCurrentDocument->AddIndexText(inIndex, inText);
+	mCurrentDocument->AddIndexNumber(inIndex, inText);
 }
 
 void CParserImp::StoreMetaData(
@@ -756,8 +820,10 @@ void xs_init(pTHX)
 // ------------------------------------------------------------------
 
 CParser::CParser(
-	const string&		inScriptName)
-	: mImpl(new CParserImp(inScriptName))
+	const string&		inDatabank,
+	const string&		inScriptName,
+	const string&		inRawDir)
+	: mImpl(new CParserImp(inDatabank, inScriptName, inRawDir))
 {
 }
 
@@ -831,4 +897,10 @@ void CParser::GetInfo(
 			}
 		}
 	}
+}
+
+void CParser::CollectRawFiles(
+	vector<fs::path>&	outRawFiles)
+{
+	mImpl->CollectRawFiles(outRawFiles);
 }

@@ -17,7 +17,7 @@
 		<path>../plugin/Lib</path>
 	</userpaths>
 	<libpaths>
-		<path>/home/maarten/projects/mrs/builder/Lib</path>
+		<path>Lib</path>
 		<path>/lib</path>
 		<path>/lib64</path>
 		<path>/usr/lib</path>
@@ -89,7 +89,6 @@
 		<group name="Libraries">
 			<link>z</link>
 			<link>bz2</link>
-			<file>libgsoap++.a</file>
 			<link>xml2</link>
 			<link>archive</link>
 			<link>magic</link>

@@ -921,50 +921,50 @@ void MDatabank::StoreMetaData(const string& inFieldName, const string& inValue)
 	fImpl->GetDB()->StoreMetaData(inFieldName, inValue);
 }
 
-void MDatabank::IndexText(const string& inIndex, const string& inText /*, bool inStoreIDL*/)
-{
-	CStopwatch sw(fImpl->fIndexTime);
-//	fImpl->GetDB()->IndexText(inIndex, inText, inStoreIDL);
-	fImpl->GetDB()->IndexText(inIndex, inText, true);
-}
-
-void MDatabank::IndexTextAndNumbers(const string& inIndex, const string& inText /*, bool inStoreIDL */)
-{
-	CStopwatch sw(fImpl->fIndexTime);
-//	fImpl->GetDB()->IndexTextAndNumbers(inIndex, inText, inStoreIDL);
-	fImpl->GetDB()->IndexTextAndNumbers(inIndex, inText, true);
-}
-
-void MDatabank::IndexWord(const string& inIndex, const string& inText)
-{
-	CStopwatch sw(fImpl->fIndexTime);
-	fImpl->GetDB()->IndexWord(inIndex, inText);
-}
-
-void MDatabank::IndexValue(const string& inIndex, const string& inText)
-{
-	CStopwatch sw(fImpl->fIndexTime);
-	fImpl->GetDB()->IndexValue(inIndex, inText);
-}
-
-void MDatabank::IndexWordWithWeight(const string& inIndex,
-	const string& inText, unsigned long inFrequency)
-{
-	CStopwatch sw(fImpl->fIndexTime);
-	fImpl->GetDB()->IndexWordWithWeight(inIndex, inText, inFrequency);
-}
-
-void MDatabank::IndexDate(const string& inIndex, const string& inText)
-{
-	CStopwatch sw(fImpl->fIndexTime);
-	fImpl->GetDB()->IndexDate(inIndex, inText);
-}
-
-void MDatabank::IndexNumber(const string& inIndex, const string& inText)
-{
-	CStopwatch sw(fImpl->fIndexTime);
-	fImpl->GetDB()->IndexNumber(inIndex, inText);
-}
+//void MDatabank::IndexText(const string& inIndex, const string& inText /*, bool inStoreIDL*/)
+//{
+//	CStopwatch sw(fImpl->fIndexTime);
+////	fImpl->GetDB()->IndexText(inIndex, inText, inStoreIDL);
+//	fImpl->GetDB()->IndexText(inIndex, inText, true);
+//}
+//
+//void MDatabank::IndexTextAndNumbers(const string& inIndex, const string& inText /*, bool inStoreIDL */)
+//{
+//	CStopwatch sw(fImpl->fIndexTime);
+////	fImpl->GetDB()->IndexTextAndNumbers(inIndex, inText, inStoreIDL);
+//	fImpl->GetDB()->IndexTextAndNumbers(inIndex, inText, true);
+//}
+//
+//void MDatabank::IndexWord(const string& inIndex, const string& inText)
+//{
+//	CStopwatch sw(fImpl->fIndexTime);
+//	fImpl->GetDB()->IndexWord(inIndex, inText);
+//}
+//
+//void MDatabank::IndexValue(const string& inIndex, const string& inText)
+//{
+//	CStopwatch sw(fImpl->fIndexTime);
+//	fImpl->GetDB()->IndexValue(inIndex, inText);
+//}
+//
+//void MDatabank::IndexWordWithWeight(const string& inIndex,
+//	const string& inText, unsigned long inFrequency)
+//{
+//	CStopwatch sw(fImpl->fIndexTime);
+//	fImpl->GetDB()->IndexWordWithWeight(inIndex, inText, inFrequency);
+//}
+//
+//void MDatabank::IndexDate(const string& inIndex, const string& inText)
+//{
+//	CStopwatch sw(fImpl->fIndexTime);
+//	fImpl->GetDB()->IndexDate(inIndex, inText);
+//}
+//
+//void MDatabank::IndexNumber(const string& inIndex, const string& inText)
+//{
+//	CStopwatch sw(fImpl->fIndexTime);
+//	fImpl->GetDB()->IndexNumber(inIndex, inText);
+//}
 
 #ifndef NO_BLAST
 void MDatabank::AddSequence(const string& inSequence)
@@ -1004,7 +1004,7 @@ void MDatabank::Finish(bool inCreateAllTextIndex, bool inCreateUpdateDatabank)
 	{
 		CStopwatch sw(fImpl->fFinishTime);
 
-		fImpl->GetDB()->Finish(inCreateAllTextIndex, inCreateUpdateDatabank);
+//		fImpl->GetDB()->Finish(inCreateAllTextIndex, inCreateUpdateDatabank);
 		
 		fImpl->Close();
 		
