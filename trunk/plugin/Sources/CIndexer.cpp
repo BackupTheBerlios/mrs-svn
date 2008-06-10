@@ -2076,15 +2076,13 @@ class CMergeIndexBuffer
 
 	void				FlushBuffer();
 
-	HUrl					fURL;
-	HFileStream*			fFile;
+	auto_ptr<HStreamBase>		fFile;
 	CMergeIndexBufferPage	fBufferPage;
 	uint32					fCount;
 };
 
 CMergeIndexBuffer::CMergeIndexBuffer(const string& inBaseUrl)
-	: fURL(inBaseUrl + "_merge_indx")
-	, fFile(new HFileStream(fURL, O_RDWR | O_TRUNC | O_CREAT))
+	: fFile(new HTempFileStream(HUrl(inBaseUrl + "_merge_indx")))
 	, fCount(0)
 {
 	assert(sizeof(CMergeIndexBufferPage) == kMergeIndexBufferPageSize);
@@ -2094,8 +2092,6 @@ CMergeIndexBuffer::CMergeIndexBuffer(const string& inBaseUrl)
 
 CMergeIndexBuffer::~CMergeIndexBuffer()
 {
-	delete fFile;
-	HFile::Unlink(fURL);
 }
 
 void CMergeIndexBuffer::push_back(const value_type& inValue)
