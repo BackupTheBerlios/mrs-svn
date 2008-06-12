@@ -5,6 +5,7 @@
 		<pkg tool="pkg-config">libxml-2.0</pkg>
 	</pkg-config>
 	<syspaths>
+		<path>/usr/local/include/boost-1_35/</path>
 		<path>/usr/include</path>
 	</syspaths>
 	<userpaths>
@@ -95,6 +96,7 @@
 			<link>boost_regex-mt</link>
 			<link>boost_thread-mt</link>
 			<link>boost_filesystem-mt</link>
+			<link>boost_system-mt</link>
 		</group>
 	</files>
 	<resources resource_dir="../../../../../.."/>

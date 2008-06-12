@@ -84,7 +84,8 @@ class CBuilder
 					CDocumentBuffer*	inIndexDocBuffer);
 	
 	void		IndexDoc(
-					CDocumentBuffer*	inIndexDocBuffer);
+					CDocumentBuffer*	inIndexDocBuffer,
+					int32				inNrOfParsers);
 	
 	CDatabank*	mDatabank;
 	string		mDatabankName, mScriptName;
@@ -179,17 +180,20 @@ void CBuilder::Run()
 		nrOfParsers = rawFiles.size();
 
 	CReaderBuffer readerBuffer;
-	CDocumentBuffer compressDocBuffer, tokenizeDocBuffer, indexDocBuffer;
+	boost::ptr_vector<CDocumentBuffer> compressDocBuffers, tokenizeDocBuffers;
+	CDocumentBuffer indexDocBuffer;
 	
 	for (uint32 i = 0; i < nrOfParsers; ++i)
 	{
-		parser_threads.create_thread(boost::bind(&CBuilder::ParseFiles, this, mScriptName, &readerBuffer, &compressDocBuffer));
-		compress_threads.create_thread(boost::bind(&CBuilder::CompressDoc, this, &compressDocBuffer, &tokenizeDocBuffer));
-		tokenize_threads.create_thread(boost::bind(&CBuilder::TokenizeDoc, this, &tokenizeDocBuffer, &indexDocBuffer));
+		compressDocBuffers.push_back(new CDocumentBuffer);
+		tokenizeDocBuffers.push_back(new CDocumentBuffer);
+		
+		parser_threads.create_thread(boost::bind(&CBuilder::ParseFiles, this, mScriptName, &readerBuffer, &compressDocBuffers.back()));
+		compress_threads.create_thread(boost::bind(&CBuilder::CompressDoc, this, &compressDocBuffers.back(), &tokenizeDocBuffers.back()));
+		tokenize_threads.create_thread(boost::bind(&CBuilder::TokenizeDoc, this, &tokenizeDocBuffers.back(), &indexDocBuffer));
 	}
 	
-//	boost::thread tokenizeDocThread(boost::bind(&CBuilder::TokenizeDoc, this, &tokenizeDocBuffer, &indexDocBuffer));
-	boost::thread indexDocThread(boost::bind(&CBuilder::IndexDoc, this, &indexDocBuffer));
+	boost::thread indexDocThread(boost::bind(&CBuilder::IndexDoc, this, &indexDocBuffer, nrOfParsers));
 	
 	for (vector<fs::path>::iterator file = rawFiles.begin(); file != rawFiles.end(); ++file)
 	{
@@ -320,14 +324,20 @@ void CBuilder::TokenizeDoc(
 }
 
 void CBuilder::IndexDoc(
-	CDocumentBuffer*	inIndexDocBuffer)
+	CDocumentBuffer*	inIndexDocBuffer,
+	int32				inNrOfParsers)
 {
-	CDocumentPtr next;
-	
-	while ((next = inIndexDocBuffer->Get()) != CDocument::sEnd)
+	for (;;)
 	{
-//if (inIndexDocBuffer->WasEmpty())
-//	cerr << "inIndexDocBuffer was empty" << endl;
+		CDocumentPtr next = inIndexDocBuffer->Get();
+
+		if (next == CDocument::sEnd)
+		{
+			if (--inNrOfParsers <= 0)
+				break;
+
+			continue;
+		}
 
 		mDatabank->StoreDocument(*next);
 

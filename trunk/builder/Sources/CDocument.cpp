@@ -1,6 +1,7 @@
 #include "MRS.h"
 
 #include <vector>
+#include <boost/algorithm/string.hpp>
 
 #include "CLexicon.h"
 #include "CTokenizer.h"
@@ -8,6 +9,7 @@
 #include "CCompress.h"
 
 using namespace std;
+namespace ba = boost::algorithm;
 
 extern const uint32 kMaxKeySize;
 
@@ -130,18 +132,21 @@ void CDocument::TokenizeText(
 					
 					if (not (isWord or isNumber) or l == 0)
 						continue;
+					
+					string word(tok.GetTokenValue(), l);
+					ba::to_lower(word);
 			
 					if (l <= kMaxKeySize)
-					{
-						uint32 word = inLexicon.Store(string(tok.GetTokenValue(), l));
-						it->tokens.push_back(word);
-					}
+						it->tokens.push_back(inLexicon.Store(word));
 					else	
 						it->tokens.push_back(0);
 				}
 			}
 			else
+			{
+				ba::to_lower(*text);
 				it->tokens.push_back(inLexicon.Store(*text));
+			}
 		}
 
 		mTokenData.push_back(it.release());

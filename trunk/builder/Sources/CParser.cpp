@@ -629,7 +629,7 @@ XS(_MRSParser_Store)
 {
 	dXSARGS;
 	
-	if (items != 2 or not SvPOK(ST(1)))
+	if (items != 2)
 		Perl_croak(aTHX_ "Usage: MRS::Parser::Store(self, doc);");
 	
 	CParserImp* proxy = CParserImp::GetObject(ST(0));
@@ -645,7 +645,7 @@ XS(_MRSParser_AddSequence)
 {
 	dXSARGS;
 	
-	if (items != 2 or not SvPOK(ST(1)))
+	if (items != 2)
 		Perl_croak(aTHX_ "Usage: MRS::Parser::AddSequence(self, sequence);");
 	
 	CParserImp* proxy = CParserImp::GetObject(ST(0));
@@ -661,7 +661,7 @@ XS(_MRSParser_StoreMetaData)
 {
 	dXSARGS;
 	
-	if (items != 3 or not SvPOK(ST(1)) or not SvPOK(ST(2)))
+	if (items != 3)
 		Perl_croak(aTHX_ "Usage: MRS::Parser::StoreMetaData(self, field, text);");
 	
 	CParserImp* proxy = CParserImp::GetObject(ST(0));
@@ -695,7 +695,7 @@ XS(_MRSParser_IndexValue)
 {
 	dXSARGS;
 	
-	if (items != 3 or not SvPOK(ST(1)) or not SvPOK(ST(2)))
+	if (items != 3)
 		Perl_croak(aTHX_ "Usage: MRS::Parser::IndexValue(self, indexname, value);");
 	
 	CParserImp* proxy = CParserImp::GetObject(ST(0));
@@ -711,7 +711,7 @@ XS(_MRSParser_IndexText)
 {
 	dXSARGS;
 	
-	if (items != 3 or not SvPOK(ST(1)) or not SvPOK(ST(2)))
+	if (items != 3)
 		Perl_croak(aTHX_ "Usage: MRS::Parser::IndexText(self, indexname, text);");
 	
 	CParserImp* proxy = CParserImp::GetObject(ST(0));
@@ -727,7 +727,7 @@ XS(_MRSParser_IndexWord)
 {
 	dXSARGS;
 	
-	if (items != 3 or not SvPOK(ST(1)) /*or not SvPOK(ST(2))*/)
+	if (items != 3)
 		Perl_croak(aTHX_ "Usage: MRS::Parser::IndexWord(self, indexname, word);");
 	
 	CParserImp* proxy = CParserImp::GetObject(ST(0));
@@ -743,7 +743,7 @@ XS(_MRSParser_IndexTextAndNumbers)
 {
 	dXSARGS;
 	
-	if (items != 3 or not SvPOK(ST(1)) or not SvPOK(ST(2)))
+	if (items != 3)
 		Perl_croak(aTHX_ "Usage: MRS::Parser::IndexTextAndNumbers(self, indexname, text);");
 	
 	CParserImp* proxy = CParserImp::GetObject(ST(0));
@@ -759,7 +759,7 @@ XS(_MRSParser_IndexDate)
 {
 	dXSARGS;
 	
-	if (items != 3 or not SvPOK(ST(1)) or not SvPOK(ST(2)))
+	if (items != 3)
 		Perl_croak(aTHX_ "Usage: MRS::Parser::IndexDate(self, indexname, date);");
 	
 	CParserImp* proxy = CParserImp::GetObject(ST(0));
@@ -775,7 +775,7 @@ XS(_MRSParser_IndexNumber)
 {
 	dXSARGS;
 	
-	if (items != 3 or not SvPOK(ST(1)) /*or not SvIOK(ST(2))*/)
+	if (items != 3)
 		Perl_croak(aTHX_ "Usage: MRS::Parser::IndexNumber(self, indexname, number);");
 	
 	CParserImp* proxy = CParserImp::GetObject(ST(0));
