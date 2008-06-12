@@ -53,7 +53,7 @@
  
 #include "MRS.h"
 
-#include <boost/thread.hpp>
+#include <boost/thread/shared_mutex.hpp>
 
 #include "HError.h"
 #include "CLexicon.h"
@@ -212,6 +212,7 @@ void CLexPage::Add(const string& inString)
 
 struct CLexiconImp
 {
+	uint32			Lookup(const string& inWord);
 	uint32			Store(const string& inWord);
 	string			GetString(uint32 inNr) const;
 
@@ -276,7 +277,8 @@ struct CLexiconImp
 	NodePageArray	fNodes;
 	CNode*			fRoot;
 	uint32			fCount;
-	boost::mutex	fMutex;
+	boost::shared_mutex
+					fMutex;
 };
 
 CLexiconImp::CLexiconImp()
@@ -379,9 +381,24 @@ bool CLexiconImp::Find(const string& inKey, uint32& outNr) const
 	return result;
 }
 
+uint32 CLexiconImp::Lookup(const string& inKey)
+{
+	boost::shared_lock<boost::shared_mutex> lock(fMutex);
+
+	CNode* x = fRoot;
+	uint32 result = 0;
+
+	const CNode* t = Find(x, inKey);
+
+	if (t != fRoot and Compare(inKey, t->value) == 0)
+		result = t->value;
+	
+	return result;
+}
+
 uint32 CLexiconImp::Store(const string& inKey)
 {
-	boost::mutex::scoped_lock lock(fMutex);
+	boost::unique_lock<boost::shared_mutex> lock(fMutex);
 
 	CNode* x = fRoot;
 
@@ -567,7 +584,12 @@ CLexicon::~CLexicon()
 
 uint32 CLexicon::Store(const string& inWord)
 {
-	return fImpl->Store(inWord);
+	uint32 result = fImpl->Lookup(inWord);
+
+	if (result == 0)
+		result = fImpl->Store(inWord);
+
+	return result;
 }
 
 string CLexicon::GetString(uint32 inNr) const
