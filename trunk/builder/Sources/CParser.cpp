@@ -13,6 +13,7 @@
 
 #define PERL_NO_SHORT_NAMES 1
 //#define PERL_IMPLICIT_CONTEXT 1
+#undef INT64_C	// 
 
 #include "EXTERN.h"
 #include "perl.h"
@@ -838,12 +839,6 @@ void CParser::Parse(
 	CDocCallback		inCallback)
 {
 	mImpl->Parse(inReader, inUserData, inCallback);
-}
-
-bool CParser::IsRawFile(
-	const string&			inFile)
-{
-	return true;
 }
 
 void CParser::GetInfo(

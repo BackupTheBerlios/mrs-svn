@@ -25,9 +25,6 @@ class CParser
 
 						~CParser();
 	
-	bool				IsRawFile(
-							const std::string&		inFile);
-
 	void				CollectRawFiles(
 							std::vector<fs::path>&	outRawFiles);
 

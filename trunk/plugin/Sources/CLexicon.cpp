@@ -54,6 +54,7 @@
 #include "MRS.h"
 
 #include <boost/thread/shared_mutex.hpp>
+#include <boost/thread/shared_mutex.hpp>
 
 #include "HError.h"
 #include "CLexicon.h"
@@ -212,8 +213,15 @@ void CLexPage::Add(const string& inString)
 
 struct CLexiconImp
 {
-	uint32			Lookup(const string& inWord);
-	uint32			Store(const string& inWord);
+	bool			Lookup(
+						const string&	inWord,
+						uint32&			outValue,
+						const CNode*&	outNode);
+
+	uint32			Store(
+						const string&	inWord,
+						const CNode*	inNode);
+
 	string			GetString(uint32 inNr) const;
 
 	const CNode*	Find(const CNode* inNode, const string& inKey) const;
@@ -277,6 +285,8 @@ struct CLexiconImp
 	NodePageArray	fNodes;
 	CNode*			fRoot;
 	uint32			fCount;
+
+	// synchronisation
 	boost::shared_mutex
 					fMutex;
 };
@@ -381,31 +391,44 @@ bool CLexiconImp::Find(const string& inKey, uint32& outNr) const
 	return result;
 }
 
-uint32 CLexiconImp::Lookup(const string& inKey)
+bool CLexiconImp::Lookup(
+	const string&		inKey,
+	uint32&				outValue,
+	const CNode*&		outNode)
 {
 	boost::shared_lock<boost::shared_mutex> lock(fMutex);
 
-	CNode* x = fRoot;
-	uint32 result = 0;
+	bool result = false;
 
-	const CNode* t = Find(x, inKey);
+	outNode = Find(fRoot, inKey);
 
-	if (t != fRoot and Compare(inKey, t->value) == 0)
-		result = t->value;
+	if (outNode != fRoot and Compare(inKey, outNode->value) == 0)
+	{
+		outValue = outNode->value;
+		result = true;
+	}
 	
 	return result;
 }
 
-uint32 CLexiconImp::Store(const string& inKey)
+uint32 CLexiconImp::Store(
+	const string&		inKey,
+	const CNode*		inNode)
 {
 	boost::unique_lock<boost::shared_mutex> lock(fMutex);
 
-	CNode* x = fRoot;
+	const CNode* t = inNode;
 
-	const CNode* t = Find(x, inKey);
+	// check first to see if something has been added to inNode
+	// while we were locked...
 
-	if (t != fRoot and Compare(inKey, t->value) == 0)
-		return t->value;
+	if (inNode->right != fRoot or inNode->left != fRoot)
+	{
+		t = Find(fRoot, inKey);
+	
+		if (t != fRoot and Compare(inKey, t->value) == 0)
+			return t->value;
+	}
 
 	uint32 i = 0;
 	
@@ -413,6 +436,7 @@ uint32 CLexiconImp::Store(const string& inKey)
 		++i;
 
 	CNode* p;
+	CNode* x = fRoot;	
 	
 	do
 	{
@@ -452,7 +476,7 @@ uint32 CLexiconImp::Store(const string& inKey)
 	uint32 result = fCount;
 	
 	++fCount;
-	
+
 	return result;
 }
 
@@ -584,10 +608,11 @@ CLexicon::~CLexicon()
 
 uint32 CLexicon::Store(const string& inWord)
 {
-	uint32 result = fImpl->Lookup(inWord);
-
-	if (result == 0)
-		result = fImpl->Store(inWord);
+	const CNode* n;
+	uint32 result;
+	
+	if (not fImpl->Lookup(inWord, result, n))
+		result = fImpl->Store(inWord, n);
 
 	return result;
 }

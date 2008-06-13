@@ -11,6 +11,8 @@
 #include <boost/thread.hpp>
 #include <boost/ptr_container/ptr_vector.hpp>
 #include <boost/bind.hpp>
+#include <boost/algorithm/string/find.hpp>
+#include <boost/filesystem/fstream.hpp>
 #include <getopt.h>
 #include <string>
 #include <iostream>
@@ -29,6 +31,7 @@
 
 using namespace std;
 namespace fs = boost::filesystem;
+namespace ba = boost::algorithm;
 
 int VERBOSE = 0;
 int COMPRESSION_LEVEL = 9;
@@ -44,10 +47,10 @@ fs::path		gMrsDir("/data/mrs/");
 // ------------------------------------------------------------------
 
 typedef boost::shared_ptr<CReader>		CReaderPtr;
-typedef HBuffer<CReaderPtr,100>			CReaderBuffer;
+typedef HBuffer<CReaderPtr,10>			CReaderBuffer;
 
 typedef boost::shared_ptr<CDocument>	CDocumentPtr;
-typedef HBuffer<CDocumentPtr,100>		CDocumentBuffer;
+typedef HBuffer<CDocumentPtr,10>		CDocumentBuffer;
 
 class CBuilder
 {
@@ -59,6 +62,9 @@ class CBuilder
 				~CBuilder();
 	
 	void		Run();
+
+	void		ReadStopWords();
+
 
   private:
 
@@ -98,6 +104,7 @@ class CBuilder
 	HFile::SafeSaver*
 				mSafe;
 	CLexicon	mLexicon;
+	uint32		mLastStopWord;
 };
 
 CBuilder::CBuilder(
@@ -109,6 +116,7 @@ CBuilder::CBuilder(
 	, mParser(nil)
 	, mCompressorFactory(nil)
 	, mSafe(nil)
+	, mLastStopWord(0)
 {
 	try
 	{
@@ -233,22 +241,6 @@ void CBuilder::CollectRawFiles(
 	vector<fs::path>&	outRawFiles,
 	int64&				outRawFilesSize)
 {
-//	fs::path rawDir = gRawDir / mDatabankName;
-//	
-//	outRawFilesSize = 0;
-//	
-//	if (not fs::exists(rawDir))
-//		THROW(("Raw directory %s does not exist", rawDir.string().c_str()));
-//	
-//	fs::directory_iterator end_itr;
-//	for (fs::directory_iterator itr(rawDir); itr != end_itr; ++itr)
-//	{
-//		if (mParser->IsRawFile(itr->leaf()))
-//		{
-//			outRawFiles.push_back(*itr);
-//			outRawFilesSize += fs::file_size(*itr);
-//		}
-//	}
 	mParser->CollectRawFiles(outRawFiles);
 	
 	outRawFilesSize = 0;
@@ -316,7 +308,7 @@ void CBuilder::TokenizeDoc(
 //if (inTokenizeDocBuffer->WasEmpty())
 //	cerr << "inTokenizeDocBuffer was empty" << endl;
 
-		next->TokenizeText(mLexicon);
+		next->TokenizeText(mLexicon, mLastStopWord);
 		inIndexDocBuffer->Put(next);
 	}
 	
@@ -347,6 +339,30 @@ void CBuilder::IndexDoc(
 			mDatabank->IndexTokens(d->index_name, d->index_kind, d->tokens);
 
 		mDatabank->FlushDocument();
+	}
+}
+
+void CBuilder::ReadStopWords()
+{
+	set<string> stopwords;
+	
+	ifstream file("stop.txt");
+	if (file.is_open())
+	{
+		while (not file.eof())
+		{
+			string line;
+			getline(file, line);
+			
+			string::size_type s = line.find_first_of(" \t");
+			if (s != string::npos)
+				line.erase(s, string::npos);
+			
+			if (line.length() == 0)
+				continue;
+			
+			mLastStopWord = mLexicon.Store(line);
+		}
 	}
 }
 
@@ -400,6 +416,9 @@ int main(int argc, char* const argv[])
 	try
 	{
 		CBuilder builder(databank, script);
+		
+		builder.ReadStopWords();
+		
 		builder.Run();
 	}
 	catch (exception& e)

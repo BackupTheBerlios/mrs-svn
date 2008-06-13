@@ -170,6 +170,7 @@ bool CTokenizer::GetToken(bool& outWord, bool& outNumber, bool& outPunct)
 	bool punct = false;
 	int32 dots = 0;
 	int32 hyphens = 0;
+	int32 singlequotes = 0;
 
 	t = tokenText;
 	
@@ -267,6 +268,8 @@ bool CTokenizer::GetToken(bool& outWord, bool& outNumber, bool& outPunct)
 					state = 22;
 				else if (c == '-')
 					state = 25;
+				else if (c == '\'')
+					state = 26;
 				else if (not (fast::isalnum(c) or c == '_'))
 				{
 					Retract();
@@ -318,6 +321,22 @@ bool CTokenizer::GetToken(bool& outWord, bool& outNumber, bool& outPunct)
 				else
 				{
 					++hyphens;
+					state = 21;
+				}
+				break;
+			
+			// a single single quote is allowed, this is to parse out
+			// contractions in english like "I'm"
+			case 26:
+				if (not fast::isalnum(c))
+				{
+					Retract();
+					Retract();
+					token = tok_Word;
+				}
+				else
+				{
+					++singlequotes;
 					state = 21;
 				}
 				break;

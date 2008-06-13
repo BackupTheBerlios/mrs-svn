@@ -590,14 +590,16 @@ CDecompressor::~CDecompressor()
 
 string CDecompressor::GetDocument(uint32 inDocNr)
 {
-	boost::mutex::scoped_lock lock(fImpl->fMutex);
+#pragma message("FIX ME")
+//	boost::mutex::scoped_lock lock(fImpl->fMutex);
 
 	return fImpl->GetDocument(inDocNr);
 }
 
 string CDecompressor::GetField(uint32 inEntry, uint32 inIndex)
 {
-	boost::mutex::scoped_lock lock(fImpl->fMutex);
+#pragma message("FIX ME")
+//	boost::mutex::scoped_lock lock(fImpl->fMutex);
 
 	return fImpl->GetField(inEntry, inIndex);
 }
@@ -606,7 +608,8 @@ void CDecompressor::CopyData(HStreamBase& outData, uint32& outKind,
 	int64& outDataOffset, int64& outDataSize,
 	int64& outTableOffset, int64& outTableSize)
 {
-	boost::mutex::scoped_lock lock(fImpl->fMutex);
+#pragma message("FIX ME")
+//	boost::mutex::scoped_lock lock(fImpl->fMutex);
 
 	fImpl->CopyData(outData, outKind, outDataOffset, outDataSize, outTableOffset, outTableSize);
 }
@@ -615,7 +618,8 @@ void CDecompressor::LinkData(const std::string& inDataFileName, const std::strin
 	HStreamBase& outData, uint32& outKind, int64& outDataOffset, int64& outDataSize,
 	int64& outTableOffset, int64& outTableSize)
 {
-	boost::mutex::scoped_lock lock(fImpl->fMutex);
+#pragma message("FIX ME")
+//	boost::mutex::scoped_lock lock(fImpl->fMutex);
 
 	fImpl->LinkData(inDataFileName, inDataFileUUID, outData, outKind,
 		outDataOffset, outDataSize, outTableOffset, outTableSize);

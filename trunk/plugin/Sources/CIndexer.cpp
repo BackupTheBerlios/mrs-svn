@@ -316,7 +316,7 @@ class CMergeWeightedDocInfo
 
 const uint32
 //	kRunBlockSize = 0x100000,		// 1 Mb
-	kBufferEntryCount = 200000;	// that's about 2.5 megabytes compressed
+	kBufferEntryCount = 2000000;
 
 typedef vector<uint32> DocLoc;
 

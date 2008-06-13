@@ -79,7 +79,8 @@ class CDocument
 	const TokenMap&		GetTokenData()			{ return mTokenData; }
 
 	void				TokenizeText(
-							CLexicon&		inLexicon);
+							CLexicon&		inLexicon,
+							uint32			inLastStopWord);
 
 	void				Compress(
 							const std::vector<std::string>&

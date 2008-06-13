@@ -102,7 +102,8 @@ void CDocument::AddSequence(
 }
 
 void CDocument::TokenizeText(
-	CLexicon&		inLexicon)
+	CLexicon&		inLexicon,
+	uint32			inLastStopWord)
 {
 	bool inIndexNrs = true;
 	
@@ -115,6 +116,9 @@ void CDocument::TokenizeText(
 
 		for (vector<string>::iterator text = dm->second->text.begin(); text != dm->second->text.end(); ++text)
 		{
+			if (text->length() == 0)
+				continue;
+			
 			if (it->index_kind == kTextIndex)
 			{
 				CTokenizer tok(text->c_str(), text->length());
@@ -135,10 +139,12 @@ void CDocument::TokenizeText(
 					
 					string word(tok.GetTokenValue(), l);
 					ba::to_lower(word);
-			
-					if (l <= kMaxKeySize)
+					
+					uint32 tokenValue = inLexicon.Store(word);
+					
+					if (l <= kMaxKeySize and tokenValue > inLastStopWord)
 						it->tokens.push_back(inLexicon.Store(word));
-					else	
+					else
 						it->tokens.push_back(0);
 				}
 			}
