@@ -61,16 +61,17 @@ class CBuilder
 
 				~CBuilder();
 	
-	void		Run();
+	void		Run(
+					bool				inShowProgress);
 
 	void		ReadStopWords();
 
+	void		Progress();
 
   private:
 
 	void		CollectRawFiles(
-					vector<fs::path>&	outRawFiles,
-					int64&				outRawFilesSize);
+					vector<fs::path>&	outRawFiles);
 
 	void		ParseFiles(
 					const string&		inScriptName,
@@ -105,6 +106,12 @@ class CBuilder
 				mSafe;
 	CLexicon	mLexicon;
 	uint32		mLastStopWord;
+	
+	// progress information
+	bool		mStopProgress;
+	uint32		mFileCount;
+	uint32		mCurrentFile;
+	int64		mRawDataSize;
 };
 
 CBuilder::CBuilder(
@@ -163,15 +170,15 @@ CBuilder::~CBuilder()
 	delete mSafe;
 }
 
-void CBuilder::Run()
+void CBuilder::Run(
+	bool		inShowProgress)
 {
 	vector<fs::path> rawFiles;
-	int64 totalRawFilesSize;
 	
 	if (VERBOSE > 1)
 		cerr << "Collecting raw file names...";
 	
-	CollectRawFiles(rawFiles, totalRawFilesSize);
+	CollectRawFiles(rawFiles);
 	
 	if (VERBOSE > 1)
 		cerr << "done" << endl;
@@ -179,8 +186,17 @@ void CBuilder::Run()
 	if (rawFiles.size() == 0)
 		THROW(("No files to process, aborting"));
 	
+	mFileCount = rawFiles.size();
+	
 	if (VERBOSE > 0)
-		cerr << "Processing " << rawFiles.size() << " raw files totalling " << totalRawFilesSize << " bytes" << endl;
+		cerr << "Processing " << rawFiles.size() << " raw files totalling " << mRawDataSize << " bytes" << endl;
+	
+	boost::thread* progress = nil;
+	if (inShowProgress)
+	{
+		mStopProgress = false;
+		progress = new boost::thread(boost::bind(&CBuilder::Progress, this));
+	}
 	
 	boost::thread_group parser_threads, compress_threads, tokenize_threads;
 	uint32 nrOfParsers = 4;
@@ -205,15 +221,6 @@ void CBuilder::Run()
 	
 	for (vector<fs::path>::iterator file = rawFiles.begin(); file != rawFiles.end(); ++file)
 	{
-		if (VERBOSE > 1)
-			cerr << '\r'
-				 << setw(32) << file->leaf()
-				 << " ["
-				 << setw(6) << (file - rawFiles.begin()) + 1
-				 << '/'
-				 << setw(6) << rawFiles.size()
-				 << ']';
-		
 		CReaderPtr reader(CReader::CreateReader(*file));
 		readerBuffer.Put(reader);
 	}
@@ -226,8 +233,15 @@ void CBuilder::Run()
 //	tokenizeDocThread.join();
 	indexDocThread.join();
 
+	if (inShowProgress)
+	{
+		mStopProgress = true;
+		progress->join();
+		delete progress;
+	}
+
 	if (VERBOSE > 1)
-		cout << endl << "done" << endl;
+		cout << "done" << endl;
 	
 	mDatabank->Finish(mLexicon, true, false);
 	delete mDatabank;
@@ -237,15 +251,87 @@ void CBuilder::Run()
 		mSafe->Commit();
 }
 
+static void GetSize(
+	int64		inSize,
+	uint32&		outSize,
+	char&		outLetter)
+{
+	if (inSize > 1024ULL * 1024 * 1024 * 1024)
+	{
+		outSize = static_cast<uint32>(inSize / (1024ULL * 1024 * 1024 * 1024));
+		outLetter = 'T';
+	}
+	else if (inSize > 1024ULL * 1024 * 1024)
+	{
+		outSize = static_cast<uint32>(inSize / (1024ULL * 1024 * 1024));
+		outLetter = 'G';
+	}
+	else if (inSize > 1024ULL * 1024)
+	{
+		outSize = static_cast<uint32>(inSize / (1024ULL * 1024));
+		outLetter = 'M';
+	}
+	else if (inSize > 1024ULL)
+	{
+		outSize = static_cast<uint32>(inSize / (1024ULL));
+		outLetter = 'K';
+	}
+	else
+	{
+		outSize = static_cast<uint32>(inSize);
+		outLetter = 'B';
+	}
+}
+
+void CBuilder::Progress()
+{
+	while (not mStopProgress)
+	{
+		//            00        10        20        30        40        50        60        70        80        
+		char msg[] = "                                                                                ";
+		
+		int64 readData;
+		CReader::GetStatistics(readData);
+
+		uint32 docs;
+		int64 rawText;
+		
+		mDatabank->GetStatistics(docs, rawText);
+
+		uint32 progress = static_cast<uint32>((readData * 100) / mRawDataSize);
+		
+		uint32 size, totalSize, rawSize;
+		char sizeLetter, totalSizeLetter, rawSizeLetter;
+		GetSize(readData, size, sizeLetter);
+		GetSize(mRawDataSize, totalSize, totalSizeLetter);
+		GetSize(rawText, rawSize, rawSizeLetter);
+		
+		snprintf(msg, sizeof(msg),
+			"%20.20s  %d/%d - %d%c/%d%c [%d%%] docs: %d text: %d%c",
+			"file",
+			docs, mFileCount,
+			size, sizeLetter,
+			totalSize, totalSizeLetter,
+			progress,
+			docs,
+			rawSize, rawSizeLetter);
+		
+		cout << '\r' << msg;
+		cout.flush();
+
+		sleep(1);
+	}
+	cout << endl;
+}
+
 void CBuilder::CollectRawFiles(
-	vector<fs::path>&	outRawFiles,
-	int64&				outRawFilesSize)
+	vector<fs::path>&	outRawFiles)
 {
 	mParser->CollectRawFiles(outRawFiles);
 	
-	outRawFilesSize = 0;
+	mRawDataSize = 0;
 	for (vector<fs::path>::iterator file = outRawFiles.begin(); file != outRawFiles.end(); ++file)
-		outRawFilesSize += fs::file_size(*file);
+		mRawDataSize += fs::file_size(*file);
 }
 
 void CBuilder::ParseFiles(
@@ -386,10 +472,11 @@ void error(const char* msg, ...)
 int main(int argc, char* const argv[])
 {
 	string script, databank;
+	bool progress = false;
 	
 	int c;
 	
-	while ((c = getopt(argc, argv, "s:d:v")) != -1)
+	while ((c = getopt(argc, argv, "s:d:vp")) != -1)
 	{
 		switch (c)
 		{
@@ -403,6 +490,10 @@ int main(int argc, char* const argv[])
 			
 			case 'v':
 				++VERBOSE;
+				break;
+			
+			case 'p':
+				progress = true;
 				break;
 			
 			default:
@@ -422,7 +513,7 @@ int main(int argc, char* const argv[])
 		
 		builder.ReadStopWords();
 		
-		builder.Run();
+		builder.Run(progress);
 	}
 	catch (exception& e)
 	{

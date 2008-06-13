@@ -24,6 +24,9 @@ class CReader
 
 	bool				Eof();
 
+	static void			GetStatistics(
+							int64&				outReadRawData);
+
   private:
 						CReader(
 							struct CReaderImp*	inImpl);

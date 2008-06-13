@@ -267,6 +267,10 @@ class CDatabank : public CDatabankBase
 							CLexicon&		inLexicon,
 							bool			inCreateAllTextIndex,
 							bool			inCreateUpdateDatabank);
+
+	void				GetStatistics(
+							uint32&			outDocuments,
+							int64&			outRawText);
 	
 	virtual uint32		Count() const;
 	virtual int64		GetRawDataSize() const;
@@ -374,6 +378,10 @@ class CDatabank : public CDatabankBase
 	int64			fDataOffset, fFirstDocOffset;
 	int64			fDocStart;
 	HStreamBase*	fDocIndexData;
+	
+	// statistics
+	volatile uint32	fProcessedDocuments;
+	volatile int64	fProcessedRawText;
 };
 
 class CJoinedDatabank : public CDatabankBase

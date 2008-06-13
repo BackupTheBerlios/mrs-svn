@@ -1482,6 +1482,14 @@ void CDatabank::GetStopWords(set<string>& outStopWords) const
 	}
 }
 
+void CDatabank::GetStatistics(
+	uint32&			outDocuments,
+	int64&			outRawText)
+{
+	outDocuments = fProcessedDocuments;
+	outRawText = fProcessedRawText;
+}
+
 void CDatabank::StoreDocument(
 	const CDocument&	inDocument)
 {
@@ -1489,6 +1497,10 @@ void CDatabank::StoreDocument(
 	(*fDocIndexData) << (fDataFile->Tell() - fFirstDocOffset);
 	++fHeader->entries;
 	fParts[0].raw_data_size += inDocument.TextLength();
+
+	// update statistics for progress monitor
+	fProcessedDocuments = fHeader->entries;
+	fProcessedRawText = fParts[0].raw_data_size;
 }
 
 //void CDatabank::Store(const string& inDocument)

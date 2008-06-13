@@ -4,10 +4,13 @@
 
 #include <magic.h>
 #include <boost/filesystem/fstream.hpp>
+#include <boost/thread.hpp>
 #include <zlib.h>
 #include <fcntl.h>
 #include <cerrno>
 #include <iostream>
+#include <list>
+#include <algorithm>
 
 #include "CReader.h"
 
@@ -91,20 +94,56 @@ string CLibMagic::GetMagic(
 struct CReaderImp
 {
 					CReaderImp(
-						const fs::path&		inFile)
-						: mFile(inFile)
-					{
-					}
+						const fs::path&		inFile);
 
-	virtual			~CReaderImp() {}
+	virtual			~CReaderImp();
 
 	virtual bool	GetLine(
 						string&				outLine) = 0;
 	
 	virtual bool	Eof() const = 0;
+	
+	static int64	GetReadData();
 
 	fs::path		mFile;
+	int64			mReadData;
+
+	static boost::mutex			sListMutex;
+	static list<CReaderImp*>	sList;
+	static int64				sFinishedData;
 };
+
+boost::mutex		CReaderImp::sListMutex;
+list<CReaderImp*>	CReaderImp::sList;
+int64				CReaderImp::sFinishedData;
+
+CReaderImp::CReaderImp(
+	const fs::path&		inFile)
+	: mFile(inFile)
+	, mReadData(0)
+{
+	boost::mutex::scoped_lock	 lock(sListMutex);
+	sList.push_back(this);
+}
+
+CReaderImp::~CReaderImp()
+{
+	boost::mutex::scoped_lock	 lock(sListMutex);
+	
+	sFinishedData += mReadData;
+	sList.erase(remove(sList.begin(), sList.end(), this), sList.end());
+}
+
+int64 CReaderImp::GetReadData()
+{
+	boost::mutex::scoped_lock	 lock(sListMutex);
+
+	int64 result = sFinishedData;
+	for (list<CReaderImp*>::iterator imp = sList.begin(); imp != sList.end(); ++imp)
+		result += (*imp)->mReadData;
+
+	return result;
+}
 
 struct CTextReaderImpl : public CReaderImp
 {
@@ -133,6 +172,9 @@ bool CTextReaderImpl::GetLine(
 {
 	getline(mFileStream, outLine);
 	outLine += "\n";
+	
+	mReadData += outLine.length();
+	
 	return not mFileStream.eof();
 }
 	
@@ -190,6 +232,8 @@ bool CGZipReaderImpl::GetLine(
 			result = true;
 		}
 	}
+	
+	mReadData = gztell64(mGZFile);
 	
 	return result;
 }
@@ -250,5 +294,11 @@ bool CReader::GetLine(
 bool CReader::Eof()
 {
 	return mImpl->Eof();
+}
+
+void CReader::GetStatistics(
+	int64&				outReadRawData)
+{
+	outReadRawData = CReaderImp::GetReadData();
 }
 
