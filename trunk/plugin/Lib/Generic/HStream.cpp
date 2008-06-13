@@ -315,7 +315,7 @@ HStreamBase& HStreamBase::operator<< (string s)
 #define kMemBlockSize			512
 #define kMemBlockExtendSize		10240
 
-static char* kEmptyMemoryBuffer = const_cast<char*>("");
+char* HMemoryStream::kEmptyMemoryBuffer = const_cast<char*>("");
 
 HMemoryStream::HMemoryStream()
 {

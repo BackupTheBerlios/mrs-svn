@@ -156,6 +156,8 @@ class HMemoryStream : public HStreamBase
 					HMemoryStream (const HMemoryStream&);
 	void			operator = (const HMemoryStream&);
 
+	static char*	kEmptyMemoryBuffer;
+
 	char*			fData;
 	int64			fLogicalSize;
 	int64			fPhysicalSize;

@@ -412,7 +412,7 @@ MDatabankImp::MDatabankImp(const string& inDatabank, const vector<string>& inMet
 	if (VERBOSE)
 		cout << "Creating databank " << url.GetURL() << endl;
 	
-	fDatabank.reset(new CDatabank(url, inMetaDataFields, inName, inVersion, inURL, inScriptName, inSection));
+//	fDatabank.reset(new CDatabank(url, inMetaDataFields, inName, inVersion, inURL, inScriptName, inSection));
 }
 
 MDatabankImp::MDatabankImp(const string& inDatabank)
@@ -900,7 +900,7 @@ void MDatabank::StoreInfo(
 
 void MDatabank::SetStopWords(vector<string> inStopWords)
 {
-	fImpl->GetDB()->SetStopWords(inStopWords);
+//	fImpl->GetDB()->SetStopWords(inStopWords);
 }
 
 void MDatabank::SetXMLStyleSheetName(
@@ -912,13 +912,13 @@ void MDatabank::SetXMLStyleSheetName(
 void MDatabank::Store(const string& inDocument)
 {
 	CStopwatch sw(fImpl->fStoreTime);
-	fImpl->GetDB()->Store(inDocument);
+//	fImpl->GetDB()->Store(inDocument);
 }
 
 void MDatabank::StoreMetaData(const string& inFieldName, const string& inValue)
 {
 	CStopwatch sw(fImpl->fStoreTime);
-	fImpl->GetDB()->StoreMetaData(inFieldName, inValue);
+//	fImpl->GetDB()->StoreMetaData(inFieldName, inValue);
 }
 
 //void MDatabank::IndexText(const string& inIndex, const string& inText /*, bool inStoreIDL*/)

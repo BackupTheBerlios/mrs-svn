@@ -1461,14 +1461,12 @@ void CDatabank::StoreInfo(
 	fInfoContainer->Add(kind, inValue);
 }
 
-void CDatabank::SetStopWords(const vector<string>& inStopWords)
+void CDatabank::SetStopWords(const set<string>& inStopWords)
 {
-	fIndexer->SetStopWords(inStopWords);
-	
 	if (fInfoContainer == nil)
 		fInfoContainer = new CDbInfo;
 
-	for (vector<string>::const_iterator s = inStopWords.begin(); s != inStopWords.end(); ++s)
+	for (set<string>::const_iterator s = inStopWords.begin(); s != inStopWords.end(); ++s)
 		fInfoContainer->Add(kStopWordKind, *s);
 }
 

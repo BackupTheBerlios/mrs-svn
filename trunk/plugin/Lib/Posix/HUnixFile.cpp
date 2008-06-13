@@ -1013,7 +1013,8 @@ HMMappedFileStream::HMMappedFileStream(HFileStream& inFile, int64 inOffset, int6
 	if (reinterpret_cast<int64>(fImpl->fBasePtr) == -1)
 		THROW(("Memmory mapping failed: %s\n", strerror(errno)));
 	
-	delete[] fData;
+	if (fData != kEmptyMemoryBuffer)
+		delete[] fData;
 	
 	fData = static_cast<char*>(fImpl->fBasePtr) + before;
 	fLogicalSize = inLength;

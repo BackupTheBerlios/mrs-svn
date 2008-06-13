@@ -5,6 +5,7 @@
 	</pkg-config>
 	<syspaths>
 		<path>/usr/include</path>
+		<path>/usr/local/include/boost-1_35</path>
 	</syspaths>
 	<userpaths>
 		<path>Sources</path>
@@ -33,6 +34,7 @@
 			<file>CDecompress.cpp</file>
 			<file>CDictionary.cpp</file>
 			<file>CDocIterator.cpp</file>
+			<file>CDocument.cpp</file>
 			<file>CDocWeightArray.cpp</file>
 			<file>CFilter.cpp</file>
 			<file>CIdTable.cpp</file>

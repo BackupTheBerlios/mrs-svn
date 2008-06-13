@@ -106,8 +106,6 @@ class CIndexer
 	void			Test(
 						bool		inExitOnFailure = true) const;
 
-	void			SetStopWords(const std::vector<std::string>& inStopWords);
-	
 //	void			IndexText(const std::string& inIndex, const std::string& inText, bool inStoreIDL);
 //	void			IndexTextAndNumbers(const std::string& inIndex, const std::string& inText, bool inStoreIDL);
 //	void			IndexWord(const std::string& inIndex, const std::string& inText);

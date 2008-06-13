@@ -361,9 +361,12 @@ void CBuilder::ReadStopWords()
 			if (line.length() == 0)
 				continue;
 			
+			stopwords.insert(line);
 			mLastStopWord = mLexicon.Store(line);
 		}
 	}
+	
+	mDatabank->SetStopWords(stopwords);
 }
 
 // ------------------------------------------------------------------

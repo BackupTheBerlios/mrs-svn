@@ -348,8 +348,6 @@ class CFullTextIndex
 	
 	void			ReleaseBuffer();
 	
-	void			SetStopWords(const vector<string>& inStopWords);
-	
 	void			SetUsesInDocLocation(uint32 inIndexNr)						{ fDocLocationIxMap |= (1 << inIndexNr); }
 	bool			UsesInDocLocation(uint32 inIndexNr) const					{ return (fDocLocationIxMap & (1 << inIndexNr)) != 0; }
 
@@ -386,11 +384,6 @@ class CFullTextIndex
 	};
 
 	friend class CRunEntryIterator;
-
-	bool			IsStopWord(uint32 inTerm) const
-					{
-						return fStopWords.count(inTerm) > 0;
-					}
 
 	uint32			GetWeightBitCount() const		{ return fWeightBitCount; }
 	
@@ -496,8 +489,6 @@ class CFullTextIndex
 	typedef set<uint32>											CHashedSet;
 #endif
 
-	CHashedSet		fStopWords;
-
 	uint32			fWeightBitCount;
 	DocWords		fDocWords;
 	uint32			fFTIndexCnt;
@@ -539,14 +530,6 @@ CFullTextIndex::~CFullTextIndex()
 	
 	delete[] buffer;
 	delete fScratch;
-}
-
-void CFullTextIndex::SetStopWords(const vector<string>& inStopWords)
-{
-#warning("fix me")
-//	fStopWords.clear();
-//	for (vector<string>::const_iterator sw = inStopWords.begin(); sw != inStopWords.end(); ++sw)
-//		fStopWords.insert(Store(*sw));
 }
 
 void CFullTextIndex::AddWord(uint8 inIndex, uint32 inWord, uint8 inFrequency)
@@ -1566,11 +1549,6 @@ CIndexer::~CIndexer()
 	delete fFullTextIndex;
 }
 
-void CIndexer::SetStopWords(const vector<string>& inStopWords)
-{
-	fFullTextIndex->SetStopWords(inStopWords);
-}
-
 template<class INDEX_KIND>
 inline
 CIndexBase* CIndexer::GetIndexBase(const string& inIndex)
@@ -1884,7 +1862,6 @@ void CIndexer::CreateIndex(
 
 	uint32 iDoc, lDoc = 0, iTerm, iIx, lTerm = 0, i, tFreq = 0;
 	uint8 iFreq;
-	bool isStopWord = false;
 
 	CFullTextIndex::CRunEntryIterator iter(*fFullTextIndex);
 
@@ -1899,8 +1876,6 @@ void CIndexer::CreateIndex(
 		lDoc = iDoc;
 		tFreq = iFreq;
 
-		isStopWord = fFullTextIndex->IsStopWord(iTerm);
-
 		do
 		{
 			if (VERBOSE and iter.Count() != 0 and (iter.Count() % vStep) == 0)
@@ -1910,8 +1885,7 @@ void CIndexer::CreateIndex(
 
 			if (allIndex and (lDoc != iDoc or lTerm != iTerm))
 			{
-				if (not isStopWord)
-					allIndex->AddDocTerm(lDoc, tFreq, iter.Bits());
+				allIndex->AddDocTerm(lDoc, tFreq, iter.Bits());
 
 				lDoc = iDoc;
 				tFreq = 0;
@@ -1925,12 +1899,11 @@ void CIndexer::CreateIndex(
 						indices[i]->FlushTerm(lTerm, fHeader->entries);
 				}
 				
-				if (allIndex and not isStopWord)
+				if (allIndex)
 					allIndex->FlushTerm(lTerm, fHeader->entries);
 
 				lTerm = iTerm;
 				tFreq = 0;
-				isStopWord = fFullTextIndex->IsStopWord(iTerm);
 			}
 			
 			indices[iIx]->AddDocTerm(iDoc, iFreq, iter.Bits());
@@ -1946,7 +1919,7 @@ void CIndexer::CreateIndex(
 			indices[i]->FlushTerm(lTerm, fHeader->entries);
 	}
 
-	if (allIndex and not isStopWord)
+	if (allIndex)
 	{
 		allIndex->AddDocTerm(lDoc, tFreq, iter.Bits());
 		allIndex->FlushTerm(lTerm, fHeader->entries);

@@ -236,7 +236,7 @@ class CDatabank : public CDatabankBase
 	
 	// for the perl interface
 	void 				StoreInfo(const std::string& inName, const std::string& inValue);
-	void				SetStopWords(const std::vector<std::string>& inStopWords);
+	void				SetStopWords(const std::set<std::string>& inStopWords);
 	virtual void		GetStopWords(std::set<std::string>& outStopWords) const;
 	
 	void				StoreDocument(
