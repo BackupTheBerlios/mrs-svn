@@ -62,6 +62,7 @@ class CBuilder
 				~CBuilder();
 	
 	void		Run(
+					int32				inNrOfPipeLines,
 					bool				inShowProgress);
 
 	void		ReadStopWords();
@@ -171,6 +172,7 @@ CBuilder::~CBuilder()
 }
 
 void CBuilder::Run(
+	int32		inNrOfPipeLines,				
 	bool		inShowProgress)
 {
 	vector<fs::path> rawFiles;
@@ -199,7 +201,7 @@ void CBuilder::Run(
 	}
 	
 	boost::thread_group parser_threads, compress_threads, tokenize_threads;
-	uint32 nrOfParsers = 4;
+	uint32 nrOfParsers = inNrOfPipeLines;
 	if (nrOfParsers > rawFiles.size())
 		nrOfParsers = rawFiles.size();
 
@@ -474,11 +476,12 @@ void error(const char* msg, ...)
 int main(int argc, char* const argv[])
 {
 	string script, databank;
-	bool progress = false;
+	bool progress = false, readStopWords = true;
+	int32 nrOfPipelines = 4;
 	
 	int c;
 	
-	while ((c = getopt(argc, argv, "s:d:vp")) != -1)
+	while ((c = getopt(argc, argv, "s:d:vpa:S")) != -1)
 	{
 		switch (c)
 		{
@@ -497,6 +500,14 @@ int main(int argc, char* const argv[])
 			case 'p':
 				progress = true;
 				break;
+
+			case 'a':
+				nrOfPipelines = atoi(optarg);
+				break;
+			
+			case 'S':
+				readStopWords = false;
+				break;
 			
 			default:
 				usage();
@@ -513,9 +524,10 @@ int main(int argc, char* const argv[])
 	{
 		CBuilder builder(databank, script);
 		
-		builder.ReadStopWords();
+		if (readStopWords)
+			builder.ReadStopWords();
 		
-		builder.Run(progress);
+		builder.Run(nrOfPipelines, progress);
 	}
 	catch (exception& e)
 	{

@@ -588,7 +588,7 @@ void CFullTextIndex::FlushDoc(uint32 inDoc)
 
 	// normalize the frequencies.
 	
-	float maxFreq = 1;
+	uint32 maxFreq = 1;
 	uint32 kMaxWeight = (1 << fWeightBitCount) - 1;
 	
 	for (DocWords::iterator w = fDocWords.begin(); w != fDocWords.end(); ++w)
@@ -604,8 +604,7 @@ void CFullTextIndex::FlushDoc(uint32 inDoc)
 		buffer[buffer_ix].doc = inDoc;
 		buffer[buffer_ix].ix = w->index;
 
-		float wf = static_cast<float>(w->freq) / maxFreq;
-		buffer[buffer_ix].weight = static_cast<uint32>(wf * kMaxWeight);
+		buffer[buffer_ix].weight = (w->freq * kMaxWeight) / maxFreq;
 		if (buffer[buffer_ix].weight < 1)
 			buffer[buffer_ix].weight = 1;
 	
