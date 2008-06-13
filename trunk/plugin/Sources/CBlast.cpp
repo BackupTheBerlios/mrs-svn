@@ -1046,7 +1046,7 @@ int32 CBlastQueryBase::AlignGapped(
 					if (newColStart > colEnd)
 						break;
 				}
-				else if (j >= bestY)
+				else if (j > bestY + 1)
 				{
 					colEnd = j;
 					break;

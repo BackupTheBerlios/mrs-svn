@@ -71,6 +71,7 @@
 #include "HUtils.h"
 #include "HError.h"
 #include "HMutex.h"
+#include "HBuffer.h"
 
 #include "CIndex.h"
 #include "CIterator.h"
@@ -318,7 +319,7 @@ const uint32
 //	kRunBlockSize = 0x100000,		// 1 Mb
 	kBufferEntryCount = 2000000;
 
-typedef vector<uint32> DocLoc;
+typedef vector<uint32>		DocLoc;
 
 struct LexEntry
 {
@@ -418,11 +419,19 @@ class CFullTextIndex
 						{ return term < inOther.term or (term == inOther.term and doc < inOther.doc); }
 	};
 	
+//	typedef BufferEntry	BufferEntryArray[kBufferEntryCount];
+//	typedef BufferEntryArray*	BufferEntryArrayPtr;
+	struct FlushBufferEntryData
+	{
+		BufferEntry*	buffer;
+		uint32			count;
+	};
+
+	typedef HBuffer<FlushBufferEntryData,10>	FlushBufferEntryDataBuffer;
+	
 	void			FlushRun();
 
-	void			FlushRunThread(
-						BufferEntry*			inBuffer,
-						uint32					inBufferLength);
+	void			FlushRunThread();
 
 	struct RunInfo
 	{
@@ -502,6 +511,9 @@ class CFullTextIndex
 	HUrl			fScratchUrl;
 	HStreamBase*	fScratch;
 	
+	// pipe line for flushing runs of BufferEntry
+	FlushBufferEntryDataBuffer
+					fFlushRunBuffer;
 	boost::thread*	fFlushRunThread;
 };
 
@@ -555,7 +567,10 @@ void CFullTextIndex::AddWord(uint8 inIndex, uint32 inWord, uint8 inFrequency)
 			i = fDocWords.insert(w).first;
 		
 		if (UsesInDocLocation(inIndex) and fDocWordLocation < kMaxInDocumentLocation)
-			const_cast<DocWord&>(*i).loc.push_back(fDocWordLocation);
+		{
+			DocWord& dw = const_cast<DocWord&>(*i);
+			dw.loc.push_back(fDocWordLocation);
+		}
 	}
 }
 
@@ -597,9 +612,11 @@ void CFullTextIndex::FlushDoc(uint32 inDoc)
 		assert(buffer[buffer_ix].weight <= kMaxWeight);
 		assert(buffer[buffer_ix].weight > 0);
 		
-		buffer[buffer_ix].loc.clear();
 		if (UsesInDocLocation(w->index))
-			copy(w->loc.begin(), w->loc.end(), back_inserter(buffer[buffer_ix].loc));
+		{
+			DocWord& dw = const_cast<DocWord&>(*w);
+			swap(buffer[buffer_ix].loc, dw.loc);
+		}
 
 		++buffer_ix;
 	}
@@ -610,78 +627,78 @@ void CFullTextIndex::FlushDoc(uint32 inDoc)
 
 void CFullTextIndex::FlushRun()
 {
-	if (fFlushRunThread != nil)
-	{
-		fFlushRunThread->join();
-		delete fFlushRunThread;
-		fFlushRunThread = nil;
-	}
-	
-	fFlushRunThread = new boost::thread(boost::bind(&CFullTextIndex::FlushRunThread, this, buffer, buffer_ix));
+	if (fFlushRunThread == nil)
+		fFlushRunThread = new boost::thread(boost::bind(&CFullTextIndex::FlushRunThread, this));
+
+	FlushBufferEntryData next = { buffer, buffer_ix };
+
+	fFlushRunBuffer.Put(next);
 	
 	buffer = new BufferEntry[kBufferEntryCount];
 	buffer_ix = 0;
 }
 
-void CFullTextIndex::FlushRunThread(
-	BufferEntry*		inBuffer,
-	uint32				inBufferLength)
+void CFullTextIndex::FlushRunThread()
 {
-	uint32 firstDoc = inBuffer[0].doc;	// the first doc in this run
-	
-	sort(inBuffer, inBuffer + inBufferLength);
-
-	RunInfo ri;
-	ri.offset = fScratch->Seek(0, SEEK_END);
-	ri.count = inBufferLength;
-	fRunInfo.push_back(ri);
-	
-	COBitStream bits(*fScratch);
-
-	uint32 t = 0;
-	uint32 d = firstDoc;	// the first doc in this run
-	
-	WriteGamma(bits, d + 1);
-
-	for (uint32 i = 0; i < inBufferLength; ++i)
+	for (;;)
 	{
-		if (inBuffer[i].term > t)
-			d = firstDoc;
-
-		WriteUnary(bits, (inBuffer[i].term - t) + 1);
-		WriteGamma(bits, (inBuffer[i].doc - d) + 1);
-		WriteGamma(bits, inBuffer[i].ix + 1);
-
-		assert(inBuffer[i].weight > 0);
-		assert(inBuffer[i].weight <= ((1 << fWeightBitCount) - 1));
-
-		WriteBinary(bits, inBuffer[i].weight, fWeightBitCount);
+		FlushBufferEntryData next = fFlushRunBuffer.Get();
 		
-		if (UsesInDocLocation(inBuffer[i].ix))
+		if (next.buffer == nil)
+			break;
+
+		sort(next.buffer, next.buffer + next.count);
+		
+		uint32 firstDoc = next.buffer[0].doc;	// the first doc in this run
+	
+		RunInfo ri;
+		ri.offset = fScratch->Seek(0, SEEK_END);
+		ri.count = next.count;
+		fRunInfo.push_back(ri);
+		
+		COBitStream bits(*fScratch);
+	
+		uint32 t = 0;
+		uint32 d = firstDoc;	// the first doc in this run
+		
+		WriteGamma(bits, d + 1);
+	
+		for (uint32 i = 0; i < next.count; ++i)
 		{
-			CompressArray(bits, inBuffer[i].loc, kMaxInDocumentLocation);
-			inBuffer[i].loc.clear();
+			if (next.buffer[i].term > t)
+				d = firstDoc;
+	
+			WriteUnary(bits, (next.buffer[i].term - t) + 1);
+			WriteGamma(bits, (next.buffer[i].doc - d) + 1);
+			WriteGamma(bits, next.buffer[i].ix + 1);
+	
+			assert(next.buffer[i].weight > 0);
+			assert(next.buffer[i].weight <= ((1 << fWeightBitCount) - 1));
+	
+			WriteBinary(bits, next.buffer[i].weight, fWeightBitCount);
+			
+			if (UsesInDocLocation(next.buffer[i].ix))
+				CompressArray(bits, next.buffer[i].loc, kMaxInDocumentLocation);
+			
+			t = next.buffer[i].term;
+			d = next.buffer[i].doc;
 		}
 		
-		t = inBuffer[i].term;
-		d = inBuffer[i].doc;
-	}
+		bits.sync();
 	
-	bits.sync();
-
-	delete[] inBuffer;
+		delete[] next.buffer;
+	}
 }
 
 void CFullTextIndex::ReleaseBuffer()
 {
-	if (fFlushRunThread != nil)
-	{
-		fFlushRunThread->join();
-		delete fFlushRunThread;
-		fFlushRunThread = nil;
-	}
+	FlushRun();
 	
-	FlushRunThread(buffer, buffer_ix);
+	FlushBufferEntryData next = { nil, 0 };
+	fFlushRunBuffer.Put(next);
+		
+	fFlushRunThread->join();
+	
 	buffer = nil;
 }
 
@@ -1823,7 +1840,16 @@ void CIndexer::CreateIndex(
 	if (inCreateAllTextIndex)
 		fHeader->count += 1; // for our allIndex
 
+	if (VERBOSE > 0)
+	{
+		cout << "Flushing fulltext run buffers...";
+		cout.flush();
+	}
+
 	fFullTextIndex->ReleaseBuffer();
+	
+	if (VERBOSE > 0)
+		cout << " done" << endl;
 	
 	outOffset = inFile.Seek(0, SEEK_END);
 	inFile << *fHeader;
@@ -1856,7 +1882,7 @@ void CIndexer::CreateIndex(
 	
 	if (VERBOSE > 0)
 	{
-		cout << endl << "Creating full text indexes... ";
+		cout << "Creating full text indexes... ";
 		cout.flush();
 	}
 
@@ -2056,7 +2082,7 @@ class CMergeIndexBuffer
 
 	void				FlushBuffer();
 
-	auto_ptr<HStreamBase>		fFile;
+	auto_ptr<HStreamBase>	fFile;
 	CMergeIndexBufferPage	fBufferPage;
 	uint32					fCount;
 };
