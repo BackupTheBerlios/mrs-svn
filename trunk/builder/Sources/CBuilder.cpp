@@ -451,6 +451,8 @@ void CBuilder::ReadStopWords()
 			mLastStopWord = mLexicon.Store(line);
 		}
 	}
+	else
+		THROW(("stop words file could not be opened"));
 	
 	mDatabank->SetStopWords(stopwords);
 }

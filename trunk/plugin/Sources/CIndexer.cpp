@@ -647,10 +647,10 @@ void CFullTextIndex::FlushRunThread()
 		if (next.buffer == nil)
 			break;
 
-		sort(next.buffer, next.buffer + next.count);
-		
 		uint32 firstDoc = next.buffer[0].doc;	// the first doc in this run
 	
+		sort(next.buffer, next.buffer + next.count);
+		
 		RunInfo ri;
 		ri.offset = fScratch->Seek(0, SEEK_END);
 		ri.count = next.count;

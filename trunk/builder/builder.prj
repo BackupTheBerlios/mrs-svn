@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+﻿<?xml version="1.0"?>
 <project>
 	<pkg-config>
 		<pkg tool="perl">default</pkg>
@@ -6,7 +6,9 @@
 	</pkg-config>
 	<syspaths>
 		<path>/usr/local/include/boost-1_35/</path>
+		<path>/opt/local/include/boost-1_35/</path>
 		<path>/usr/include</path>
+		<path>/usr/pkg/include</path>
 	</syspaths>
 	<userpaths>
 		<path>Sources</path>
@@ -23,6 +25,7 @@
 		<path>/lib64</path>
 		<path>/usr/lib</path>
 		<path>/usr/local/lib</path>
+		<path>/usr/pkg/lib</path>
 	</libpaths>
 	<frameworks/>
 	<files>

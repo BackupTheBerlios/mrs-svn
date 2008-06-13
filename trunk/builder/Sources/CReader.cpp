@@ -233,7 +233,7 @@ bool CGZipReaderImpl::GetLine(
 		}
 	}
 	
-	mReadData = gztell64(mGZFile);
+	mReadData = gztell(mGZFile);
 	
 	return result;
 }
