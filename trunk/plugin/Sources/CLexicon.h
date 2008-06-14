@@ -52,8 +52,12 @@ class CLexCompare
 {
   public:
 	virtual		~CLexCompare() {}
-	virtual int	Compare(const char* inA, uint32 inALength,
-						const char* inB, uint32 inBLength) const = 0;
+
+	virtual int	Compare(
+					const char*				inA,
+					uint32					inALength,
+					const char*				inB,
+					uint32					inBLength) const = 0;
 };
 
 class CLexicon
@@ -62,19 +66,93 @@ class CLexicon
 	
   public:
 					CLexicon();
+
 	virtual			~CLexicon();
 	
-	uint32			Store(const std::string& inWord);
-	std::string		GetString(uint32 inNr) const;
-	int				Compare(uint32 inA, uint32 inB) const;
+	// CLexicon is one of the most heavily used classes
+	// To optimize, we now use separate threads but there
+	// can only be one lexicon. So we need locking.
+	// Profiling has shown that locking is taking a
+	// disproportionate amount of time, so we split the
+	// code into a part that looks up words first in a
+	// shared lock mode and then stores those unknown
+	// in a unique lock mode.
 	
-	int				Compare(uint32 inA, uint32 inB, CLexCompare& inCompare) const;
+	void			LockShared();
+	
+	void			UnlockShared();
+	
+	void			LockUnique();
+	
+	void			UnlockUnique();
+	
+	uint32			Lookup(
+						const std::string&	inWord) const;
+
+	uint32			Store(
+						const std::string&	inWord);
+
+	uint32			Lookup(
+						const char*			inWord,
+						uint32				inWordLength) const;
+
+	uint32			Store(
+						const char*			inWord,
+						uint32				inWordLength);
+
+	std::string		GetString(
+						uint32				inNr) const;
+
+	void			GetString(
+						uint32				inNr,
+						const char*&		outWord,
+						uint32&				outWordLength) const;
+
+	int				Compare(
+						uint32				inA,
+						uint32				inB) const;
+	
+	int				Compare(
+						uint32				inA,
+						uint32				inB,
+						CLexCompare&		inCompare) const;
 
 	uint32			Count() const;
 	
   private:
+					CLexicon(
+						const CLexicon&);
+
+	CLexicon&		operator=(
+						const CLexicon&);
 	
 	struct CLexiconImp*	fImpl;
 };
+
+inline
+uint32 CLexicon::Lookup(
+	const std::string&	inWord) const
+{
+	return Lookup(inWord.c_str(), inWord.length());
+}
+
+inline
+uint32 CLexicon::Store(
+	const std::string&	inWord)
+{
+	return Store(inWord.c_str(), inWord.length());
+}
+
+inline
+std::string CLexicon::GetString(
+	uint32				inNr) const
+{
+	const char* w;
+	uint32 l;
+
+	GetString(inNr, w, l);
+
+	return std::string(w, l);
+}
 
 #endif // CLEXICON_H

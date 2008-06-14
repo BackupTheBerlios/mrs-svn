@@ -264,9 +264,10 @@ bool CDocUnionIterator::Next(uint32& ioDoc, bool inSkip)
 		
 		while (fIterators.size() > 0 and fIterators.front().fValue <= next)
 		{
+			uint32 v = next;
+
 			pop_heap(fIterators.begin(), fIterators.end());
 			
-			uint32 v = next;
 			if (fIterators.back().fIter->Next(v, inSkip))
 			{
 				fIterators.back().fValue = v;

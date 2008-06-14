@@ -33,11 +33,11 @@ using namespace std;
 namespace fs = boost::filesystem;
 namespace ba = boost::algorithm;
 
-int VERBOSE = 0;
-int COMPRESSION_LEVEL = 9;
-unsigned int THREADS = 2;
-const char* COMPRESSION_DICTIONARY = "";
-const char* COMPRESSION = "zlib";
+//int VERBOSE = 0;
+//int COMPRESSION_LEVEL = 9;
+//unsigned int THREADS = 2;
+//const char* COMPRESSION_DICTIONARY = "";
+//const char* COMPRESSION = "zlib";
 
 // ------------------------------------------------------------------
 
@@ -85,10 +85,6 @@ class CBuilder
 
 	void		CompressDoc(
 					CDocumentBuffer*	inCompressDocBuffer,
-					CDocumentBuffer*	inTokenizeDocBuffer);
-
-	void		TokenizeDoc(
-					CDocumentBuffer*	inTokenizeDocBuffer,
 					CDocumentBuffer*	inIndexDocBuffer);
 	
 	void		IndexDoc(
@@ -200,23 +196,21 @@ void CBuilder::Run(
 		progress = new boost::thread(boost::bind(&CBuilder::Progress, this));
 	}
 	
-	boost::thread_group parser_threads, compress_threads, tokenize_threads;
+	boost::thread_group parser_threads, compress_threads;
 	uint32 nrOfParsers = inNrOfPipeLines;
 	if (nrOfParsers > rawFiles.size())
 		nrOfParsers = rawFiles.size();
 
 	CReaderBuffer readerBuffer;
-	boost::ptr_vector<CDocumentBuffer> compressDocBuffers, tokenizeDocBuffers;
+	boost::ptr_vector<CDocumentBuffer> compressDocBuffers;
 	CDocumentBuffer indexDocBuffer;
 	
 	for (uint32 i = 0; i < nrOfParsers; ++i)
 	{
 		compressDocBuffers.push_back(new CDocumentBuffer);
-		tokenizeDocBuffers.push_back(new CDocumentBuffer);
 		
 		parser_threads.create_thread(boost::bind(&CBuilder::ParseFiles, this, mScriptName, &readerBuffer, &compressDocBuffers.back()));
-		compress_threads.create_thread(boost::bind(&CBuilder::CompressDoc, this, &compressDocBuffers.back(), &tokenizeDocBuffers.back()));
-		tokenize_threads.create_thread(boost::bind(&CBuilder::TokenizeDoc, this, &tokenizeDocBuffers.back(), &indexDocBuffer));
+		compress_threads.create_thread(boost::bind(&CBuilder::CompressDoc, this, &compressDocBuffers.back(), &indexDocBuffer));
 	}
 	
 	boost::thread indexDocThread(boost::bind(&CBuilder::IndexDoc, this, &indexDocBuffer, nrOfParsers));
@@ -231,8 +225,6 @@ void CBuilder::Run(
 	
 	parser_threads.join_all();
 	compress_threads.join_all();
-	tokenize_threads.join_all();
-//	tokenizeDocThread.join();
 	indexDocThread.join();
 
 	if (inShowProgress)
@@ -258,24 +250,24 @@ static void GetSize(
 	uint32&		outSize,
 	char&		outLetter)
 {
-	if (inSize > 1024ULL * 1024 * 1024 * 1024)
+	if (inSize > 1024LL * 1024 * 1024 * 1024)
 	{
-		outSize = static_cast<uint32>(inSize / (1024ULL * 1024 * 1024 * 1024));
+		outSize = static_cast<uint32>(inSize / (1024LL * 1024 * 1024 * 1024));
 		outLetter = 'T';
 	}
-	else if (inSize > 1024ULL * 1024 * 1024)
+	else if (inSize > 1024LL * 1024 * 1024)
 	{
-		outSize = static_cast<uint32>(inSize / (1024ULL * 1024 * 1024));
+		outSize = static_cast<uint32>(inSize / (1024LL * 1024 * 1024));
 		outLetter = 'G';
 	}
-	else if (inSize > 1024ULL * 1024)
+	else if (inSize > 1024LL * 1024)
 	{
-		outSize = static_cast<uint32>(inSize / (1024ULL * 1024));
+		outSize = static_cast<uint32>(inSize / (1024LL * 1024));
 		outLetter = 'M';
 	}
-	else if (inSize > 1024ULL)
+	else if (inSize > 1024LL)
 	{
-		outSize = static_cast<uint32>(inSize / (1024ULL));
+		outSize = static_cast<uint32>(inSize / (1024LL));
 		outLetter = 'K';
 	}
 	else
@@ -309,7 +301,7 @@ void CBuilder::Progress()
 		GetSize(rawText, rawSize, rawSizeLetter);
 		
 		snprintf(msg, sizeof(msg),
-			"%20.20s  %d/%d - %d%c/%d%c [%d%%] docs: %d text: %d%c",
+			"%20.20s  %d/%d - %3.d%c/%3.d%c [%3.d%%] docs: %d text: %d%c",
 			"file",
 			docs, mFileCount,
 			size, sizeLetter,
@@ -362,12 +354,15 @@ void CBuilder::ProcessDocument(
 	void*				inUserData)
 {
 	CDocumentBuffer* compressDocBuffer = reinterpret_cast<CDocumentBuffer*>(inUserData);
+	
+	inDocument->TokenizeText(mLexicon, mLastStopWord);
+	
 	compressDocBuffer->Put(inDocument);
 }
 
 void CBuilder::CompressDoc(
 	CDocumentBuffer*	inCompressDocBuffer,
-	CDocumentBuffer*	inTokenizeDocBuffer)
+	CDocumentBuffer*	inIndexDocBuffer)
 {
 	CDocumentPtr next;
 	auto_ptr<CCompressor> compressor(mCompressorFactory->CreateCompressor());
@@ -378,28 +373,11 @@ void CBuilder::CompressDoc(
 //	cerr << "inCompressDocBuffer was empty" << endl;
 
 		next->Compress(mMeta, *compressor);
-		inTokenizeDocBuffer->Put(next);
-	}
-	
-	inCompressDocBuffer->Put(CDocument::sEnd);
-	inTokenizeDocBuffer->Put(CDocument::sEnd);
-}
 
-void CBuilder::TokenizeDoc(
-	CDocumentBuffer*	inTokenizeDocBuffer,
-	CDocumentBuffer*	inIndexDocBuffer)
-{
-	CDocumentPtr next;
-	
-	while ((next = inTokenizeDocBuffer->Get()) != CDocument::sEnd)
-	{
-//if (inTokenizeDocBuffer->WasEmpty())
-//	cerr << "inTokenizeDocBuffer was empty" << endl;
-
-		next->TokenizeText(mLexicon, mLastStopWord);
 		inIndexDocBuffer->Put(next);
 	}
 	
+	inCompressDocBuffer->Put(CDocument::sEnd);
 	inIndexDocBuffer->Put(CDocument::sEnd);
 }
 
@@ -421,10 +399,19 @@ void CBuilder::IndexDoc(
 
 		mDatabank->StoreDocument(*next);
 
-		const CDocument::TokenMap& tokenData = next->GetTokenData();
+		const CDocument::CTokenMap& tokenData = next->GetTokenMap();
 
-		for (CDocument::TokenMap::const_iterator d = tokenData.begin(); d != tokenData.end(); ++d)
-			mDatabank->IndexTokens(d->index_name, d->index_kind, d->tokens);
+		for (CDocument::CTokenMap::const_iterator d = tokenData.begin(); d != tokenData.end(); ++d)
+		{
+			vector<uint32> tokens;
+			tokens.reserve(d->tokens.size());
+			
+			vector<CDocument::CTokenData>::const_iterator t;
+			for (t = d->tokens.begin(); t != d->tokens.end(); ++t)
+				tokens.push_back(t->global_token);
+			
+			mDatabank->IndexTokens(d->index_name, d->index_kind, tokens);
+		}
 
 		mDatabank->FlushDocument();
 	}

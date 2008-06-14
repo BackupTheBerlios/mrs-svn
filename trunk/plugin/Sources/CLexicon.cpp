@@ -54,7 +54,6 @@
 #include "MRS.h"
 
 #include <boost/thread/shared_mutex.hpp>
-#include <boost/thread/shared_mutex.hpp>
 
 #include "HError.h"
 #include "CLexicon.h"
@@ -88,37 +87,50 @@ struct CLexPage
 	char		s[kLexDataSize];
 	uint32		e[1];
 	
-				CLexPage(uint32 inFirst)
+				CLexPage(
+					uint32		inFirst)
 					: N(0)
 					, first(inFirst)
 				{
 				}
 				
-	void		Add(const string& inString);
+	void		Add(
+					const char*		inWord,
+					uint32			inWordLength);
 
 	inline
-	string		GetEntry(uint32 inEntry) const
+	void		GetEntry(
+					uint32			inEntry,
+					const char*&	outWord,
+					uint32&			outWordLength) const
 				{
 					assert(static_cast<int32>(inEntry) < N);
 					int32 ix = static_cast<int32>(inEntry);
 					assert(e[-ix - 1] > e[-ix]);
 					assert(e[-ix - 1] < kLexDataSize - N * sizeof(uint32));
-					return string(s + e[-ix], e[-ix - 1] - e[-ix]);
+					
+					outWord = s + e[-ix];
+					outWordLength = e[-ix - 1] - e[-ix];
+					
+//					return string(s + e[-ix], e[-ix - 1] - e[-ix]);
 				}
 
 	inline
-	int			Compare(const string& inKey, uint32 inEntry) const
+	int			Compare(
+					const char*		inWord,
+					uint32			inWordLength,
+					uint32			inEntry) const
 				{
 					assert(static_cast<int32>(inEntry) < N);
 					int32 ix = static_cast<int32>(inEntry);
-					uint32 l1 = inKey.length();
+					uint32 l1 = inWordLength;
 					uint32 l2 = e[-ix - 1] - e[-ix];
 					
 					uint32 l = l1;
 					if (l > l2)
 						l = l2;
 					
-					int d = strncmp(inKey.c_str(), s + e[-ix], l);
+					int d = strncmp(inWord, s + e[-ix], l);
 					if (d == 0)
 						d = l1 - l2;
 
@@ -126,7 +138,10 @@ struct CLexPage
 				}
 
 	inline
-	int			Compare(const CLexPage* inPage, uint32 inPEntry, uint32 inEntry) const
+	int			Compare(
+					const CLexPage*	inPage,
+					uint32			inPEntry,
+					uint32			inEntry) const
 				{
 					assert(static_cast<int32>(inPEntry) < inPage->N);
 					int32 ix1 = static_cast<int32>(inPEntry);
@@ -148,7 +163,11 @@ struct CLexPage
 				}
 
 	inline
-	int			Compare(const CLexPage* inPage, uint32 inPEntry, uint32 inEntry, CLexCompare& inCompare) const
+	int			Compare(
+					const CLexPage*	inPage,
+					uint32			inPEntry,
+					uint32			inEntry,
+					CLexCompare&	inCompare) const
 				{
 					assert(static_cast<int32>(inPEntry) < inPage->N);
 					int32 ix1 = static_cast<int32>(inPEntry);
@@ -162,7 +181,9 @@ struct CLexPage
 				}
 
 	inline
-	bool		TestKeyBit(uint32 inEntry, uint32 inBit) const
+	bool		TestKeyBit(
+					uint32			inEntry,
+					uint32			inBit) const
 				{
 					assert(static_cast<int32>(inEntry) < N);
 					int32 ix = static_cast<int32>(inEntry);
@@ -189,9 +210,11 @@ struct CLexPage
 				}
 };
 
-void CLexPage::Add(const string& inString)
+void CLexPage::Add(
+	const char*	inWord,
+	uint32		inWordLength)
 {
-	uint32 l = inString.length();
+	uint32 l = inWordLength;
 	
 	assert(N == 0 or Free() >= l + sizeof(uint32));
 	
@@ -199,52 +222,82 @@ void CLexPage::Add(const string& inString)
 	{
 		e[0] = 0;
 		e[-1] = l;
-		inString.copy(s, l);
+		memcpy(s, inWord, l);
 		N = 1;
 	}
 	else
 	{
 		int32 nn = -static_cast<int32>(N);
 		e[nn - 1] = e[nn] + l;
-		inString.copy(s + e[nn], l);
+		memcpy(s + e[nn], inWord, l);
 		++N;
 	}
 }
 
 struct CLexiconImp
 {
-	bool			Lookup(
-						const string&	inWord,
-						uint32&			outValue,
-						const CNode*&	outNode);
+	void			LockShared()		{ fMutex.lock_shared(); }
+	
+	void			UnlockShared()		{ fMutex.unlock_shared(); }
+	
+	void			LockUnique()		{ fMutex.lock(); }
+	
+	void			UnlockUnique()		{ fMutex.unlock(); }
+
+	uint32			Lookup(
+						const char*		inWord,
+						uint32			inWordLength) const;
 
 	uint32			Store(
-						const string&	inWord,
-						const CNode*	inNode);
+						const char*		inWord,
+						uint32			inWordLength);
 
-	string			GetString(uint32 inNr) const;
+	void			GetString(
+						uint32			inNr,
+						const char*&	outWord,
+						uint32&			outWordLength) const;
 
-	const CNode*	Find(const CNode* inNode, const string& inKey) const;
-	bool			Find(const string& inKey, uint32& outNr) const;
+	const CNode*	Find(
+						const CNode*	inNode,
+						const char*		inWord,
+						uint32			inWordLength) const;
 
-	int				Compare(const string& inKey, uint32 inNr) const;
-	int				Compare(const CNode* inA, const CNode* inB) const;
-	int				Compare(uint32 inA, uint32 inB) const;
-	int				Compare(uint32 inA, uint32 inB, CLexCompare& inCompare) const;
+	bool			Find(
+						const char*		inWord,
+						uint32			inWordLength,
+						uint32&			outNr) const;
+
+	int				Compare(
+						const char*		inWord,
+						uint32			inWordLength,
+						uint32			inNr) const;
+
+	int				Compare(
+						const CNode*	inA,
+						const CNode*	inB) const;
+
+	int				Compare(
+						uint32			inA,
+						uint32			inB) const;
+
+	int				Compare(
+						uint32			inA,
+						uint32			inB,
+						CLexCompare&	inCompare) const;
 
 	inline
 	bool			TestKeyBit(
-						const char*		inKey,
-						uint32			inKeyLength,
+						const char*		inWord,
+						uint32			inWordLength,
 						uint32			inBit) const
 					{
 						bool result = false;
 						
 						uint32 byte = inBit >> 3;
-						if (byte < inKeyLength)
+						if (byte < inWordLength)
 						{
 							uint32 bit = 7 - (inBit & 0x0007);
-							result = (inKey[byte] & (1 << bit)) != 0;
+							result = (inWord[byte] & (1 << bit)) != 0;
 						}
 						
 						return result;
@@ -252,20 +305,20 @@ struct CLexiconImp
 
 	inline
 	bool			CompareKeyBits(
-						const char*		inKeyA,
-						uint32			inKeyALength,
-						const char*		inKeyB,
-						uint32			inKeyBLength,
+						const char*		inWordA,
+						uint32			inWordALength,
+						const char*		inWordB,
+						uint32			inWordBLength,
 						uint32			inBit) const
 					{
 						return
-							TestKeyBit(inKeyA, inKeyALength, inBit) ==
-							TestKeyBit(inKeyB, inKeyBLength, inBit);
+							TestKeyBit(inWordA, inWordALength, inBit) ==
+							TestKeyBit(inWordB, inWordBLength, inBit);
 					}
 
 	bool			CompareKeyBits(
-						const char*		inKey,
-						uint32			inKeyLength,
+						const char*		inWord,
+						uint32			inWordLength,
 						uint32			inNr,
 						uint32			inBit) const;
 
@@ -303,7 +356,7 @@ CLexiconImp::CLexiconImp()
 	fRoot->left = fRoot;
 	fRoot->right = fRoot;
 
-	fPages.back()->Add(" ");	// avoid all kinds of checks below
+	fPages.back()->Add(" ", 1);	// avoid all kinds of checks below
 	++fCount;
 }
 
@@ -356,7 +409,10 @@ CLexiconImp::GetPage(uint32& ioNr) const
 	return p;
 }
 
-const CNode* CLexiconImp::Find(const CNode* inNode, const string& inKey) const
+const CNode* CLexiconImp::Find(
+	const CNode*	inNode,
+	const char*		inWord,
+	uint32			inWordLength) const
 {
 	const CNode* p;
 	
@@ -364,7 +420,7 @@ const CNode* CLexiconImp::Find(const CNode* inNode, const string& inKey) const
 	{
 		p = inNode;
 		
-		if (TestKeyBit(inKey.c_str(), inKey.length(), inNode->bit))
+		if (TestKeyBit(inWord, inWordLength, inNode->bit))
 			inNode = inNode->right;
 		else
 			inNode = inNode->left;
@@ -374,14 +430,17 @@ const CNode* CLexiconImp::Find(const CNode* inNode, const string& inKey) const
 	return inNode;
 }
 
-bool CLexiconImp::Find(const string& inKey, uint32& outNr) const
+bool CLexiconImp::Find(
+	const char*		inWord,
+	uint32			inWordLength,
+	uint32&			outNr) const
 {
 	bool result = false;
 	
 	if (fCount > 0)
 	{
-		const CNode* t = Find(fRoot, inKey);
-		if (t != nil and Compare(inKey, t->value) == 0)
+		const CNode* t = Find(fRoot, inWord, inWordLength);
+		if (t != nil and Compare(inWord, inWordLength, t->value) == 0)
 		{
 			result = true;
 			outNr = t->value;
@@ -391,48 +450,35 @@ bool CLexiconImp::Find(const string& inKey, uint32& outNr) const
 	return result;
 }
 
-bool CLexiconImp::Lookup(
-	const string&		inKey,
-	uint32&				outValue,
-	const CNode*&		outNode)
+uint32 CLexiconImp::Lookup(
+	const char*		inWord,
+	uint32			inWordLength) const
 {
-	boost::shared_lock<boost::shared_mutex> lock(fMutex);
+	uint32 result = false;
 
-	bool result = false;
+	const CNode* t = Find(fRoot, inWord, inWordLength);
 
-	outNode = Find(fRoot, inKey);
-
-	if (outNode != fRoot and Compare(inKey, outNode->value) == 0)
-	{
-		outValue = outNode->value;
-		result = true;
-	}
+	if (t != fRoot and Compare(inWord, inWordLength, t->value) == 0)
+		result = t->value;
 	
 	return result;
 }
 
 uint32 CLexiconImp::Store(
-	const string&		inKey,
-	const CNode*		inNode)
+	const char*		inWord,
+	uint32			inWordLength)
 {
-	boost::unique_lock<boost::shared_mutex> lock(fMutex);
-
-	const CNode* t = inNode;
-
 	// check first to see if something has been added to inNode
 	// while we were locked...
 
-	if (inNode->right != fRoot or inNode->left != fRoot)
-	{
-		t = Find(fRoot, inKey);
-	
-		if (t != fRoot and Compare(inKey, t->value) == 0)
-			return t->value;
-	}
+	const CNode* t = Find(fRoot, inWord, inWordLength);
+
+	if (t != fRoot and Compare(inWord, inWordLength, t->value) == 0)
+		return t->value;
 
 	uint32 i = 0;
 	
-	while (CompareKeyBits(inKey.c_str(), inKey.length(), t->value, i))
+	while (CompareKeyBits(inWord, inWordLength, t->value, i))
 		++i;
 
 	CNode* p;
@@ -441,23 +487,23 @@ uint32 CLexiconImp::Store(
 	do
 	{
 		p = x;
-		if (TestKeyBit(inKey.c_str(), inKey.length(), x->bit))
+		if (TestKeyBit(inWord, inWordLength, x->bit))
 			x = x->right;
 		else
 			x = x->left;
 	}
 	while (x->bit < i and p->bit < x->bit);
 	
-	if (fPages.back()->Free() < inKey.length() + sizeof(uint32))
+	if (fPages.back()->Free() < inWordLength + sizeof(uint32))
 		fPages.push_back(new CLexPage(fCount));
 
-	fPages.back()->Add(inKey);
+	fPages.back()->Add(inWord, inWordLength);
 
 	CNode* n = AllocateNode();
 	n->value = fCount;
 	n->bit = i;
 	
-	if (TestKeyBit(inKey.c_str(), inKey.length(), n->bit))
+	if (TestKeyBit(inWord, inWordLength, n->bit))
 	{
 		n->right = n;
 		n->left = x;
@@ -468,7 +514,7 @@ uint32 CLexiconImp::Store(
 		n->left = n;
 	}
 	
-	if (TestKeyBit(inKey.c_str(), inKey.length(), p->bit))
+	if (TestKeyBit(inWord, inWordLength, p->bit))
 		p->right = n;
 	else
 		p->left = n;
@@ -480,31 +526,39 @@ uint32 CLexiconImp::Store(
 	return result;
 }
 
-inline string CLexiconImp::GetString(uint32 inNr) const
+inline void CLexiconImp::GetString(
+	uint32			inNr,
+	const char*&	outWord,
+	uint32&			outWordLength) const
 {
 	LexPageArray::const_iterator p = GetPage(inNr);
 	
 	if (p == fPages.end() or (*p)->N <= 0 or inNr >= static_cast<uint32>((*p)->N))
 		THROW(("Lexicon is invalid"));
 	
-	return (*p)->GetEntry(inNr);
+	return (*p)->GetEntry(inNr, outWord, outWordLength);
 }
 
-int CLexiconImp::Compare(const string& inKey, uint32 inNr) const
+int CLexiconImp::Compare(
+	const char*		inWord,
+	uint32			inWordLength,
+	uint32			inNr) const
 {
 	int result = 0;
 	
 	LexPageArray::const_iterator p = GetPage(inNr);
 	
 	if (p != fPages.end() and (*p)->N > 0 and inNr < static_cast<uint32>((*p)->N))
-		result = (*p)->Compare(inKey, inNr);
+		result = (*p)->Compare(inWord, inWordLength, inNr);
 	else
 		assert(false);
 	
 	return result;
 }
 
-int CLexiconImp::Compare(const CNode* inA, const CNode* inB) const
+int CLexiconImp::Compare(
+	const CNode*	inA,
+	const CNode*	inB) const
 {
 	int result = 0;
 	
@@ -529,7 +583,9 @@ int CLexiconImp::Compare(const CNode* inA, const CNode* inB) const
 	return result;
 }
 
-int CLexiconImp::Compare(uint32 inA, uint32 inB) const
+int CLexiconImp::Compare(
+	uint32			inA,
+	uint32			inB) const
 {
 	int result = 0;
 	
@@ -553,7 +609,10 @@ int CLexiconImp::Compare(uint32 inA, uint32 inB) const
 	return result;
 }
 
-int CLexiconImp::Compare(uint32 inA, uint32 inB, CLexCompare& inCompare) const
+int CLexiconImp::Compare(
+	uint32			inA,
+	uint32			inB,
+	CLexCompare&	inCompare) const
 {
 	int result = 0;
 	
@@ -578,8 +637,8 @@ int CLexiconImp::Compare(uint32 inA, uint32 inB, CLexCompare& inCompare) const
 }
 
 bool CLexiconImp::CompareKeyBits(
-	const char*		inKey,
-	uint32			inKeyLength,
+	const char*		inWord,
+	uint32			inWordLength,
 	uint32			inNr,
 	uint32			inBit) const
 {
@@ -593,7 +652,7 @@ bool CLexiconImp::CompareKeyBits(
 		assert(false);
 	
 	return
-		TestKeyBit(inKey, inKeyLength, inBit) == b;
+		TestKeyBit(inWord, inWordLength, inBit) == b;
 }
 
 CLexicon::CLexicon()
@@ -606,28 +665,59 @@ CLexicon::~CLexicon()
 	delete fImpl;
 }
 
-uint32 CLexicon::Store(const string& inWord)
+void CLexicon::LockShared()
 {
-	const CNode* n;
-	uint32 result;
-	
-	if (not fImpl->Lookup(inWord, result, n))
-		result = fImpl->Store(inWord, n);
-
-	return result;
+	fImpl->LockShared();
 }
 
-string CLexicon::GetString(uint32 inNr) const
+void CLexicon::UnlockShared()
 {
-	return fImpl->GetString(inNr);
+	fImpl->UnlockShared();
 }
 
-int CLexicon::Compare(uint32 inA, uint32 inB) const
+void CLexicon::LockUnique()
+{
+	fImpl->LockUnique();
+}
+
+void CLexicon::UnlockUnique()
+{
+	fImpl->UnlockUnique();
+}
+
+uint32 CLexicon::Lookup(
+	const char*	inWord,
+	uint32		inWordLength) const
+{
+	return fImpl->Lookup(inWord, inWordLength);
+}
+
+uint32 CLexicon::Store(
+	const char*	inWord,
+	uint32		inWordLength)
+{
+	return fImpl->Store(inWord, inWordLength);
+}
+
+void CLexicon::GetString(
+	uint32			inNr,
+	const char*&	outWord,
+	uint32&			outWordLength) const
+{
+	return fImpl->GetString(inNr, outWord, outWordLength);
+}
+
+int CLexicon::Compare(
+	uint32			inA,
+	uint32			inB) const
 {
 	return fImpl->Compare(inA, inB);
 }
 
-int CLexicon::Compare(uint32 inA, uint32 inB, CLexCompare& inCompare) const
+int CLexicon::Compare(
+	uint32			inA,
+	uint32			inB,
+	CLexCompare&	inCompare) const
 {
 	return fImpl->Compare(inA, inB, inCompare);
 }

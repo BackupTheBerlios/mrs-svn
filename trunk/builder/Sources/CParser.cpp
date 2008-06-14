@@ -364,25 +364,25 @@ bool CParserImp::GetLine(
 	return mReader->GetLine(outLine);
 }
 
+void CParserImp::IndexTextAndNumbers(
+	const char*			inIndex,
+	const char*			inText)
+{
+	mCurrentDocument->AddIndexText(inIndex, inText, true);
+}
+
 void CParserImp::IndexText(
 	const char*			inIndex,
 	const char*			inText)
 {
-	mCurrentDocument->AddIndexText(inIndex, inText);
+	mCurrentDocument->AddIndexText(inIndex, inText, false);
 }
 
 void CParserImp::IndexWord(
 	const char*			inIndex,
 	const char*			inText)
 {
-	mCurrentDocument->AddIndexText(inIndex, inText);
-}
-
-void CParserImp::IndexTextAndNumbers(
-	const char*			inIndex,
-	const char*			inText)
-{
-	mCurrentDocument->AddIndexText(inIndex, inText);
+	mCurrentDocument->AddIndexWord(inIndex, inText);
 }
 
 void CParserImp::IndexDate(

@@ -6,41 +6,37 @@
 #include <boost/ptr_container/ptr_map.hpp>
 #include <map>
 #include <vector>
+#include <limits>
 #include "HStream.h"
+#include "CLexicon.h"
 
 class CDocument;
 typedef boost::shared_ptr<CDocument> CDocumentPtr;
 
-class CLexicon;
 class CCompressor;
 
 class CDocument
 {
   public:
-	struct CIndexData
-	{
-		uint32					 index_kind;
-		std::vector<std::string> text;
 
-								CIndexData(
-									uint32		inKind,
-									const char*	inText)
-									: index_kind(inKind)
-								{
-									text.push_back(inText);
-								}
+	enum {
+		kUndefinedTokenValue = ~0UL
 	};
 	
-	typedef boost::ptr_map<std::string,CIndexData>	DataMap;		
+	struct CTokenData
+	{
+		uint32					doc_token;
+		uint32					global_token;
+	};
 
 	struct CIndexTokens
 	{
-		uint32					index_kind;
+		CIndexKind				index_kind;
 		std::string				index_name;
-		std::vector<uint32>		tokens;
+		std::vector<CTokenData>	tokens;
 	};
 
-	typedef boost::ptr_vector<CIndexTokens>			TokenMap;
+	typedef boost::ptr_vector<CIndexTokens>	CTokenMap;
 
 						CDocument();
 
@@ -55,7 +51,12 @@ class CDocument
 	
 	void				AddIndexText(
 							const char*		inIndex,
-							const char*		inText);
+							const char*		inText,
+							bool			inIndexNumbers);
+
+	void				AddIndexWord(
+							const char*		inIndex,
+							const char*		inWord);
 
 	void				AddIndexNumber(
 							const char*		inIndex,
@@ -74,10 +75,6 @@ class CDocument
 	
 	static CDocumentPtr	sEnd;
 
-	const DataMap&		GetIndexedData()		{ return mIndexedData; }
-
-	const TokenMap&		GetTokenData()			{ return mTokenData; }
-
 	void				TokenizeText(
 							CLexicon&		inLexicon,
 							uint32			inLastStopWord);
@@ -87,19 +84,34 @@ class CDocument
 											inMetaDataFields,
 							CCompressor&	inCompressor);
 
-	const void*			Data() const			{ return mData.Buffer(); }
-	int64				Size() const			{ return mData.Size(); }
+	const void*			Data() const			{ return mCompressedData.Buffer(); }
+
+	int64				Size() const			{ return mCompressedData.Size(); }
+
 	uint32				TextLength() const		{ return mText.length(); }
 
+	const CTokenMap&	GetTokenMap() const		{ return mTokenData; }
+
   private:
+
+	CTokenMap::iterator	GetTokenData(
+							const std::string&
+											inKey,
+							CIndexKind		inKind);
+
+	uint32				StoreToken(
+							const char*		inToken,
+							uint32			inLength);
+
 	std::string			mText;
 	std::map<std::string,std::string>
 						mMetaData;
-	DataMap				mIndexedData;
-	TokenMap			mTokenData;
+	CTokenMap			mTokenData;
 	std::vector<std::string>
 						mSequences;
-	HMemoryStream		mData;
+	HMemoryStream		mCompressedData;
+	
+	CLexicon			mDocLexicon;
 };
 
 #endif

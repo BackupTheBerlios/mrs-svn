@@ -1,6 +1,7 @@
 #include "MRS.h"
 
 #include <vector>
+#include <iostream>
 #include <boost/algorithm/string.hpp>
 
 #include "CLexicon.h"
@@ -37,62 +38,121 @@ void CDocument::SetMetaData(
 	mMetaData[inField] = inText;
 }
 
+CDocument::CTokenMap::iterator CDocument::GetTokenData(
+	const string&	inIndex,
+	CIndexKind		inKind)
+{
+	CTokenMap::iterator result = mTokenData.begin();
+	while (result != mTokenData.end() and result->index_name != inIndex)
+		++result;
+	
+	if (result == mTokenData.end())
+	{
+		mTokenData.push_back(new CIndexTokens);
+		result = mTokenData.end() - 1;
+		result->index_name = inIndex;
+		result->index_kind = inKind;
+	}
+	else if (result->index_kind != inKind)
+		THROW(("Inconsistent use of indices for index %s", inIndex.c_str()));
+	
+	return result;
+}
+
 void CDocument::AddIndexText(
 	const char*		inIndex,
-	const char*		inText)
+	const char*		inText,
+	bool			inIndexNrs)
 {
-	string key(inIndex);
+	CTokenMap::iterator ix = GetTokenData(inIndex, kTextIndex);
 	
-	DataMap::iterator m = mIndexedData.find(key);
-	if (m == mIndexedData.end())
-		mIndexedData.insert(key, new CIndexData(kTextIndex, inText));
-	else if (m->second->index_kind == kTextIndex)
-		m->second->text.push_back(inText);
-	else
-		THROW(("Inconsistent use of indices for index %s", inIndex));
+	CTokenizer tok(inText, strlen(inText));
+	bool isWord, isNumber, isPunct;
+	
+	while (tok.GetToken(isWord, isNumber, isPunct))
+	{
+		CTokenData t = { 0, kUndefinedTokenValue };
+		
+		const char* w = tok.GetTokenValue();
+		uint32 l = tok.GetTokenLength();
+		
+		if (not (isWord or isNumber) or l == 0)
+			continue;
+		
+		if (isPunct or (isNumber and not inIndexNrs) or l > kMaxKeySize)
+		{
+			ix->tokens.push_back(t);
+			continue;
+		}
+		
+		char word[kMaxKeySize];
+		char* word_end = ba::to_lower_copy(word,
+			boost::iterator_range<const char*>(w, w + l));
+		
+		t.doc_token = mDocLexicon.Store(word, word_end - word);
+
+		ix->tokens.push_back(t);
+	}
+}
+
+void CDocument::AddIndexWord(
+	const char*		inIndex,
+	const char*		inWord)
+{
+	CTokenMap::iterator ix = GetTokenData(inIndex, kTextIndex);
+	
+	string value(inWord);
+	ba::to_lower(value);
+	
+	CTokenData t;
+	t.doc_token = mDocLexicon.Store(value);
+	t.global_token = kUndefinedTokenValue;
+	ix->tokens.push_back(t);
 }
 
 void CDocument::AddIndexNumber(
 	const char*		inIndex,
 	const char*		inNumber)
 {
-	string key(inIndex);
+	CTokenMap::iterator ix = GetTokenData(inIndex, kNumberIndex);
 	
-	DataMap::iterator m = mIndexedData.find(key);
-	if (m == mIndexedData.end())
-		mIndexedData.insert(key, new CIndexData(kNumberIndex, inNumber));
-	else if (m->second->index_kind == kNumberIndex)
-		m->second->text.push_back(inNumber);
-	else
-		THROW(("Inconsistent use of indices for index %s", inIndex));
+	string value(inNumber);
+	ba::to_lower(value);
+	
+	CTokenData t;
+	t.doc_token = mDocLexicon.Store(value);
+	t.global_token = kUndefinedTokenValue;
+	ix->tokens.push_back(t);
 }
 
 void CDocument::AddIndexDate(
 	const char*		inIndex,
 	const char*		inDate)
 {
-	string key(inIndex);
+	CTokenMap::iterator ix = GetTokenData(inIndex, kDateIndex);
 	
-	DataMap::iterator m = mIndexedData.find(key);
-	if (m == mIndexedData.end())
-		mIndexedData.insert(key, new CIndexData(kDateIndex, inDate));
-	else if (m->second->index_kind == kDateIndex)
-		m->second->text.push_back(inDate);
-	else
-		THROW(("Inconsistent use of indices for index %s", inIndex));
+	string value(inDate);
+	ba::to_lower(value);
+	
+	CTokenData t;
+	t.doc_token = mDocLexicon.Store(value);
+	t.global_token = kUndefinedTokenValue;
+	ix->tokens.push_back(t);
 }
 
 void CDocument::AddIndexValue(
 	const char*		inIndex,
 	const char*		inValue)
 {
-	string key(inIndex);
+	CTokenMap::iterator ix = GetTokenData(inIndex, kValueIndex);
 	
-	DataMap::iterator m = mIndexedData.find(key);
-	if (m == mIndexedData.end())
-		mIndexedData.insert(key, new CIndexData(kValueIndex, inValue));
-	else
-		THROW(("Already set value for index %s", inIndex));
+	string value(inValue);
+	ba::to_lower(value);
+	
+	CTokenData t;
+	t.doc_token = mDocLexicon.Store(value);
+	t.global_token = kUndefinedTokenValue;
+	ix->tokens.push_back(t);
 }
 
 void CDocument::AddSequence(
@@ -105,57 +165,69 @@ void CDocument::TokenizeText(
 	CLexicon&		inLexicon,
 	uint32			inLastStopWord)
 {
-	bool inIndexNrs = true;
+	uint32 docTokenCount = mDocLexicon.Count();
+	vector<uint32> tokenRemap(docTokenCount, kUndefinedTokenValue);
+	tokenRemap[0] = 0;
 	
-	for (DataMap::iterator dm = mIndexedData.begin(); dm != mIndexedData.end(); ++dm)
+	try
 	{
-		auto_ptr<CIndexTokens> it(new CIndexTokens);
-
-		it->index_kind = dm->second->index_kind;
-		it->index_name = dm->first;
-
-		for (vector<string>::iterator text = dm->second->text.begin(); text != dm->second->text.end(); ++text)
+		inLexicon.LockShared();
+		
+		for (uint32 t = 1; t < docTokenCount; ++t)
 		{
-			if (text->length() == 0)
-				continue;
+			const char* w;
+			uint32 wl;
 			
-			if (it->index_kind == kTextIndex)
+			mDocLexicon.GetString(t, w, wl);
+			uint32 rt = inLexicon.Lookup(w, wl);
+
+			if (rt != 0)
+				tokenRemap[t] = rt;
+		}
+		
+		inLexicon.UnlockShared();
+	}
+	catch (...)
+	{
+		inLexicon.UnlockShared();
+		throw;
+	}
+	
+	try
+	{
+		inLexicon.LockUnique();
+		
+		for (uint32 t = 1; t < docTokenCount; ++t)
+		{
+			if (tokenRemap[t] == kUndefinedTokenValue)
 			{
-				CTokenizer tok(text->c_str(), text->length());
-				bool isWord, isNumber, isPunct;
+				const char* w;
+				uint32 wl;
 				
-				while (tok.GetToken(isWord, isNumber, isPunct))
-				{
-					uint32 l = tok.GetTokenLength();
-					
-					if (isPunct or (isNumber and not inIndexNrs))
-					{
-						it->tokens.push_back(0);
-						continue;
-					}
-					
-					if (not (isWord or isNumber) or l == 0)
-						continue;
-					
-					string word(tok.GetTokenValue(), l);
-					ba::to_lower(word);
-					
-					uint32 tokenValue = inLexicon.Store(word);
-					
-					if (l <= kMaxKeySize and tokenValue > inLastStopWord)
-						it->tokens.push_back(inLexicon.Store(word));
-					else
-						it->tokens.push_back(0);
-				}
-			}
-			else
-			{
-				ba::to_lower(*text);
-				it->tokens.push_back(inLexicon.Store(*text));
+				mDocLexicon.GetString(t, w, wl);
+				tokenRemap[t] = inLexicon.Store(w, wl);
 			}
 		}
-
-		mTokenData.push_back(it.release());
+		
+		inLexicon.UnlockUnique();
+	}
+	catch (...)
+	{
+		inLexicon.UnlockUnique();
+		throw;
+	}
+	
+	for (CTokenMap::iterator tm = mTokenData.begin(); tm != mTokenData.end(); ++tm)
+	{
+		for (vector<CTokenData>::iterator td = tm->tokens.begin(); td != tm->tokens.end(); ++td)
+		{
+			if (tokenRemap[td->doc_token] > inLastStopWord)
+				td->global_token = tokenRemap[td->doc_token];
+			else
+				td->global_token = 0;
+			
+			assert(td->global_token != kUndefinedTokenValue);
+		}
 	}
 }
 
@@ -178,8 +250,8 @@ void CDocument::Compress(
 
 		dv.push_back(make_pair(mText.c_str(), mText.length()));
 
-		inCompressor.CompressData(dv, mData);
+		inCompressor.CompressData(dv, mCompressedData);
 	}
 	else
-		inCompressor.CompressDocument(mText.c_str(), mText.length(), mData);
+		inCompressor.CompressDocument(mText.c_str(), mText.length(), mCompressedData);
 }
