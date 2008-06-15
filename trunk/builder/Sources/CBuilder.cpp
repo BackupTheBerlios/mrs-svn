@@ -125,6 +125,10 @@ CBuilder::CBuilder(
 	, mCompressorFactory(nil)
 	, mSafe(nil)
 	, mLastStopWord(0)
+	, mStopProgress(false)
+	, mFileCount(0)
+	, mCurrentFile(0)
+	, mRawDataSize(0)
 {
 	try
 	{
@@ -223,6 +227,7 @@ void CBuilder::Run(
 	
 	for (vector<fs::path>::iterator file = rawFiles.begin(); file != rawFiles.end(); ++file)
 	{
+		++mCurrentFile;
 		CReaderPtr reader(CReader::CreateReader(*file));
 		readerBuffer.Put(reader);
 	}
@@ -307,9 +312,9 @@ void CBuilder::Progress()
 		GetSize(rawText, rawSize, rawSizeLetter);
 		
 		snprintf(msg, sizeof(msg),
-			"%20.20s  %d/%d - %3.d%c/%3.d%c [%3.d%%] docs: %d text: %d%c",
+			"%20.20s  %d/%d - %3.d%c/%3.d%c [%3.d%%] docs: %d text: %d%c          ",
 			"file",
-			docs, mFileCount,
+			mCurrentFile, mFileCount,
 			size, sizeLetter,
 			totalSize, totalSizeLetter,
 			progress,
