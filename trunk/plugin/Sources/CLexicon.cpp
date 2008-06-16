@@ -62,7 +62,8 @@ using namespace std;
 
 const int
 	kLexDataSize = 8 * 1024 * 1024 - 3 * sizeof(uint32),	// 8 Mb per page
-	kIxPageSize = 1024 * 1024;								// 1 million entries
+	kLargeIxPageSize = 1024 * 1024,							// 1 million entries
+	kSmallIxPageSize = 1024;
 
 struct CLexPage;
 
@@ -322,7 +323,9 @@ struct CLexiconImp
 						uint32			inNr,
 						uint32			inBit) const;
 
-					CLexiconImp();
+					CLexiconImp(
+						uint32			inIxPageSize);
+					
 					~CLexiconImp();
 
 	typedef vector<CLexPage*> LexPageArray;
@@ -338,14 +341,17 @@ struct CLexiconImp
 	NodePageArray	fNodes;
 	CNode*			fRoot;
 	uint32			fCount;
+	uint32			fIxPageSize;
 
 	// synchronisation
 	boost::shared_mutex
 					fMutex;
 };
 
-CLexiconImp::CLexiconImp()
+CLexiconImp::CLexiconImp(
+	uint32		inIxPageSize)
 	: fCount(0)
+	, fIxPageSize(inIxPageSize)
 {
 	fPages.push_back(new CLexPage(0));
 
@@ -371,12 +377,12 @@ CLexiconImp::~CLexiconImp()
 
 CNode* CLexiconImp::AllocateNode()
 {
-	uint32 ix = fCount % kIxPageSize;
+	uint32 ix = fCount % fIxPageSize;
 	
 	if (ix == 0)	// time for a new node page
 	{
-		assert((fCount / kIxPageSize) == fNodes.size());
-		fNodes.push_back(new CNode[kIxPageSize]);
+		assert((fCount / fIxPageSize) == fNodes.size());
+		fNodes.push_back(new CNode[fIxPageSize]);
 	}
 	
 	return fNodes.back() + ix;
@@ -655,9 +661,13 @@ bool CLexiconImp::CompareKeyBits(
 		TestKeyBit(inWord, inWordLength, inBit) == b;
 }
 
-CLexicon::CLexicon()
-	: fImpl(new CLexiconImp)
+CLexicon::CLexicon(
+	bool				inLargeLexicon)
 {
+	if (inLargeLexicon)
+		fImpl = new CLexiconImp(kLargeIxPageSize);
+	else
+		fImpl = new CLexiconImp(kSmallIxPageSize);
 }
 
 CLexicon::~CLexicon()

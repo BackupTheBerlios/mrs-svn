@@ -372,6 +372,49 @@ void CDatabankBase::GetStopWords(std::set<std::string>& outStopWords) const
 {
 }
 
+CDBBuildProgressMixin::CDBBuildProgressMixin()
+	: fProcessedDocuments(0)
+	, fProcessedRawText(0)
+	, fCreatingIndex(false)
+	, fCurrentLexEntry(0)
+	, fTotalLexEntries(0)
+	, fCurrentKey(0)
+	, fKeyCount(0)
+{
+}
+
+CDBBuildProgressMixin::~CDBBuildProgressMixin()
+{
+}
+	
+void CDBBuildProgressMixin::SetDocProgress(
+	uint32		inProcessedDocuments,
+	int64		inProcessedRawText)
+{
+	fProcessedDocuments = inProcessedDocuments;
+	fProcessedRawText = inProcessedRawText;
+}
+
+void CDBBuildProgressMixin::SetCreateIndexProgress(
+	uint32		inCurrentLexEntry,
+	uint32		inTotalLexEntries)
+{
+	fCreatingIndex = true;
+	fCurrentLexEntry = inCurrentLexEntry;
+	fTotalLexEntries = inTotalLexEntries;
+}
+
+void CDBBuildProgressMixin::SetWritingIndexProgress(
+	uint32		inCurrentKey,
+	uint32		inKeyCount,
+	const char*	inIndexName)
+{
+	fCreatingIndex = false;
+	fCurrentKey = inCurrentKey;
+	fKeyCount = inKeyCount;
+	fIndexName = inIndexName;
+}
+
 /*
 	Implementations
 */
@@ -384,6 +427,7 @@ CDatabank::CDatabank(
 	const string&			inURL,
 	const string&			inScriptName,
 	const string&			inSection,
+	CDBBuildProgressMixin*	inProgress,
 	CCompressorFactory&		inCompressorFactory)
 	: fPath(inPath)
 	, fModificationTime(0)
@@ -407,6 +451,9 @@ CDatabank::CDatabank(
 	, fDataOffset(0)
 	, fFirstDocOffset(0)
 	, fDocStart(0)
+	, fProcessedDocuments(0)
+	, fProcessedRawText(0)
+	, fProgress(inProgress)
 {
 	memset(fHeader, 0, sizeof(SHeader));
 	memset(fDataHeader, 0, sizeof(SDataHeader));
@@ -499,6 +546,9 @@ CDatabank::CDatabank(const HUrl& inUrl)
 #endif
 	, fOmitVector(nil)
 	, fDocIndexData(nil)
+	, fProcessedDocuments(0)
+	, fProcessedRawText(0)
+	, fProgress(nil)
 {
 	HFile::GetModificationTime(fPath, fModificationTime);
 	
@@ -653,7 +703,8 @@ void CDatabank::Finish(
 	fDataFile->Seek(0, SEEK_END);
 	
 	fIndexer->CreateIndex(*fDataFile, fHeader->index_offset, fHeader->index_size,
-		inLexicon, inCreateAllTextIndex, inCreateUpdateDatabank);
+		inLexicon, inCreateAllTextIndex, inCreateUpdateDatabank,
+		fProgress);
 
 	auto_ptr<CIndex> idIndex(fIndexer->GetIndex("id"));
 	if (idIndex.get() != nil)
@@ -1482,14 +1533,6 @@ void CDatabank::GetStopWords(set<string>& outStopWords) const
 	}
 }
 
-void CDatabank::GetStatistics(
-	uint32&			outDocuments,
-	int64&			outRawText)
-{
-	outDocuments = fProcessedDocuments;
-	outRawText = fProcessedRawText;
-}
-
 void CDatabank::StoreDocument(
 	const CDocument&	inDocument)
 {
@@ -1501,6 +1544,9 @@ void CDatabank::StoreDocument(
 	// update statistics for progress monitor
 	fProcessedDocuments = fHeader->entries;
 	fProcessedRawText = fParts[0].raw_data_size;
+	
+	if (fProgress != nil)
+		fProgress->SetDocProgress(fProcessedDocuments, fProcessedRawText);
 }
 
 //void CDatabank::Store(const string& inDocument)

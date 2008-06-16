@@ -17,6 +17,7 @@ extern const uint32 kMaxKeySize;
 CDocumentPtr CDocument::sEnd;
 
 CDocument::CDocument()
+	 : mDocLexicon(false)
 {
 }
 

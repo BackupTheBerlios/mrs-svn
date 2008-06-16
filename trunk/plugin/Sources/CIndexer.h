@@ -55,6 +55,7 @@ class CIndexCache;
 class CIndex;
 class CIndexBase;
 class CIteratorBase;
+class CDBBuildProgressMixin;
 
 class CIndexer
 {
@@ -69,7 +70,9 @@ class CIndexer
 						int64&			outSize,
 						CLexicon&		inLexicon,
 						bool			inCreateAllTextIndex,
-						bool			inCreateUpdateDatabank);
+						bool			inCreateUpdateDatabank,
+						CDBBuildProgressMixin*
+										inProgress);
 	
 	void			MergeIndices(HStreamBase& outData,
 						std::vector<CDatabank*>& inParts);
@@ -126,7 +129,7 @@ class CIndexer
 
 	void			RecalculateDocumentWeights(const std::string& inIndex);
 	void			FixupDocWeights();
-
+	
   private:
 
 	void			IndexText(const std::string& inIndex, const std::string& inText, bool inIndexNrs, bool inStoreIDL);

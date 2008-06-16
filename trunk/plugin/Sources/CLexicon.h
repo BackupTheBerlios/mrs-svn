@@ -65,7 +65,11 @@ class CLexicon
 	friend struct CLexPage;
 	
   public:
-					CLexicon();
+
+	// since we now have several locations where a CLexicon class
+	// is used, we have the option to create a lightweight version.
+					CLexicon(
+						bool				inLargeLexicon);
 
 	virtual			~CLexicon();
 	

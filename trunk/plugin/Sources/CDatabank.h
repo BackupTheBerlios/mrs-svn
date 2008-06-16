@@ -183,6 +183,36 @@ class CDatabankBase
 	HMutex*				fLock;
 };
 
+class CDBBuildProgressMixin
+{
+  public:
+					CDBBuildProgressMixin();
+	virtual			~CDBBuildProgressMixin();
+	
+	virtual void	SetDocProgress(
+						uint32		inProcessedDocuments,
+						int64		inProcessedRawText);
+
+	virtual void	SetCreateIndexProgress(
+						uint32		inCurrentLexEntry,
+						uint32		inTotalLexEntries);
+			
+	virtual void	SetWritingIndexProgress(
+						uint32		inCurrentKey,
+						uint32		inKeyCount,
+						const char*	inIndexName);
+
+  protected:
+	uint32			fProcessedDocuments;
+	int64			fProcessedRawText;
+	bool			fCreatingIndex;
+	uint32			fCurrentLexEntry;
+	uint32			fTotalLexEntries;
+	uint32			fCurrentKey;
+	uint32			fKeyCount;
+	std::string		fIndexName;
+};
+
 class CDatabank : public CDatabankBase
 {
   public:
@@ -199,6 +229,8 @@ class CDatabank : public CDatabankBase
 							const std::string&	inURL,
 							const std::string&	inScriptName,
 							const std::string&	inSection,
+							CDBBuildProgressMixin*
+												inProgress,
 							CCompressorFactory&	inCompressorFactory);
 					
 						~CDatabank();
@@ -268,10 +300,6 @@ class CDatabank : public CDatabankBase
 							bool			inCreateAllTextIndex,
 							bool			inCreateUpdateDatabank);
 
-	void				GetStatistics(
-							uint32&			outDocuments,
-							int64&			outRawText);
-	
 	virtual uint32		Count() const;
 	virtual int64		GetRawDataSize() const;
 	virtual std::string	GetVersion() const;
@@ -380,8 +408,10 @@ class CDatabank : public CDatabankBase
 	HStreamBase*	fDocIndexData;
 	
 	// statistics
-	volatile uint32	fProcessedDocuments;
-	volatile int64	fProcessedRawText;
+	uint32			fProcessedDocuments;
+	int64			fProcessedRawText;
+	CDBBuildProgressMixin*
+					fProgress;
 };
 
 class CJoinedDatabank : public CDatabankBase

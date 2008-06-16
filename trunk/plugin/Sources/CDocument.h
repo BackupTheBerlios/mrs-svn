@@ -15,14 +15,13 @@ typedef boost::shared_ptr<CDocument> CDocumentPtr;
 
 class CCompressor;
 
+const uint32
+	kUndefinedTokenValue = static_cast<uint32>(~0UL);
+
 class CDocument
 {
   public:
 
-	enum {
-		kUndefinedTokenValue = ~0UL
-	};
-	
 	struct CTokenData
 	{
 		uint32					doc_token;

@@ -853,6 +853,7 @@ class CIndexBase : public CLexCompare
 	bool			Empty() const				{ return fEmpty; }
 	void			SetEmpty(bool inEmpty)		{ fEmpty = inEmpty; }
 	uint16			GetIxNr() const				{ return fIndexNr; }
+	string			GetName() const				{ return fName; }
 
 	virtual int		Compare(const char* inA, uint32 inLengthA, const char* inB, uint32 inLengthB) const;
 
@@ -1808,7 +1809,9 @@ void CIndexer::CreateIndex(
 	int64&			outSize,
 	CLexicon&		inLexicon,
 	bool			inCreateAllTextIndex,
-	bool			inCreateUpdateDatabank)
+	bool			inCreateUpdateDatabank,
+	CDBBuildProgressMixin*
+					inProgress)
 {
 	if (fParts)
 		delete[] fParts;
@@ -1844,6 +1847,9 @@ void CIndexer::CreateIndex(
 		cout << "Flushing fulltext run buffers...";
 		cout.flush();
 	}
+	
+	if (inProgress != nil)
+		inProgress->SetCreateIndexProgress(0, 0);
 
 	fFullTextIndex->ReleaseBuffer();
 	
@@ -1884,13 +1890,14 @@ void CIndexer::CreateIndex(
 		cout << "Creating full text indexes... ";
 		cout.flush();
 	}
-
+	
 	uint32 iDoc, lDoc = 0, iTerm, iIx, lTerm = 0, i, tFreq = 0;
 	uint8 iFreq;
 
 	CFullTextIndex::CRunEntryIterator iter(*fFullTextIndex);
 
-	int64 vStep = iter.Count() / 10;
+	int64 iterCount = iter.Count();
+	int64 vStep = iterCount / 10;
 	if (vStep == 0)
 		vStep = 1;
 	
@@ -1903,6 +1910,9 @@ void CIndexer::CreateIndex(
 
 		do
 		{
+			if (inProgress != nil and iter.Count() != 0 and (iter.Count() % 50000) == 0)
+				inProgress->SetCreateIndexProgress(iterCount - iter.Count(), iterCount);
+			
 			if (VERBOSE and iter.Count() != 0 and (iter.Count() % vStep) == 0)
 			{
 				cout << (iter.Count() / vStep) << ' '; cout.flush();
@@ -1952,12 +1962,18 @@ void CIndexer::CreateIndex(
 
 	if (VERBOSE > 0)
 		cout << "done" << endl;
+
+	if (inProgress)
+		inProgress->SetCreateIndexProgress(iterCount, iterCount);
 	
 	uint32 ix = 0;
 	for (indx = fIndices.begin(); indx != fIndices.end(); ++indx)
 	{
 		if (indx->second != nil)
 		{
+			if (inProgress != nil)
+				inProgress->SetWritingIndexProgress(0, 0, indx->second->GetName().c_str());
+//			mCurrentlyWritingIndex = indx->second->GetName();
 			if (indx->second->Write(inFile, inLexicon, fHeader->entries, fParts[ix]))
 				++ix;
 			else
@@ -1969,6 +1985,8 @@ void CIndexer::CreateIndex(
 
 	if (allIndex != nil)
 	{
+		if (inProgress != nil)
+			inProgress->SetWritingIndexProgress(0, 0, allIndex->GetName().c_str());
 		allIndex->Write(inFile, inLexicon, fHeader->entries, fParts[ix++]);
 		delete allIndex;
 	}
