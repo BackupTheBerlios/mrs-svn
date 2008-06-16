@@ -1,4 +1,4 @@
-﻿<?xml version="1.0"?>
+<?xml version="1.0"?>
 <project>
 	<pkg-config>
 		<pkg tool="perl">default</pkg>
@@ -20,18 +20,16 @@
 		<path>../plugin/Lib</path>
 	</userpaths>
 	<libpaths>
-		<path>Lib</path>
+		<path>/home/maarten/projects/mrs-d3/builder/Lib</path>
 		<path>/lib</path>
 		<path>/lib64</path>
 		<path>/usr/lib</path>
 		<path>/usr/local/lib</path>
 		<path>/usr/pkg/lib</path>
 	</libpaths>
-	<frameworks/>
 	<files>
 		<group name="Builder">
 			<file>CBuilder.cpp</file>
-			<file>CDocument.cpp</file>
 			<file>CReader.cpp</file>
 			<file>CParser.cpp</file>
 		</group>
@@ -44,6 +42,7 @@
 			<file>CDecompress.cpp</file>
 			<file>CDictionary.cpp</file>
 			<file>CDocIterator.cpp</file>
+			<file>CDocument.cpp</file>
 			<file>CDocWeightArray.cpp</file>
 			<file>CFilter.cpp</file>
 			<file>CIdTable.cpp</file>

@@ -1,6 +1,8 @@
 #include "MRS.h"
 
 #include "HError.h"
+#include "HStream.h"
+#include "HUrl.h"
 
 #include <magic.h>
 #include <boost/filesystem/fstream.hpp>
@@ -185,6 +187,10 @@ bool CTextReaderImpl::Eof() const
 
 struct CGZipReaderImpl : public CReaderImp
 {
+	enum {
+		kBufferSize = 1024
+	};
+	
 					CGZipReaderImpl(
 						const fs::path&		inFile);
 	
@@ -195,52 +201,110 @@ struct CGZipReaderImpl : public CReaderImp
 	
 	virtual bool	Eof() const;
 	
-	gzFile			mGZFile;
+	HFileStream		mFileStream;
+	int64			mRemaining;
+	z_stream_s		mZStream;
+	uint8			mSrcBuffer[kBufferSize];
+	uint8			mDstBuffer[kBufferSize];
+	uint32			mDstPtr, mDstSize;
+	bool			mEOF;
 };
 
 CGZipReaderImpl::CGZipReaderImpl(
 	const fs::path&		inFile)
 	: CReaderImp(inFile)
+	, mFileStream(HUrl(inFile.string()), O_RDONLY)
+	, mRemaining(mFileStream.Size())
+	, mDstPtr(0)
+	, mDstSize(0)
+	, mEOF(false)
 {
-	int fd = open(inFile.string().c_str(), O_RDONLY);
-	if (fd < 0)
-		THROW(("Error opening file %s: %s", inFile.string().c_str(), strerror(errno)));
+	memset(&mZStream, 0, sizeof(mZStream));
 	
-	mGZFile = gzdopen(fd, "rb");
-	if (mGZFile == nil)
-		THROW(("Error initializing decompression library"));
+	int err = inflateInit2(&mZStream, 47);
+	if (err != Z_OK)
+		THROW(("Error initializing zlib: %s", mZStream.msg));
 }
 
 CGZipReaderImpl::~CGZipReaderImpl()
 {
-	if (mGZFile != nil)
-		gzclose(mGZFile);
+	inflateEnd(&mZStream);
 }
 
 bool CGZipReaderImpl::GetLine(
 	string&				outLine)
 {
 	bool result = false;
-	
-	if (not gzeof(mGZFile))
+
+	for (;;)
 	{
-		char b[1024];
-		char* r = gzgets(mGZFile, b, sizeof(b));
-		if (r != nil)
+		bool gotNewLine = false;
+		
+		while (mDstPtr < mDstSize)
 		{
-			outLine = r;
 			result = true;
+			
+			char ch = mDstBuffer[mDstPtr];
+			
+			++mDstPtr;
+			
+			outLine += ch;
+			
+			if (ch == '\n')
+			{
+				gotNewLine = true;
+				break;
+			}
 		}
+		
+		if (gotNewLine)
+			break;
+		
+		mZStream.next_out = mDstBuffer;
+		mZStream.avail_out = kBufferSize;
+
+		// shift bytes in src buffer to beginning
+		if (mZStream.next_in > mSrcBuffer and mZStream.avail_in > 0)
+			memmove(mSrcBuffer, mZStream.next_in, mZStream.avail_in);
+		mZStream.next_in = mSrcBuffer;
+		
+		int flush = 0;
+		if (mRemaining > 0)
+		{
+			uint32 size = kBufferSize - mZStream.avail_in;
+			if (size > mRemaining)
+				size = static_cast<uint32>(mRemaining);
+			mRemaining -= size;
+			
+			mFileStream.Read(mSrcBuffer + mZStream.avail_in, size);
+			mZStream.avail_in += size;
+		}
+		else
+			flush = Z_SYNC_FLUSH;
+		
+		int err = inflate(&mZStream, flush);
+		
+		if (err == Z_STREAM_END)
+		{
+			mEOF = true;
+			break;
+		}
+		
+		if (err < Z_OK)
+			THROW(("Decompression error: %s (%d)", mZStream.msg, err));
+
+		mReadData = mFileStream.Tell();
+
+		mDstSize = kBufferSize - mZStream.avail_out;
+		mDstPtr = 0;
 	}
-	
-	mReadData = gztell(mGZFile);
 	
 	return result;
 }
 	
 bool CGZipReaderImpl::Eof() const
 {
-	return gzeof(mGZFile);
+	return mEOF;
 }
 
 // ------------------------------------------------------------------
@@ -264,23 +328,31 @@ CReader* CReader::CreateReader(
 	CLibMagic& magic = CLibMagic::Instance();
 	CReader* result = nil;
 	
-	string mimetype = magic.GetMagic(inFile);
-	
-	if (mimetype.substr(0, 5) == "text/")
-		result = new CReader(new CTextReaderImpl(inFile));
-	else if (mimetype == "application/x-gzip")
-		result = new CReader(new CGZipReaderImpl(inFile));
-	else if (mimetype == "application/octet-stream")
+	string name = inFile.leaf();
+	if (name.rfind(".gz") == name.length() - 3)
 	{
-		cerr << endl
-			 << "Unknown file type for file " << inFile.leaf()
-			 << ", falling back to text mode" << endl;
-		result = new CReader(new CTextReaderImpl(inFile));
+		result = new CReader(new CGZipReaderImpl(inFile));
 	}
 	else
-		THROW(("Unsupported file type '%s' for file %s",
-			mimetype.c_str(),
-			inFile.string().c_str()));
+	{
+		string mimetype = magic.GetMagic(inFile);
+		
+		if (mimetype.substr(0, 5) == "text/")
+			result = new CReader(new CTextReaderImpl(inFile));
+		else if (mimetype == "application/x-gzip")
+			result = new CReader(new CGZipReaderImpl(inFile));
+		else if (mimetype == "application/octet-stream")
+		{
+			cerr << endl
+				 << "Unknown file type for file " << inFile.leaf()
+				 << ", falling back to text mode" << endl;
+			result = new CReader(new CTextReaderImpl(inFile));
+		}
+		else
+			THROW(("Unsupported file type '%s' for file %s",
+				mimetype.c_str(),
+				inFile.string().c_str()));
+	}
 	
 	return result;
 }

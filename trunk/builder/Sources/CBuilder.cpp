@@ -20,8 +20,8 @@
 
 #include "HFile.h"
 #include "HBuffer.h"
+#include "HUtils.h"
 
-#include "HBuffer.h"
 #include "CDatabank.h"
 #include "CParser.h"
 #include "CReader.h"
@@ -34,10 +34,7 @@ namespace fs = boost::filesystem;
 namespace ba = boost::algorithm;
 
 int VERBOSE = 0;
-//int COMPRESSION_LEVEL = 9;
 unsigned int THREADS = 2;
-//const char* COMPRESSION_DICTIONARY = "";
-//const char* COMPRESSION = "zlib";
 
 // ------------------------------------------------------------------
 
@@ -52,7 +49,7 @@ typedef HBuffer<CReaderPtr,10>			CReaderBuffer;
 typedef boost::shared_ptr<CDocument>	CDocumentPtr;
 typedef HBuffer<CDocumentPtr,10>		CDocumentBuffer;
 
-class CBuilder
+class CBuilder : public CDBBuildProgressMixin
 {
   public:
 				CBuilder(
@@ -94,6 +91,18 @@ class CBuilder
 	void		IndexDoc(
 					CDocumentBuffer*	inIndexDocBuffer,
 					int32				inNrOfParsers);
+
+	virtual void
+				SetCreateIndexProgress(
+					uint32		inCurrentLexEntry,
+					uint32		inTotalLexEntries);
+		
+	virtual void
+				SetWritingIndexProgress(
+					uint32		inCurrentKey,
+					uint32		inKeyCount,
+					const char*	inIndexName);
+
 	
 	CDatabank*	mDatabank;
 	string		mDatabankName, mScriptName;
@@ -109,10 +118,12 @@ class CBuilder
 	uint32		mLastStopWord;
 	
 	// progress information
-	bool		mStopProgress;
+	bool		mParsingDone;
+	double		mStartTime, mLastUpdate;
 	uint32		mFileCount;
 	uint32		mCurrentFile;
 	int64		mRawDataSize;
+	string		mLastRawFile;
 };
 
 CBuilder::CBuilder(
@@ -124,8 +135,8 @@ CBuilder::CBuilder(
 	, mParser(nil)
 	, mCompressorFactory(nil)
 	, mSafe(nil)
+	, mLexicon(true)
 	, mLastStopWord(0)
-	, mStopProgress(false)
 	, mFileCount(0)
 	, mCurrentFile(0)
 	, mRawDataSize(0)
@@ -154,7 +165,7 @@ CBuilder::CBuilder(
 		mCompressorFactory = new CCompressorFactory("zlib", 3, "", 0);
 		
 		mDatabank = new CDatabank(path, mMeta, inDatabank,
-			version, url, inScript, section, *mCompressorFactory);
+			version, url, inScript, section, this, *mCompressorFactory);
 	}
 	catch (...)
 	{
@@ -196,14 +207,11 @@ void CBuilder::Run(
 	
 	if (VERBOSE > 0)
 		cerr << "Processing " << rawFiles.size() << " raw files totalling " << mRawDataSize << " bytes" << endl;
-	
-	boost::thread* progress = nil;
-	if (inShowProgress)
-	{
-		mStopProgress = false;
-		progress = new boost::thread(boost::bind(&CBuilder::Progress, this));
-	}
-	
+
+	// we now start parsing
+	mParsingDone = false;
+	mStartTime = system_time();
+
 	boost::thread_group parser_threads, tokenize_threads, compress_threads;
 	uint32 nrOfParsers = inNrOfPipeLines;
 	if (nrOfParsers > rawFiles.size())
@@ -224,10 +232,18 @@ void CBuilder::Run(
 	}
 	
 	boost::thread indexDocThread(boost::bind(&CBuilder::IndexDoc, this, &indexDocBuffer, nrOfParsers));
+
+	// show some progress if needed
+	boost::thread* progress = nil;
+	if (inShowProgress)
+		progress = new boost::thread(boost::bind(&CBuilder::Progress, this));
 	
 	for (vector<fs::path>::iterator file = rawFiles.begin(); file != rawFiles.end(); ++file)
 	{
 		++mCurrentFile;
+		
+		mLastRawFile = file->leaf();
+		
 		CReaderPtr reader(CReader::CreateReader(*file));
 		readerBuffer.Put(reader);
 	}
@@ -240,10 +256,13 @@ void CBuilder::Run(
 
 	if (inShowProgress)
 	{
-		mStopProgress = true;
+		mParsingDone = true;
 		progress->join();
 		delete progress;
 	}
+	
+	mStartTime = system_time();
+	mLastUpdate = 0;
 
 	if (VERBOSE > 1)
 		cout << "done" << endl;
@@ -251,6 +270,9 @@ void CBuilder::Run(
 	mDatabank->Finish(mLexicon, true, false);
 	delete mDatabank;
 	mDatabank = nil;
+
+	if (inShowProgress)
+		cout << endl;
 	
 	if (mSafe != nil)
 		mSafe->Commit();
@@ -288,45 +310,148 @@ static void GetSize(
 	}
 }
 
+static string FormatTime(
+	int64		inTime)
+{
+	stringstream result;
+
+	if (inTime >= 60 * 60 * 24)
+	{
+		uint32 days = inTime / (60 * 60 * 24);
+		result << days << 'd';
+		inTime %= 60 * 60 * 24;
+	}
+
+	if (inTime >= 60 * 60)
+	{
+		uint32 hours = inTime / (60 * 60);
+		result << hours << 'h';
+		inTime %= 60 * 60;
+	}
+
+	if (inTime >= 60)
+	{
+		uint32 min = inTime / 60;
+		result << min << 'm';
+		inTime %= 60;
+	}
+	
+	result << inTime << 's';
+	
+	return result.str();
+}
+
 void CBuilder::Progress()
 {
-	while (not mStopProgress)
+	//            00        10        20        30        40        50        60        70        80        
+	char msg[] = "                                                                                ";
+	
+	for (;;)
 	{
-		//            00        10        20        30        40        50        60        70        80        
-		char msg[] = "                                                                                ";
+		sleep(5);
 		
 		int64 readData;
 		CReader::GetStatistics(readData);
 
-		uint32 docs;
-		int64 rawText;
+		double progress = 0;
 		
-		mDatabank->GetStatistics(docs, rawText);
-
-		uint32 progress = static_cast<uint32>((readData * 100) / mRawDataSize);
+		if (readData > 0 and mRawDataSize > 0)
+			progress = double(readData) / mRawDataSize;
 		
 		uint32 size, totalSize, rawSize;
 		char sizeLetter, totalSizeLetter, rawSizeLetter;
 		GetSize(readData, size, sizeLetter);
 		GetSize(mRawDataSize, totalSize, totalSizeLetter);
-		GetSize(rawText, rawSize, rawSizeLetter);
+		GetSize(fProcessedRawText, rawSize, rawSizeLetter);
 		
-		snprintf(msg, sizeof(msg),
-			"%20.20s  %d/%d - %3.d%c/%3.d%c [%3.d%%] docs: %d text: %d%c          ",
-			"file",
+		memset(msg, ' ', 80);
+		
+		if (mLastRawFile.length() < 20)
+			mLastRawFile.copy(msg, mLastRawFile.length());
+		else
+			snprintf(msg, sizeof(msg), "%17.17s...", mLastRawFile.c_str());
+		
+		double now = system_time();
+		double elapsed = now - mStartTime;
+		double eta = 0;
+		if (progress > 0)
+			eta = (elapsed / (0.75 * progress)) - (elapsed / 0.75);
+		
+		snprintf(msg + 20, sizeof(msg) - 20,
+			" %d/%d - %3.d%c/%3.d%c [%3.d%%] docs: %d text: %d%c ",
 			mCurrentFile, mFileCount,
 			size, sizeLetter,
 			totalSize, totalSizeLetter,
-			progress,
-			docs,
+			static_cast<uint32>(100 * progress),
+			fProcessedDocuments,
 			rawSize, rawSizeLetter);
-		
-		cout << '\r' << msg;
-		cout.flush();
 
-		sleep(1);
+		cout << '\r' << msg;
+		
+		if (not mParsingDone)
+		{
+			cout << "eta: " << FormatTime(eta);
+			cout.flush();
+		}
+		else
+		{
+			cout << "elapsed: " << FormatTime(elapsed) << endl;
+			break;
+		}
 	}
-	cout << endl;
+}
+
+void CBuilder::SetCreateIndexProgress(
+	uint32		inCurrentLexEntry,
+	uint32		inTotalLexEntries)
+{
+	CDBBuildProgressMixin::SetCreateIndexProgress(inCurrentLexEntry, inTotalLexEntries);
+	
+	double now = system_time();
+	if (now > mLastUpdate + 1 or
+		inCurrentLexEntry == 0 or
+		inCurrentLexEntry == inTotalLexEntries)
+	{
+		mLastUpdate = now;
+		
+		if (fTotalLexEntries == 0)
+		{
+			cout << '\r' << "Flushing buffers";
+			cout.flush();
+		}
+		else
+		{
+			double progress = static_cast<double>(fCurrentLexEntry) / fTotalLexEntries;
+
+			double elapsed = now - mStartTime;
+			double eta = (elapsed / (0.8 * progress)) - (elapsed / 0.8);
+			
+			char msg[80];
+			
+			snprintf(msg, sizeof(msg),
+				"Building index %d/%d [%3.d%%] ",
+				fCurrentLexEntry, fTotalLexEntries,
+				static_cast<uint32>(100 * progress));
+			
+			if (inCurrentLexEntry < inTotalLexEntries)
+			{
+				cout << '\r' << msg << "eta: " << FormatTime(eta);
+				cout.flush();
+			}
+			else
+				cout << '\r' << msg << "elapsed: " << FormatTime(elapsed) << endl;
+		}
+	}
+}
+
+void CBuilder::SetWritingIndexProgress(
+	uint32		inCurrentKey,
+	uint32		inKeyCount,
+	const char*	inIndexName)
+{
+	CDBBuildProgressMixin::SetWritingIndexProgress(inCurrentKey, inKeyCount, inIndexName);
+	cout << endl << "Writing index " << inIndexName;
+	cout.flush();
 }
 
 void CBuilder::CollectRawFiles(

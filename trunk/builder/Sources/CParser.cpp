@@ -368,49 +368,56 @@ void CParserImp::IndexTextAndNumbers(
 	const char*			inIndex,
 	const char*			inText)
 {
-	mCurrentDocument->AddIndexText(inIndex, inText, true);
+	if (*inIndex and *inText)
+		mCurrentDocument->AddIndexText(inIndex, inText, true);
 }
 
 void CParserImp::IndexText(
 	const char*			inIndex,
 	const char*			inText)
 {
-	mCurrentDocument->AddIndexText(inIndex, inText, false);
+	if (*inIndex and *inText)
+		mCurrentDocument->AddIndexText(inIndex, inText, false);
 }
 
 void CParserImp::IndexWord(
 	const char*			inIndex,
 	const char*			inText)
 {
-	mCurrentDocument->AddIndexWord(inIndex, inText);
+	if (*inIndex and *inText)
+		mCurrentDocument->AddIndexWord(inIndex, inText);
 }
 
 void CParserImp::IndexDate(
 	const char*			inIndex,
 	const char*			inText)
 {
-	mCurrentDocument->AddIndexDate(inIndex, inText);
+	if (*inIndex and *inText)
+		mCurrentDocument->AddIndexDate(inIndex, inText);
 }
 
 void CParserImp::IndexValue(
 	const char*			inIndex,
 	const char*			inText)
 {
-	mCurrentDocument->AddIndexValue(inIndex, inText);
+	if (*inIndex and *inText)
+		mCurrentDocument->AddIndexValue(inIndex, inText);
 }
 
 void CParserImp::IndexNumber(
 	const char*			inIndex,
 	const char*			inText)
 {
-	mCurrentDocument->AddIndexNumber(inIndex, inText);
+	if (*inIndex and *inText)
+		mCurrentDocument->AddIndexNumber(inIndex, inText);
 }
 
 void CParserImp::StoreMetaData(
 	const char*			inField,
 	const char*			inValue)
 {
-	mCurrentDocument->SetMetaData(inField, inValue);
+	if (*inField and *inValue)
+		mCurrentDocument->SetMetaData(inField, inValue);
 }
 
 void CParserImp::AddSequence(
