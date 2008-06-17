@@ -137,8 +137,10 @@ class CIntersectionQueryObject : public CQueryObject
 class CParsedQueryObject : public CQueryObject
 {
   public:
-							CParsedQueryObject(CDatabankBase& inDb,
-								const std::string& inQuery, bool inAutoWildcard);
+							CParsedQueryObject(
+								CDatabankBase&		inDb,
+								const std::string&	inQuery,
+								bool				inAutoWildcard);
 
   private:
 

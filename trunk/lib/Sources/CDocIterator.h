@@ -58,6 +58,13 @@ class CDocIterator
 	virtual			~CDocIterator();
 
 	virtual bool	Next(uint32& ioDoc, bool inSkip) = 0;
+
+	virtual bool	Next(uint32& ioDoc, float& outScore, bool inSkip)
+					{
+						outScore = 0;
+						return Next(ioDoc, inSkip);
+					}
+
 	virtual uint32	Count() const = 0;
 	virtual uint32	Read() const = 0;
 

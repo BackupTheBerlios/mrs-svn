@@ -34,6 +34,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
  
+#include "MRS.h"
+
 #include <vector>
 #include <string>
 #include <iostream>
@@ -46,17 +48,16 @@
 #include <sys/times.h>
 #include <sys/resource.h>
 
-//#include "MRS.h"
+#include "CDatabank.h"
+#include "CQuery.h"
+#include "CRankedQuery.h"
 
-#include "MRSInterface.h"
 #include "getopt.h"
 
 using namespace std;
 
 namespace {
 	
-typedef unsigned long uint32;
-
 ostream& operator<<(ostream& inStream, const struct timeval& t)
 {
 	uint32 hours = t.tv_sec / 3600;
@@ -244,77 +245,77 @@ int main(int argc, const char* argv[])
 	if (db.length() == 0 or (queryWords.size() == 0 and filter.length() == 0))
 		usage();
 	
-	double queryTime = 0, printTime = 0, openTime = 0;
-	double realQueryTime, realPrintTime, realOpenTime;
-	double now = system_time();
+	double queryTime = 0, printTime = 0;
+	double realQueryTime, realPrintTime;
+	double now;
 
-	auto_ptr<MDatabank> mrsDb;
+	HUrl url(db);
+	CDatabank mrsDb(url);
 	
-	{
-		CStopwatch sw(openTime);
-
-		mrsDb.reset(new MDatabank(db));
-	}
-	
-	realOpenTime = system_time() - now;
 	now = system_time();
 
 	if (VERBOSE > 1)
 		cout << "databank opened, building query" << endl;
 
-	auto_ptr<MQueryResults> r;
+	auto_ptr<CDocIterator> r;
+
+	if (filter.length() > 0)
+	{
+		CStopwatch sw(queryTime);
+
+		CParsedQueryObject p(mrsDb, filter, false);
+		r.reset(p.Perform());
+	}
+
+	uint32 count = 0;
 
 	if (queryWords.size() > 0)
 	{
 		CStopwatch sw(queryTime);
 
-		auto_ptr<MRankedQuery> q(mrsDb->RankedQuery(ix));
-	
-		q->SetAlgorithm(alg);
-		q->SetAllTermsRequired(1);
-		q->SetMaxReturn(max_output);
+		CRankedQuery q;
 	
 		for (vector<string>::iterator qw = queryWords.begin(); qw != queryWords.end(); ++qw)
-			q->AddTerm(*qw, 1);
+			q.AddTerm(*qw, 1);
 		
-		auto_ptr<MBooleanQuery> m;
-		if (filter.length())
-				m.reset(mrsDb->BooleanQuery(filter));
-	
 		if (VERBOSE > 1)
 			cout << "quiry built, performing" << endl;
 		
-		r.reset(q->Perform(m.get()));
+		CDocIterator* qr;
+		q.PerformSearch(mrsDb, ix, alg, r.get(), max_output, true, qr, count);
+		r.reset(qr);
 	}
-	else if (filter.length() > 0)
-		r.reset(mrsDb->Find(filter, false));
+//	else
+//		count = r->Count();
 	
 	realQueryTime = system_time() - now;
 	now = system_time();
 
 	if (VERBOSE > 1)
 		cout << "query done, printing results" << endl;
-	
+
 	if (r.get() != NULL)
 	{
 		CStopwatch sw(printTime);
+
+		cout << "Found " << count << " hits, displaying the first " << min(max_output, count) << endl;
 		
 		stringstream s;
 		
-		int n = max_output;
-		const char* id;
-		while (n-- > 0 and (id = r->Next()) != NULL)
-		{
-			const char* title = mrsDb->GetMetaData(id, "title");
-			string desc;
-			if (title != NULL)
-				desc = title;
-			s << id << '\t' << r->Score() << '\t' << desc << endl;
-		}
+		uint32 n = max_output;
+		if (n > count)
+			n = count;
 
-		unsigned long count = r->Count(true);
-		cout << "Found " << count << " hits, displaying the first " << min(10UL, count) << endl;
-		cout << s.str() << endl;
+		uint32 docNr;
+		float score;
+
+		while (n-- > 0 and r->Next(docNr, score, false))
+		{
+			cout << mrsDb.GetDocumentID(docNr) << '\t'
+				 << setprecision(3) << score << '\t'
+				 << mrsDb.GetMetaData(docNr, "title")
+				 << endl;
+		}
 	}
 	else
 		cout << "No hits found" << endl;
@@ -330,14 +331,6 @@ int main(int argc, const char* argv[])
 	
 		struct timeval t, tr;
 		
-		t.tv_sec = static_cast<uint32>(openTime);
-		t.tv_usec = static_cast<uint32>(openTime * 1000000.0) % 1000000;
-		
-		tr.tv_sec = static_cast<uint32>(realOpenTime);
-		tr.tv_usec = static_cast<uint32>(realOpenTime * 1000000.0) % 1000000;
-		
-		cout << "Open:       " << t << "     " << tr << endl;
-	
 		t.tv_sec = static_cast<uint32>(queryTime);
 		t.tv_usec = static_cast<uint32>(queryTime * 1000000.0) % 1000000;
 		
