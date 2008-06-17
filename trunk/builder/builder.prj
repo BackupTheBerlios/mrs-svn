@@ -20,7 +20,7 @@
 		<path>../plugin/Lib</path>
 	</userpaths>
 	<libpaths>
-		<path>/home/maarten/projects/mrs-d3/builder/Lib</path>
+		<path>Lib</path>
 		<path>/lib</path>
 		<path>/lib64</path>
 		<path>/usr/lib</path>
@@ -103,7 +103,7 @@
 	</files>
 	<resources resource_dir="../../../../../.."/>
 	<targets>
-		<target kind="Executable" name="MRS Builder Debug" linkTarget="builder">
+		<target kind="Executable" name="MRS Builder Debug" linkTarget="mrs-build">
 			<defines>
 				<define>DEBUG</define>
 				<define>MINI_H_LIB</define>
@@ -119,7 +119,7 @@
 				<warning>no-unknown-pragmas</warning>
 			</warnings>
 		</target>
-		<target kind="Executable" name="MRS Builder Release" linkTarget="builder">
+		<target kind="Executable" name="MRS Builder Release" linkTarget="mrs-build">
 			<defines>
 				<define>NDEBUG</define>
 				<define>MINI_H_LIB</define>
@@ -137,7 +137,7 @@
 				<warning>no-unknown-pragmas</warning>
 			</warnings>
 		</target>
-		<target kind="Executable" name="MRS Builder Prof" linkTarget="builder_p">
+		<target kind="Executable" name="MRS Builder Prof" linkTarget="mrs-build-p">
 			<defines>
 				<define>NDEBUG</define>
 				<define>MINI_H_LIB</define>

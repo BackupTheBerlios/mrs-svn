@@ -188,9 +188,8 @@ bool CTextReaderImpl::Eof() const
 struct CGZipReaderImpl : public CReaderImp
 {
 	enum {
-		kBufferSize = 1024
+		kBufferSize = 10240
 	};
-	
 					CGZipReaderImpl(
 						const fs::path&		inFile);
 	
