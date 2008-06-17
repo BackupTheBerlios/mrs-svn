@@ -58,7 +58,7 @@ class HStreamBase
 	
 	virtual int32	Write(const void* inBuffer, uint32 inSize) = 0;
 	virtual int32	PWrite(const void* inBuffer, uint32 inSize, int64 inOffset);
-
+	
 	virtual int32	Read(void* inBuffer, uint32 inSize) = 0;
 	virtual int32	PRead(void* inBuffer, uint32 inSize, int64 inOffset);
 	

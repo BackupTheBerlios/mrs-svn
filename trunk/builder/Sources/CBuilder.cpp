@@ -118,7 +118,7 @@ class CBuilder : public CDBBuildProgressMixin
 	uint32		mLastStopWord;
 	
 	// progress information
-	bool		mParsingDone;
+	bool		mParsingDone, mShowProgress;
 	double		mStartTime, mLastUpdate;
 	uint32		mFileCount;
 	uint32		mCurrentFile;
@@ -194,6 +194,8 @@ void CBuilder::Run(
 	int32		inNrOfPipeLines,				
 	bool		inShowProgress)
 {
+	mShowProgress = inShowProgress;
+
 	vector<fs::path> rawFiles;
 	
 	if (VERBOSE > 1)
@@ -336,11 +338,11 @@ static string FormatTime(
 	if (inTime >= 60)
 	{
 		uint32 min = inTime / 60;
-		result << min << 'm';
+		result << setw(2) << min << 'm';
 		inTime %= 60;
 	}
 	
-	result << inTime << 's';
+	result << setw(2) << inTime << 's';
 	
 	return result.str();
 }
@@ -409,6 +411,9 @@ void CBuilder::SetCreateIndexProgress(
 	uint32		inCurrentLexEntry,
 	uint32		inTotalLexEntries)
 {
+	if (not mShowProgress)
+		return;
+	
 	CDBBuildProgressMixin::SetCreateIndexProgress(inCurrentLexEntry, inTotalLexEntries);
 	
 	double now = system_time();
@@ -453,9 +458,12 @@ void CBuilder::SetWritingIndexProgress(
 	uint32		inKeyCount,
 	const char*	inIndexName)
 {
-	CDBBuildProgressMixin::SetWritingIndexProgress(inCurrentKey, inKeyCount, inIndexName);
-	cout << endl << "Writing index " << inIndexName;
-	cout.flush();
+	if (mShowProgress)
+	{
+		CDBBuildProgressMixin::SetWritingIndexProgress(inCurrentKey, inKeyCount, inIndexName);
+		cout << endl << "Writing index " << inIndexName;
+		cout.flush();
+	}
 }
 
 void CBuilder::CollectRawFiles(

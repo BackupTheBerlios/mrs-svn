@@ -140,6 +140,19 @@ void error(const char* msg, ...)
 
 void usage()
 {
+	cout << "usage: mrs-query -d databank [-q term] [-f filter]" << endl
+		 << "        -d databank     The databank to search" << endl
+		 << "        -q term         A search term, can be repeated" << endl
+		 << "        -f \"filter ...\" A boolean filter query" << endl
+		 << endl
+		 << "  additional parameters:" << endl
+		 << "        -v              Verbose, repeat for increased output" << endl
+		 << "        -n #maxreturn   Maximum number of lines of output" << endl
+		 << "        -a algorithm    Ranking algorithm, default is 'vector'," << endl
+		 << "                        alternatives are 'dice' and 'jaccard'." << endl
+		 << "        -o output       Write output to file 'output'" << endl
+		 << endl;
+	
 	exit(1);
 }
 
@@ -177,6 +190,7 @@ int main(int argc, const char* argv[])
 	// scan the options
 
 	string db, filter, ix, alg = "vector";
+	uint32 max_output = 10;
 	ofstream of;
 	streambuf* outBuf = NULL;
 	vector<string> queryWords;
@@ -184,7 +198,7 @@ int main(int argc, const char* argv[])
 	ix = "__ALL_TEXT__";
 
 	int c;
-	while ((c = getopt(argc, const_cast<char**>(argv), "d:o:vq:f:s:i:a:")) != -1)
+	while ((c = getopt(argc, const_cast<char**>(argv), "d:o:vq:f:s:i:a:n:")) != -1)
 	{
 		switch (c)
 		{
@@ -212,6 +226,10 @@ int main(int argc, const char* argv[])
 				filter = optarg;
 				break;
 
+			case 'n':
+				max_output = atoi(optarg);
+				break;
+	
 			case 'o':
 				of.open(optarg, ios::out | ios::trunc);
 				outBuf = cout.rdbuf(of.rdbuf());
@@ -222,6 +240,9 @@ int main(int argc, const char* argv[])
 				break;
 		}
 	}
+	
+	if (db.length() == 0 or (queryWords.size() == 0 and filter.length() == 0))
+		usage();
 	
 	double queryTime = 0, printTime = 0, openTime = 0;
 	double realQueryTime, realPrintTime, realOpenTime;
@@ -251,7 +272,7 @@ int main(int argc, const char* argv[])
 	
 		q->SetAlgorithm(alg);
 		q->SetAllTermsRequired(1);
-		q->SetMaxReturn(10);
+		q->SetMaxReturn(max_output);
 	
 		for (vector<string>::iterator qw = queryWords.begin(); qw != queryWords.end(); ++qw)
 			q->AddTerm(*qw, 1);
@@ -280,7 +301,7 @@ int main(int argc, const char* argv[])
 		
 		stringstream s;
 		
-		int n = 10;
+		int n = max_output;
 		const char* id;
 		while (n-- > 0 and (id = r->Next()) != NULL)
 		{

@@ -1544,7 +1544,7 @@ void CDatabank::StoreDocument(
 		AddSequence(*s);
 #endif
 
-	fDataFile->Write(inDocument.Data(), inDocument.Size());
+	inDocument.Write(*fDataFile);
 	(*fDocIndexData) << (fDataFile->Tell() - fFirstDocOffset);
 	++fHeader->entries;
 	fParts[0].raw_data_size += inDocument.TextLength();

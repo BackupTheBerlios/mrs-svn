@@ -25,7 +25,7 @@ CFLAGS		= -fsigned-char -g -ffor-scope
 CFLAGS		+= -fmessage-length=132 -fdiagnostics-show-location=every-line
 LDFLAGS		= -fdata-sections -g
 #OPT		+= -fstrict-aliasing
-OPT			+= -O3
+OPT			+= -O2
 
 include ../make.config
 

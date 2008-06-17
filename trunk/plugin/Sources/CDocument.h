@@ -83,10 +83,9 @@ class CDocument
 											inMetaDataFields,
 							CCompressor&	inCompressor);
 
-	const void*			Data() const			{ return mCompressedData.Buffer(); }
-
-	int64				Size() const			{ return mCompressedData.Size(); }
-
+	void				Write(
+							HStreamBase&	inFile) const;
+	
 	const std::vector<std::string>&
 						Sequences() const		{ return mSequences; }
 

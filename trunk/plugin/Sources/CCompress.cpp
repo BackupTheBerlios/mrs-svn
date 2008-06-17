@@ -168,7 +168,7 @@ void CZLibCompressorImp::InitStream(
 {
 	HSwapStream<net_swapper> data(inStream);
 	
-	uint16 ds = 0;
+	uint16 ds = dictionary.length();
 	data << ds;
 
 	if (ds > 0)
@@ -503,7 +503,8 @@ CCompressorFactory::CCompressorFactory(
 		if (VERBOSE)
 			cout << "Using zlib compression" << endl;
 	}
-	else if (inCompressionAlgorithmName == "bzip")
+	else if (inCompressionAlgorithmName == "bzip2" or
+			 inCompressionAlgorithmName == "bzip")
 	{
 		fKind = kbzLibCompressed;
 		if (VERBOSE)

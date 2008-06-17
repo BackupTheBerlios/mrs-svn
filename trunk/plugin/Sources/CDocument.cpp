@@ -256,3 +256,9 @@ void CDocument::Compress(
 	else
 		inCompressor.CompressDocument(mText.c_str(), mText.length(), mCompressedData);
 }
+
+void CDocument::Write(
+	HStreamBase&	inFile) const
+{
+	inFile.Write(mCompressedData.Buffer(), mCompressedData.Size());
+}

@@ -19,6 +19,11 @@
 
 */
 
+#include <boost/filesystem/operations.hpp>
+#include <boost/filesystem/path.hpp>
+#include <boost/thread.hpp>
+#include <boost/bind.hpp>
+
 #include <EXTERN.h>
 #include <perl.h>
 #include <XSUB.h>
@@ -28,11 +33,6 @@
 
 #include <string>
 #include <deque>
-
-#include <boost/filesystem/operations.hpp>
-#include <boost/filesystem/path.hpp>
-#include <boost/thread.hpp>
-#include <boost/bind.hpp>
 
 #include "WFormat.h"
 

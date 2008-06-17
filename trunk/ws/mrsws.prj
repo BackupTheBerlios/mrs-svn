@@ -5,6 +5,7 @@
 		<pkg tool="pkg-config">libxml-2.0</pkg>
 	</pkg-config>
 	<syspaths>
+		<path>/usr/local/include/boost-1_35</path>
 		<path>/usr/include</path>
 		<path>/usr/local/include</path>
 	</syspaths>
@@ -18,9 +19,10 @@
 		<path>Sources</path>
 	</userpaths>
 	<libpaths>
+		<path>Lib</path>
 		<path>/usr/lib</path>
 		<path>/usr/local/lib</path>
-		<path>/home/maarten/projects/mrs/ws/../plugin</path>
+		<path>../plugin</path>
 	</libpaths>
 	<frameworks/>
 	<files>
@@ -46,9 +48,10 @@
 			<link>bz2</link>
 			<link>gsoap++</link>
 			<link>xml2</link>
-			<link>boost_filesystem</link>
-			<link>boost_thread</link>
-			<link>boost_regex</link>
+			<link>boost_filesystem-mt</link>
+			<link>boost_thread-mt</link>
+			<link>boost_regex-mt</link>
+			<link>boost_system-mt</link>
 			<link>mrs</link>
 		</group>
 	</files>

@@ -49,6 +49,7 @@ sub new
 		name		=> 'HSSP',
 		section		=> 'structure',
 		meta		=> [ 'title' ],
+		compression	=> 'zlib',
 		raw_files	=> qr/\.hssp$/,
 		@_
 	);

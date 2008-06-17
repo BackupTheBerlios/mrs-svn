@@ -20,11 +20,11 @@ WServer::WServer(
 {
 	soap_init2(&mSoap, SOAP_IO_KEEPALIVE, SOAP_IO_KEEPALIVE | SOAP_C_UTFSTRING);
 	
-#ifndef NDEBUG
-	soap_set_recv_logfile(&mSoap, "/home/maarten/projects/mrs/ws/r_mrsws.log"); // append all messages received in /logs/recv/service12.log
-	soap_set_sent_logfile(&mSoap, "/home/maarten/projects/mrs/ws/s_mrsws.log"); // append all messages sent in /logs/sent/service12.log
-	soap_set_test_logfile(&mSoap, "/home/maarten/projects/mrs/ws/d_mrsws.log"); // no file name: do not save debug messages
-#endif
+//#ifndef NDEBUG
+//	soap_set_recv_logfile(&mSoap, "/home/maarten/projects/mrs/ws/r_mrsws.log"); // append all messages received in /logs/recv/service12.log
+//	soap_set_sent_logfile(&mSoap, "/home/maarten/projects/mrs/ws/s_mrsws.log"); // append all messages sent in /logs/sent/service12.log
+//	soap_set_test_logfile(&mSoap, "/home/maarten/projects/mrs/ws/d_mrsws.log"); // no file name: do not save debug messages
+//#endif
 	
 	soap_set_namespaces(&mSoap, inNameSpaces);
 	

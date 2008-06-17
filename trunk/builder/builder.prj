@@ -20,7 +20,7 @@
 		<path>../plugin/Lib</path>
 	</userpaths>
 	<libpaths>
-		<path>Lib</path>
+		<path>/home/maarten/projects/mrs-dev/builder/Lib</path>
 		<path>/lib</path>
 		<path>/lib64</path>
 		<path>/usr/lib</path>
