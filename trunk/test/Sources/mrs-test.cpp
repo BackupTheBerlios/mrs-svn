@@ -33,6 +33,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include "MRS.h"
  
 #include <vector>
 #include <string>
@@ -42,7 +44,8 @@
 #include <cerrno>
 #include <cstdarg>
 
-#include "MRS.h"
+#include <boost/filesystem.hpp>
+
 
 #include "HFile.h"
 
@@ -52,6 +55,7 @@
 #include "getopt.h"
 
 using namespace std;
+namespace fs = boost::filesystem;
 
 void error(const char* msg, ...)
 {
@@ -73,10 +77,14 @@ void error(const char* msg, ...)
 
 void usage()
 {
-	cout << "Usage: mrs_merge -d databank -P part_count [-l] [-v]" << endl
-	     << "       mrs_merge -d databank -p part1 [-p part2 ...] [-l] [-v]" << endl
+	cout << "Usage: mrs-test -d databank [-v]" << endl
+	     << "         -d databank   Must be the full path to the databank" << endl
+		 << "                       runs a test on the indices in the databank" << endl
 	     << endl
-	     << "    -l   link data instead of copying it" << endl;
+		 << "       mrs-test -d databank -k key -i index [-v]" << endl
+	     << "         -k key        A key to search in the databank" << endl
+	     << "         -i index      The index to search in the databank" << endl
+	     << endl;
 	exit(1);
 }
 
@@ -113,37 +121,44 @@ int main(int argc, const char* argv[])
 		}
 	}
 
-	if (db.length() == 0 and ((index.length() == 0) != (key.length() == 0)))
+	if (db.length() == 0 or ((index.length() == 0) != (key.length() == 0)))
 		usage();
 	
-	HUrl url(db);
-	if (not HFile::Exists(url))
+	if (not fs::exists(db))
 		cerr << "please specify full path to existing db" << endl;
 	else
 	{
-		CDatabank databank(url);
-		const CIndexer* ixr = databank.GetIndexer();
-
-		if (index.length() and key.length())
+		try
 		{
-#if 0
-			auto_ptr<CIndex> ix(ixr->GetIndex(index));
-
-			CIndex::iterator iter = ix->lower_bound(key);
-			while (iter != ix->end())
+			HUrl url(db);
+			CDatabank databank(url);
+			const CIndexer* ixr = databank.GetIndexer();
+	
+			if (index.length() and key.length())
 			{
-				cout << iter->first << ", " << iter->second << endl;
-				++iter;
-			}
+#if 0
+				auto_ptr<CIndex> ix(ixr->GetIndex(index));
+	
+				CIndex::iterator iter = ix->lower_bound(key);
+				while (iter != ix->end())
+				{
+					cout << iter->first << ", " << iter->second << endl;
+					++iter;
+				}
 #endif
-			auto_ptr<CDocIterator> iter(ixr->CreateDocIterator(index, key, false, kOpContains));
-			
-			uint32 docNr = 0;
-			while (iter->Next(docNr, false))
-				;
+				auto_ptr<CDocIterator> iter(ixr->CreateDocIterator(index, key, false, kOpContains));
+				
+				uint32 docNr = 0;
+				while (iter->Next(docNr, false))
+					;
+			}
+			else
+				ixr->Test();
 		}
-		else
-			ixr->Test();
+		catch (exception& e)
+		{
+			cerr << "Exception: " << e.what() << endl;
+		}
 	}
 	
 	return 0;

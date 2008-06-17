@@ -1,6 +1,6 @@
-/*	$Id: CBlast.h 307 2007-02-01 12:46:00Z hekkel $
+/*	$Id: MRS.h 331 2007-02-12 07:44:10Z hekkel $
 	Copyright Maarten L. Hekkelman
-	Created Monday May 30 2005 15:50:21
+	Created Saturday December 07 2002 12:51:07
 */
 
 /*-
@@ -39,101 +39,58 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
  
-#ifndef CBLAST_H
-#define CBLAST_H
+#ifndef MRS_H
+#define MRS_H
 
-#ifndef NO_BLAST
+#include "HLib.h"
+#include <limits>
 
-class CDatabank;
-class CDocIterator;
-class CBlastQueryBase;
-class CBlast;
+//#if P_WIN
+//#include "DebugNew.h"
+//#endif
 
-struct CBlastHspIterator
+#if P_BIGENDIAN
+#define FOUR_CHAR_INLINE(x)	x
+#else
+#define FOUR_CHAR_INLINE(x)     \
+			((((x)<<24) & 0xFF000000UL)|\
+			 (((x)<<8 ) & 0x00FF0000UL)|\
+			 (((x)>>8 ) & 0x0000FF00UL)|\
+			 (((x)>>24) & 0x000000FFUL))
+#endif
+
+// some globals, settable from the outside
+
+#include <string>
+
+enum CIndexKind
 {
-	bool				Next();
+	kTextIndex			= FOUR_CHAR_INLINE('text'),
+	kWeightedIndex		= FOUR_CHAR_INLINE('wtxt'),	// old name
 	
-	uint32				QueryStart();
-	uint32				SubjectStart();
-	uint32				SubjectLength();
+			// unique id, each key points to only one doc
+	kValueIndex			= FOUR_CHAR_INLINE('valu'),
+	kDateIndex			= FOUR_CHAR_INLINE('date'),
 	
-	std::string			QueryAlignment();
-	std::string			SubjectAlignment();
-	std::string			Midline();
-	
-	uint32				Score();
-	double				BitScore();
-	double				Expect();
-	
-	uint32				Identity();
-	uint32				Positive();
-	uint32				Gaps();
-	
-//						CBlastHspIterator();
-						CBlastHspIterator(const CBlastHspIterator&);
-	CBlastHspIterator&	operator=(const CBlastHspIterator&);
-
-						CBlastHspIterator(CBlast* inBlast, CBlastQueryBase* inBQ, struct Hit* inHit);
-	
-  private:
-	
-	CBlast*				mBlast;
-	CBlastQueryBase*	mBlastQuery;
-	struct Hit*			mHit;
-	int32				mHspNr;
+			// index containing ascii representation of an integer
+	kNumberIndex		= FOUR_CHAR_INLINE('nmbr')
 };
 
-struct CBlastHitIterator
+const uint32
+	kInvalidDocID = std::numeric_limits<uint32>::max(),
+	kMaxInDocumentLocation = 0x7ffff;	// half a million words... seems enough to me
+
+enum CQueryOperator
 {
-	bool				Next();
-	
-	CBlastHspIterator	Hsps();
-	uint32				DocumentNr() const;
-	std::string			DocumentID() const;
-
-//						CBlastHitIterator();
-						CBlastHitIterator(const CBlastHitIterator&);
-	CBlastHitIterator&	operator=(const CBlastHitIterator&);
-					
-  private:
-	friend class		CBlast;
-
-						CBlastHitIterator(CBlast* inBlast, CBlastQueryBase* inBQ);
-
-	CBlast*				mBlast;
-	CBlastQueryBase*	mBlastQuery;
-	int32				mHitNr;
+	kOpContains,		// default, the google like operator
+	kOpEquals,			// exact match, works only with Number, Date and Value indexes
+	kOpLessThan,
+	kOpLessEqual,
+	kOpEqual,
+	kOpGreaterEqual,
+	kOpGreaterThan
 };
 
-class CBlast
-{
-	friend class		CBlastHspIterator;
-  public:
-						CBlast(const std::string& inQuery,
-							const std::string& inMatrix, uint32 inWordSize,
-							double inExpect,
-							bool inFilter, bool inGapped,
-							uint32 inGapOpen, uint32 inGapExtend,
-							uint32 inReportLimit);
-	virtual				~CBlast();
-	
+extern int VERBOSE;
 
-	bool				Find(CDatabankBase& inDb, CDocIterator& inIter);
-
-	unsigned long		DbCount();
-	unsigned long		DbLength();
-	unsigned long		EffectiveSpace();
-	double				Kappa();
-	double				Lambda();
-	double				Entropy();
-
-	CBlastHitIterator	Hits();
-	
-  private:
-	struct CBlastImp*	mImpl;
-};
-
-
-#endif // NO_BLAST
-
-#endif // CBLAST_H
+#endif // MRS_H

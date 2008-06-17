@@ -40,7 +40,6 @@
  */
  
 #include "MRS.h"
-#include "MRSInterface.h"
 
 #include <list>
 #include <iostream>

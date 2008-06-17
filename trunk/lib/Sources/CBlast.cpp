@@ -1481,7 +1481,10 @@ struct CBlastImp
 									bool inGapped, uint32 inGapOpen, uint32 inGapExtend,
 									uint32 inReportLimit);
 	
-	bool						Find(CDatabankBase& inDb, CDocIterator& inIter);
+	bool						Find(
+									CDatabankBase&	inDb,
+									CDocIterator&	inIter,
+									uint32			inThreads);
 	
 	CSequence					mQuery;
 	CSequence					mUnfilteredQuery;
@@ -1519,7 +1522,10 @@ CBlastImp::CBlastImp(const string& inQuery, const string& inMatrix, uint32 inWor
 		mQuery = mUnfilteredQuery;
 }
 
-bool CBlastImp::Find(CDatabankBase& inDb, CDocIterator& inIter)
+bool CBlastImp::Find(
+	CDatabankBase&	inDb,
+	CDocIterator&	inIter,
+	uint32			inThreads)
 {
 	WordHitIteratorBase<2>::WordHitIteratorStaticData whiStaticData2;
 	WordHitIteratorBase<3>::WordHitIteratorStaticData whiStaticData3;
@@ -1559,13 +1565,13 @@ bool CBlastImp::Find(CDatabankBase& inDb, CDocIterator& inIter)
 	mDbCount = 0;
 	mDbLength = 0;
 	
-	if (THREADS > 1)
+	if (inThreads > 1)
 	{
 		HMutex lock;
 		
 		vector<CBlastQueryBase*> queries;
 		vector<CBlastThread*> threads;
-		for (uint32 n = 0; n < THREADS; ++n)
+		for (uint32 n = 0; n < inThreads; ++n)
 		{
 			switch (mWordSize)
 			{
@@ -1594,7 +1600,7 @@ bool CBlastImp::Find(CDatabankBase& inDb, CDocIterator& inIter)
 	
 		string error;
 	
-		for (uint32 n = 0; n < THREADS; ++n)
+		for (uint32 n = 0; n < inThreads; ++n)
 		{
 			threads[n]->Join();
 			
@@ -1675,9 +1681,12 @@ CBlast::~CBlast()
 	delete mImpl;
 }
 
-bool CBlast::Find(CDatabankBase& inDb, CDocIterator& inIter)
+bool CBlast::Find(
+	CDatabankBase&	inDb,
+	CDocIterator&	inIter,
+	uint32			inThreads)
 {
-	return mImpl->Find(inDb, inIter);
+	return mImpl->Find(inDb, inIter, inThreads);
 }
 
 unsigned long CBlast::DbCount()
