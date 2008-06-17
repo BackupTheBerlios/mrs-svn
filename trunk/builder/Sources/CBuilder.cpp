@@ -161,8 +161,12 @@ CBuilder::CBuilder(
 			path = mSafe->GetURL();
 		}
 		
-#warning("fix me")
-		mCompressorFactory = new CCompressorFactory("zlib", 3, "", 0);
+		string compAlgo, compDict;
+		int32 compLevel;
+		
+		mParser->GetCompressionInfo(compAlgo, compLevel, compDict);
+		
+		mCompressorFactory = new CCompressorFactory(compAlgo, compLevel, compDict);
 		
 		mDatabank = new CDatabank(path, mMeta, inDatabank,
 			version, url, inScript, section, this, *mCompressorFactory);
@@ -470,16 +474,13 @@ void CBuilder::ParseFiles(
 	CDocumentBuffer*	inCompressDocBuffer)
 {
 	CParser parser(mDatabankName, inScriptName, mRawDir.string());
+	
+	CParser::CDocCallback callBack =
+		boost::bind(&CBuilder::ProcessDocument, this, _1, _2);
 
 	CReaderPtr next;
 	while ((next = inReaderBuffer->Get()) != CReader::sEnd)
-	{
-//if (inReaderBuffer->WasEmpty())
-//	cerr << "inReaderBuffer was empty" << endl;
-
-		parser.Parse(*next, inCompressDocBuffer,
-			boost::bind(&CBuilder::ProcessDocument, this, _1, _2));
-	}
+		parser.Parse(*next, inCompressDocBuffer, callBack);
 	
 	inReaderBuffer->Put(CReader::sEnd);
 	inCompressDocBuffer->Put(CDocument::sEnd);
@@ -502,9 +503,6 @@ void CBuilder::TokenizeDoc(
 	
 	while ((next = inTokenizeDocBuffer->Get()) != CDocument::sEnd)
 	{
-//if (inTokenizeDocBuffer->WasEmpty())
-//	cerr << "inTokenizeDocBuffer was empty" << endl;
-
 		next->TokenizeText(mLexicon, mLastStopWord);
 
 		inCompressDocBuffer->Put(next);
@@ -522,9 +520,6 @@ void CBuilder::CompressDoc(
 	
 	while ((next = inCompressDocBuffer->Get()) != CDocument::sEnd)
 	{
-//if (inCompressDocBuffer->WasEmpty())
-//	cerr << "inCompressDocBuffer was empty" << endl;
-
 		next->Compress(mMeta, *compressor);
 
 		inIndexDocBuffer->Put(next);
@@ -603,13 +598,27 @@ void CBuilder::ReadStopWords()
 
 void usage()
 {
-	cout << "usage ..." << endl;
+	cout << "usage: mrs-build -d databank [-s script] [-a #threads] [-p] [-v]" << endl
+		 << "    -d databank       The databank to build" << endl
+		 << "    -s script         The parser script to use, default is same as databank" << endl
+		 << "    -a #threads       The number of threads (pipelines) to use" << endl
+		 << "    -S                Don't try to load the stopwords file (stop.txt)" << endl
+		 << "    -p                Show progress information" << endl
+		 << "    -v                Verbose output, can be specified multiple times"
+		 << endl;
 	exit(1);
 }
 
 void error(const char* msg, ...)
 {
-	cout << msg << endl;
+	char b[1024];
+	
+	va_list vl;
+	va_start(vl, msg);
+	vsnprintf(b, sizeof(b), msg, vl);
+	va_end(vl);
+
+	cerr << "mrs-build fatal error: " << b << endl;
 	exit(1);
 }
 
@@ -671,12 +680,12 @@ int main(int argc, char* const argv[])
 	}
 	catch (exception& e)
 	{
-		cerr << "mrsbuild failed with exception:" << endl << e.what() << endl;
+		cerr << "mrs-build failed with exception:" << endl << e.what() << endl;
 		exit(1);
 	}
 	catch (...)
 	{
-		cerr << "mrsbuild failed with unhandled exception" << endl;
+		cerr << "mrs-build failed with unhandled exception" << endl;
 		exit(1);
 	}
 	

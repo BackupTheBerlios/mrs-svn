@@ -87,6 +87,9 @@ class CDocument
 
 	int64				Size() const			{ return mCompressedData.Size(); }
 
+	const std::vector<std::string>&
+						Sequences() const		{ return mSequences; }
+
 	uint32				TextLength() const		{ return mText.length(); }
 
 	const CTokenMap&	GetTokenMap() const		{ return mTokenData; }

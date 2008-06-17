@@ -70,13 +70,12 @@ class CCompressorFactory
 {
   public:
 						CCompressorFactory(
-							const char*		inCompressionAlgorithmName,
-							int32			inCompressionLevel,
-							const char*		inDictionary,
-							uint32			inDictionaryLength);
+							const std::string&	inCompressionAlgorithmName,
+							int32				inCompressionLevel,
+							const std::string&	inDictionary);
 
 	void				InitDataStream(
-							HStreamBase&	outData);
+							HStreamBase&		outData);
 
 	CCompressor*		CreateCompressor();
 
@@ -95,21 +94,21 @@ class CCompressor
 	virtual				~CCompressor();
 
 	void				CompressDocument(
-							const char*		inText,
-							uint32			inSize,
-							HStreamBase&	outData);
+							const char*			inText,
+							uint32				inSize,
+							HStreamBase&		outData);
 
 	void				CompressData(
 							std::vector<std::pair<const char*,uint32> >&
-											inDataVector,
-							HStreamBase&	outData);
+												inDataVector,
+							HStreamBase&		outData);
 
   private:
 
 	friend class CCompressorFactory;
 	
 						CCompressor(
-							CCompressorImp*	inImpl);
+							CCompressorImp*		inImpl);
 						
 						CCompressor(
 							const CCompressor&);

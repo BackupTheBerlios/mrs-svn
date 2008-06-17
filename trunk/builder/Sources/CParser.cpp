@@ -906,3 +906,34 @@ void CParser::CollectRawFiles(
 {
 	mImpl->CollectRawFiles(outRawFiles);
 }
+
+void CParser::GetCompressionInfo(
+	string&		outCompressionAlgorithm,
+	int32&		outCompressionLevel,
+	string&		outCompressionDictionary)
+{
+	HV* hash = mImpl->GetHash();
+	if (hash == nil)
+		THROW(("runtime error"));
+	
+	SV** sv = Perl_hv_fetch(aTHX_ hash, "compression", 11, 0);
+	if (sv != nil and SvPOK(*sv))
+		outCompressionAlgorithm = SvPVX(*sv);
+	else
+		outCompressionAlgorithm = "zlib";
+	
+	sv = Perl_hv_fetch(aTHX_ hash, "compression_dictionary", 22, 0);
+	if (sv != nil and SvPOK(*sv))
+		outCompressionDictionary = SvPVX(*sv);
+	else
+		outCompressionDictionary.clear();
+	
+	sv = Perl_hv_fetch(aTHX_ hash, "compression_level", 17, 0);
+	if (sv != nil and SvPOK(*sv))
+		outCompressionLevel = atoi(SvPVX(*sv));
+	else if (sv != nil and SvIOK(*sv))
+		outCompressionLevel = SvIV(*sv);
+	else
+		outCompressionLevel = 3;
+}
+

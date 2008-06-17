@@ -41,6 +41,11 @@ class CParser
 							std::vector<std::string>&
 													outMetaDataFields);
 
+	void				GetCompressionInfo(
+							std::string&			outCompressionAlgorithm,
+							int32&					outCompressionLevel,
+							std::string&			outCompressionDictionary);
+
   private:
 
 						CParser(

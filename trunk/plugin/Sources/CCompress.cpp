@@ -487,26 +487,23 @@ CCompressorImp* CCompressorImp::Create(
 //
 
 CCompressorFactory::CCompressorFactory(
-	const char*		inCompressionAlgorithmName,
+	const string&	inCompressionAlgorithmName,
 	int32			inCompressionLevel,
-	const char*		inDictionary,
-	uint32			inDictionaryLength)
+	const string&	inDictionary)
 	: fKind(kInvalidData)
 	, fLevel(inCompressionLevel)
+	, fDictionary(inDictionary)
 {
-	if (inDictionary and inDictionaryLength > 0)
-		fDictionary.assign(inDictionary, inDictionaryLength);
-	
-	if (strcmp(inCompressionAlgorithmName, "huffword") == 0)
+	if (inCompressionAlgorithmName == "huffword")
 		THROW(("huffword is no longer supported as compression algorithm"));
-	else if (strcmp(inCompressionAlgorithmName, "zlib") == 0 or
-			 strcmp(inCompressionAlgorithmName, "gzip") == 0)
+	else if (inCompressionAlgorithmName == "zlib" or
+			 inCompressionAlgorithmName == "gzip")
 	{
 		fKind = kZLibCompressed;
 		if (VERBOSE)
 			cout << "Using zlib compression" << endl;
 	}
-	else if (strcmp(inCompressionAlgorithmName, "bzip") == 0)
+	else if (inCompressionAlgorithmName == "bzip")
 	{
 		fKind = kbzLibCompressed;
 		if (VERBOSE)

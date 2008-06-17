@@ -1536,6 +1536,14 @@ void CDatabank::GetStopWords(set<string>& outStopWords) const
 void CDatabank::StoreDocument(
 	const CDocument&	inDocument)
 {
+	// any sequences?
+	
+#ifndef NO_BLAST
+	const vector<string>& seqs = inDocument.Sequences();
+	for (vector<string>::const_iterator s = seqs.begin(); s != seqs.end(); ++s)
+		AddSequence(*s);
+#endif
+
 	fDataFile->Write(inDocument.Data(), inDocument.Size());
 	(*fDocIndexData) << (fDataFile->Tell() - fFirstDocOffset);
 	++fHeader->entries;
