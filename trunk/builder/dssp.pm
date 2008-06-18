@@ -109,6 +109,7 @@ sub Parse
 		}
 	}
 	
+	$self->IndexText('title', $title);
 	$self->StoreMetaData('title', $title);
 
 	$self->Store($doc);

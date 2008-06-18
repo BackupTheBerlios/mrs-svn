@@ -2,7 +2,7 @@
 #define CREADER_H
 
 #include <boost/shared_ptr.hpp>
-#include <boost/filesystem.hpp>
+#include <boost/filesystem/path.hpp>
 
 class CReader;
 typedef boost::shared_ptr<CReader>	CReaderPtr;

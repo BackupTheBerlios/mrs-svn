@@ -282,7 +282,7 @@ int main(int argc, const char* argv[])
 			cout << "quiry built, performing" << endl;
 		
 		CDocIterator* qr;
-		q.PerformSearch(mrsDb, ix, alg, r.get(), max_output, true, qr, count);
+		q.PerformSearch(mrsDb, ix, alg, r.release(), max_output, true, qr, count);
 		r.reset(qr);
 	}
 	

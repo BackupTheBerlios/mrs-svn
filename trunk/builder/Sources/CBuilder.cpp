@@ -6,13 +6,13 @@
 
 #include "MRS.h"
 
-#include <boost/filesystem.hpp>
 #include <boost/iterator/iterator_facade.hpp>
 #include <boost/thread.hpp>
 #include <boost/ptr_container/ptr_vector.hpp>
 #include <boost/bind.hpp>
 #include <boost/algorithm/string/find.hpp>
 #include <boost/filesystem/fstream.hpp>
+#include <boost/filesystem/operations.hpp>
 #include <getopt.h>
 #include <string>
 #include <iostream>

@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <boost/thread.hpp>
+#include <boost/filesystem/operations.hpp>
 
 #define PERL_NO_SHORT_NAMES 1
 //#define PERL_IMPLICIT_CONTEXT 1
@@ -28,7 +29,8 @@ using namespace std;
 #endif
 
 #undef SvIV
-#define SvIV(sv) (SvIOK(sv) ? SvIVX(sv) : Perl_sv_2iv(aTHX_ sv))
+//#define SvIV(sv) (SvIOK(sv) ? SvIVX(sv) : Perl_sv_2iv(aTHX_ sv))
+#define SvIV(sv) (SvIOK(sv) ? SvIVX(sv) : Perl_sv_2iv_flags(aTHX_ sv, SV_GMAGIC))
 
 #undef SvUV
 #define SvUV(sv) (SvIOK(sv) ? SvUVX(sv) : Perl_sv_2uv(aTHX_ sv))
