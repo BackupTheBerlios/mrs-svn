@@ -504,7 +504,7 @@ CDatabank::CDatabank(
 	*fDataFile << fParts[0];
 	
 	HUrl offsetsUrl = inPath;
-	offsetsUrl.SetFileName(offsetsUrl.GetFileName() + ".offsets");
+	offsetsUrl.SetFileName(offsetsUrl.GetFilePath() + ".offsets");
 	
 	fDocIndexData = new HTempFileStream(offsetsUrl);
 	fDataOffset = fDataFile->Tell();
@@ -664,7 +664,7 @@ CDatabank::~CDatabank()
 
 string CDatabank::GetDbName() const
 {
-	return basename(fPath.GetFileName());
+	return basename(fPath.GetFilePath());
 }
 
 void CDatabank::Finish(
@@ -879,7 +879,7 @@ void CDatabank::Merge(vector<CDatabank*>& inParts, bool inCopyData)
 		
 		if (VERBOSE >= 1)
 		{
-			cout << "Copying data from " << (*d)->fPath.GetFileName() << " ";
+			cout << "Copying data from " << (*d)->fPath.GetFilePath() << " ";
 			cout.flush();
 		}
 
@@ -903,7 +903,7 @@ void CDatabank::Merge(vector<CDatabank*>& inParts, bool inCopyData)
 			else
 			{
 				(*d)->GetDecompressor(ix)->LinkData(
-					(*d)->GetDataUrl().GetFileName(), (*d)->GetUUID(),
+					(*d)->GetDataUrl().GetFilePath(), (*d)->GetUUID(),
 					*fDataFile, fParts[part].kind,
 					fParts[part].data_offset, fParts[part].data_size,
 					fParts[part].table_offset, fParts[part].table_size);
@@ -1020,7 +1020,7 @@ void CDatabank::Merge(vector<CDatabank*>& inParts, bool inCopyData)
 		
 		if (VERBOSE)
 		{
-			cout << "Copying info from " << (*d)->fPath.GetFileName() << " ";
+			cout << "Copying info from " << (*d)->fPath.GetFilePath() << " ";
 			cout.flush();
 		}
 
@@ -1282,6 +1282,11 @@ string CDatabank::GetName() const
 		result = GetDbName();
 
 	return result;
+}
+
+string CDatabank::GetFilePath() const
+{
+	return fPath.GetNativePath();
 }
 
 string CDatabank::GetInfoURL() const
@@ -2340,6 +2345,11 @@ string CJoinedDatabank::GetName() const
 		result += fParts[p].fDb->GetName();
 	}
 	return result;
+}
+
+string CDatabank::GetFilePath() const
+{
+	return kEmptyString;
 }
 
 string CJoinedDatabank::GetInfoURL() const

@@ -387,10 +387,12 @@ void CRankedQuery::PerformSearch(
 	CDatabankBase&		inDatabank,
 	const string&		inIndex,
 	const string&		inAlgorithm,
-	CDocIterator*		inMetaQuery,
+	auto_ptr<CDocIterator>
+						inMetaQuery,
 	uint32				inMaxReturn,
 	bool				inAllTermsRequired,
-	CDocIterator*&		outResults,
+	auto_ptr<CDocIterator>&
+						outResults,
 	uint32&				outCount)
 {
 	Algorithm& alg = Algorithm::Choose(inAlgorithm);
@@ -457,7 +459,6 @@ void CRankedQuery::PerformSearch(
 		else		// short cut, no results
 		{
 			outCount = 0;
-			outResults = nil;
 			return;
 		}
 	}
@@ -564,5 +565,5 @@ void CRankedQuery::PerformSearch(
 	for (vector<CDocScore>::iterator i = docs.begin(); i != docs.end(); ++i)
 		dv->push_back(make_pair(i->fDocNr, i->fRank * 100));
 
-	outResults = new CDocFreqVectorIterator(dv.release());
+	outResults.reset(new CDocFreqVectorIterator(dv.release()));
 }

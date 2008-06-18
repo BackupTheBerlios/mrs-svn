@@ -43,6 +43,9 @@
 #define HUrl_H
 
 #include <string>
+
+#include <boost/filesystem/path.hpp>
+
 #include "HNativeTypes.h"		// for HFileSpec
 
 extern const char
@@ -61,6 +64,7 @@ class HUrl
 							HUrl(const HUrl& inURL);
 	explicit				HUrl(std::string inURL);
 	explicit				HUrl(const HFileSpec& inSpec);
+							HUrl(const boost::filesystem::path& inPath);
 							~HUrl();
 
 	HUrl					GetParent() const;

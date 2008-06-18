@@ -2,8 +2,8 @@
 #define WSBLAST_H
 
 #include "WServer.h"
-#include "WDatabankTable.h"
 #include "WSBlastNSH.h"
+
 #include <boost/shared_ptr.hpp>
 
 struct CBlastJobParameters;
@@ -17,7 +17,7 @@ class WSBlast : public WServerT<WSBlast>
 						WSBlast(
 							const std::string&			inAddress,
 							uint16						inPortNr,
-							DBInfoVector&				inDbs);
+							std::vector<std::string>&	inDbs);
 
 	virtual				~WSBlast();
 	
@@ -94,17 +94,14 @@ class WSBlast : public WServerT<WSBlast>
 	CBlastJobPtr		GetJob(
 							const std::string&			job_id);
 
-	WSDatabankTable		mDBs;
+	std::vector<std::string>
+						mDBs;
 	CBlastJobList		mQueue;
 	CBlastJobList		mCache;
 	boost::mutex		mQueueMutex;
 	boost::condition	mQueueEmpty;
 	bool				mStopBlasting;
 	boost::thread		mLoopThread;
-
-//	CBlastJobQueue	mQueue;
-//	CBlastJobList	mCache;
-//	boost::mutex	mCacheMutex;
 };
 
 #endif

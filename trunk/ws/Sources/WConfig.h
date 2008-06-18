@@ -11,15 +11,14 @@
 #include <vector>
 #include <boost/filesystem.hpp>
 
-struct DBInfo
+struct WDbFileInfo
 {
-	std::string		name;
-	bool			blast;
-	bool			fasta;
-	bool			ignore_in_all;
+	std::string					id;
+	bool						is_joined_db;
+	std::vector<std::string>	files;
 };
 
-typedef std::vector<DBInfo>	DBInfoVector;
+typedef std::vector<WDbFileInfo>	WDbFileInfoArray;
 
 class WConfigFile
 {
@@ -39,15 +38,16 @@ class WConfigFile
 						const char*		inXPath,
 						long&			outValue) const;
 
-	bool			GetSetting(
-						const char*		inXPath,
-						DBInfoVector&	outValue) const;
-
 	bool			NextServerConfig(
 						std::string&	outService,
 						std::string&	outAddress,
 						uint16&			outPort,
-						DBInfoVector&	outDBs);
+						std::vector<std::string>&
+										outDBs);
+
+	void			GetDbFiles(
+						WDbFileInfoArray&
+										outDbFiles);
 
 	std::string		operator[](
 						const char*		inXPath) const;

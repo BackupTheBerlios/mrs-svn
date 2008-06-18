@@ -2,8 +2,9 @@
 #define WSSEARCH_H
 
 #include "WServer.h"
-#include "WDatabankTable.h"
 #include "WSSearchNSH.h"
+
+class CDocIterator;
 
 class WSSearch : public WServerT<WSSearch>
 {
@@ -11,7 +12,7 @@ class WSSearch : public WServerT<WSSearch>
 					WSSearch(
 						const std::string&			inAddress,
 						uint16						inPortNr,
-						DBInfoVector&				inDbs);
+						std::vector<std::string>&	inDbs);
 
 	int				GetDatabankInfo(
 						std::string					db,
@@ -95,21 +96,29 @@ class WSSearch : public WServerT<WSSearch>
 						const std::string&			db,
 						const std::string&			id);
 	
-	std::auto_ptr<MQueryResults>
-					PerformSearch(
-						MDatabank&					db,
+	void			PerformSearch(
+						CDatabankPtr				db,
 						std::vector<std::string>	queryterms,
 						enum WSSearchNS::ns__Algorithm
 													algorithm,
 						bool						alltermsrequired,
-						std::string					booleanfilter);
+						std::string					booleanfilter,
+						uint32						maxresultcount,
+						std::auto_ptr<CDocIterator>&
+													results,
+						uint32&						count);
 
 	void			GetDatabankInfo(
-						MDatabankPtr				db,
+						std::string					id,
+						CDatabankPtr				db,
 						WSSearchNS::ns__DatabankInfo&
 													info);
-
-	WSDatabankTable	mDBs;
+	
+	CDatabankPtr	GetDatabank(
+						const std::string&			id);
+	
+	std::vector<std::string>
+					mDBs;
 };
 
 #endif

@@ -53,14 +53,23 @@ class CRankedQuery
 					CRankedQuery();
 	virtual			~CRankedQuery();
 	
-	void			AddTerm(const std::string& inKey, uint32 inFrequency);
-	void			AddTermsFromText(const std::string& inText);
+	void			AddTerm(
+						const std::string&		inKey,
+						uint32					inFrequency);
+
+	void			AddTermsFromText(
+						const std::string&		inText);
 	
-	void			PerformSearch(CDatabankBase& inDatabank,
-						const std::string& inIndex, const std::string& inAlgorithm,
-						CDocIterator* inMetaQuery, uint32 inMaxReturn,
-						bool inAllTermsRequired,
-						CDocIterator*& outResults, uint32& outCount);
+	void			PerformSearch(
+						CDatabankBase&			inDatabank,
+						const std::string&		inIndex,
+						const std::string&		inAlgorithm,
+						auto_ptr<CDocIterator>	inMetaQuery,
+						uint32					inMaxReturn,
+						bool					inAllTermsRequired,
+						std::auto_ptr<CDocIterator>&
+												outResults,
+						uint32&					outCount);
 	
   private:
 					CRankedQuery(const CRankedQuery&);

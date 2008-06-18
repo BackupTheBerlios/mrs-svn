@@ -8,6 +8,7 @@
 #include "HError.h"
 
 #include <fstream>
+#include <sstream>
 #include <map>
 #include <iostream>
 
@@ -62,17 +63,21 @@ struct WConfigFileImp
 						~WConfigFileImp();
 
 	string				GetValue(
-							const char*		inXPath) const;
+							const string&	inXPath) const;
 	
 	bool				GetValue(
-							const char*		inPath,
-							DBInfoVector&	outValue) const;
+							const string&	inPath,
+							vector<string>&	outValue) const;
 
 	bool				NextServerConfig(
 							string&			outService,
 							string&			outAddress,
 							uint16&			outPort,
-							DBInfoVector&	outDBs);
+							vector<string>&	outDBs);
+
+	void				GetDbFiles(
+							WDbFileInfoArray&
+											outDbFiles);
 
 	string				mPath;
 	time_t				mLastModified;
@@ -116,11 +121,11 @@ WConfigFileImp::~WConfigFileImp()
 }
 
 string WConfigFileImp::GetValue(
-	const char*			inXPath) const
+	const string&		inXPath) const
 {
 	string result;
 	
-	xmlXPathObjectPtr data = xmlXPathEvalExpression((const xmlChar*)inXPath, mXPathContext);
+	xmlXPathObjectPtr data = xmlXPathEvalExpression((const xmlChar*)inXPath.c_str(), mXPathContext);
 	xmlNodeSetPtr nodes = data->nodesetval;
 
 	if (nodes != nil)
@@ -144,10 +149,10 @@ string WConfigFileImp::GetValue(
 }
 
 bool WConfigFileImp::GetValue(
-	const char*		inXPath,
-	DBInfoVector&	outValue) const
+	const string&	inXPath,
+	vector<string>&	outValue) const
 {
-	xmlXPathObjectPtr data = xmlXPathEvalExpression((const xmlChar*)inXPath, mXPathContext);
+	xmlXPathObjectPtr data = xmlXPathEvalExpression((const xmlChar*)inXPath.c_str(), mXPathContext);
 
 	if (data == nil or data->nodesetval == nil)
 		THROW(("Failed to locate databank information in configuration file %s", mPath.c_str()));
@@ -158,24 +163,11 @@ bool WConfigFileImp::GetValue(
 		if (strcmp((const char*)db->name, "db"))
 			continue;
 		
-		DBInfo dbi;
-		
 		const char* name = (const char*)XML_GET_CONTENT(db->children);
 		if (name == nil)
 			continue;
 		
-		dbi.name = name;
-		
-		const char* ignore = (const char*)xmlGetProp(db, (const xmlChar*)"ignore-in-all");
-		dbi.ignore_in_all = ignore != nil and strcmp(ignore, "0");
-		
-		const char* blast = (const char*)xmlGetProp(db, (const xmlChar*)"blast");
-		dbi.blast = blast != nil and strcmp(blast, "0");
-		
-		const char* fasta = (const char*)xmlGetProp(db, (const xmlChar*)"fasta");
-		dbi.fasta = fasta != nil and strcmp(fasta, "0");
-		
-		outValue.push_back(dbi);
+		outValue.push_back(name);
 	}
 	
 	if (data)
@@ -188,7 +180,7 @@ bool WConfigFileImp::NextServerConfig(
 	string&			outService,
 	string&			outAddress,
 	uint16&			outPort,
-	DBInfoVector&	outDBs)
+	vector<string>&	outDBs)
 {
 	bool result = false;
 	
@@ -242,15 +234,101 @@ bool WConfigFileImp::NextServerConfig(
 			else if (strcmp((const char*)node->name, "address") == 0)
 				outAddress = (const char*)XML_GET_CONTENT(node->children);
 			else if (strcmp((const char*)node->name, "port") == 0)
-				outPort = atoi((const char*)XML_GET_CONTENT(node->children));
+			{
+				const char* port = (const char*)XML_GET_CONTENT(node->children);
+				if (port != nil)
+					outPort = atoi(port);
+			}
 		}
-			
-		GetValue("/mrs-config/dbs/db", outDBs);
+
+		stringstream xpath;
+		xpath << "/mrs-config/servers/server[port=" << outPort << "]/dbs/db";
+		GetValue(xpath.str(), outDBs);
 		
 		result = true;
 	}
 	
 	return result;
+}
+
+void WConfigFileImp::GetDbFiles(
+	WDbFileInfoArray&	outDbFiles)
+{
+	xmlXPathObjectPtr data = xmlXPathEvalExpression((const xmlChar*)"/mrs-config/db-files/db-file", mXPathContext);
+
+	if (data == nil or data->nodesetval == nil)
+		THROW(("Failed to locate databank information in configuration file %s", mPath.c_str()));
+	
+	for (int i = 0; i < data->nodesetval->nodeNr; ++i)
+	{
+		xmlNodePtr db = data->nodesetval->nodeTab[i];
+		if (strcmp((const char*)db->name, "db-file") != 0)
+			continue;
+		
+		WDbFileInfo info;
+		
+		const char* s = (const char*)xmlGetProp(db, (const xmlChar*)"id");
+		if (s == nil)
+			THROW(("id attribute for db-file element in config file is missing"));
+		
+		info.id = s;
+		info.is_joined_db = false;
+		
+		s = (const char*)xmlGetProp(db, (const xmlChar*)"file");
+		if (s == nil)
+			THROW(("file attribute for db-file element in config file is missing"));
+		
+		info.files.push_back(s);
+		
+		outDbFiles.push_back(info);
+	}
+	
+	if (data)
+		xmlXPathFreeObject(data);
+	
+	// see if there are db-join elements, this is optional
+	
+	data = xmlXPathEvalExpression((const xmlChar*)"/mrs-config/db-files/db-join", mXPathContext);
+
+	if (data != nil and data->nodesetval != nil)
+	{
+		for (int i = 0; i < data->nodesetval->nodeNr; ++i)
+		{
+			xmlNodePtr db = data->nodesetval->nodeTab[i];
+			if (strcmp((const char*)db->name, "db-join") != 0)
+				continue;
+			
+			WDbFileInfo info;
+			
+			const char* s = (const char*)xmlGetProp(db, (const xmlChar*)"id");
+			if (s == nil)
+				THROW(("id attribute for db-file element in config file is missing"));
+			
+			info.id = s;
+			info.is_joined_db = true;
+			
+			for (xmlNodePtr file = db->children; file != nil; file = file->next)
+			{
+				if (xmlNodeIsText(file) or file->children == nil)
+					continue;
+				
+				if (strcmp((const char*)file->name, "db-part") == 0)
+				{
+					s = (const char*)XML_GET_CONTENT(file->children);
+					if (s != nil)
+						info.files.push_back(s);
+				}
+			}
+			
+			if (info.files.size() == 0)
+				THROW(("No db-part elements defined for db-join element in config file"));
+			
+			outDbFiles.push_back(info);
+		}
+	}
+	
+	if (data)
+		xmlXPathFreeObject(data);
 }
 
 // --------------------------------------------------------------------
@@ -315,18 +393,17 @@ bool WConfigFile::GetSetting(
 	return s.length() > 0;
 }
 
-bool WConfigFile::GetSetting(
-	const char*		inXPath,
-	DBInfoVector&	outValue) const
-{
-	return mImpl->GetValue(inXPath, outValue);
-}
-
 bool WConfigFile::NextServerConfig(
 	string&			outService,
 	string&			outAddress,
 	uint16&			outPort,
-	DBInfoVector&	outDBs)
+	vector<string>&	outDBs)
 {
 	return mImpl->NextServerConfig(outService, outAddress, outPort, outDBs);
+}
+
+void WConfigFile::GetDbFiles(
+	WDbFileInfoArray&	outDbFiles)
+{
+	mImpl->GetDbFiles(outDbFiles);
 }

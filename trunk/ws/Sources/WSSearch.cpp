@@ -1,10 +1,11 @@
-#include "HLib.h"
+#include "mrsws.h"
 
 #include <set>
 #include <boost/regex.hpp>
 
 #include "HError.h"
-#include "MRSInterface.h"
+
+#include "CDatabank.h"
 
 #include "WSSearchNSH.h"
 #include "WConfig.h"
@@ -143,7 +144,7 @@ int ns__SpellCheck(
 WSSearch::WSSearch(
 	const string&	inAddress,
 	uint16			inPortNr,
-	DBInfoVector&	inDbs)
+	vector<string>&	inDbs)
 	: WServerT<WSSearch>(inAddress, inPortNr, WSSearchNS_namespaces)
 	, mDBs(inDbs)
 {
@@ -155,49 +156,55 @@ int WSSearch::GetDatabankInfo(
 {
 	Log() << db;
 
+	WSDatabankTable& tbl = WSDatabankTable::Instance();
+
 	if (db == "all")
 	{
-		for (WSDatabankTable::iterator dbi = mDBs.begin(); dbi != mDBs.end(); ++dbi)
+		for (vector<string>::iterator dbi = mDBs.begin(); dbi != mDBs.end(); ++dbi)
 		{
 			try
 			{
 				WSSearchNS::ns__DatabankInfo inf;
-				GetDatabankInfo(dbi->second.mDB, inf);
+				GetDatabankInfo(*dbi, tbl[*dbi], inf);
 				info.push_back(inf);
 			}
 			catch (...)
 			{
-				cerr << endl << "Skipping db " << dbi->first << endl;
+				cerr << endl << "Skipping db " << *dbi << endl;
 			}
 		}
 	}
-	else
+	else if (find(mDBs.begin(), mDBs.end(), db) != mDBs.end())
 	{
 		WSSearchNS::ns__DatabankInfo inf;
-		GetDatabankInfo(mDBs[db], inf);
+		GetDatabankInfo(db, tbl[db], inf);
 		info.push_back(inf);
 	}
+	else
+		THROW(("Unknown databank '%s'", db.c_str()));
 
 	return SOAP_OK;
 }
 
 void WSSearch::GetDatabankInfo(
-	MDatabankPtr					inMrsDb,
+	string							inID,
+	CDatabankPtr					inMrsDb,
 	WSSearchNS::ns__DatabankInfo&	outInfo)
 {
-	outInfo.id =		inMrsDb->GetCode();
+	outInfo.id =		inID;
 	outInfo.name =		inMrsDb->GetName();
 	outInfo.script =	inMrsDb->GetScriptName();
 	outInfo.url =		inMrsDb->GetInfoURL();
-	outInfo.blastable = inMrsDb->ContainsBlastIndex();
+	outInfo.blastable = inMrsDb->GetBlastDbCount() > 0;
 	
 	outInfo.files.clear();
 
+#warning("fix me")
 // only one file left... (I used to parse the name tokenizing by + and | characters)
 	{
 		WSSearchNS::ns__FileInfo fi;
 		
-		fi.id =				inMrsDb->GetCode();
+		fi.id =				inID;
 		fi.uuid =			inMrsDb->GetUUID();
 		fi.version =		inMrsDb->GetVersion();
 		fi.path =			inMrsDb->GetFilePath();
@@ -234,21 +241,22 @@ int WSSearch::GetEntry(
 {
 	Log() << db << ':' << id;
 	
-	MDatabankPtr mrsDb = mDBs[db];
+	CDatabankPtr mrsDb = GetDatabank(db);
+	
+	uint32 docNr = mrsDb->GetDocumentNr(id);
 	
 	switch (format)
 	{
 		case WSSearchNS::plain:
 			Log() << ':' << "plain";
-			if (not mrsDb->Get(id, entry))
-				THROW(("Entry %s not found in databank %s", id.c_str(), db.c_str()));
+			entry = mrsDb->GetDocument(docNr);
 			break;
 		
 		case WSSearchNS::title:
 			Log() << ':' << "title";
-			if (not mrsDb->GetMetaData(id, "title", entry) and
-				mrsDb->Get(id, entry))
+			if (not mrsDb->GetMetaData(docNr, "title", entry))
 			{
+				entry = mrsDb->GetDocument(docNr);
 				entry = WFormatTable::Format(mrsDb->GetScriptName(), "title", entry, db, id);
 			}
 			break;
@@ -259,14 +267,14 @@ int WSSearch::GetEntry(
 
 			string sequence;
 			
-			if (mrsDb->ContainsBlastIndex())
+			if (mrsDb->GetBlastDbCount() > 0)
 			{
-				if (not mrsDb->Sequence(id, 0, sequence))
+				if (not mrsDb->GetSequence(docNr, 0, sequence))
 					THROW(("Sequence for entry %s not found in databank %s", id.c_str(), db.c_str()));
 			}
 			else
 			{
-				if (not mrsDb->Get(id, sequence))
+				if (not mrsDb->GetDocument(docNr, sequence))
 					THROW(("Entry %s not found in databank %s", id.c_str(), db.c_str()));
 					
 				sequence = WFormatTable::Format(mrsDb->GetScriptName(), "sequence", sequence, db, id);
@@ -293,15 +301,10 @@ int WSSearch::GetEntry(
 		}
 		
 		case WSSearchNS::html:
-		{
 			Log() << ':' << "html";
-
-			if (not mrsDb->Get(id, entry))
-				THROW(("Entry %s not found in databank %s", id.c_str(), db.c_str()));
-				
+			entry = mrsDb->GetDocument(docNr, entry);
 			entry = WFormatTable::Format(mrsDb->GetScriptName(), "html", entry, db, id);
 			break;
-		}
 		
 		default:
 			THROW(("Unsupported format in GetEntry"));
@@ -316,31 +319,31 @@ int WSSearch::GetIndices(
 {
 	Log() << db;
 	
-	MDatabankPtr mrsDb = mDBs[db];
+	CDatabankPtr mrsDb = GetDatabank(db);
 	
-	auto_ptr<MIndices> mrsIndices(mrsDb->Indices());
-	
-	if (not mrsIndices.get())
+	if (mrsDb->GetIndexCount() == 0)
 		THROW(("Databank %s has no indices", db.c_str()));
 	
 	string script = mrsDb->GetScriptName();
 	
-	for (auto_ptr<MIndex> index(mrsIndices->Next()); index.get() != NULL; index.reset(mrsIndices->Next()))
+	for (uint32 nix = 0; nix < mrsDb->GetIndexCount(); ++nix)
 	{
 		WSSearchNS::ns__Index ix;
 		
-		ix.id = index->Code();
-		ix.description = WFormatTable::IndexName(script, ix.id);
-		ix.count = index->Count();
+		string type;
+		uint32 count;
+		mrsDb->GetIndexInfo(nix, ix.id, type, count);
 		
-		string t = index->Type();
-		if (t == "text" or t == "wtxt")
+		ix.description = WFormatTable::IndexName(script, ix.id);
+		ix.count = count;
+		
+		if (type == "text" or type == "wtxt")
 			ix.type = WSSearchNS::FullText;
-		else if (t == "valu")
+		else if (type == "valu")
 			ix.type = WSSearchNS::Unique;
-		else if (t == "date")
+		else if (type == "date")
 			ix.type = WSSearchNS::Date;
-		else if (t == "nmbr")
+		else if (type == "nmbr")
 			ix.type = WSSearchNS::Number;
 		
 		indices.push_back(ix);
@@ -364,25 +367,27 @@ int WSSearch::Find(
 	if (booleanfilter.length())
 		Log() << ':' << '[' << booleanfilter << ']';
 
-	MDatabankPtr mrsDb = mDBs[db];
+	CDatabankPtr mrsDb = GetDatabank(db);
 	
 	if (mrsDb.get() == nil)
 		THROW(("Databank not found: %s", db.c_str()));
 	
-	auto_ptr<MQueryResults> r =
-		PerformSearch(*mrsDb, queryterms, algorithm, alltermsrequired, booleanfilter);
+	auto_ptr<CDocIterator> r;
+	uint32 count;
+	PerformSearch(*mrsDb, queryterms, algorithm,
+		alltermsrequired, booleanfilter, resultoffset + maxresultcount, r, count);
 	
-	if (r.get() != NULL)
+	if (count > 0)
 	{
-		const char* id;
-		while (resultoffset-- > 0 and (id = r->Next()) != NULL)
+		uint32 docNr;
+		while (resultoffset-- > 0 and r->Next(docNr, false))
 			;
 		
-		while (maxresultcount-- > 0 and (id = r->Next()) != NULL)
+		while (maxresultcount-- > 0)
 		{
 			WSSearchNS::ns__Hit h;
 
-			h.id = id;
+			h.id = mrsDb->GetDocumentID(docNr);
 			h.score = r->Score();
 			h.db = db;
 			h.title = GetTitle(db, h.id);
@@ -406,7 +411,7 @@ int WSSearch::FindSimilar(
 	int							maxresultcount,
 	struct WSSearchNS::ns__FindResponse&	response)
 {
-	MDatabankPtr mrsDb = mDBs[db];
+	CDatabankPtr mrsDb = GetDatabank(db);
 	
 	string data;
 	if (not mrsDb->Get(id, data))
@@ -539,7 +544,7 @@ int WSSearch::FindAllSimilar(
 {
 	Log() << db << ':' << id;
 	
-	MDatabankPtr mrsDb = mDBs[db];
+	CDatabankPtr mrsDb = GetDatabank(db);
 	
 	string data;
 	if (not mrsDb->Get(id, data))
@@ -625,7 +630,8 @@ int WSSearch::Count(
 	
 	response = 0;
 	
-	MDatabankPtr mrsDb = mDBs[db];
+	CDatabankPtr mrsDb = GetDatabank(db);
+
 	auto_ptr<MQueryResults> r(mrsDb->Find(booleanquery));
 	if (r.get() != nil)
 		response = r->Count(true);
@@ -665,7 +671,7 @@ int WSSearch::Cooccurrence(
 	if (idf_cutoff < 0)
 		idf_cutoff = 0;
 	
-	MDatabankPtr mrsDb = mDBs[db];
+	CDatabankPtr mrsDb = GetDatabank(db);
 
 	boost::regex re("\\s");
 	boost::regex re2("^\\d+(\\.\\d+)?$");	// numbers are not allowed...
@@ -756,7 +762,7 @@ int WSSearch::SpellCheck(
 {
 	Log() << db << ':' << queryterm;
 
-	MDatabankPtr mrsDb = mDBs[db];
+	CDatabankPtr mrsDb = GetDatabank(db);
 	
 	auto_ptr<MStringIterator> s(mrsDb->SuggestCorrection(queryterm));
 	if (s.get() != NULL)
@@ -771,11 +777,21 @@ int WSSearch::SpellCheck(
 
 // --------------------------------------------------------------------
 
+CDatabankPtr WSSearch::GetDatabank(
+	const std::string&			id)
+{
+	if (find(mDBs.begin(), mDBs.end(), db) == mDBs.end())
+		THROW(("Unknown databank '%s'", db.c_str()));
+	
+	WSDatabankTable& tbl = WSDatabankTable::Instance();
+	return tbl[db];
+}
+
 string WSSearch::GetTitle(
 	const string&				db,
 	const string&				id)
 {
-	MDatabankPtr mrsDb(mDBs[db]);
+	CDatabankPtr mrsDb = GetDatabank(db);
 
 	string result;
 	
@@ -794,18 +810,19 @@ int WSSearch::Serve(
 	return WSSearchNS::WSSearchNS_serve_request(soap);
 }
 
-auto_ptr<MQueryResults>
-WSSearch::PerformSearch(
-	MDatabank&					db,
+void WSSearch::PerformSearch(
+	CDatabank&					db,
 	vector<string>				queryterms,
 	enum WSSearchNS::ns__Algorithm
 								algorithm,
 	bool						alltermsrequired,
-	string						booleanfilter)
+	string						booleanfilter,
+	uint32						maxresultcount,
+	auto_ptr<CDocIterator>&		outResult,
+	uint32&						outCount)
 {
-	auto_ptr<MQueryResults> result;
-	
 	vector<string>::iterator qt = queryterms.begin();
+
 	while (qt != queryterms.end())
 	{
 		string::size_type h;
@@ -832,55 +849,57 @@ WSSearch::PerformSearch(
 		else
 			++qt;
 	}
+
+	if (booleanfilter.length())
+	{
+		CParsedQueryObject p(*mrsDb, booleanfilter, false);
+		outResult.reset(p.Perform());
+		outCount = outResult->Count();
+	}
 	
 	if (queryterms.size() > 0)
 	{
 		// first determine the set of value indices, needed as a special case in ranked searches
 		set<string> valueIndices;
 
-		auto_ptr<MIndices> indices(db.Indices());
-		MIndex* index;
-		while ((index = indices->Next()) != NULL)
+		for (uint32 nix = 0; nix < mrsDb->GetIndexCount(); ++nix)
 		{
-			if (index->Type() == "valu")
-				valueIndices.insert(index->Code());
-			delete index;
+			string id, type;
+			uint32 count;
+			
+			mrsDb->GetIndexInfo(nix, id, type, count);
+			if (type == "valu")
+				valueIndices.push_back(id);
 		}
 
-		auto_ptr<MRankedQuery> q(db.RankedQuery("__ALL_TEXT__"));
+		CRankedQuery query;
+		string algo;
 	
 		switch (algorithm)
 		{
 			case WSSearchNS::Vector:
-				q->SetAlgorithm("vector");
+				algo = "vector";
 				break;
 			
 			case WSSearchNS::Dice:
-				q->SetAlgorithm("dice");
+				algo = "dice";
 				break;
 			
 			case WSSearchNS::Jaccard:
-				q->SetAlgorithm("jaccard");
+				algo = "jaccard";
 				break;
 			
 			default:
 				THROW(("Unsupported search algorithm"));
 				break;
 		}
-			
+		
 		q->SetAllTermsRequired(alltermsrequired);
 		
 		for (vector<string>::iterator qw = queryterms.begin(); qw != queryterms.end(); ++qw)
-			q->AddTerm(*qw, 1);
+			query.AddTerm(*qw, 1);
 		
-		auto_ptr<MBooleanQuery> m;
-		if (booleanfilter.length())
-			m.reset(db.BooleanQuery(booleanfilter));
-
-		result.reset(q->Perform(m.get()));
+		query.PerformSearch(*mrsDb, "__ALL_TEXT__",
+			algo, outResult, maxresultcount, alltermsrequired, result, count);
 	}
-	else if (booleanfilter.length() > 0)
-		result.reset(db.Find(booleanfilter, false));
-	
-	return result;
 }

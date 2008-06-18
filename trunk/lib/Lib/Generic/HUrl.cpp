@@ -187,6 +187,12 @@ HUrl::HUrl(const HFileSpec& inSpecifier)
 	SetSpecifier(inSpecifier);
 }
 
+HUrl::HUrl(
+	const fs::path&	inPath)
+{
+	SetNativePath(inPath.string());
+}
+
 HUrl::~HUrl()
 {
 }

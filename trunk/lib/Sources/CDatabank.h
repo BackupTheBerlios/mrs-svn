@@ -48,6 +48,8 @@
 #include <set>
 #include <map>
 
+#include <boost/shared_ptr.hpp>
+
 #include "HUrl.h"
 
 #include "CBitStream.h"
@@ -80,6 +82,8 @@ struct SDataPart;
 struct SBlastIndexHeader;
 #endif
 
+typedef boost::shared_ptr<CDatabankBase>	CDatabankPtr;
+
 class CDatabankBase
 {
   public:
@@ -88,9 +92,18 @@ class CDatabankBase
 	
 	virtual std::string	GetDocument(uint32 inDocNr) = 0;
 	std::string			GetDocument(const std::string& inDocID);
+
+	bool				GetDocument(
+							uint32					inDocNr,
+							std::string&			outDocument);
 	
 	virtual std::string	GetMetaData(uint32 inDocNr, const std::string& inName) = 0;
 	std::string			GetMetaData(const std::string& inDocID, const std::string& inName);
+	
+	bool				GetMetaData(
+							uint32					inDocNr,
+							const std::string&		inName,
+							std::string&			outData);
 
 	virtual std::string	GetDocumentID(uint32 inDocNr) const;
 	virtual bool		GetDocumentNr(const std::string& inDocID, uint32& outDocNr) const;
@@ -103,11 +116,18 @@ class CDatabankBase
 	virtual int64		GetBlastDbLength() const = 0;
 	virtual uint32		CountSequencesForDocument(uint32 inDocNr) = 0;
 
-	std::string			GetSequence(const std::string& inDocID, uint32 inIndex);
-	std::string			GetSequence(uint32 inDocNr, uint32 inIndex);
+//	std::string			GetSequence(const std::string& inDocID, uint32 inIndex);
+//	std::string			GetSequence(uint32 inDocNr, uint32 inIndex);
 
-	virtual void		GetSequence(uint32 inDocNr, uint32 inIndex,
-							CSequence& outSequence) = 0;
+	virtual bool		GetSequence(
+							uint32					inDocNr,
+							uint32					inIndex,
+							CSequence&				outSequence) = 0;
+
+	virtual bool		GetSequence(
+							uint32					inDocNr,
+							uint32					inIndex,
+							std::string&			outSequence) = 0;
 #endif
 	
 	virtual uint32		Count() const = 0;
@@ -118,6 +138,7 @@ class CDatabankBase
 //	virtual void		DumpIndex(const std::string& inIndex);
 
 	virtual std::string	GetName() const = 0;
+	virtual std::string	GetFilePath() const = 0;
 	virtual std::string	GetInfoURL() const = 0;
 	virtual std::string	GetScriptName() const = 0;
 	virtual std::string	GetSection() const = 0;
@@ -166,11 +187,6 @@ class CDatabankBase
 	virtual CDocIterator* CreateDocIteratorForPhrase(const std::string& inIndex,
 							const std::vector<std::string>& inPhrase) = 0;
 
-	// I give up, we have to have separate files. Dictionary files for 
-	// spell checker functionality and weights files for ranked searches.
-
-	virtual HUrl		GetDbDirectory() const;
-	HUrl				GetWeightFileURL(const std::string& inIndex) const;
 	HUrl				GetDictionaryFileURL() const;
 
 //	virtual void		RecalculateDocumentWeights(const std::string& inIndex);
@@ -263,7 +279,7 @@ class CDatabank : public CDatabankBase
 	virtual uint32		GetBlastDbCount() const;
 	virtual int64		GetBlastDbLength() const;
 	virtual uint32		CountSequencesForDocument(uint32 inDocNr);
-	virtual void		GetSequence(uint32 inDocNr, uint32 inIndex,
+	virtual bool		GetSequence(uint32 inDocNr, uint32 inIndex,
 							CSequence& outSequence);
 #endif
 	
@@ -307,6 +323,7 @@ class CDatabank : public CDatabankBase
 	virtual bool		IsUpToDate() const;
 
 	virtual std::string	GetName() const;
+	virtual std::string	GetFilePath() const;
 	virtual std::string	GetInfoURL() const;
 	virtual std::string	GetScriptName() const;
 	virtual std::string	GetSection() const;
@@ -417,7 +434,9 @@ class CDatabank : public CDatabankBase
 class CJoinedDatabank : public CDatabankBase
 {
   public:
-						CJoinedDatabank(std::vector<CDatabankBase*>& inParts);
+						CJoinedDatabank(
+							std::vector<CDatabankPtr>&	inParts);
+
 						~CJoinedDatabank();
 	
 	virtual std::string	GetDocument(uint32 inDocNr);
@@ -433,7 +452,7 @@ class CJoinedDatabank : public CDatabankBase
 	virtual uint32		GetBlastDbCount() const;
 	virtual int64		GetBlastDbLength() const;
 	virtual uint32		CountSequencesForDocument(uint32 inDocNr);
-	virtual void		GetSequence(uint32 inDocNr, uint32 inIndex,
+	virtual bool		GetSequence(uint32 inDocNr, uint32 inIndex,
 							CSequence& outSequence);
 #endif
 
@@ -444,6 +463,7 @@ class CJoinedDatabank : public CDatabankBase
 	virtual bool		IsUpToDate() const;
 
 	virtual std::string	GetName() const;
+	virtual std::string	GetFilePath() const;
 	virtual std::string	GetInfoURL() const;
 	virtual std::string	GetScriptName() const;
 	virtual std::string	GetSection() const;

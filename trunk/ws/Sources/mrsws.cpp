@@ -3,7 +3,7 @@
 	Created: 10 maart 2008
 */
 
-#include "MRS.h"
+#include "mrsws.h"
 
 #include <map>
 #include <set>
@@ -47,36 +47,7 @@ SOAP_NMAC struct Namespace namespaces[0] = {};
 #define nil NULL
 
 using namespace std;
-namespace fs = boost::filesystem;
 #define foreach BOOST_FOREACH
-
-// default values for the directories used by mrsws, these can also be set from the Makefile
-
-#ifndef MRS_DATA_DIR
-#define MRS_DATA_DIR "/usr/local/data/mrs/"
-#endif
-
-#ifndef MRS_PARSER_DIR
-#define MRS_PARSER_DIR "/usr/local/share/mrs/parser_scripts/"
-#endif
-
-#ifndef MRS_CONFIG_FILE
-#define MRS_CONFIG_FILE "/usr/local/etc/mrs-config.xml"
-#endif
-
-#ifndef MRS_LOG_FILE
-#define MRS_LOG_FILE "/var/log/mrsws.log"
-#endif
-
-#ifndef MRS_PID_FILE
-#define MRS_PID_FILE "/var/run/mrsws.pid"
-#endif
-
-fs::path gDataDir(MRS_DATA_DIR, fs::native);
-fs::path gParserDir(MRS_PARSER_DIR, fs::native);
-fs::path gConfigFile(MRS_CONFIG_FILE, fs::native);
-fs::path gLogFile(MRS_LOG_FILE, fs::native);
-fs::path gStatusDir(MRS_DATA_DIR "/../status", fs::native);
 
 // globals for communication with the outside world
 
