@@ -77,9 +77,12 @@ void error(const char* msg, ...)
 
 void usage()
 {
-	cout << "Usage: mrs-test -d databank [-v]" << endl
+	cout << "Usage:" << endl
+		 << endl
+		 << "       mrs-test -d databank [-D] [-v]" << endl
 	     << "         -d databank   Must be the full path to the databank" << endl
 		 << "                       runs a test on the indices in the databank" << endl
+		 << "         -D            Decompress each document to test compressed data integrity" << endl
 	     << endl
 		 << "       mrs-test -d databank -k key -i index [-v]" << endl
 	     << "         -k key        A key to search in the databank" << endl
@@ -93,9 +96,10 @@ int main(int argc, const char* argv[])
 	// scan the options
 
 	string db, index, key;
+	bool decompress = false;
 
 	int c;
-	while ((c = getopt(argc, const_cast<char**>(argv), "d:vk:i:")) != -1)
+	while ((c = getopt(argc, const_cast<char**>(argv), "d:vk:i:D")) != -1)
 	{
 		switch (c)
 		{
@@ -113,6 +117,10 @@ int main(int argc, const char* argv[])
 
 			case 'v':
 				++VERBOSE;
+				break;
+			
+			case 'D':
+				decompress = true;
 				break;
 			
 			default:
@@ -154,6 +162,26 @@ int main(int argc, const char* argv[])
 			}
 			else
 				ixr->Test();
+			
+			if (decompress)
+			{
+				cout << "Testing the integrity of the compressed data" << endl;
+				
+				auto_ptr<CIndex> ix(ixr->GetIndex("id"));
+				
+				uint32 n = 0, count = databank.Count(), tick = count / 60;
+				for (CIndex::iterator iter = ix->begin(); iter != ix->end(); ++iter)
+				{
+					string doc = databank.GetDocument(iter->first);
+					
+					if ((++n % tick) == 0)
+					{
+						cout << "."; cout.flush();
+					}
+				}
+				
+				cout << " done" << endl << " tested " << count << " docs" << endl;
+			}
 		}
 		catch (exception& e)
 		{
