@@ -5,24 +5,23 @@
 		<pkg tool="pkg-config">libxml-2.0</pkg>
 	</pkg-config>
 	<syspaths>
-		<path>/usr/local/include/boost-1_35</path>
 		<path>/usr/include</path>
 		<path>/usr/local/include</path>
 	</syspaths>
 	<userpaths>
-		<path>../plugin/Lib</path>
-		<path>../plugin/Lib/Includes</path>
-		<path>../plugin/Lib/Generic</path>
-		<path>../plugin/Lib/Posix</path>
-		<path>../plugin/Lib/uuid</path>
-		<path>../plugin/Sources</path>
+		<path>../lib/Lib</path>
+		<path>../lib/Lib/Includes</path>
+		<path>../lib/Lib/Generic</path>
+		<path>../lib/Lib/Posix</path>
+		<path>../lib/Lib/uuid</path>
+		<path>../lib/Sources</path>
 		<path>Sources</path>
 	</userpaths>
 	<libpaths>
 		<path>Lib</path>
 		<path>/usr/lib</path>
 		<path>/usr/local/lib</path>
-		<path>../plugin</path>
+		<path>../lib</path>
 	</libpaths>
 	<frameworks/>
 	<files>
@@ -70,6 +69,7 @@
 			<warnings>
 				<warning>all</warning>
 				<warning>no-deprecated</warning>
+				<warning>no-multichar</warning>
 			</warnings>
 		</target>
 		<target kind="Executable" name="mrsws Release" linkTarget="mrsws">
@@ -86,6 +86,7 @@
 			<warnings>
 				<warning>all</warning>
 				<warning>no-deprecated</warning>
+				<warning>no-multichar</warning>
 			</warnings>
 		</target>
 	</targets>

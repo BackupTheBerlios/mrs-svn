@@ -3,7 +3,6 @@
 
 #include "WServer.h"
 #include "WDatabankTable.h"
-#include "MRSInterface.h"
 #include "WSSearchNSH.h"
 
 class WSSearch : public WServerT<WSSearch>

@@ -1,19 +1,31 @@
-# make file for soap server
+# Makefile for mrs-build
+#
+# You can set local options in your make.config file
+# This file will be included by this makefile
+# Options to set in this make.config file are e.g.:
+#
+#	CC		- the c++ compiler to use, must support tr1 though (gcc 4.1 e.g.)
+#	
+# Now you can build debug and non debug versions, default is non-debug
+# but to build a debug version you type 'make DEBUG=1' instead of simply 'make'
 
-TARGET		= mrsws-blast
+TARGET		= mrs-ws
+LIBNAME		= mrs
+VERSION		= 4.0d1
 # DEBUG should be either 1 or 0
 DEBUG		= 0
-LIBNAME		= mrs
-LIBS		= z m bz2 gsoap++
-LIBPATHS	=  ../../plugin/Lib/ ../../plugin/
-INCPATHS	= ../../plugin/Lib/Includes/ ../../plugin/Lib/Posix/ ../../plugin/Lib/ ../../plugin/Sources/
+LIBS		= z m bz2 magic
+LIBPATHS	= ../lib/
+INCPATHS	= ../lib/Lib/Includes/ ../lib/Lib/Posix/ ../lib/Lib/ ../lib/Lib/Generic/ ../lib/Sources/
 SYSINCPATHS	= /usr/include
-WARNINGS	= -Wall -Wno-multichar -Wno-unknown-pragmas
+WARNINGS	= -Wall -Wno-multichar -Wno-unknown-pragmas -Wno-long-long
 CFLAGS		= -fsigned-char -g -ffor-scope
 CFLAGS		+= -fmessage-length=132 -fdiagnostics-show-location=every-line
 LDFLAGS		= -fdata-sections -g
 
-include ../../make.config
+include ../make.config
+
+CC			?= c++		# some reasonable defaults
 
 DEFINES     += CPU_$(CPU)
 
@@ -36,9 +48,12 @@ endif
 ifeq ($(OS),Darwin)
 	DEFINES		+= DARWIN HAVE_SYS_IOCTL_H HAVE_SYS_SOCKIO_H \
 					HAVE_SYS_SOCKET_H HAVE_NETINET_IN_H HAVE_SRANDOM HAVE_NET_IF_DL_H HAVE_SA_LEN
-	LD_SO_FLAG	= -bundle -undefined suppress -flat_namespace
 	LDFLAGS		+= 
 	STRIP		= strip -S
+endif
+
+ifeq ($(NO_BLAST),1)
+DEFINES			+= NO_BLAST
 endif
 
 ifeq ($(DEBUG),0)
@@ -61,14 +76,25 @@ endif
 LIBNAME := lib$(LIBNAME).a
 
 Sources = \
-	./Sources/$(TARGET).cpp \
-	./Sources/soapC.cpp \
-	./Sources/soapServer.cpp \
-	./Sources/CJob.cpp \
-	../common/Sources/WConfig.cpp \
-	../common/Sources/WFormat.cpp \
-	../common/Sources/WUtils.cpp \
-	../common/Sources/WError.cpp
+	./Sources/envC.cpp \
+	./Sources/mrsws.cpp \
+	./Sources/WConfig.cpp \
+	./Sources/WDatabankTable.cpp \
+	./Sources/WError.cpp \
+	./Sources/WFormat.cpp \
+	./Sources/WSAdmin.cpp \
+	./Sources/WSAdminNSC.cpp \
+	./Sources/WSAdminNSServer.cpp \
+	./Sources/WSBlast.cpp \
+	./Sources/WSBlastNSC.cpp \
+	./Sources/WSBlastNSServer.cpp \
+	./Sources/WSClustalNSC.cpp \
+	./Sources/WSClustalNSServer.cpp \
+	./Sources/WServer.cpp \
+	./Sources/WSSearch.cpp \
+	./Sources/WSSearchNSC.cpp \
+	./Sources/WSSearchNSServer.cpp \
+	./Sources/WUtils.cpp
 
 OBJS = $(addprefix $(OBJDIR)/, $(addsuffix .o, $(basename $(notdir $(Sources)))))
 
@@ -86,10 +112,10 @@ INCLUDES += $(addprefix -iquote, $(INCPATHS) $(SRC_PATHS))
 else
 INCLUDES += -I- $(addprefix -I, $(INCPATHS) $(SRC_PATHS))
 endif
-# Perl's defines and includes
+
 INCLUDES += $(shell $(PERL) -MExtUtils::Embed -e perl_inc)
 
-CFLAGS	+= $(addprefix -D, $(DEFINES)) $(DBG) $(WARNINGS)
+CFLAGS	+= $(addprefix -D, $(DEFINES)) $(DBG) $(WARNINGS) $(INCLUDES)
 ifeq ($(CPU), x86)
 CFLAGS	+= -fPIC
 endif
@@ -99,8 +125,7 @@ endif
 LDFLAGS += $(addprefix -L, $(LIBPATHS))
 # add the -l prefix to all libs to be linked against
 LDFLAGS += $(addprefix -l, $(LIBS))
-# Perl's flags
-LDFLAGS		+= $(shell $(PERL) -MExtUtils::Embed -e ldopts)
+LDFLAGS += $(shell $(PERL) -MExtUtils::Embed -e ldopts)
 
 all: $(TARGET)
 
@@ -110,23 +135,20 @@ echo_flags:
 	 @ echo Compiler flags used: $(CFLAGS)
 	 @ echo Include paths: $(INCLUDES)
 
-$(TARGET): $(OBJDIR) Sources/soapH.h $(OBJS)
-	$(MAKE) DEBUG=$(DEBUG) -C ../../plugin $(LIBNAME)
-	@ echo "Linking "$(@F)
-	@ $(CC) -o $(TARGET) ../../plugin/$(LIBNAME) $(OBJS) $(LDFLAGS)
-	@ chmod a+rx $(TARGET)
-	@ echo "Done"
-
 clean: FORCE
 	rm -rf $(OBJDIR)
 
 dist: $(TARGET)
 
-install: dist
-	$(SUDO) install $(TARGET) $(BINDIR)/$(TARGET)
-	@ echo "To finish installation of the web-service you have to edit the file"
-	@ echo "ws/Sources/$(TARGET).wsdl and put it in the proper location."
-#	install Sources/$(TARGET).wsdl ../web-simple/htdocs/
+install: $(TARGET)
+	$(SUDO) install -m 755 $(TARGET) $(BINDIR)/$(TARGET)
+
+soapheaders:  Sources/envH.h Sources/WSBlastNS.nsmap Sources/WSAdminNS.nsmap Sources/WSClustalNS.nsmap Sources/WSSearchNS.nsmap
+
+$(TARGET): $(OBJDIR) soapheaders $(OBJS)
+	@ $(MAKE) -C ../lib DEBUG=$(DEBUG) $(LIBNAME)
+	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS) ../lib/$(LIBNAME)
+	@ echo "Done"
 
 tags: FORCE
 	$(CTAGS) $(wildcard $(addsuffix *, $(SRC_PATHS))) $(wildcard $(addsuffix *.h, $(INCPATHS)))
@@ -146,7 +168,23 @@ include $(OBJS:%.o=%.d)
 
 ${OBJS:.o=.d}:
 
-Sources/soapC.cpp Sources/soapServer.cpp Sources/soapH.h: Sources/$(TARGET).h
-	$(SOAPCPP2) -d Sources/ Sources/$(TARGET).h
+Sources/env.h:
+	touch $@
+
+Sources/envH.h Sources/envC.cpp Sources/envStubs.h: Sources/env.h
+	$(SOAPCPP2) -d Sources -penv Sources/env.h
+
+Sources/WSBlastNS.nsmap: Sources/mrsws-blast.h
+	$(SOAPCPP2) -d Sources -q WSBlastNS -n -S -L -p WSBlastNS -x Sources/mrsws-blast.h
+
+Sources/WSAdminNS.nsmap: Sources/mrsws-admin.h
+	$(SOAPCPP2) -d Sources -q WSAdminNS -n -S -L -p WSAdminNS -x Sources/mrsws-admin.h
+
+Sources/WSClustalNS.nsmap: Sources/mrsws-clustal.h
+	$(SOAPCPP2) -d Sources -q WSClustalNS -n -S -L -p WSClustalNS -x Sources/mrsws-clustal.h
+
+Sources/WSSearchNS.nsmap: Sources/mrsws-search.h
+	$(SOAPCPP2) -d Sources -q WSSearchNS -n -S -L -p WSSearchNS -x Sources/mrsws-search.h
 
 FORCE:
+
