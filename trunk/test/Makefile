@@ -9,7 +9,8 @@
 # Now you can build debug and non debug versions, default is non-debug
 # but to build a debug version you type 'make DEBUG=1' instead of simply 'make'
 
-LIBNAME		= libmrs
+TARGET		= mrs-test
+LIBNAME		= mrs
 VERSION		= 4.0d1
 # DEBUG should be either 1 or 0
 DEBUG		= 0
@@ -21,8 +22,6 @@ WARNINGS	= -Wall -Wno-multichar -Wno-unknown-pragmas -Wno-long-long
 CFLAGS		= -fsigned-char -g -ffor-scope
 CFLAGS		+= -fmessage-length=132 -fdiagnostics-show-location=every-line
 LDFLAGS		= -fdata-sections -g
-#OPT		+= -fstrict-aliasing
-OPT			+= -O2
 
 include ../make.config
 
@@ -34,7 +33,6 @@ ifeq ($(OS),FreeBSD)
 	DEFINES		+= HAS_ENDIAN FREEBSD HAVE_SYS_IOCTL_H HAVE_SYS_SOCKIO_H \
 					HAVE_SYS_SOCKET_H HAVE_NETINET_IN_H HAVE_SRANDOM \
 					HAVE_NET_IF_DL_H HAVE_SA_LEN HAVE_INTTYPES_H
-	LD_SO_FLAG	+= -shared
 	LDFLAGS		+= -pthread
 	STRIP		= strip -d
 endif
@@ -48,8 +46,6 @@ ifeq ($(OS),Linux)
 endif
 
 ifeq ($(OS),Darwin)
-	SO_EXT		:= .bundle
-	LD_SO_FLAG	= -bundle -undefined suppress -flat_namespace
 	DEFINES		+= DARWIN HAVE_SYS_IOCTL_H HAVE_SYS_SOCKIO_H \
 					HAVE_SYS_SOCKET_H HAVE_NETINET_IN_H HAVE_SRANDOM HAVE_NET_IF_DL_H HAVE_SA_LEN
 	LDFLAGS		+= 
@@ -77,7 +73,7 @@ ifeq ($(PROFILE),1)
 	LIBNAME	:= $(LIBNAME)p
 endif
 
-LIBNAME	:= $(LIBNAME).a
+LIBNAME := lib$(LIBNAME).a
 
 Sources = \
 	./Sources/mrs-test.cpp
@@ -110,7 +106,7 @@ LDFLAGS += $(addprefix -L, $(LIBPATHS))
 # add the -l prefix to all libs to be linked against
 LDFLAGS += $(addprefix -l, $(LIBS))
 
-all: mrs-test
+all: $(TARGET)
 
 # build rules
 
@@ -118,19 +114,17 @@ echo_flags:
 	 @ echo Compiler flags used: $(CFLAGS)
 	 @ echo Include paths: $(INCLUDES)
 
-../lib/$(LIBNAME):
-	@ $(MAKE) DEBUG=$(DEBUG) -C ../lib $(LIBNAME)
-
 clean: FORCE
 	rm -rf $(OBJDIR)
 
-dist: mrs-test
+dist: $(TARGET)
 
-install: mrs-test
-	$(SUDO) install -m 755 mrs-test $(BINDIR)/mrs-test
+install: $(TARGET)
+	$(SUDO) install -m 755 $(TARGET) $(BINDIR)/$(TARGET)
 
-mrs-test: ../lib/$(LIBNAME) Sources/mrs-test.cpp
-	$(CC) $(CFLAGS) -o $@ Sources/mrs-test.cpp $(LDFLAGS) ../lib/$(LIBNAME)
+$(TARGET): $(OBJDIR) $(OBJS)
+	@ $(MAKE) -C ../lib DEBUG=$(DEBUG) $(LIBNAME)
+	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS) ../lib/$(LIBNAME)
 	@ echo "Done"
 
 tags: FORCE

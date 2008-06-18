@@ -1,20 +1,31 @@
-# make file for soap server
+# Makefile for mrs-build
+#
+# You can set local options in your make.config file
+# This file will be included by this makefile
+# Options to set in this make.config file are e.g.:
+#
+#	CC		- the c++ compiler to use, must support tr1 though (gcc 4.1 e.g.)
+#	
+# Now you can build debug and non debug versions, default is non-debug
+# but to build a debug version you type 'make DEBUG=1' instead of simply 'make'
 
 TARGET		= mrs-build
+LIBNAME		= mrs
+VERSION		= 4.0d1
 # DEBUG should be either 1 or 0
 DEBUG		= 0
-LIBNAME		= mrs
 LIBS		= z m bz2 magic
-LIBPATHS	=  ../plugin/Lib/ ../plugin/
-INCPATHS	= ../plugin/Lib/Includes/ ../plugin/Lib/Posix/ ../plugin/Lib/ ../plugin/Sources/
+LIBPATHS	= ../lib/
+INCPATHS	= ../lib/Lib/Includes/ ../lib/Lib/Posix/ ../lib/Lib/ ../lib/Lib/Generic/ ../lib/Sources/
 SYSINCPATHS	= /usr/include
-WARNINGS	= -Wall -Wno-multichar -Wno-unknown-pragmas
+WARNINGS	= -Wall -Wno-multichar -Wno-unknown-pragmas -Wno-long-long
 CFLAGS		= -fsigned-char -g -ffor-scope
-#CFLAGS		+= -fmessage-length=132 -fdiagnostics-show-location=every-line
+CFLAGS		+= -fmessage-length=132 -fdiagnostics-show-location=every-line
 LDFLAGS		= -fdata-sections -g
-OPT			= -O3
 
 include ../make.config
+
+CC			?= c++		# some reasonable defaults
 
 DEFINES     += CPU_$(CPU)
 
@@ -37,9 +48,12 @@ endif
 ifeq ($(OS),Darwin)
 	DEFINES		+= DARWIN HAVE_SYS_IOCTL_H HAVE_SYS_SOCKIO_H \
 					HAVE_SYS_SOCKET_H HAVE_NETINET_IN_H HAVE_SRANDOM HAVE_NET_IF_DL_H HAVE_SA_LEN
-	LD_SO_FLAG	= -bundle -undefined suppress -flat_namespace
 	LDFLAGS		+= 
 	STRIP		= strip -S
+endif
+
+ifeq ($(NO_BLAST),1)
+DEFINES			+= NO_BLAST
 endif
 
 ifeq ($(DEBUG),0)
@@ -82,10 +96,10 @@ INCLUDES += $(addprefix -iquote, $(INCPATHS) $(SRC_PATHS))
 else
 INCLUDES += -I- $(addprefix -I, $(INCPATHS) $(SRC_PATHS))
 endif
-# Perl's defines and includes
+
 INCLUDES += $(shell $(PERL) -MExtUtils::Embed -e perl_inc)
 
-CFLAGS	+= $(addprefix -D, $(DEFINES)) $(DBG) $(WARNINGS)
+CFLAGS	+= $(addprefix -D, $(DEFINES)) $(DBG) $(WARNINGS) $(INCLUDES)
 ifeq ($(CPU), x86)
 CFLAGS	+= -fPIC
 endif
@@ -95,16 +109,7 @@ endif
 LDFLAGS += $(addprefix -L, $(LIBPATHS))
 # add the -l prefix to all libs to be linked against
 LDFLAGS += $(addprefix -l, $(LIBS))
-# Perl's flags
-LDFLAGS		+= $(shell $(PERL) -MExtUtils::Embed -e ldopts)
-
-ifeq ($(OS),Darwin)
-ifeq ($(CPU),x86)
-LDFLAGS		:= $(shell echo $(LDFLAGS) | sed -e 's/-arch ppc//')
-else
-LDFLAGS		:= $(shell echo $(LDFLAGS) | sed -e 's/-arch i386//')
-endif
-endif
+LDFLAGS += $(shell $(PERL) -MExtUtils::Embed -e ldopts)
 
 all: $(TARGET)
 
@@ -114,20 +119,18 @@ echo_flags:
 	 @ echo Compiler flags used: $(CFLAGS)
 	 @ echo Include paths: $(INCLUDES)
 
-$(TARGET): $(OBJDIR) $(OBJS)
-	$(MAKE) DEBUG=$(DEBUG) -C ../plugin $(LIBNAME)
-	@ echo "Linking "$(@F)
-	@ $(CC) -o $(TARGET) ../plugin/$(LIBNAME) $(OBJS) $(LDFLAGS)
-	@ chmod a+rx $(TARGET)
-	@ echo "Done"
-
 clean: FORCE
 	rm -rf $(OBJDIR)
 
 dist: $(TARGET)
 
-install: dist
-	$(SUDO) install $(TARGET) $(BINDIR)/$(TARGET)
+install: $(TARGET)
+	$(SUDO) install -m 755 $(TARGET) $(BINDIR)/$(TARGET)
+
+$(TARGET): $(OBJDIR) $(OBJS)
+	@ $(MAKE) -C ../lib DEBUG=$(DEBUG) $(LIBNAME)
+	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS) ../lib/$(LIBNAME)
+	@ echo "Done"
 
 tags: FORCE
 	$(CTAGS) $(wildcard $(addsuffix *, $(SRC_PATHS))) $(wildcard $(addsuffix *.h, $(INCPATHS)))

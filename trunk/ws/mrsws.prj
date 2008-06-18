@@ -56,7 +56,7 @@
 	</files>
 	<resources resource_dir="."/>
 	<targets>
-		<target kind="Executable" name="mrsws Debug" linkTarget="mrsws">
+		<target kind="Executable" name="mrsws Debug" linkTarget="mrs-ws">
 			<defines>
 				<define>DEBUG</define>
 				<define>MINI_H_LIB</define>
@@ -72,7 +72,7 @@
 				<warning>no-multichar</warning>
 			</warnings>
 		</target>
-		<target kind="Executable" name="mrsws Release" linkTarget="mrsws">
+		<target kind="Executable" name="mrsws Release" linkTarget="mrs-ws">
 			<defines>
 				<define>MINI_H_LIB</define>
 				<define>LINUX</define>

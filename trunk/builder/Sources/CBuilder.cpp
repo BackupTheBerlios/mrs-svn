@@ -18,6 +18,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <cstdarg>
 
 #include "HFile.h"
 #include "HBuffer.h"
@@ -33,9 +34,6 @@
 using namespace std;
 namespace fs = boost::filesystem;
 namespace ba = boost::algorithm;
-
-int VERBOSE = 0;
-unsigned int THREADS = 2;
 
 // ------------------------------------------------------------------
 

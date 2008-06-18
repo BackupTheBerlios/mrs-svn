@@ -32,6 +32,7 @@
 			<file>CParser.cpp</file>
 		</group>
 		<group name="MRSSources">
+			<file>MRS.cpp</file>
 			<file>CBitStream.cpp</file>
 			<file>CCompress.cpp</file>
 			<file>CDatabank.cpp</file>
