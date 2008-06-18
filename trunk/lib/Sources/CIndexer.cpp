@@ -826,9 +826,14 @@ bool CFullTextIterator::Next(
 class CIndexBase : public CLexCompare
 {
   public:
-					CIndexBase(CFullTextIndex& inFullTextIndex,
-						const string& inName, uint16 inIndexNr,
-						const HUrl& inScratch, CIndexKind inKind);
+					CIndexBase(
+						CFullTextIndex&		inFullTextIndex,
+						CLexicon&			inLexicon,
+						const string&		inName,
+						uint16				inIndexNr,
+						const HUrl&			inScratch,
+						CIndexKind			inKind);
+
 	virtual 		~CIndexBase();
 	
 	void			SetIsUpdate(bool isUpdate)
@@ -845,7 +850,6 @@ class CIndexBase : public CLexCompare
 	
 	virtual bool	Write(
 						HStreamBase&		inDataFile,
-						CLexicon&			inLexicon,
 						uint32				inDocCount,
 						SIndexPart&			outInfo);
 
@@ -862,6 +866,7 @@ class CIndexBase : public CLexCompare
   	uint32			fKind;
 
 	CFullTextIndex&	fFullTextIndex;
+	CLexicon&		fLexicon;
 	uint16			fIndexNr;
 	bool			fEmpty;
 	bool			fIsUpdate;
@@ -882,7 +887,7 @@ class CIndexBase : public CLexCompare
 	COBitStream*	fRawIndex;
 	uint32			fRawIndexCnt;
 	uint32			fLastTermNr;
-	uint64			fLastOffset;
+	int64			fLastOffset;
 };
 
 struct SortLex
@@ -903,11 +908,17 @@ struct SortLex
 	CIndexBase*		fBase;
 };
 
-CIndexBase::CIndexBase(CFullTextIndex& inFullTextIndex, const string& inName,
-		uint16 inIndexNr, const HUrl& inScratch, CIndexKind inKind)
+CIndexBase::CIndexBase(
+	CFullTextIndex&		inFullTextIndex,
+	CLexicon&			inLexicon,
+	const string&		inName,
+	uint16				inIndexNr,
+	const HUrl&			inScratch,
+	CIndexKind			inKind)
 	: fName(inName)
 	, fKind(inKind)
 	, fFullTextIndex(inFullTextIndex)
+	, fLexicon(inLexicon)
 	, fIndexNr(inIndexNr)
 	, fEmpty(true)
 	, fIsUpdate(false)
@@ -1031,8 +1042,8 @@ void CIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 		fBits->sync();
 		
 		int64 offset = fBitFile->Seek(0, SEEK_END);
-		if (offset > numeric_limits<uint32>::max())
-			THROW(("Resulting full text index is too large"));
+//		if (offset > numeric_limits<uint32>::max())
+//			THROW(("Resulting full text index is too large"));
 		
 		if (fRawIndex == nil)
 		{
@@ -1136,7 +1147,6 @@ void CIndexBase::FlushTerm(uint32 inTerm, uint32 inDocCount)
 
 bool CIndexBase::Write(
 	HStreamBase&		inDataFile,
-	CLexicon&			inLexicon,
 	uint32				/*inDocCount*/,
 	SIndexPart&			outInfo)
 {
@@ -1198,7 +1208,7 @@ bool CIndexBase::Write(
 	lexicon.push_back(make_pair(term, offset));
 	--fRawIndexCnt;
 	
-	SortLex sortLex(inLexicon, this);
+	SortLex sortLex(fLexicon, this);
 	
 	while (fRawIndexCnt-- > 0)
 	{
@@ -1258,7 +1268,7 @@ bool CIndexBase::Write(
 
 	// construct the optimized b-tree
 
-	CFullTextIterator iter(inLexicon, lexicon);
+	CFullTextIterator iter(fLexicon, lexicon);
 	auto_ptr<CIndex> indx(CIndex::CreateFromIterator(fKind, outInfo.index_version, iter, inDataFile));
 
 	outInfo.tree_offset = indx->GetOffset();
@@ -1282,15 +1292,18 @@ bool CIndexBase::Write(
 class CValueIndex : public CIndexBase
 {
   public:
-					CValueIndex(CFullTextIndex& inFullTextIndex, const string& inName,
-						uint16 inIndexNr, const HUrl& inScratch);
+					CValueIndex(
+						CFullTextIndex&		inFullTextIndex,
+						CLexicon&			inLexicon,
+						const string&		inName,
+						uint16				inIndexNr,
+						const HUrl&			inScratch);
 	
 	virtual void	AddDocTerm(uint32 inDoc, uint8 inFrequency, CIBitStream& inDocLoc);
 	virtual void	FlushTerm(uint32 inTerm, uint32 inDocCount);
 
 	virtual bool	Write(
 						HStreamBase&		inDataFile,
-						CLexicon&			inLexicon,
 						uint32				inDocCount,
 						SIndexPart&			outInfo);
 	
@@ -1300,9 +1313,13 @@ class CValueIndex : public CIndexBase
 					fIndex;
 };
 
-CValueIndex::CValueIndex(CFullTextIndex& inFullTextIndex, const string& inName,
-		uint16 inIndexNr, const HUrl& inScratch)
-	: CIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kValueIndex)
+CValueIndex::CValueIndex(
+	CFullTextIndex&		inFullTextIndex,
+	CLexicon&			inLexicon,
+	const string&		inName,
+	uint16				inIndexNr,
+	const HUrl&			inScratch)
+	: CIndexBase(inFullTextIndex, inLexicon, inName, inIndexNr, inScratch, kValueIndex)
 {
 }
 	
@@ -1316,17 +1333,16 @@ void CValueIndex::FlushTerm(uint32 inTerm, uint32 inDocCount)
 {
 	if (fDocs.size() != 1 and not fIsUpdate)
 	{
-#warning("fix me")
-//		string term = fFullTextIndex.Lookup(inTerm);
-//
-//		cerr << endl
-//			 << "Term " << term << " is not unique for index "
-//			 << fName << ", it appears in document: ";
-//
-//		for (vector<uint32>::iterator d = fDocs.begin(); d != fDocs.end(); ++d)
-//			cerr << *d << " ";
-//
-//		cerr << endl;
+		string term = fLexicon.GetString(inTerm);
+
+		cerr << endl
+			 << "Term " << term << " is not unique for index "
+			 << fName << ", it appears in document: ";
+
+		for (vector<uint32>::iterator d = fDocs.begin(); d != fDocs.end(); ++d)
+			cerr << *d << " ";
+
+		cerr << endl;
 	}
 	
 	if (fDocs.size() > 0)
@@ -1338,7 +1354,6 @@ void CValueIndex::FlushTerm(uint32 inTerm, uint32 inDocCount)
 
 bool CValueIndex::Write(
 	HStreamBase&		inDataFile,
-	CLexicon&			inLexicon,
 	uint32				/*inDocCount*/,
 	SIndexPart&			outInfo)
 {
@@ -1357,9 +1372,9 @@ bool CValueIndex::Write(
 	outInfo.kind = fKind;
 
 	// construct the optimized b-tree
-	sort(fIndex.begin(), fIndex.end(), SortLex(inLexicon, this));
+	sort(fIndex.begin(), fIndex.end(), SortLex(fLexicon, this));
 
-	CFullTextIterator iter(inLexicon, fIndex);
+	CFullTextIterator iter(fLexicon, fIndex);
 	auto_ptr<CIndex> indx(CIndex::CreateFromIterator(fKind, outInfo.index_version, iter, inDataFile));
 
 	outInfo.tree_offset = indx->GetOffset();
@@ -1376,45 +1391,57 @@ bool CValueIndex::Write(
 class CTextIndex : public CIndexBase
 {
   public:
-					CTextIndex(CFullTextIndex& inFullTextIndex,
-						const string& inName, uint16 inIndexNr,
-						const HUrl& inScratch);
+					CTextIndex(
+						CFullTextIndex&		inFullTextIndex,
+						CLexicon&			inLexicon,
+						const string&		inName,
+						uint16				inIndexNr,
+						const HUrl&			inScratch);
 };
 
-CTextIndex::CTextIndex(CFullTextIndex& inFullTextIndex,
-		const string& inName, uint16 inIndexNr, const HUrl& inScratch)
-	: CIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kTextIndex)
+CTextIndex::CTextIndex(
+	CFullTextIndex&		inFullTextIndex,
+	CLexicon&			inLexicon,
+	const string&		inName,
+	uint16				inIndexNr,
+	const HUrl&			inScratch)
+	: CIndexBase(inFullTextIndex, inLexicon, inName, inIndexNr, inScratch, kTextIndex)
 {
 }
 
 class CWeightedWordIndex : public CIndexBase
 {
   public:
-					CWeightedWordIndex(CFullTextIndex& inFullTextIndex,
-						const string& inName, uint16 inIndexNr,
-						const HUrl& inScratch);
+					CWeightedWordIndex(
+						CFullTextIndex&		inFullTextIndex,
+						CLexicon&			inLexicon,
+						const string&		inName,
+						uint16				inIndexNr,
+						const HUrl&			inScratch);
 
 	virtual bool	Write(
 						HStreamBase&		inDataFile,
-						CLexicon&			inLexicon,
 						uint32				inDocCount,
 						SIndexPart&			outInfo);
 };
 
-CWeightedWordIndex::CWeightedWordIndex(CFullTextIndex& inFullTextIndex,
-		const string& inName, uint16 inIndexNr, const HUrl& inScratch)
-	: CIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kWeightedIndex)
+CWeightedWordIndex::CWeightedWordIndex(
+	CFullTextIndex&		inFullTextIndex,
+	CLexicon&			inLexicon,
+	const string&		inName,
+	uint16				inIndexNr,
+	const HUrl&			inScratch)
+	: CIndexBase(inFullTextIndex, inLexicon, inName, inIndexNr, inScratch, kWeightedIndex)
 {
 	fWeightBitCount = inFullTextIndex.GetWeightBitCount();
 }
 
 bool CWeightedWordIndex::Write(
 	HStreamBase&		inDataFile,
-	CLexicon&			inLexicon,
 	uint32				inDocCount,
 	SIndexPart&			outInfo)
 {
-	if (not CIndexBase::Write(inDataFile, inLexicon, inDocCount, outInfo))
+	if (not CIndexBase::Write(inDataFile, inDocCount, outInfo))
 		return false;
 	
 	outInfo.weight_offset = inDataFile.Seek(0, SEEK_END);
@@ -1441,30 +1468,44 @@ bool CWeightedWordIndex::Write(
 class CDateIndex : public CIndexBase
 {
   public:
-					CDateIndex(CFullTextIndex& inFullTextIndex,
-						const string& inName, uint16 inIndexNr,
-						const HUrl& inScratch);
+					CDateIndex(
+						CFullTextIndex&		inFullTextIndex,
+						CLexicon&			inLexicon,
+						const string&		inName,
+						uint16				inIndexNr,
+						const HUrl&			inScratch);
 };
 
-CDateIndex::CDateIndex(CFullTextIndex& inFullTextIndex,
-		const string& inName, uint16 inIndexNr, const HUrl& inScratch)
-	: CIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kDateIndex)
+CDateIndex::CDateIndex(
+	CFullTextIndex&		inFullTextIndex,
+	CLexicon&			inLexicon,
+	const string&		inName,
+	uint16				inIndexNr,
+	const HUrl&			inScratch)
+	: CIndexBase(inFullTextIndex, inLexicon, inName, inIndexNr, inScratch, kDateIndex)
 {
 }
 
 class CNumberIndex : public CIndexBase
 {
   public:
-					CNumberIndex(CFullTextIndex& inFullTextIndex,
-						const string& inName, uint16 inIndexNr,
-						const HUrl& inScratch);
+					CNumberIndex(
+						CFullTextIndex&		inFullTextIndex,
+						CLexicon&			inLexicon,
+						const string&		inName,
+						uint16				inIndexNr,
+						const HUrl&			inScratch);
 
 	virtual int		Compare(const char* inA, uint32 inLengthA, const char* inB, uint32 inLengthB) const;
 };
 
-CNumberIndex::CNumberIndex(CFullTextIndex& inFullTextIndex,
-		const string& inName, uint16 inIndexNr, const HUrl& inScratch)
-	: CIndexBase(inFullTextIndex, inName, inIndexNr, inScratch, kNumberIndex)
+CNumberIndex::CNumberIndex(
+	CFullTextIndex&		inFullTextIndex,
+	CLexicon&			inLexicon,
+	const string&		inName,
+	uint16				inIndexNr,
+	const HUrl&			inScratch)
+	: CIndexBase(inFullTextIndex, inLexicon, inName, inIndexNr, inScratch, kNumberIndex)
 {
 }
 
@@ -1477,10 +1518,13 @@ int CNumberIndex::Compare(const char* inA, uint32 inLengthA,
 
 // 
 
-CIndexer::CIndexer(const HUrl& inDb)
+CIndexer::CIndexer(
+	const HUrl&			inDb,
+	CLexicon&			inLexicon)
 	: fDb(inDb.GetURL())
 	, fFullTextIndex(nil)
 	, fNextIndexID(0)
+	, fLexicon(&inLexicon)
 	, fFile(nil)
 	, fHeader(new SIndexHeader)
 	, fParts(nil)
@@ -1501,6 +1545,7 @@ CIndexer::CIndexer(const HUrl& inDb)
 CIndexer::CIndexer(HStreamBase& inFile, int64 inOffset, int64 inSize)
 	: fFullTextIndex(nil)
 	, fNextIndexID(0)
+	, fLexicon(nil)
 	, fFile(&inFile)
 	, fOffset(inOffset)
 	, fSize(inSize)
@@ -1576,7 +1621,7 @@ CIndexBase* CIndexer::GetIndexBase(const string& inIndex)
 	{
 		HUrl url(fDb + '.' + inIndex + "_indx");
 		index = fIndices[inIndex] =
-			new INDEX_KIND(*fFullTextIndex, inIndex, fNextIndexID++, url);
+			new INDEX_KIND(*fFullTextIndex, *fLexicon, inIndex, fNextIndexID++, url);
 	}
 	else if (dynamic_cast<INDEX_KIND*>(index) == NULL)
 		THROW(("Inconsistent use of indexes for index %s", inIndex.c_str()));
@@ -1807,7 +1852,6 @@ void CIndexer::CreateIndex(
 	HStreamBase&	inFile,
 	int64&			outOffset,
 	int64&			outSize,
-	CLexicon&		inLexicon,
 	bool			inCreateAllTextIndex,
 	bool			inCreateUpdateDatabank,
 	CDBBuildProgressMixin*
@@ -1882,7 +1926,7 @@ void CIndexer::CreateIndex(
 	{
 		HUrl url(fDb + '.' + "alltext_indx");
 		allIndex = new CWeightedWordIndex(
-					*fFullTextIndex, kAllTextIndexName, fHeader->count - 1, url);
+					*fFullTextIndex, *fLexicon, kAllTextIndexName, fHeader->count - 1, url);
 	}
 	
 	if (VERBOSE > 0)
@@ -1974,7 +2018,7 @@ void CIndexer::CreateIndex(
 			if (inProgress != nil)
 				inProgress->SetWritingIndexProgress(0, 0, indx->second->GetName().c_str());
 //			mCurrentlyWritingIndex = indx->second->GetName();
-			if (indx->second->Write(inFile, inLexicon, fHeader->entries, fParts[ix]))
+			if (indx->second->Write(inFile, fHeader->entries, fParts[ix]))
 				++ix;
 			else
 				--fHeader->count;
@@ -1987,7 +2031,7 @@ void CIndexer::CreateIndex(
 	{
 		if (inProgress != nil)
 			inProgress->SetWritingIndexProgress(0, 0, allIndex->GetName().c_str());
-		allIndex->Write(inFile, inLexicon, fHeader->entries, fParts[ix++]);
+		allIndex->Write(inFile, fHeader->entries, fParts[ix++]);
 		delete allIndex;
 	}
 	

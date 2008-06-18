@@ -53,7 +53,7 @@
  
 #include "MRS.h"
 
-#include <boost/thread/shared_mutex.hpp>
+#include <boost/thread.hpp>
 
 #include "HError.h"
 #include "CLexicon.h"
@@ -237,13 +237,13 @@ void CLexPage::Add(
 
 struct CLexiconImp
 {
-	void			LockShared()		{ fMutex.lock_shared(); }
+	void			LockShared();
 	
-	void			UnlockShared()		{ fMutex.unlock_shared(); }
+	void			UnlockShared();
 	
-	void			LockUnique()		{ fMutex.lock(); }
+	void			LockUnique();
 	
-	void			UnlockUnique()		{ fMutex.unlock(); }
+	void			UnlockUnique();
 
 	uint32			Lookup(
 						const char*		inWord,
@@ -344,8 +344,22 @@ struct CLexiconImp
 	uint32			fIxPageSize;
 
 	// synchronisation
-	boost::shared_mutex
-					fMutex;
+	// boost 1.35 contains a shared_mutex, but since we
+	// want to remain compatible with 1.34 we have to reimplement
+	// it here ourselves.
+	
+//	boost::shared_mutex
+//					fMutex;
+
+	struct CStateData
+	{
+		uint32		shared_count;
+		bool		exclusive;
+		bool		exclusive_waiting_blocked;
+	}				fState;
+	boost::mutex	fMutex;
+	boost::condition
+					fSharedCondition, fExclusiveCondition;
 };
 
 CLexiconImp::CLexiconImp(
@@ -353,6 +367,9 @@ CLexiconImp::CLexiconImp(
 	: fCount(0)
 	, fIxPageSize(inIxPageSize)
 {
+	CStateData state_ = {};
+	fState = state_;
+	
 	fPages.push_back(new CLexPage(0));
 
 	fRoot = AllocateNode();
@@ -373,6 +390,64 @@ CLexiconImp::~CLexiconImp()
 
 	for (NodePageArray::iterator p = fNodes.begin(); p != fNodes.end(); ++p)
 		delete[] *p;
+}
+
+void CLexiconImp::LockShared()
+{
+	boost::mutex::scoped_lock lock(fMutex);
+	
+	for (;;)
+	{
+		if (not fState.exclusive and not fState.exclusive_waiting_blocked)
+		{
+			++fState.shared_count;
+			break;
+		}
+		
+		fSharedCondition.wait(lock);
+	}
+}
+
+void CLexiconImp::UnlockShared()
+{
+	boost::mutex::scoped_lock lock(fMutex);
+	
+	if (--fState.shared_count == 0)
+	{
+		fState.exclusive_waiting_blocked = false;
+		
+		fExclusiveCondition.notify_one();
+//		fSharedCondition.notify_all();	// ??? 
+	}
+}
+
+void CLexiconImp::LockUnique()
+{
+	boost::mutex::scoped_lock lock(fMutex);
+	
+	for (;;)
+	{
+		if (fState.exclusive or fState.shared_count > 0)
+			fState.exclusive_waiting_blocked = true;
+		else
+		{
+			fState.exclusive = true;
+			break;
+		}
+
+		fExclusiveCondition.wait(lock);
+	}
+}
+
+void CLexiconImp::UnlockUnique()
+{
+	boost::mutex::scoped_lock lock(fMutex);
+	
+	fState.exclusive = false;
+	fState.exclusive_waiting_blocked = false;
+	
+	fExclusiveCondition.notify_one();
+	fSharedCondition.notify_all();
 }
 
 CNode* CLexiconImp::AllocateNode()

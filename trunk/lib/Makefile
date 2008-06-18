@@ -21,7 +21,7 @@ WARNINGS	= -Wall -Wno-multichar -Wno-unknown-pragmas -Wno-long-long
 CFLAGS		= -fsigned-char -g -ffor-scope
 CFLAGS		+= -fmessage-length=132 -fdiagnostics-show-location=every-line
 LDFLAGS		= -fdata-sections -g
-OPT			+= -O2
+OPT			+= -O3
 
 include ../make.config
 

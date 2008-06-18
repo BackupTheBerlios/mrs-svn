@@ -88,7 +88,7 @@ $cc = $ENV{CXX} unless defined $cc;
 $cc = `which c++` unless defined $cc;
 chomp($cc);
 
-my ($gcc_version, $gcc_march);
+my ($gcc_major_version, $gcc_minor_version, $gcc_march);
 
 # The SWIG executable
 my $swig = `which swig`;
@@ -237,22 +237,29 @@ sub ValidateOptions()
 
 	my $C_file=<<END;
 #include <iostream>
-int main() { std::cout << __GNUC__ << std::endl; return 0; }
+int main() { std::cout << __GNUC__ << '\t' << __GNUC_MINOR__ << std::endl; return 0; }
 END
 	
 	eval {
-		$gcc_version = &compile($C_file, $cc);
+		my $gcc_version = &compile($C_file, $cc);
+		($gcc_major_version, $gcc_minor_version) = split(m/\t/, $gcc_version);
 	};
 	
 	if ($@) {
 		die "A compiler error prevented the determination of the version: $@\n";
 	}
 	
-	if (defined $gcc_version) {
-		if ($gcc_version >= 4) {
-			print " OK\n";
+	if (defined $gcc_major_version) {
+		if ($gcc_major_version >= 4) {
+			if ($gcc_minor_version == 2) {
+				print " hmmm... seems to be the buggy version 4.2, falling back to -O2\n";
+				print "Version 4.1 of gcc is preferred since 4.2 contains a code generation bug\n";
+			}
+			else {
+				print " OK\n";
+			}
 		}
-		elsif ($gcc_version >= 3) {
+		elsif ($gcc_major_version >= 3) {
 			print " Hmmmm\nFound an old (pre 4.x) version of GCC, will try to use it but this will probably fail\n";
 		}
 		else {
@@ -591,15 +598,21 @@ sub WriteMakefiles()
 	my $lib_dir = "$prefix/lib";
 	
 	my $iquote = 1;
-	if (defined $gcc_version and $gcc_version < 4) {
+	if (defined $gcc_major_version and $gcc_major_version < 4) {
 		$iquote = 0;
 	}
 	
 	my $no_blast_def = "";
 	$no_blast_def = "DEFINES       += NO_BLAST\n" if $no_blast;
 
-	my $opt = "	# e.g. -march=nocona for Core 2 processors, but be careful";
-	$opt = "-march=$gcc_march" if defined $gcc_march;
+	my $opt;
+	if ($gcc_major_version == 4 and $gcc_minor_version == 1) {
+		$opt = "-O3";
+	}
+	else {
+		$opt = "-O2";
+	}
+#	$opt = "-march=$gcc_march" if defined $gcc_march;
 
 	open MCFG, ">make.config" or die "Could not open the file make.config for writing!\n";
 	
@@ -637,6 +650,10 @@ DEFINES       += MRS_DATA_DIR='"$data_dir/mrs"'
 DEFINES       += MRS_PARSER_DIR='"$parser_scripts"'
 DEFINES       += HAVE_TR1=$use_tr1
 OPT           += $opt
+              # e.g. -march=nocona for Core 2 processors, but be careful
+              # GCC 4.2.3 is known to have a code generation bug when
+              # using -03 and -march=native on x86_64
+
 $no_blast_def
 # paths
 

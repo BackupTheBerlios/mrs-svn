@@ -34,14 +34,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
  
+#include "MRS.h"
+
 #include <iostream>
 #include <fstream>
 #include <cerrno>
 #include <cstdarg>
 
-//#include "MRS.h"
+#include "CDatabank.h"
+#include "CBlast.h"
 
-#include "MRSInterface.h"
 #include "getopt.h"
 
 using namespace std;
@@ -102,7 +104,7 @@ const char* kNest[] =
 };
 
 void Report(
-	MDatabank&			inDb,
+	CDatabank&			inDb,
 	const string&		inQueryID,
 	const string&		inQueryDesc,
 	unsigned long		inQueryLength,
@@ -113,7 +115,7 @@ void Report(
 	unsigned long		inGapOpen,
 	unsigned long		inGapExtend,
 	bool				inFilter,
-	MBlastHits&			inBlastHits)
+	CBlastHitIterator&	inBlastHits)
 {
 	cout << kNest[0] << "<?xml version=\"1.0\"?>" << endl;
 	cout << kNest[0] << "<BlastOutput>" << endl;
@@ -156,9 +158,7 @@ void Report(
 		if (id == NULL)
 			error("Problem retrieving hit ID");
 		
-		const char* title = inDb.GetMetaData(id, "title");
-		if (title == NULL)
-			title = "";
+		const string title = inDb.GetMetaData(id, "title");
 		
 		unsigned long hspNr = 1;
 		auto_ptr<MBlastHsps> hsps(hit->Hsps());
@@ -252,7 +252,7 @@ int main(int argc, const char* argv[])
 	streambuf* outBuf = NULL;
 	float expect = 10.0;
 	bool filter = true, gapped = true;
-	int wordsize = 3, gapOpen = 11, gapExtend = 1;
+	int wordsize = 3, gapOpen = 11, gapExtend = 1, threads = 1;
 	
 	matrix = "BLOSUM62";
 
@@ -262,7 +262,7 @@ int main(int argc, const char* argv[])
 		switch (c)
 		{
 			case 'a':
-				THREADS = atoi(optarg);
+				threads = atoi(optarg);
 				break;
 			
 			case 'p':
@@ -338,7 +338,7 @@ int main(int argc, const char* argv[])
 	if (gProgram != "blastp")
 		error("Unsupported program: %s", gProgram.c_str());
 	
-	MDatabank mrsDb(db);
+	CDatabank mrsDb(HUrl(db));
 	
 	ifstream queryFile;
 	queryFile.open(gInput.c_str());
@@ -380,21 +380,24 @@ int main(int argc, const char* argv[])
 	
 	queryFile.close();
 	
-	auto_ptr<MQueryResults> query;
-	auto_ptr<MBlastHits> hits;
+	auto_ptr<CDocIterator> query;
 	
-	if (mrs_query.length())
+	if (mrs_query.length() > 0)
 	{
-		query.reset(mrsDb.Find(mrs_query));
-		hits.reset(query->Blast(sequence, matrix,
-			wordsize, expect, filter, gapped, gapOpen, gapExtend, 250));
+		CParsedQueryObject q(mrsDb, mrs_query, false);
+		query.reset(q.Perform());
 	}
-	else
-		hits.reset(mrsDb.Blast(sequence, matrix,
-			wordsize, expect, filter, gapped, gapOpen, gapExtend, 250));
-
-	if (hits.get())
-		Report(mrsDb, id, desc, sequence.length(), gNrOfHits,  matrix, expect, gapped, gapOpen, gapExtend, filter, *hits.get());
+	
+	if (query.get() == nil)
+		query.reset(new CDbAllDocIterator(mrsDb.Count()));
+	
+	CBlast blast(sequence, matrix, wordsize, expect, filter, gapped, gapOpen, gapExtend, 250);
+	
+	if (blast.Find(mrsDb, query, threads))
+	{
+		Report(mrsDb, id, desc, sequence.length(), gNrOfHits, 
+			matrix, expect, gapped, gapOpen, gapExtend, filter, blast.Hits());
+	}
 
 	if (outBuf)
 		cout.rdbuf(outBuf);

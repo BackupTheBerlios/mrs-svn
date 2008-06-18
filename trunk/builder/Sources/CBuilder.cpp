@@ -17,6 +17,7 @@
 #include <string>
 #include <iostream>
 #include <iomanip>
+#include <sstream>
 
 #include "HFile.h"
 #include "HBuffer.h"
@@ -94,8 +95,8 @@ class CBuilder : public CDBBuildProgressMixin
 
 	virtual void
 				SetCreateIndexProgress(
-					uint32		inCurrentLexEntry,
-					uint32		inTotalLexEntries);
+					int64		inCurrentLexEntry,
+					int64		inTotalLexEntries);
 		
 	virtual void
 				SetWritingIndexProgress(
@@ -169,7 +170,7 @@ CBuilder::CBuilder(
 		mCompressorFactory = new CCompressorFactory(compAlgo, compLevel, compDict);
 		
 		mDatabank = new CDatabank(path, mMeta, inDatabank,
-			version, url, inScript, section, this, *mCompressorFactory);
+			version, url, inScript, section, this, *mCompressorFactory, mLexicon);
 	}
 	catch (...)
 	{
@@ -273,7 +274,7 @@ void CBuilder::Run(
 	if (VERBOSE > 1)
 		cout << "done" << endl;
 	
-	mDatabank->Finish(mLexicon, true, false);
+	mDatabank->Finish(true, false);
 	delete mDatabank;
 	mDatabank = nil;
 
@@ -408,8 +409,8 @@ void CBuilder::Progress()
 }
 
 void CBuilder::SetCreateIndexProgress(
-	uint32		inCurrentLexEntry,
-	uint32		inTotalLexEntries)
+	int64		inCurrentLexEntry,
+	int64		inTotalLexEntries)
 {
 	if (not mShowProgress)
 		return;
@@ -438,7 +439,7 @@ void CBuilder::SetCreateIndexProgress(
 			char msg[80];
 			
 			snprintf(msg, sizeof(msg),
-				"Building index %d/%d [%3.d%%] ",
+				"Building index %Ld/%Ld [%3.d%%] ",
 				fCurrentLexEntry, fTotalLexEntries,
 				static_cast<uint32>(100 * progress));
 			

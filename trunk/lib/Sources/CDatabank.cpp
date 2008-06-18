@@ -396,8 +396,8 @@ void CDBBuildProgressMixin::SetDocProgress(
 }
 
 void CDBBuildProgressMixin::SetCreateIndexProgress(
-	uint32		inCurrentLexEntry,
-	uint32		inTotalLexEntries)
+	int64		inCurrentLexEntry,
+	int64		inTotalLexEntries)
 {
 	fCreatingIndex = true;
 	fCurrentLexEntry = inCurrentLexEntry;
@@ -428,7 +428,8 @@ CDatabank::CDatabank(
 	const string&			inScriptName,
 	const string&			inSection,
 	CDBBuildProgressMixin*	inProgress,
-	CCompressorFactory&		inCompressorFactory)
+	CCompressorFactory&		inCompressorFactory,
+	CLexicon&				inLexicon)
 	: fPath(inPath)
 	, fModificationTime(0)
 	, fDataFile(NULL)
@@ -513,7 +514,7 @@ CDatabank::CDatabank(
 	fFirstDocOffset = fDataFile->Tell();
 	(*fDocIndexData) << 0ULL;
 	
-	fIndexer = new CIndexer(inPath);
+	fIndexer = new CIndexer(inPath, inLexicon);
 
 	fInfoContainer = new CDbInfo;
 	
@@ -667,7 +668,6 @@ string CDatabank::GetDbName() const
 }
 
 void CDatabank::Finish(
-	CLexicon&	inLexicon,
 	bool		inCreateAllTextIndex,
 	bool		inCreateUpdateDatabank)
 {
@@ -703,8 +703,7 @@ void CDatabank::Finish(
 	fDataFile->Seek(0, SEEK_END);
 	
 	fIndexer->CreateIndex(*fDataFile, fHeader->index_offset, fHeader->index_size,
-		inLexicon, inCreateAllTextIndex, inCreateUpdateDatabank,
-		fProgress);
+		inCreateAllTextIndex, inCreateUpdateDatabank, fProgress);
 
 	auto_ptr<CIndex> idIndex(fIndexer->GetIndex("id"));
 	if (idIndex.get() != nil)
@@ -937,7 +936,9 @@ void CDatabank::Merge(vector<CDatabank*>& inParts, bool inCopyData)
 	// Merge indices
 	
 	fHeader->index_offset = fDataFile->Seek(0, SEEK_END);
-	CIndexer index(fPath);
+	
+	CLexicon dummy(false);
+	CIndexer index(fPath, dummy);
 	index.MergeIndices(*fDataFile, inParts);
 
 	fDataFile->Seek(0, SEEK_END);

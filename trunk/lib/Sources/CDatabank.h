@@ -194,8 +194,8 @@ class CDBBuildProgressMixin
 						int64		inProcessedRawText);
 
 	virtual void	SetCreateIndexProgress(
-						uint32		inCurrentLexEntry,
-						uint32		inTotalLexEntries);
+						int64		inCurrentLexEntry,
+						int64		inTotalLexEntries);
 			
 	virtual void	SetWritingIndexProgress(
 						uint32		inCurrentKey,
@@ -206,8 +206,8 @@ class CDBBuildProgressMixin
 	uint32			fProcessedDocuments;
 	int64			fProcessedRawText;
 	bool			fCreatingIndex;
-	uint32			fCurrentLexEntry;
-	uint32			fTotalLexEntries;
+	int64			fCurrentLexEntry;
+	int64			fTotalLexEntries;
 	uint32			fCurrentKey;
 	uint32			fKeyCount;
 	std::string		fIndexName;
@@ -231,7 +231,8 @@ class CDatabank : public CDatabankBase
 							const std::string&	inSection,
 							CDBBuildProgressMixin*
 												inProgress,
-							CCompressorFactory&	inCompressorFactory);
+							CCompressorFactory&	inCompressorFactory,
+							CLexicon&			inLexicon);
 					
 						~CDatabank();
 
@@ -296,7 +297,6 @@ class CDatabank : public CDatabankBase
 	void				AddXMLDocument(const std::string& inDoc);
 
 	void				Finish(
-							CLexicon&		inLexicon,
 							bool			inCreateAllTextIndex,
 							bool			inCreateUpdateDatabank);
 

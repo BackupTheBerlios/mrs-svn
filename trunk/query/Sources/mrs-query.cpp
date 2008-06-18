@@ -285,8 +285,6 @@ int main(int argc, const char* argv[])
 		q.PerformSearch(mrsDb, ix, alg, r.get(), max_output, true, qr, count);
 		r.reset(qr);
 	}
-//	else
-//		count = r->Count();
 	
 	realQueryTime = system_time() - now;
 	now = system_time();
@@ -298,12 +296,10 @@ int main(int argc, const char* argv[])
 	{
 		CStopwatch sw(printTime);
 
-		cout << "Found " << count << " hits, displaying the first " << min(max_output, count) << endl;
-		
 		stringstream s;
 		
-		uint32 n = max_output;
-		if (n > count)
+		uint32 n = max_output, n2 = 0;
+		if (n > count and count != 0)
 			n = count;
 
 		uint32 docNr;
@@ -311,11 +307,23 @@ int main(int argc, const char* argv[])
 
 		while (n-- > 0 and r->Next(docNr, score, false))
 		{
-			cout << mrsDb.GetDocumentID(docNr) << '\t'
-				 << setprecision(3) << score << '\t'
-				 << mrsDb.GetMetaData(docNr, "title")
-				 << endl;
+			s	<< mrsDb.GetDocumentID(docNr) << '\t'
+				<< setprecision(3) << score << '\t'
+				<< mrsDb.GetMetaData(docNr, "title")
+				<< endl;
+			++n2;
 		}
+		
+		if (count == 0)
+		{
+			count = n2;
+			while (r->Next(docNr, score, false))
+				++count;
+		}
+
+		cout << "Found " << count << " hits, displaying the first " << min(max_output, count) << endl
+			 << s.str()
+			 << endl;
 	}
 	else
 		cout << "No hits found" << endl;

@@ -60,22 +60,30 @@ class CDBBuildProgressMixin;
 class CIndexer
 {
   public:
-					CIndexer(const HUrl& inDb);
-					CIndexer(HStreamBase& inFile,
-						int64 inOffset, int64 inSize);
+					CIndexer(
+						const HUrl&			inDb,
+						CLexicon&			inLexicon);
+
+					CIndexer(
+						HStreamBase&		inFile,
+						int64				inOffset,
+						int64				inSize);
+
 	virtual			~CIndexer();
 	
-	void			CreateIndex(HStreamBase& data,
-						int64&			outOffset,
-						int64&			outSize,
-						CLexicon&		inLexicon,
-						bool			inCreateAllTextIndex,
-						bool			inCreateUpdateDatabank,
+	void			CreateIndex(
+						HStreamBase&		data,
+						int64&				outOffset,
+						int64&				outSize,
+						bool				inCreateAllTextIndex,
+						bool				inCreateUpdateDatabank,
 						CDBBuildProgressMixin*
-										inProgress);
+											inProgress);
 	
-	void			MergeIndices(HStreamBase& outData,
-						std::vector<CDatabank*>& inParts);
+	void			MergeIndices(
+						HStreamBase&		outData,
+						std::vector<CDatabank*>&
+											inParts);
 						
 	uint32			Count() const;
 	uint32			GetMaxWeight() const;	// max weight, depends on weight_bit_count
@@ -142,6 +150,7 @@ class CIndexer
 									fIndices;
 	CFullTextIndex*					fFullTextIndex;
 	uint16							fNextIndexID;
+	CLexicon*						fLexicon;
 
 	// for existing indices
 	HStreamBase*					fFile;
